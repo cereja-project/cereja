@@ -1,4 +1,5 @@
 import os
+import random
 
 
 def mkdir(path_dir: str):
@@ -27,3 +28,28 @@ def mkdir(path_dir: str):
         mkdir(dir_name_path)
     if not os.path.exists(path_dir):
         os.mkdir(path_dir)
+
+
+def tuples_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, to_random=False, key_sort_function=None):
+    """
+    returns data tuples based on the number of items entered for each tuple, follows the default order
+    if no sort function is sent
+
+    :param dir_path:
+    :param num_items_on_tuple:
+    :param ext_file:
+    :param to_random:
+    :param key_sort_function:
+    :return:
+    """
+    key_sort_function = {"key": key_sort_function} or {}
+    paths = sorted([i for i in os.listdir(dir_path) if ext_file in i], **key_sort_function)
+
+    tuples = []
+
+    for i in range(0, len(paths), num_items_on_tuple):
+        tuples.append((os.path.join(dir_path, p) for p in paths[i:i + num_items_on_tuple]))
+
+    if to_random:
+        random.shuffle(tuples)
+    return tuples
