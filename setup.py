@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="jlsneto",
-    version="0.0.1",
+    version="0.0.2",
     author="Joab Leite",
     author_email="jlsn1@ifal.edu.br",
     description="My Utils",
@@ -15,7 +15,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: GNU GENERAL PUBLIC LICENSE",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
