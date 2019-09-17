@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="jlsneto",
-    version="0.0.2",
+    version="0.0.3",
     author="Joab Leite",
     author_email="jlsn1@ifal.edu.br",
     description="My Utils",
