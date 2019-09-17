@@ -1,2 +1,2 @@
-from . import path as jlspath
+from . import path
 name = "jlsneto"
