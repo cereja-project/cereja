@@ -4,22 +4,22 @@ import random
 
 def mkdir(path_dir: str):
     """
-    Creates directory regardless of whether full path exists.
-    If a nonexistent path is entered the function will create the full path until it creates the requested directory.
+    Creates directory regardless of whether full jlsutils exists.
+    If a nonexistent jlsutils is entered the function will create the full jlsutils until it creates the requested directory.
     e.g:
     original structure
     content/
 
-    after create_dir(/content/path/to/my/dir)
+    after create_dir(/content/jlsutils/to/my/dir)
     content/
-        --path/
+        --jlsutils/
             --to/
                 --my/
                     --dir/
 
     It's a recursive function
 
-    :param path_dir: directory path
+    :param path_dir: directory jlsutils
     :return: None
     """
 
