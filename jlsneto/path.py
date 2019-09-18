@@ -42,13 +42,14 @@ def tuples_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, to_ra
     :param key_sort_function:
     :return:
     """
-    key_sort_function = {"key": key_sort_function} or {}
+    key_sort_function = {"key": key_sort_function} if key_sort_function else {}
     paths = sorted([i for i in os.listdir(dir_path) if ext_file in i], **key_sort_function)
 
     tuples = []
 
     for i in range(0, len(paths), num_items_on_tuple):
-        tuples.append((os.path.join(dir_path, p) for p in paths[i:i + num_items_on_tuple]))
+        batch = [os.path.join(dir_path, p) for p in paths[i:i + num_items_on_tuple]]
+        tuples.append(batch)
 
     if to_random:
         random.shuffle(tuples)
