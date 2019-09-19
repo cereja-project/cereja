@@ -1,7 +1,7 @@
 import unittest
 import logging
 
-from jlsneto.utils import group_items_in_batches
+from cereja.utils import group_items_in_batches
 
 logger = logging.getLogger(__name__)
 

@@ -1,27 +1,27 @@
 import os
 import random
 
-from jlsneto.utils import group_items_in_batches
+from cereja.utils import group_items_in_batches
 
 
 def mkdir(path_dir: str):
     """
-    Creates directory regardless of whether full jlsneto exists.
-    If a nonexistent jlsneto is entered the function will create the full jlsneto until it creates the requested directory.
+    Creates directory regardless of whether full cereja exists.
+    If a nonexistent cereja is entered the function will create the full cereja until it creates the requested directory.
     e.g:
     original structure
     content/
 
-    after create_dir(/content/jlsneto/to/my/dir)
+    after create_dir(/content/cereja/to/my/dir)
     content/
-        --jlsneto/
+        --cereja/
             --to/
                 --my/
                     --dir/
 
     It's a recursive function
 
-    :param path_dir: directory jlsneto
+    :param path_dir: directory cereja
     :return: None
     """
 
