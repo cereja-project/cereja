@@ -1,6 +1,8 @@
 import os
 import random
 
+from jlsneto.utils import group_items_in_batches
+
 
 def mkdir(path_dir: str):
     """
@@ -30,27 +32,28 @@ def mkdir(path_dir: str):
         os.mkdir(path_dir)
 
 
-def tuples_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, to_random=False, key_sort_function=None):
+def group_path_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, to_random: bool = False,
+                        key_sort_function=None):
     """
     returns data tuples based on the number of items entered for each tuple, follows the default order
     if no sort function is sent
 
-    :param dir_path:
-    :param num_items_on_tuple:
-    :param ext_file:
-    :param to_random:
-    :param key_sort_function:
+    :param dir_path: full path to dir
+    :param num_items_on_tuple: how much items have your tuple?
+    :param ext_file: is file extension to scan
+    :param to_random: randomize result
+    :param key_sort_function: function order items
     :return:
     """
     key_sort_function = {"key": key_sort_function} if key_sort_function else {}
-    paths = sorted([i for i in os.listdir(dir_path) if ext_file in i], **key_sort_function)
+    paths = sorted([os.path.join(dir_path, i) for i in os.listdir(dir_path) if ext_file in i], **key_sort_function)
 
-    tuples = []
-
-    for i in range(0, len(paths), num_items_on_tuple):
-        batch = [os.path.join(dir_path, p) for p in paths[i:i + num_items_on_tuple]]
-        tuples.append(batch)
+    batches = group_items_in_batches(items=paths, items_per_batch=num_items_on_tuple)
 
     if to_random:
-        random.shuffle(tuples)
-    return tuples
+        random.shuffle(batches)
+    return batches
+
+
+if __name__ == '__main__':
+    pass
