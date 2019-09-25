@@ -11,7 +11,7 @@ setuptools.setup(
     description="My Utils",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/cereja/cereja",
+    url="https://github.com/jlsneto/cereja",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

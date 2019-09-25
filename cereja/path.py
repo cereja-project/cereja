@@ -55,5 +55,29 @@ def group_path_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, t
     return batches
 
 
+def file_name(file_path: str, with_ext: bool = False) -> str:
+    """
+    Pass a path from a file and the file name will be returned
+
+    >>> file_name('/content/myfile.ext')
+    'myfile'
+    >>> file_name(file_path='/content/myfile.ext', with_ext=True)
+    'myfile.ext'
+
+    :param file_path: string with file path
+    :param with_ext: define if you want the file name with the extension
+    :return: the file name
+    """
+
+    if not isinstance(file_path, str):
+        raise TypeError('Path must be a string')
+
+    base_name = os.path.basename(file_path)
+    if with_ext:
+        return base_name
+    f_name, _ = base_name.rsplit('.', 1)
+    return f_name
+
+
 if __name__ == '__main__':
     pass
