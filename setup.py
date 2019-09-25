@@ -8,7 +8,7 @@ EXCLUDE_FROM_PACKAGES = ('cereja.tests'
 
 setuptools.setup(
     name="cereja",
-    version="0.1.2",
+    version="0.1.3",
     author="Joab Leite",
     author_email="jlsn1@ifal.edu.br",
     description="My Utils",
