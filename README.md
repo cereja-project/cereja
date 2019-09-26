@@ -1,5 +1,9 @@
 # Cereja
 
+<div align="center">
+ <img src="https://i.ibb.co/dp8rZ3F/cereja-logo.png">
+</div>
+
 *Cereja is a bundle of useful functions that I don't want to rewrite.*
 
 How many times have you needed to rewrite that function or base class? Well, I thought then of joining all my lines of code, little by little, in one place.
