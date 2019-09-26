@@ -61,7 +61,7 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
         raise TypeError("Send iterable except string.")
 
     try:
-        return sorted(set(items), key=items.index)
+        return list(dict.fromkeys(items))
     except TypeError:
         return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
 
