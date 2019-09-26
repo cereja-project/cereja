@@ -1,4 +1,20 @@
+from typing import Iterable, Union, Tuple, Optional
 from typing import Any, List
+
+T = Union[int, float, str]
+
+
+def is_iterable(obj: Any) -> bool:
+    """
+    Return whether an object is iterable or not.
+
+    :param obj: Any object for check
+    """
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    return True
 
 
 def group_items_in_batches(items: List[Any], items_per_batch: int = 0) -> List[List[Any]]:
@@ -23,3 +39,32 @@ def group_items_in_batches(items: List[Any], items_per_batch: int = 0) -> List[L
         batch = [group for group in items[i:i + items_per_batch]]
         batches.append(batch)
     return batches
+
+
+def remove_duplicate_items(items: Optional[list]) -> Any:
+    """
+    remove duplicate items in an item list or duplicate items list of list
+
+    e.g usage:
+    >>> remove_duplicate_items([1,2,1,2,1])
+    [1, 2]
+    >>> remove_duplicate_items(['hi', 'hi', 'ih'])
+    ['hi', 'ih']
+
+    >>> remove_duplicate_items([['hi'], ['hi'], ['ih']])
+    [['hi'], ['ih']]
+    >>> remove_duplicate_items([[1,2,1,2,1], [1,2,1,2,1], [1,2,1,2,3]])
+    [[1, 2, 1, 2, 1], [1, 2, 1, 2, 3]]
+    """
+    # TODO: improve function
+    if not is_iterable(items) or isinstance(items, str):
+        raise TypeError("Send iterable except string.")
+
+    try:
+        return sorted(set(items), key=items.index)
+    except TypeError:
+        return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
+
+
+if __name__ == "__main__":
+    pass
