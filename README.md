@@ -2,7 +2,7 @@
 
 *Cereja is a bundle of useful functions that I don't want to rewrite.*
 
-How many times have you needed to rewrite that function or base class? Well, I thought then of joining all my lines of code, little by little, in one place.
+How many times have you needed to rewrite that function or base class? Well, I thought then of joining all my lines of code, bit by bit, in one place.
 
 Not well structured yet :( ... But you can help me !!!
 
