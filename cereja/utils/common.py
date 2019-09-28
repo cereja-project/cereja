@@ -1,7 +1,15 @@
-from typing import Iterable, Union, Tuple, Optional
+from typing import Union, Optional
 from typing import Any, List
+import logging
+import sys
 
 T = Union[int, float, str]
+
+logger = logging.getLogger(__name__)
+logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+consoleHandler = logging.StreamHandler(sys.stdout)
+logger.addHandler(consoleHandler)
+logger.setLevel(logging.DEBUG)
 
 
 def is_iterable(obj: Any) -> bool:

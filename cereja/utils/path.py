@@ -1,7 +1,7 @@
 import os
 import random
 
-from cereja.utils import group_items_in_batches
+from .common import group_items_in_batches
 
 
 def mkdir(path_dir: str):
