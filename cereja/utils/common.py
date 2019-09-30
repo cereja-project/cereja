@@ -29,6 +29,12 @@ def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any
     """
     Responsible for grouping items in batch taking into account the quantity of items per batch
 
+    e.g.
+    >>> group_items_in_batches(items=[1,2,3,4], items_per_batch=3)
+    [[1, 2, 3], [4]]
+    >>> group_items_in_batches(items=[1,2,3,4], items_per_batch=3, fill=0)
+    [[1, 2, 3], [4, 0, 0]]
+
     :param items: list of any values
     :param items_per_batch: number of items per batch
     :param fill: fill examples when items is not divisible by items_per_batch, default is None
@@ -42,7 +48,7 @@ def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any
     if items_per_batch == 0:
         return items
 
-    if fill:
+    if fill is not None:
         missing = items_per_batch - items_length % items_per_batch
         items += missing * [fill]
 

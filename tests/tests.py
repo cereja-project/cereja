@@ -12,12 +12,12 @@ class UtilsTestCase(unittest.TestCase):
         tests = [([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
                  ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
                  ([1, 2, 3, 4, 5, 6], 0, [1, 2, 3, 4, 5, 6]),
-                 ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 5, 5]]),
+                 ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 0, 0]]),
                  ]
 
         for test_value, items_per_batch, expected_value in tests:
             msg = f"""Test failed for values {test_value}"""
-            result = group_items_in_batches(test_value, items_per_batch, 5)
+            result = group_items_in_batches(test_value, items_per_batch, 0)
             self.assertEqual(result, expected_value, msg)
 
         tests_raise = [([1, 2, 3, 4, 5, 6], -1, ValueError),

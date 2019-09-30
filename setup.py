@@ -1,5 +1,7 @@
 import setuptools
 
+VERSION = "0.1.7"
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -8,7 +10,7 @@ EXCLUDE_FROM_PACKAGES = ('cereja.tests'
 
 setuptools.setup(
     name="cereja",
-    version="0.1.6",
+    version=VERSION,
     author="Joab Leite",
     author_email="jlsn1@ifal.edu.br",
     description="My Utils",
