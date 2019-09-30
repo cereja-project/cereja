@@ -25,12 +25,13 @@ def is_iterable(obj: Any) -> bool:
     return True
 
 
-def group_items_in_batches(items: List[Any], items_per_batch: int = 0) -> List[List[Any]]:
+def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any = None) -> List[List[Any]]:
     """
     Responsible for grouping items in batch taking into account the quantity of items per batch
 
     :param items: list of any values
     :param items_per_batch: number of items per batch
+    :param fill: fill examples when items is not divisible by items_per_batch, default is None
     :return:
     """
     items_length = len(items)
@@ -40,6 +41,10 @@ def group_items_in_batches(items: List[Any], items_per_batch: int = 0) -> List[L
         raise ValueError(f"Value for items_per_batch is not valid. I need a number integer between 0 and {len(items)}")
     if items_per_batch == 0:
         return items
+
+    if fill:
+        missing = items_per_batch - items_length % items_per_batch
+        items += missing * [fill]
 
     batches = []
 
