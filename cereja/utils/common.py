@@ -85,5 +85,37 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
         return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
 
 
+class Freq(dict):
+    """
+    Is still under development
+
+    >>> freq = Freq([1,2,3,3,4,5,6,7,6,7,12,31,123,5,3])
+    {3: 3, 5: 2, 6: 2, 7: 2, 1: 1, 2: 1, 4: 1, 12: 1, 31: 1, 123: 1}
+    >>> freq.add_item(3)
+    {3: 4, 5: 3, 6: 2, 7: 2, 1: 1, 2: 1, 4: 1, 12: 1, 31: 1, 123: 1}
+
+    >>> freq_str = Freq('My car is red I like red color'.split())
+    {'red': 2, 'My': 1, 'car': 1, 'is': 1, 'I': 1, 'like': 1, 'color': 1}
+    """
+
+    def __init__(self, items):
+        super().__init__(self.freq_items(items))
+
+    def __repr__(self):
+        return super().__repr__()
+
+    @staticmethod
+    def freq_items(items: list):
+        values = {item: items.count(item) for item in items}
+        return {i: values[i] for i in sorted(values, key=values.get, reverse=True)}
+
+    def add_item(self, item):
+        value = self.get(item)
+        if value:
+            self[item] = value + 1
+        else:
+            self[item] = 1
+
+
 if __name__ == "__main__":
     pass
