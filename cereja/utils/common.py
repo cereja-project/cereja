@@ -87,7 +87,7 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
 
 class Freq(dict):
     """
-    Is still under development
+    It's still under development
 
     >>> freq = Freq([1,2,3,3,4,5,6,7,6,7,12,31,123,5,3])
     {3: 3, 5: 2, 6: 2, 7: 2, 1: 1, 2: 1, 4: 1, 12: 1, 31: 1, 123: 1}
@@ -111,11 +111,11 @@ class Freq(dict):
 
     def add_item(self, item):
         value = self.get(item)
-        if value:
-            self[item] = value + 1
-        else:
-            self[item] = 1
+        self[item] = value + 1 if value else 1
 
+    def remove_item(self, item):
+        value = self.get(item)
+        self[item] = value - 1 if value else 0
 
 if __name__ == "__main__":
     pass
