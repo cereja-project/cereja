@@ -93,6 +93,8 @@ class Freq(dict):
     {3: 3, 5: 2, 6: 2, 7: 2, 1: 1, 2: 1, 4: 1, 12: 1, 31: 1, 123: 1}
     >>> freq.add_item(3)
     {3: 4, 5: 3, 6: 2, 7: 2, 1: 1, 2: 1, 4: 1, 12: 1, 31: 1, 123: 1}
+    >>> freq.most_freq(4)
+    {3: 3, 5: 2, 6: 2, 7: 2}
 
     >>> freq_str = Freq('My car is red I like red color'.split())
     {'red': 2, 'My': 1, 'car': 1, 'is': 1, 'I': 1, 'like': 1, 'color': 1}
@@ -104,18 +106,31 @@ class Freq(dict):
     def __repr__(self):
         return super().__repr__()
 
-    @staticmethod
-    def freq_items(items: list):
+    def freq_items(self, items: list, reverse=True):
         values = {item: items.count(item) for item in items}
-        return {i: values[i] for i in sorted(values, key=values.get, reverse=True)}
+        return self.sort_and_limit(values, len(values), reverse)
 
     def add_item(self, item):
         value = self.get(item)
         self[item] = value + 1 if value else 1
 
     def remove_item(self, item):
-        value = self.get(item)
-        self[item] = value - 1 if value else 0
+        value = self[item]
+        self[item] = value - 1
+        if not self[item]:
+            self.pop(item)
+
+    @staticmethod
+    def sort_and_limit(values: dict, max_items: int, reverse=True) -> dict:
+        max_items = len(values) if max_items > len(values) else max_items
+        return {item: values[item] for i, item in enumerate(sorted(values, key=values.get, reverse=reverse)) if
+                i < max_items}
+
+    def most_freq(self, max_items: int):
+        assert max_items < len(
+            self), "Not possible, because the maximum value taked is greater than the number of items."
+        return self.sort_and_limit(self, max_items, True)
+
 
 if __name__ == "__main__":
     pass
