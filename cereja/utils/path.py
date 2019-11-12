@@ -45,8 +45,12 @@ def group_path_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, t
     :param key_sort_function: function order items
     :return:
     """
+    
+    if '.' not in ext_file:
+        ext_file = '.'+ext_file
+        
     key_sort_function = {"key": key_sort_function} if key_sort_function else {}
-    paths = sorted([os.path.join(dir_path, i) for i in os.listdir(dir_path) if ext_file in i], **key_sort_function)
+    paths = sorted([os.path.join(dir_path, i) for i in os.listdir(dir_path) if ext_file == os.path.splitext(i)[1]], **key_sort_function)
 
     batches = group_items_in_batches(items=paths, items_per_batch=num_items_on_tuple)
 
