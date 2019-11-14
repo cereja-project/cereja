@@ -115,10 +115,11 @@ class Freq(dict):
         self[item] = value + 1 if value else 1
 
     def remove_item(self, item):
-        value = self[item]
-        self[item] = value - 1
-        if not self[item]:
-            self.pop(item)
+        value = self[item] - 1
+        if value:
+            self[item] = value
+        else:
+            del self[item]
 
     @staticmethod
     def sort_and_limit(values: dict, max_items: int, reverse=True) -> dict:
