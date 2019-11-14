@@ -1,4 +1,8 @@
 # Cereja
+[![HitCount](http://hits.dwyl.io/jlsneto/cereja.svg)](http://hits.dwyl.io/jlsneto/cereja)
+[![MIT LICENSE](https://img.shields.io/pypi/l/pyzipcode-cli.svg)](LICENSE.md)
+[![Issues](https://camo.githubusercontent.com/926d8ca67df15de5bd1abac234c0603d94f66c00/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f636f6e747269627574696f6e732d77656c636f6d652d627269676874677265656e2e7376673f7374796c653d666c6174)](https://github.com/jlsneto/cereja/issues)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jlsneto/cereja/blob/master/docs/cereja_example.ipynb)
 
 <div align="center">
  <img src="https://i.ibb.co/dp8rZ3F/cereja-logo.png">
@@ -33,6 +37,7 @@ python3 -m pip install cereja
 
 ### Cereja Example usage
 [Jupyter Notebook on Colab](/docs/cereja_example.ipynb)
+
 ## License
 
-This project is licensed under the GNU License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
