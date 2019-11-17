@@ -99,7 +99,7 @@ class Freq(dict):
     >>> freq.most_freq(4)
     {3: 3, 5: 2, 6: 2, 7: 2}
 
-    >>> freq.less_freq(1)
+    >>> freq.least_freq(1)
     {123: 1}
 
     >>> freq_str = Freq('My car is red I like red color'.split())
@@ -163,7 +163,7 @@ class Freq(dict):
         most = list(self)[:max_items]
         return self._get_dict_from_keys(most)
 
-    def less_freq(self, max_items: int):
+    def least_freq(self, max_items: int):
         self._verify_query(max_items=max_items)
         less = list(self)[-max_items:]
         return self._get_dict_from_keys(less)
