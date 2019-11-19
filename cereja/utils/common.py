@@ -1,4 +1,4 @@
-from typing import Any, List, Iterable, Union, Optional
+from typing import Any, List, Union, Optional, Sequence
 import logging
 import sys
 
@@ -86,7 +86,8 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
 
 class ConvertDictError(Exception): pass
 
-class Freq(dict):
+
+class Freq:
     """
     [!] It's still under development [!]
 
@@ -106,20 +107,29 @@ class Freq(dict):
     {'red': 2, 'My': 1, 'car': 1, 'is': 1, 'I': 1, 'like': 1, 'color': 1}
     """
 
-    def __init__(self, items: Iterable[Any]):
-
-        if not is_iterable(items):
+    def __init__(self, data: list):
+        if not is_iterable(data):
             raise ValueError("The data you entered is not valid! Please give me iterable data.")
 
-        data = self._to_dict(items)
-        freq = self.sort_and_limit(data, len(data))
-        super().__init__(freq)
+        self.data = data
+        self.freq = self._freq(len(self.data))
+
+    def __len__(self):
+        return len(self.data)
 
     def __repr__(self):
-        return super().__repr__()
+        return self.freq.__repr__()
 
-    def _get_dict_from_keys(self, keys: list):
-        return {item: self[item] for item in keys}
+    def _freq(self, max_items: int = None):
+        try:
+            max_items = max_items or len(self.data)
+            values = {item: self.data.count(item) for item in self.data}
+            max_items = len(self.data) if max_items > len(self.data) else max_items
+            freq = {item: values[item] for i, item in enumerate(sorted(values, key=values.get, reverse=True)) if
+                    i < max_items}
+        except Exception as err:
+            raise ConvertDictError("Cannot convert data to dictionary")
+        return freq
 
     def _verify_query(self, **kwargs):
         max_items = kwargs.get('max_items')
@@ -130,43 +140,33 @@ class Freq(dict):
             assert max_items < len(
                 self), "Not possible, because the maximum value taked is greater than the number of items."
 
-    def _to_dict(self, items):
-        try:
-            values = {item: items.count(item) for item in items}
-        except Exception as err:
-            raise ConvertDictError("Cannot convert data to dictionary")
-        return values
+    def _get_dict_from_keys(self, keys: list):
+        return {item: self.freq[item] for item in keys}
 
-    @property
-    def length(self):
-        return len(self)
-    
-    @staticmethod
-    def sort_and_limit(values: dict, max_items: int, reverse=True) -> dict:
-        max_items = len(values) if max_items > len(values) else max_items
-        return {item: values[item] for i, item in enumerate(sorted(values, key=values.get, reverse=reverse)) if
-                i < max_items}
+    def item(self, item):
+        return self.freq[item]
 
-    def add_item(self, item):
-        value = self.get(item)
-        self[item] = value + 1 if value else 1
-
-    def remove_item(self, item):
-        value = self[item] - 1
-        if value:
-            self[item] = value
-        else:
-            del self[item]
-            
     def most_freq(self, max_items: int):
         self._verify_query(max_items=max_items)
-        most = list(self)[:max_items]
+        most = list(self.freq)[:max_items]
         return self._get_dict_from_keys(most)
 
     def least_freq(self, max_items: int):
         self._verify_query(max_items=max_items)
-        less = list(self)[-max_items:]
+        less = list(self.freq)[-max_items:]
         return self._get_dict_from_keys(less)
+
+    def add_item(self, item):
+        self.data.append(item)
+        self.freq = self._freq()
+
+    def remove_item(self, item):
+        self.data.remove(item)
+        self.freq = self._freq()
+
+    def items(self):
+        return self.freq.items()
+
 
 if __name__ == "__main__":
     pass
