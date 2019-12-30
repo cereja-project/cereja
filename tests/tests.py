@@ -1,7 +1,7 @@
 import unittest
 import logging
 
-from cereja.utils.common import group_items_in_batches, is_iterable, remove_duplicate_items
+from cereja.utils.common import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,15 @@ class UtilsTestCase(unittest.TestCase):
         for test_value, items_per_batch, expected_error in tests_raise:
             self.assertRaises(expected_error, group_items_in_batches, test_value, items_per_batch)
 
-
     def test_is_iterable(self):
         self.assertFalse(is_iterable(1))
         self.assertTrue(is_iterable('hi'))
         self.assertTrue(is_iterable([]))
+
+    def test_theta_angle(self):
+        u = (2, 2)
+        v = (0, -2)
+        self.assertEqual(theta_angle(u, v), 135.0)
 
     def test_remove_duplicate_items(self):
         test_values_sample_list = [([1, 2, 1, 2, 1], [1, 2]),
@@ -47,6 +51,7 @@ class UtilsTestCase(unittest.TestCase):
 
         for test_value, expected_value in test_values_list_of_list:
             self.assertEqual(remove_duplicate_items(test_value), expected_value)
+
 
 if __name__ == '__main__':
     unittest.main()
