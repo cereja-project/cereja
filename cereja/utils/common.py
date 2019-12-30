@@ -1,4 +1,5 @@
-from typing import Any, List, Union, Optional, Sequence
+from typing import Any, List, Union, Optional, Sequence, Tuple
+import math
 import logging
 import sys
 
@@ -9,6 +10,21 @@ logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelnam
 consoleHandler = logging.StreamHandler(sys.stdout)
 logger.addHandler(consoleHandler)
 logger.setLevel(logging.DEBUG)
+
+
+def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
+    """
+    Calculates and returns theta angle between two vectors
+
+    e.g usage:
+    >>> u = (2,2)
+    >>> v = (0, -2)
+    >>> theta_angle(u, v)
+    135.0
+    """
+    x1, y1 = u
+    x2, y2 = v
+    return math.degrees(math.acos((x1 * x2 + y1 * y2) / (math.sqrt(x1 ** 2 + y1 ** 2) * math.sqrt(x2 ** 2 + y2 ** 2))))
 
 
 def is_iterable(obj: Any) -> bool:
