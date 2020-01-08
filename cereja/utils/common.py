@@ -1,4 +1,4 @@
-from typing import Any, List, Union, Optional, Sequence, Tuple
+from typing import Any, List, Union, Optional, Sequence, Tuple, Iterable
 import math
 import logging
 import sys
@@ -100,6 +100,30 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
         return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
 
 
+def flatten(sequence: Sequence[Any]) -> List[Any]:
+    """
+    Receives values, whether arrays of values, regardless of their shape and flatness
+    :param sequence: Is sequence value except string.
+    :return: flattened array
+
+    >>> sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
+    >>> flatten(sequence)
+    [1, 2, 3, 2, 3, 4, 6]
+    """
+    if not is_iterable(sequence) or isinstance(sequence, str):
+        raise TypeError("Send a sequence of values.")
+
+    flattened = []
+    for obj in sequence:
+        if is_iterable(obj):
+            recursive_flattened = flatten(obj)
+            for i in recursive_flattened:
+                flattened.append(i)
+        else:
+            flattened.append(obj)
+    return flattened
+
+
 class ConvertDictError(Exception): pass
 
 
@@ -185,4 +209,5 @@ class Freq:
 
 
 if __name__ == "__main__":
-    pass
+    v = [[1, 2, 3], [], [[2, [3], 4], 6]]
+    print(flatten(v))
