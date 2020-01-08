@@ -1,3 +1,2 @@
-from . import utils
+from .utils import *
 name = "cereja"
-__all__ = ['utils']
