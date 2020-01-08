@@ -209,5 +209,4 @@ class Freq:
 
 
 if __name__ == "__main__":
-    v = [[1, 2, 3], [], [[2, [3], 4], 6]]
-    print(flatten(v))
+    pass
