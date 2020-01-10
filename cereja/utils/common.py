@@ -26,7 +26,6 @@ def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
     x2, y2 = v
     return math.degrees(math.acos((x1 * x2 + y1 * y2) / (math.sqrt(x1 ** 2 + y1 ** 2) * math.sqrt(x2 ** 2 + y2 ** 2))))
 
-
 def is_iterable(obj: Any) -> bool:
     """
     Return whether an object is iterable or not.
@@ -38,7 +37,6 @@ def is_iterable(obj: Any) -> bool:
     except TypeError:
         return False
     return True
-
 
 def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any = None) -> List[List[Any]]:
     """
@@ -100,6 +98,16 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
         return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
 
 
+def is_sequence(obj: Any) -> bool:
+    """
+    Return whether an object a Sequence or not, exclude strings.
+
+    :param obj: Any object for check
+    """
+    if isinstance(obj, str):
+        return False
+    return is_iterable(obj)
+
 def flatten(sequence: Sequence[Any]) -> List[Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
@@ -110,12 +118,12 @@ def flatten(sequence: Sequence[Any]) -> List[Any]:
     >>> flatten(sequence)
     [1, 2, 3, 2, 3, 4, 6]
     """
-    if not is_iterable(sequence) or isinstance(sequence, str):
-        raise TypeError("Send a sequence of values.")
-
+    if not is_sequence(sequence):
+        return sequence
+    
     flattened = []
     for obj in sequence:
-        if is_iterable(obj):
+        if is_sequence(obj):
             recursive_flattened = flatten(obj)
             for i in recursive_flattened:
                 flattened.append(i)
