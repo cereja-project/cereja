@@ -1,7 +1,10 @@
 import os
 import random
+from typing import List
 
-from .common import group_items_in_batches
+from cereja.utils.common import group_items_in_batches
+
+__all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir']
 
 
 def mkdir(path_dir: str):
@@ -45,12 +48,13 @@ def group_path_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, t
     :param key_sort_function: function order items
     :return:
     """
-    
+
     if '.' not in ext_file:
-        ext_file = '.'+ext_file
-        
+        ext_file = '.' + ext_file
+
     key_sort_function = {"key": key_sort_function} if key_sort_function else {}
-    paths = sorted([os.path.join(dir_path, i) for i in os.listdir(dir_path) if ext_file == os.path.splitext(i)[1]], **key_sort_function)
+    paths = sorted([os.path.join(dir_path, i) for i in os.listdir(dir_path) if ext_file == os.path.splitext(i)[1]],
+                   **key_sort_function)
 
     batches = group_items_in_batches(items=paths, items_per_batch=num_items_on_tuple)
 
@@ -79,8 +83,12 @@ def file_name(file_path: str, with_ext: bool = False) -> str:
     base_name = os.path.basename(file_path)
     if with_ext:
         return base_name
-    f_name, _ = base_name.rsplit('.', 1)
+    f_name, _ = os.path.splitext(base_name)
     return f_name
+
+
+def listdir(path: str, full_path: bool = True, ext: str = None) -> List[str]:
+    return [os.path.join(path, p) if full_path else p for p in os.listdir(path) if os.path.splitext(p)[1] == ext]
 
 
 if __name__ == '__main__':

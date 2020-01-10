@@ -3,6 +3,8 @@ from typing import Callable, Any
 
 from cereja.utils.common import logger
 
+__all__ = ['time_exec']
+
 
 def time_exec(func: Callable[[Any], Any]) -> Any:
     """
