@@ -35,5 +35,5 @@ for lib_name in required_libs:
 
 dist = os.path.join(base_dir, "dist")
 
-subprocess.run(f"{sys.executable} {setup_file} sdist bdist")
-#subprocess.run(f"{sys.executable} -m twine upload {dist}{os.path.sep}*")
+subprocess.run(f"{sys.executable} {setup_file} sdist bdist_wheel")
+subprocess.run(f"{sys.executable} -m twine upload {dist}{os.path.sep}*")
