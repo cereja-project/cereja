@@ -2,6 +2,8 @@ import subprocess
 import importlib
 import sys
 
+__all__ = ['install_if_not']
+
 
 def install_if_not(lib_name: str):
     try:

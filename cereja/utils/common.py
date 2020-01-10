@@ -1,8 +1,10 @@
-from typing import Any, List, Union, Optional, Sequence, Tuple, Iterable
+from typing import Any, List, Union, Optional, Sequence, Tuple
 import math
 import logging
 import sys
 
+__all__ = ['theta_angle', 'is_iterable', 'group_items_in_batches', 'remove_duplicate_items', 'is_sequence', 'flatten',
+           'Freq']
 T = Union[int, float, str]
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,7 @@ def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
     x2, y2 = v
     return math.degrees(math.acos((x1 * x2 + y1 * y2) / (math.sqrt(x1 ** 2 + y1 ** 2) * math.sqrt(x2 ** 2 + y2 ** 2))))
 
+
 def is_iterable(obj: Any) -> bool:
     """
     Return whether an object is iterable or not.
@@ -37,6 +40,7 @@ def is_iterable(obj: Any) -> bool:
     except TypeError:
         return False
     return True
+
 
 def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any = None) -> List[List[Any]]:
     """
@@ -108,7 +112,8 @@ def is_sequence(obj: Any) -> bool:
         return False
     return is_iterable(obj)
 
-def flatten(sequence: Sequence[Any]) -> List[Any]:
+
+def flatten(sequence: Sequence[Any]) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
     :param sequence: Is sequence value except string.
@@ -120,7 +125,7 @@ def flatten(sequence: Sequence[Any]) -> List[Any]:
     """
     if not is_sequence(sequence):
         return sequence
-    
+
     flattened = []
     for obj in sequence:
         if is_sequence(obj):
