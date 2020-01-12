@@ -113,7 +113,7 @@ def is_sequence(obj: Any) -> bool:
     return is_iterable(obj)
 
 
-def flatten(sequence: Sequence[Any]) -> Union[List[Any], Any]:
+def flatten(sequence: Sequence[Any], max_recursion: int = -1) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
     :param sequence: Is sequence value except string.
@@ -123,13 +123,16 @@ def flatten(sequence: Sequence[Any]) -> Union[List[Any], Any]:
     >>> flatten(sequence)
     [1, 2, 3, 2, 3, 4, 6]
     """
+    if not isinstance(max_recursion, int):
+        raise TypeError(f"Value for max_recursion is not valid. Please send integer.")
+
     if not is_sequence(sequence):
         return sequence
 
     flattened = []
     for obj in sequence:
-        if is_sequence(obj):
-            recursive_flattened = flatten(obj)
+        if is_sequence(obj) and max_recursion:
+            recursive_flattened = flatten(obj, max_recursion-1)
             for i in recursive_flattened:
                 flattened.append(i)
         else:
