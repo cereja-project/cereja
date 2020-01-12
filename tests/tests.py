@@ -1,7 +1,8 @@
 import unittest
 import logging
 
-from cereja.utils.common import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle
+from cereja.utils.common import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
+    is_sequence
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,21 @@ class UtilsTestCase(unittest.TestCase):
 
         for test_value, expected_value in test_values_list_of_list:
             self.assertEqual(remove_duplicate_items(test_value), expected_value)
+
+    def test_flatten(self):
+        sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
+        expected_value = [1, 2, 3, 2, 3, 4, 6]
+        self.assertEqual(flatten(sequence), expected_value)
+
+        max_recursion = 2
+        expected_value = [1, 2, 3, 2, [3], 4, 6]
+        self.assertEqual(flatten(sequence, max_recursion=max_recursion), expected_value)
+
+    def test_is_sequence(self):
+        sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
+        self.assertTrue(is_sequence(sequence))
+
+        self.assertFalse(is_sequence('hi cereja'))
 
 
 if __name__ == '__main__':
