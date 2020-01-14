@@ -1,7 +1,7 @@
 import time
 from typing import Callable, Any
 
-from cereja.utils.common import logger
+from cereja.common import logger
 
 __all__ = ['time_exec']
 

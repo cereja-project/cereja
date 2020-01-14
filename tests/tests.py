@@ -1,7 +1,7 @@
 import unittest
 import logging
 
-from cereja.utils.common import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
+from cereja.common import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
     is_sequence
 
 logger = logging.getLogger(__name__)
