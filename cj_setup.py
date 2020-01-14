@@ -6,8 +6,9 @@ import os
 base_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(base_dir)
 setup_file = os.path.join(base_dir, 'setup.py')
+conf_file = os.path.join(base_dir, 'cereja', 'conf.py')
 
-with open(setup_file, 'r') as f:
+with open(conf_file, 'r') as f:
     lines = f.readlines()
     for i, line in enumerate(lines):
         if "VERSION = " in line:
@@ -25,7 +26,7 @@ with open(setup_file, 'r') as f:
             version = f'{version_base}.{version_middle}.{version_end}'
             lines[i] = f'VERSION = "{version}"\n'
 
-with open(setup_file, 'w') as f:
+with open(conf_file, 'w') as f:
     f.writelines(lines)
 
 required_libs = ["setuptools", "wheel", "twine"]
@@ -35,5 +36,5 @@ for lib_name in required_libs:
 
 dist = os.path.join(base_dir, "dist")
 
-subprocess.run(f"{sys.executable} {setup_file} sdist bdist_wheel")
-subprocess.run(f"{sys.executable} -m twine upload {dist}{os.path.sep}*")
+subprocess.run([f"{sys.executable}", {setup_file}, "sdist bdist_wheel"])
+subprocess.run([f"{sys.executable}", "-m", "twine", "upload", f"{dist}{os.path.sep}*"])

@@ -1,17 +1,9 @@
 from typing import Any, List, Union, Optional, Sequence, Tuple
 import math
-import logging
-import sys
 
 __all__ = ['theta_angle', 'is_iterable', 'group_items_in_batches', 'remove_duplicate_items', 'is_sequence', 'flatten',
            'Freq']
 T = Union[int, float, str]
-
-logger = logging.getLogger(__name__)
-logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
-consoleHandler = logging.StreamHandler(sys.stdout)
-logger.addHandler(consoleHandler)
-logger.setLevel(logging.DEBUG)
 
 
 def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:

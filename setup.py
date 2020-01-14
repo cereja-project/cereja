@@ -1,6 +1,6 @@
 import setuptools
 
-VERSION = "0.2.6"
+import cereja
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -10,7 +10,7 @@ EXCLUDE_FROM_PACKAGES = ('cereja.tests'
 
 setuptools.setup(
     name="cereja",
-    version=VERSION,
+    version=cereja.VERSION,
     author="Joab Leite",
     author_email="jlsn1@ifal.edu.br",
     description="Cereja is a bundle of useful functions that I don't want to rewrite.",
