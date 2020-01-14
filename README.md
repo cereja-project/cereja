@@ -36,7 +36,7 @@ python3 -m pip install cereja
 > Note: If you are using Windows, you do not need to use python3, but make sure your python path settings are correct. 
 
 ### Cereja Example usage
-[Jupyter Notebook on Colab](/docs/cereja_example.ipynb)
+[Jupyter Notebook on Colab](https://colab.research.google.com/github/jlsneto/cereja/blob/master/docs/cereja_example.ipynb)
 
 ## License
 

@@ -13,7 +13,7 @@ setuptools.setup(
     version=VERSION,
     author="Joab Leite",
     author_email="jlsn1@ifal.edu.br",
-    description="My Utils",
+    description="Cereja is a bundle of useful functions that I don't want to rewrite.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/jlsneto/cereja",
