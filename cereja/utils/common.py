@@ -129,7 +129,7 @@ def flatten(sequence: Sequence[Any], max_recursion: int = -1) -> Union[List[Any]
     [1, 2, 3, 2, [3], 4, 6]
     """
     if not isinstance(max_recursion, int):
-        raise TypeError(f"Value for max_recursion is not valid. Please send integer.")
+        raise TypeError(f"Type {type(max_recursion)} is not valid for max_recursion. Please send integer.")
 
     if not is_sequence(sequence):
         return sequence
