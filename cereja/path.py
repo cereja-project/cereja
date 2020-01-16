@@ -1,7 +1,6 @@
 import os
 import random
 from typing import List
-
 from cereja.common import group_items_in_batches
 
 __all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir']
@@ -87,8 +86,15 @@ def file_name(file_path: str, with_ext: bool = False) -> str:
     return f_name
 
 
-def listdir(path: str, full_path: bool = True, ext: str = None) -> List[str]:
-    return [os.path.join(path, p) if full_path else p for p in os.listdir(path) if os.path.splitext(p)[1] == ext]
+def listdir(path: str, only_relative_path: bool = False) -> List[str]:
+    """
+    Extension of the listdir function of module os.
+
+    The difference is that by default it returns the absolute path, but you can still only request the relative path by
+    setting only_relative_path to True.
+
+    """
+    return [os.path.join(path, p) if not only_relative_path else p for p in os.listdir(path)]
 
 
 if __name__ == '__main__':
