@@ -1,9 +1,12 @@
+from functools import reduce
 from typing import Any, List, Union, Optional, Sequence, Tuple
 import math
 
 __all__ = ['theta_angle', 'is_iterable', 'group_items_in_batches', 'remove_duplicate_items', 'is_sequence', 'flatten',
-           'Freq']
+           'Freq', 'prod']
+
 T = Union[int, float, str]
+Number = Union[float, int, complex]
 
 
 def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
@@ -19,6 +22,22 @@ def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
     x1, y1 = u
     x2, y2 = v
     return math.degrees(math.acos((x1 * x2 + y1 * y2) / (math.sqrt(x1 ** 2 + y1 ** 2) * math.sqrt(x2 ** 2 + y2 ** 2))))
+
+
+def prod(sequence: Sequence[Number]) -> Number:
+    """
+    Calculates the product of the values.
+
+    This function is intended specifically for use with numeric values and may
+    reject non-numeric types.
+
+    :param sequence: Is a sequence of numbers.
+    :return:
+    """
+    if not is_sequence(sequence):
+        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+
+    return reduce((lambda x, y: x * y), sequence)
 
 
 def is_iterable(obj: Any) -> bool:
@@ -96,16 +115,17 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
 
 def is_sequence(obj: Any) -> bool:
     """
-    Return whether an object a Sequence or not, exclude strings.
+    Return whether an object a Sequence or not, exclude strings and empty obj.
 
     :param obj: Any object for check
     """
-    if isinstance(obj, str):
+    if isinstance(obj, str) or not obj:
         return False
+
     return is_iterable(obj)
 
 
-def flatten(sequence: Sequence[Any], max_recursion: int = -1) -> Union[List[Any], Any]:
+def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
     :param sequence: Is sequence of values.
