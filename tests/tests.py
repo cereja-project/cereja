@@ -103,6 +103,9 @@ class UtilsTestCase(unittest.TestCase):
             shape_received = get_shape(seq)
             self.assertEqual(shape_received, expected_shape)
 
+    def test_randn(self):
+        logger.warning("Awaiting tests!")
+
 
 if __name__ == '__main__':
     unittest.main()

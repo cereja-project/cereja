@@ -218,6 +218,21 @@ def rand_uniform(_from: Number, to: Number):
 
 
 def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List[float]]:
+    """
+    All values ​​are random and their sum is equal to 1 (default) or the value sent in parameter (to)
+
+    :param _from: start in number
+    :param to: stop in number
+    :param n: n is length of array
+    :return: Sequence of floats
+
+    >>> array = rand_n(_from = 10, to=15, n = 3)
+    [13.638625715965802, 1.3384682252134166, 0.022906058820781894]
+
+    >>>sum(flatten(array))
+    15
+    """
+    assert isinstance(n, int) is True, "ValueError: n: int is a integer value."
     assert _from < to, "please send a valid range. The first value must not be greater than the second"
 
     _to = to
@@ -260,6 +275,7 @@ def array_randn(shape: Tuple[int, ...], *args, **kwargs) -> List[Union[float, An
     -179.33687885859996, 361.42747499197384, -610.1513132786013], [1072.0398936663296, -894.6318240273097,
     1448.8891836211283, -4183.174313279926], [8139.152167926057, -12466.659181206918, 24595.19100297986,
     -17279.53844619006]]]]
+
     >>>sum(flatten(array))
     1.0
 
@@ -268,8 +284,10 @@ def array_randn(shape: Tuple[int, ...], *args, **kwargs) -> List[Union[float, An
     -29.461575728235626, 108.82486378444688, -72.92672196142121], [166.27689950355855, -400.36353360213354,
     575.2273799798464, -1362.4824677079241], [2689.652915457324, -4310.834087972777, 4834.662753875761,
     -2165.28314554616]]
+
     >>> sum(flatten(cj_randn))
     20.0
+
     """
     rand_n_values = rand_n(*args, n=prod(shape), **kwargs)
     return array_gen(shape=shape, v=rand_n_values)
