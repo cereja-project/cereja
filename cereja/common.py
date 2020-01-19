@@ -99,6 +99,23 @@ def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
         return tuple(wkij)
 
 
+def get_shape_recursive(sequence: Sequence[Any], wki: Tuple[int, ...] = None) -> Tuple[int, ...]:
+    """
+    [!] Never use recursion in python if it is possible to exceed 997 calls [!]
+
+    [!] Function for teaching purposes [!]
+
+    :param sequence: Is sequence of values.
+    :param wki: stores value for each dimension
+    """
+    if wki is None:
+        wki = []
+    if is_sequence(sequence):
+        wki += [len(sequence)]
+        return get_shape_recursive(sequence[0], wki)
+    return tuple(wki)
+
+
 def reshape(sequence: Sequence, shape):
     """
     [!] need development [!]
@@ -107,6 +124,7 @@ def reshape(sequence: Sequence, shape):
     :param shape:
     :return:
     """
+
     pass
 
 
@@ -201,17 +219,6 @@ def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List
 def array_randn(shape, *args):
     rand_n_values = rand_n(*args, n=prod(shape))
     return array_gen(shape=shape, v=rand_n_values)
-
-
-def get_n_dim_recursive(sequence: Sequence[Any]) -> int:
-    """
-    [!] Never use recursion in python if it is possible to exceed 997 calls [!]
-
-    :param sequence: Is sequence of values.
-    """
-    if is_sequence(sequence):
-        return get_n_dim_recursive(sequence[0]) + 1
-    return 0
 
 
 def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any = None) -> List[List[Any]]:
