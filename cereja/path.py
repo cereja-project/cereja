@@ -86,6 +86,14 @@ def file_name(file_path: str, with_ext: bool = False) -> str:
     return f_name
 
 
+def get_base_dir(__file__: str) -> str:
+    """
+    :param __file__: send your __file__ string.
+    :return: absolute path.
+    """
+    return os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
+
+
 def listdir(path: str, only_relative_path: bool = False) -> List[str]:
     """
     Extension of the listdir function of module os.

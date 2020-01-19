@@ -1,15 +1,16 @@
 import logging
 import sys
 
-__all__ = ['VERSION', 'logger', 'set_log_level']
-
-VERSION = "0.3.3"
-
-logger = logging.getLogger(__name__)
+VERSION = "0.3.4"
+logger = logging.getLogger("cereja")
 logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
 consoleHandler = logging.StreamHandler(sys.stdout)
 logger.addHandler(consoleHandler)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
+
+__all__ = ['VERSION', 'logger', 'set_log_level']
+
+logger.log(50, f"Cereja version: {VERSION}")
 
 
 def set_log_level(level: int):
