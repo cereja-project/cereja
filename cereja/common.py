@@ -239,8 +239,39 @@ def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List
     return values
 
 
-def array_randn(shape, *args):
-    rand_n_values = rand_n(*args, n=prod(shape))
+def array_randn(shape: Tuple[int, ...], *args, **kwargs) -> List[Union[float, Any]]:
+    """
+    Responsible for creating matrix in the requested form. All values ​​are random and their sum is equal to 1 (
+    default) or the value sent in parameter (to)
+
+    :param shape: it's the shape of array
+    :param args: Arguments that will be passed on to the auxiliary function rand_n:
+                _from: Number = 0.,
+                to: Number = 1.,
+                n: int = 1
+    :return: array with shape that you request
+
+    e.g:
+
+    >>> array = array_randn((1,2,3,4))
+    [[[[0.2592981659911938, -0.12315716616964649, 0.82133729291841,
+    -0.25879078816834644], [1.3629594254754838, -3.774314741021747, 5.274492839788345, -11.601343746754297],
+    [3.604096666087614, -27.650903465459855, 19.296830893462964, -58.83686412036615]], [[69.41859240028415,
+    -179.33687885859996, 361.42747499197384, -610.1513132786013], [1072.0398936663296, -894.6318240273097,
+    1448.8891836211283, -4183.174313279926], [8139.152167926057, -12466.659181206918, 24595.19100297986,
+    -17279.53844619006]]]]
+    >>>sum(flatten(array))
+    1.0
+
+    >>> cj_randn = array_randn((4,4), _from = 0, to = 20)
+    [[10.290409563999265, -10.551079712904698, 2.901380773471479, -27.545318358270105], [11.611327651418236,
+    -29.461575728235626, 108.82486378444688, -72.92672196142121], [166.27689950355855, -400.36353360213354,
+    575.2273799798464, -1362.4824677079241], [2689.652915457324, -4310.834087972777, 4834.662753875761,
+    -2165.28314554616]]
+    >>> sum(flatten(cj_randn))
+    20.0
+    """
+    rand_n_values = rand_n(*args, n=prod(shape), **kwargs)
     return array_gen(shape=shape, v=rand_n_values)
 
 
