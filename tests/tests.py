@@ -2,7 +2,7 @@ import unittest
 import logging
 
 from cereja.common import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
-    is_sequence
+    is_sequence, array_gen, get_shape
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,41 @@ class UtilsTestCase(unittest.TestCase):
         self.assertTrue(is_sequence(sequence))
 
         self.assertFalse(is_sequence('hi cereja'))
+
+    def test_array_gen(self):
+        shapes = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
+        sequences_expecteds = [
+            [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
+
+            [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
+
+            [[[0.]], [[0.]]]
+        ]
+
+        for args, expecteds in zip(shapes, sequences_expecteds):
+            data = array_gen(*args)
+            self.assertEqual(data, expecteds)
+
+        with_kwargs = [({"shape": (2, 1, 1), "v": ['hail', 'pythonics!']}, [[['hail']], [['pythonics!']]])
+                       ]
+
+        for kwargs, expecteds in with_kwargs:
+            result = array_gen(**kwargs)
+            self.assertEqual(result, expecteds)
+
+    def test_get_shape(self):
+        sequences = [
+            [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
+
+            [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
+
+            [[[0.]], [[0.]]]
+        ]
+        shapes_expecteds = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
+
+        for seq, expected_shape in zip(sequences, shapes_expecteds):
+            shape_received = get_shape(seq)
+            self.assertEqual(shape_received, expected_shape)
 
 
 if __name__ == '__main__':

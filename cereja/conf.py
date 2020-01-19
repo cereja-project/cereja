@@ -2,7 +2,7 @@ import logging
 
 __all__ = ['VERSION', 'logger', 'set_log_level']
 
-VERSION = "0.3.3"
+VERSION = "0.3.4"
 
 logger = logging.getLogger("cereja")
 logger.setLevel(logging.ERROR)

@@ -38,6 +38,14 @@ def is_sequence(obj: Any) -> bool:
     return is_iterable(obj)
 
 
+def is_numeric_sequence(obj: Sequence[Number]) -> bool:
+    try:
+        sum(flatten(obj))
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
     """
     Calculates and returns theta angle between two vectors
@@ -144,12 +152,12 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     [[['hail']], [['pythonics!']]]
 
     >>> shape = (2, 1, 1)
-    >>> array_gen(shape, v = array_randn(shape))
-    [[[[[0.12175200406842968]]]], [[[[0.8782479959315703]]]]]
+    >>> array_gen(shape, v = flatten(array_randn(shape)))
+    [[[0.43022826643029777]], [[0.5697717335697022]]]
 
     :param shape: it's the shape of array
     :param v: sequence or Any obj that allows insertion of values
-    :return:
+    :return: Sequence -> List[Union[float, Any]]
     """
 
     is_seq = is_sequence(v)
@@ -170,6 +178,7 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
 def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
+
     :param sequence: Is sequence of values.
     :param max_recursion: allows you to control a recursion amount, for example if you send a
     sequence=[1,2, [[3]]] and max_recursion=1 your return will be [1, 2, [3]]. :return: flattened array
@@ -182,6 +191,8 @@ def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union
     >>> flatten(sequence, max_recursion=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
+
+    # TODO: Add version without recursion
     if not isinstance(max_recursion, int):
         raise TypeError(f"Type {type(max_recursion)} is not valid for max_recursion. Please send integer.")
 
