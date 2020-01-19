@@ -1,16 +1,16 @@
 import random
 from functools import reduce
-from typing import Any, List, Union, Optional, Sequence, Tuple
 import math
+from cereja.cj_types import Tuple, Any, Sequence, Number, Union, List, Optional
 
-from cereja.conf import logger
 from cereja.decorators import valid_output_shape
+import logging
+
+logger = logging.getLogger(__name__)
 
 __all__ = ['theta_angle', 'is_iterable', 'group_items_in_batches', 'remove_duplicate_items', 'is_sequence', 'flatten',
-           'Freq', 'prod', 'get_shape']
-
-T = Union[int, float, str]
-Number = Union[float, int, complex]
+           'Freq', 'prod', 'shape_is_ok', 'get_shape', 'get_shape_recursive', 'array_gen', 'rand_uniform', 'rand_n',
+           'array_randn']
 
 
 def is_iterable(obj: Any) -> bool:
@@ -131,12 +131,24 @@ def reshape(sequence: Sequence, shape):
 @valid_output_shape
 def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> List[Union[float, Any]]:
     """
-    Generates array based on the informed shape
+    Generates array based on passed shape
+
     e.g:
-    >>> array_gen(shape=(3, 3, 9))
+    >>> array_gen(shape=(2, 2, 3))
+    [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+
+    >>>array_gen(shape=(1, 3, 2, 1, 1))
+    [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]]
+
+    >>> array_gen(shape=(2, 1, 1),v=['hail','pythonics!'])
+    [[['hail']], [['pythonics!']]]
+
+    >>> shape = (2, 1, 1)
+    >>> array_gen(shape, v = array_randn(shape))
+    [[[[[0.12175200406842968]]]], [[[[0.8782479959315703]]]]]
 
     :param shape: it's the shape of array
-    :param v:
+    :param v: sequence or Any obj that allows insertion of values
     :return:
     """
 
@@ -366,6 +378,4 @@ class Freq:
 
 
 if __name__ == "__main__":
-    # data = array_gen((1, 1, 1, 0))
-    a = array_randn((1, 2, 3))
-    print(a)
+    pass
