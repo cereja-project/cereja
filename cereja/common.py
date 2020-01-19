@@ -2,11 +2,39 @@ from functools import reduce
 from typing import Any, List, Union, Optional, Sequence, Tuple
 import math
 
+from cereja.conf import logger
+from cereja.decorators import valid_output_shape
+
 __all__ = ['theta_angle', 'is_iterable', 'group_items_in_batches', 'remove_duplicate_items', 'is_sequence', 'flatten',
-           'Freq', 'prod']
+           'Freq', 'prod', 'get_shape']
 
 T = Union[int, float, str]
 Number = Union[float, int, complex]
+
+
+def is_iterable(obj: Any) -> bool:
+    """
+    Return whether an object is iterable or not.
+
+    :param obj: Any object for check
+    """
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    return True
+
+
+def is_sequence(obj: Any) -> bool:
+    """
+    Return whether an object a Sequence or not, exclude strings and empty obj.
+
+    :param obj: Any object for check
+    """
+    if isinstance(obj, (str, dict)):
+        return False
+
+    return is_iterable(obj)
 
 
 def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
@@ -40,17 +68,72 @@ def prod(sequence: Sequence[Number]) -> Number:
     return reduce((lambda x, y: x * y), sequence)
 
 
-def is_iterable(obj: Any) -> bool:
+def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, ...]) -> bool:
     """
-    Return whether an object is iterable or not.
-
-    :param obj: Any object for check
+    Check the number of items the array has and compare it with the shape product
     """
     try:
-        iter(obj)
-    except TypeError:
+        sequence_len = len(flatten(sequence))
+    except ValueError as err:
+        logger.info(f"Error when trying to compare shapes. {err}")
         return False
-    return True
+    return prod(expected_shape) == sequence_len
+
+
+def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
+    """
+    Responsible for analyzing the depth of a sequence
+
+    :param sequence: Is sequence of values.
+    :return: number of dimensions
+    """
+    if not sequence:
+        return None,
+    wkij = []
+    while True:
+        if is_sequence(sequence) and sequence:
+            wkij.append(len(sequence))
+            sequence = sequence[0]
+            continue
+        return tuple(wkij)
+
+
+def reshape(sequence: Sequence, shape):
+    """
+    [!] need development [!]
+
+    :param sequence:
+    :param shape:
+    :return:
+    """
+    pass
+
+
+@valid_output_shape
+def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> List[Union[float, Any]]:
+    """
+    Generates array based on the informed shape
+    e.g:
+    >>> array_gen(shape=(3, 3, 9))
+
+    :param shape: it's the shape of array
+    :param v:
+    :return:
+    """
+
+    is_seq = is_sequence(v)
+
+    allow_reshape = shape_is_ok(v, shape) and is_seq
+
+    if not is_seq:
+        v = [v if v else 0.]
+
+    for k in shape[::-1]:
+        if allow_reshape:
+            v = group_items_in_batches(v, k)
+            continue
+        v = [v * k]
+    return v[0]
 
 
 def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any = None) -> List[List[Any]]:
@@ -113,18 +196,6 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
         return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
 
 
-def is_sequence(obj: Any) -> bool:
-    """
-    Return whether an object a Sequence or not, exclude strings and empty obj.
-
-    :param obj: Any object for check
-    """
-    if isinstance(obj, str) or not obj:
-        return False
-
-    return is_iterable(obj)
-
-
 def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
@@ -144,6 +215,9 @@ def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union
         raise TypeError(f"Type {type(max_recursion)} is not valid for max_recursion. Please send integer.")
 
     if not is_sequence(sequence):
+        # Need improve
+        if max_recursion < 0:
+            raise ValueError(f"Value {sequence} is'nt valid. Send Sequence.")
         return sequence
 
     flattened = []
@@ -242,4 +316,4 @@ class Freq:
 
 
 if __name__ == "__main__":
-    pass
+    array_gen((1, 500, 500, 3))
