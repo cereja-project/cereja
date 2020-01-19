@@ -1,9 +1,9 @@
 import random
 from functools import reduce
 import math
-from cereja.cj_types import Tuple, Any, Sequence, Number, Union, List, Optional
 
-from cereja.decorators import valid_output_shape
+from cereja.decorators import time_exec
+from cereja.cj_types import Tuple, Any, Sequence, Number, Union, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -136,7 +136,6 @@ def reshape(sequence: Sequence, shape):
     pass
 
 
-@valid_output_shape
 def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> List[Union[float, Any]]:
     """
     Generates array based on passed shape
@@ -175,6 +174,16 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     return v[0]
 
 
+@time_exec
+def _flatten2(sequence: list, max_recursion: int = -1):
+    logger.warning(f"[!] {_flatten2.__name__} still under development")
+    if isinstance(sequence, list) and max_recursion:
+        return sum(map(flatten, *(sequence, max_recursion - 1)), [])
+
+    return [sequence]
+
+
+@time_exec
 def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
@@ -191,6 +200,7 @@ def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union
     >>> flatten(sequence, max_recursion=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
+    logger.log(logging.INFO, f"Recursão {sequence}")
 
     # TODO: Add version without recursion
     if not isinstance(max_recursion, int):
@@ -377,6 +387,9 @@ class Freq:
     """
 
     def __init__(self, data: list):
+
+        logger.warning("[!] class still under development")
+
         if not is_iterable(data):
             raise ValueError("The data you entered is not valid! Please give me iterable data.")
 

@@ -1,11 +1,13 @@
 import logging
 
-__all__ = ['VERSION', 'logger', 'set_log_level']
-
 VERSION = "0.3.4"
-
 logger = logging.getLogger("cereja")
 logger.setLevel(logging.ERROR)
+logger.log(logger.level, VERSION)
+
+__all__ = ['VERSION', 'logger', 'set_log_level']
+
+logger.log(50, f"Cereja version: {VERSION}")
 
 
 def set_log_level(level: int):

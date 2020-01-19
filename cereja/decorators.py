@@ -2,8 +2,11 @@ import functools
 import time
 from abc import abstractmethod
 from typing import Callable, Any, Sequence, Union, List
-from cereja.conf import logger
 import abc
+import logging
+
+
+logger =logging.getLogger(__name__)
 
 __all__ = ['time_exec', 'valid_output_shape']
 
