@@ -1,3 +1,4 @@
+import random
 from functools import reduce
 from typing import Any, List, Union, Optional, Sequence, Tuple
 import math
@@ -136,6 +137,83 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     return v[0]
 
 
+def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
+    """
+    Receives values, whether arrays of values, regardless of their shape and flatness
+    :param sequence: Is sequence of values.
+    :param max_recursion: allows you to control a recursion amount, for example if you send a
+    sequence=[1,2, [[3]]] and max_recursion=1 your return will be [1, 2, [3]]. :return: flattened array
+
+    e.g usage:
+
+    >>> sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
+    >>> flatten(sequence)
+    [1, 2, 3, 2, 3, 4, 6]
+    >>> flatten(sequence, max_recursion=2)
+    [1, 2, 3, 2, [3], 4, 6]
+    """
+    if not isinstance(max_recursion, int):
+        raise TypeError(f"Type {type(max_recursion)} is not valid for max_recursion. Please send integer.")
+
+    if not is_sequence(sequence):
+        # Need improve
+        if max_recursion < 0:
+            raise ValueError(f"Value {sequence} is'nt valid. Send Sequence.")
+        return sequence
+
+    flattened = []
+    for obj in sequence:
+        if is_sequence(obj) and max_recursion:
+            recursive_flattened = flatten(obj, max_recursion - 1)
+            for i in recursive_flattened:
+                flattened.append(i)
+        else:
+            flattened.append(obj)
+    return flattened
+
+
+def rand_uniform(_from: Number, to: Number):
+    return _from + (to - _from) * random.random()
+
+
+def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List[float]]:
+    assert _from < to, "please send a valid range. The first value must not be greater than the second"
+
+    _to = to
+    values = [rand_uniform(_from, to)]
+    n = n - 1
+
+    if not n:
+        return values[0]  # if n was not sent
+
+    while n:
+        to = (_from - to) - values[-1]  # get last
+        values.append(rand_uniform(_from, to))
+        n -= 1
+
+    # recover to value
+    to = _to
+    # ensures that the sum of all values ​​is equal to b
+    values[-1] = to - sum(values[:-1])
+    return values
+
+
+def array_randn(shape, *args):
+    rand_n_values = rand_n(*args, n=prod(shape))
+    return array_gen(shape=shape, v=rand_n_values)
+
+
+def get_n_dim_recursive(sequence: Sequence[Any]) -> int:
+    """
+    [!] Never use recursion in python if it is possible to exceed 997 calls [!]
+
+    :param sequence: Is sequence of values.
+    """
+    if is_sequence(sequence):
+        return get_n_dim_recursive(sequence[0]) + 1
+    return 0
+
+
 def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any = None) -> List[List[Any]]:
     """
     Responsible for grouping items in batch taking into account the quantity of items per batch
@@ -194,41 +272,6 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
         return list(dict.fromkeys(items))
     except TypeError:
         return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
-
-
-def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
-    """
-    Receives values, whether arrays of values, regardless of their shape and flatness
-    :param sequence: Is sequence of values.
-    :param max_recursion: allows you to control a recursion amount, for example if you send a
-    sequence=[1,2, [[3]]] and max_recursion=1 your return will be [1, 2, [3]]. :return: flattened array
-
-    e.g usage:
-
-    >>> sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
-    >>> flatten(sequence)
-    [1, 2, 3, 2, 3, 4, 6]
-    >>> flatten(sequence, max_recursion=2)
-    [1, 2, 3, 2, [3], 4, 6]
-    """
-    if not isinstance(max_recursion, int):
-        raise TypeError(f"Type {type(max_recursion)} is not valid for max_recursion. Please send integer.")
-
-    if not is_sequence(sequence):
-        # Need improve
-        if max_recursion < 0:
-            raise ValueError(f"Value {sequence} is'nt valid. Send Sequence.")
-        return sequence
-
-    flattened = []
-    for obj in sequence:
-        if is_sequence(obj) and max_recursion:
-            recursive_flattened = flatten(obj, max_recursion - 1)
-            for i in recursive_flattened:
-                flattened.append(i)
-        else:
-            flattened.append(obj)
-    return flattened
 
 
 class ConvertDictError(Exception): pass
@@ -316,4 +359,6 @@ class Freq:
 
 
 if __name__ == "__main__":
-    array_gen((1, 500, 500, 3))
+    # data = array_gen((1, 1, 1, 0))
+    a = array_randn((1, 2, 3))
+    print(a)
