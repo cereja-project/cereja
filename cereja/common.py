@@ -2,6 +2,7 @@ import random
 from functools import reduce
 import math
 
+from cereja.conf import set_log_level
 from cereja.decorators import time_exec
 from cereja.cj_types import Tuple, Any, Sequence, Number, Union, List, Optional
 import logging
@@ -175,10 +176,19 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
 
 
 @time_exec
-def _flatten2(sequence: list, max_recursion: int = -1):
-    logger.warning(f"[!] {_flatten2.__name__} still under development")
-    if isinstance(sequence, list) and max_recursion:
-        return sum(map(flatten, *(sequence, max_recursion - 1)), [])
+def _flatten(sequence: list, max_recursion: int = -1):
+    logger.warning(f"[!] {_flatten.__name__} still under development")
+    if not isinstance(max_recursion, int):
+        raise TypeError(f"Type {type(max_recursion)} is not valid for max_recursion. Please send integer.")
+
+    if not is_sequence(sequence):
+        # Need improve
+        if max_recursion < 0:
+            raise ValueError(f"Value {sequence} is'nt valid. Send Sequence.")
+        return sequence
+
+    if is_sequence(sequence) and max_recursion:
+        return sum(map(_flatten, *(sequence, max_recursion - 1)), [])
 
     return [sequence]
 
@@ -190,7 +200,8 @@ def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union
 
     :param sequence: Is sequence of values.
     :param max_recursion: allows you to control a recursion amount, for example if you send a
-    sequence=[1,2, [[3]]] and max_recursion=1 your return will be [1, 2, [3]]. :return: flattened array
+    sequence=[1,2, [[3]]] and max_recursion=1 your return will be [1, 2, [3]].
+    :return: flattened array
 
     e.g usage:
 
@@ -200,7 +211,6 @@ def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union
     >>> flatten(sequence, max_recursion=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
-    logger.log(logging.INFO, f"Recursão {sequence}")
 
     # TODO: Add version without recursion
     if not isinstance(max_recursion, int):
@@ -451,4 +461,5 @@ class Freq:
 
 
 if __name__ == "__main__":
-    pass
+    set_log_level(30)
+    print(flatten([1,2,3]))

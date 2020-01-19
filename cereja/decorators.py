@@ -5,8 +5,7 @@ from typing import Callable, Any, Sequence, Union, List
 import abc
 import logging
 
-
-logger =logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 __all__ = ['time_exec', 'valid_output_shape']
 
