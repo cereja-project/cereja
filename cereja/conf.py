@@ -1,11 +1,8 @@
 import sys
 import logging
 
-VERSION = "0.3.5"
-
 # using by utils.module_references
-_explicit_exclude = ["console_logger", "cj_modules"]
-_explicit_include = ["VERSION"]
+_explicit_exclude = ["console_logger", "cj_modules_dotted_path"]
 
 # Used to add the functions of each module at the root
 cj_modules_dotted_path = ['cereja.common', 'cereja.conf', 'cereja.decorators', 'cereja.path',

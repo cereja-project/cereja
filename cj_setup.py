@@ -3,13 +3,21 @@ import subprocess
 import sys
 import os
 import logging
+import shutil
 
+choice_level_change = """
+0 -> major
+1 -> minor
+2 -> micro
+
+Choose the level of change:
+"""
 logger = logging.getLogger(__name__)
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(base_dir)
 setup_file = os.path.join(base_dir, 'setup.py')
-conf_file = os.path.join(base_dir, 'cereja', 'conf.py')
+conf_file = os.path.join(base_dir, 'cereja', '__ini__.py')
 
 tests_case_result = subprocess.run([f"{sys.executable}", "-m", "unittest", "tests.tests.UtilsTestCase"]).returncode
 
@@ -24,23 +32,26 @@ if tests_case_result == 0:
             print("Ok Exiting...")
 
 if tests_case_result == 0 and allow_update_version:
+    level_change = int(input(choice_level_change))
     with open(conf_file, 'r') as f:
         lines = f.readlines()
         for i, line in enumerate(lines):
             if "VERSION = " in line:
-                version_base, version_middle, version_end = [int(i) for i in
-                                                             line.strip().split('=')[1].strip(' "').split('.')]
-                if version_end < 10:
-                    version_end = version_end + 1
-                elif version_middle < 10:
-                    version_end = 0
-                    version_middle = version_middle + 1
+                major, minor, micro = [int(i) for i in
+                                       line.strip().split('=')[1].strip(' "').split('.')]
+                is_release = input("Is Final? Y/n")
+                if micro < 10:
+                    micro = micro + 1
+                elif minor < 10:
+                    micro = 0
+                    minor = minor + 1
                 else:
-                    version_middle = 0
-                    version_base = version_base + 1
+                    minor = 0
+                    major = major + 1
 
-                version = f'{version_base}.{version_middle}.{version_end}'
+                version = f'{major}.{minor}.{micro}'
                 lines[i] = f'VERSION = "{version}"\n'
+                break
 
     with open(conf_file, 'w') as f:
         f.writelines(lines)
@@ -59,3 +70,12 @@ if tests_case_result == 0 and allow_update_version:
             subprocess.run([f"{sys.executable}", "-m", "twine", "upload", f"{dist}{os.path.sep}*"])
         else:
             print("Versão não foi enviada.")
+
+        # Remove latest build, info and dist
+        files_cereja_build = [
+            os.path.join(base_dir, 'build'),
+            os.path.join(base_dir, 'cereja.egg-info'),
+            os.path.join(base_dir, 'dist')
+        ]
+        for p in files_cereja_build:
+            shutil.rmtree(p)
