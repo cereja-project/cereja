@@ -1,7 +1,7 @@
 import sys
 import logging
 
-VERSION = "0.3.4"
+VERSION = "0.3.5"
 
 # using by utils.module_references
 _explicit_exclude = ["console_logger", "cj_modules"]

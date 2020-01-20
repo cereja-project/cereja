@@ -1,4 +1,4 @@
-from cereja.conf import install_if_not
+from cereja.utils import install_if_not
 import subprocess
 import sys
 import os
@@ -16,12 +16,12 @@ tests_case_result = subprocess.run([f"{sys.executable}", "-m", "unittest", "test
 allow_update_version = False
 if tests_case_result == 0:
     res = input("Tests OK! Update version? s/N: ") or 'n'
-    if res.lower() not in ['s', 'n']:
-        if not res.lower() == 's':
+    if res.lower() in ['s', 'n']:
+        if res.lower() == 's':
+            allow_update_version = True
+        else:
             logger.info("Ok Exiting...")
             print("Ok Exiting...")
-        else:
-            allow_update_version = True
 
 if tests_case_result == 0 and allow_update_version:
     with open(conf_file, 'r') as f:
@@ -53,7 +53,7 @@ if tests_case_result == 0 and allow_update_version:
     dist = os.path.join(base_dir, "dist")
 
     res = input("Up version? s/N: ") or 'n'
-    if res.lower() not in ['s', 'n']:
+    if res.lower() in ['s', 'n']:
         if res.lower() == 's':
             subprocess.run([f"{sys.executable}", f"{setup_file}", "sdist", "bdist_wheel"])
             subprocess.run([f"{sys.executable}", "-m", "twine", "upload", f"{dist}{os.path.sep}*"])
