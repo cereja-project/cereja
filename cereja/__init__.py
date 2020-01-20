@@ -1,7 +1,7 @@
-from .common import *
-from .decorators import *
-from .others import *
-from .path import *
-from .conf import logger, VERSION
+from . import utils
+from importlib import import_module
 
-__version__ = VERSION
+cj_modules_dotted_path = utils.import_string('cereja.conf.cj_modules_dotted_path')
+
+for dot_module in cj_modules_dotted_path:
+    locals().update(utils.module_references(import_module(dot_module)))

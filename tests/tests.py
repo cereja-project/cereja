@@ -79,7 +79,7 @@ class UtilsTestCase(unittest.TestCase):
         ]
 
         for args, expecteds in zip(shapes, sequences_expecteds):
-            data = array_gen(*args)
+            data = array_gen(args)
             self.assertEqual(data, expecteds)
 
         with_kwargs = [({"shape": (2, 1, 1), "v": ['hail', 'pythonics!']}, [[['hail']], [['pythonics!']]])
