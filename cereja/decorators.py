@@ -7,7 +7,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['time_exec', 'valid_output_shape']
+# exclude from the root import
+_explicit_exclude = ['valid_output_shape', 'time_exec', 'BaseDecorator', 'Decorator', 'logger']
 
 
 class BaseDecorator(abc.ABC):

@@ -1,32 +1,15 @@
-import logging
 import sys
+import logging
 
 VERSION = "0.3.4"
-logger = logging.getLogger("cereja")
-logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
-consoleHandler = logging.StreamHandler(sys.stdout)
-logger.addHandler(consoleHandler)
-logger.setLevel(logging.ERROR)
 
-__all__ = ['VERSION', 'logger', 'set_log_level']
+# using by utils.module_references
+_explicit_exclude = ["console_logger", "cj_modules"]
+_explicit_include = ["VERSION"]
 
-logger.log(50, f"Cereja version: {VERSION}")
+# Used to add the functions of each module at the root
+cj_modules_dotted_path = ['cereja.common', 'cereja.conf', 'cereja.decorators', 'cereja.path',
+                          'cereja.utils']
 
-
-def set_log_level(level: int):
-    """
-    Default log level is INFO
-
-    CRITICAL = 50
-    FATAL = CRITICAL
-    ERROR = 40
-    WARNING = 30
-    WARN = WARNING
-    INFO = 20
-    DEBUG = 10
-    NOTSET = 0
-    """
-    if not isinstance(level, int):
-        raise TypeError(f"Value is'nt valid. {set_log_level.__doc__}")
-    logger.setLevel(level)
-    logger.info(f"Update log level to {level}")
+console_logger = logging.StreamHandler(sys.stdout)
+logging.basicConfig(handlers=(console_logger,), level=logging.WARN)

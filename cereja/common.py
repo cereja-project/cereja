@@ -2,16 +2,11 @@ import random
 from functools import reduce
 import math
 
-from cereja.conf import set_log_level
 from cereja.decorators import time_exec
 from cereja.cj_types import Tuple, Any, Sequence, Number, Union, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
-
-__all__ = ['theta_angle', 'is_iterable', 'group_items_in_batches', 'remove_duplicate_items', 'is_sequence', 'flatten',
-           'Freq', 'prod', 'shape_is_ok', 'get_shape', 'get_shape_recursive', 'array_gen', 'rand_uniform', 'rand_n',
-           'array_randn']
 
 
 def is_iterable(obj: Any) -> bool:
@@ -461,5 +456,4 @@ class Freq:
 
 
 if __name__ == "__main__":
-    set_log_level(30)
-    print(flatten([1,2,3]))
+    pass

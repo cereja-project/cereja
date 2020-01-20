@@ -1,4 +1,4 @@
-from cereja.others import install_if_not
+from cereja.conf import install_if_not
 import subprocess
 import sys
 import os
