@@ -5,12 +5,13 @@ import cereja
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-EXCLUDE_FROM_PACKAGES = ('cereja.tests'
+EXCLUDE_FROM_PACKAGES = ('cereja.tests',
+                         'cereja.lab',
                          )
 
 setuptools.setup(
     name="cereja",
-    version=cereja.VERSION,
+    version=cereja.__version__,
     author="Joab Leite",
     author_email="jlsn1@ifal.edu.br",
     description="Cereja is a bundle of useful functions that I don't want to rewrite.",
