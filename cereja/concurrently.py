@@ -2,7 +2,6 @@ import asyncio
 import functools
 import os
 import threading
-import types
 from concurrent.futures import Future, ThreadPoolExecutor
 from multiprocessing.pool import Pool
 import logging
@@ -13,7 +12,7 @@ from cereja.common import is_sequence
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['AsyncToSync', 'SyncToAsync', 'TaskList']
+_explicit_exclude = ['AsyncToSync', 'SyncToAsync']
 
 try:
     import contextvars  # Python 3.7+ only.
