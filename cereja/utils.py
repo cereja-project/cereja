@@ -6,7 +6,7 @@ import subprocess
 import importlib
 import sys
 import types
-from typing import Any, Union, Tuple, Sequence
+from typing import Any, Union
 import logging
 
 from cereja.cj_types import PEP440

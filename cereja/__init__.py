@@ -9,4 +9,4 @@ __version__ = get_version_pep440_compliant()
 cj_modules_dotted_path = utils.import_string('cereja.conf.cj_modules_dotted_path')
 
 for dot_module in cj_modules_dotted_path:
-    locals().update(utils.module_references(import_module(dot_module)))
+    globals().update(utils.module_references(import_module(dot_module)))

@@ -9,6 +9,7 @@ from typing import Sequence, Any
 
 from cereja.cj_types import Function
 from cereja.common import is_sequence
+from cereja.decorators import time_exec
 
 logger = logging.getLogger(__name__)
 
@@ -222,6 +223,7 @@ class TaskList:
     async def _run(self):  # Only asyncio
         return await asyncio.gather(*map(self._wrapper, self.sequence))
 
+    @time_exec
     def run(self):
         if hasattr(asyncio, 'run'):  # Only python 3.7
             return asyncio.run(self._run())

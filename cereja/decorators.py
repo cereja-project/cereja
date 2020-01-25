@@ -4,12 +4,14 @@ from abc import abstractmethod
 from typing import Callable, Any
 import abc
 import logging
-from cereja.concurrently import SyncToAsync, AsyncToSync
 
+from cereja import utils
+
+__all__ = ['time_exec']
 logger = logging.getLogger(__name__)
 
 # exclude from the root import
-_explicit_exclude = ['time_exec', 'BaseDecorator', 'Decorator', 'logger']
+_explicit_exclude = ['BaseDecorator', 'Decorator', 'logger']
 
 
 class BaseDecorator(abc.ABC):
@@ -49,9 +51,9 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
     return wrapper
 
 
-# Lowercase is more sensible for most things
-sync_to_async = SyncToAsync
-async_to_sync = AsyncToSync
+# Lowercase is more sensible for most things, and import_string is because Cyclic imports
+sync_to_async = utils.import_string('cereja.concurrently.SyncToAsync')
+async_to_sync = utils.import_string('cereja.concurrently.AsyncToSync')
 
 if __name__ == '__main__':
     pass
