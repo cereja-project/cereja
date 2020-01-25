@@ -2,7 +2,9 @@ import os
 
 from cereja.path import get_base_dir
 
-base_dir = get_base_dir(__file__)
+__all__ = []  # is'nt public https://www.python.org/dev/peps/pep-0008/#id50
+
+_base_dir = get_base_dir(__file__)
 
 
 def _open_file(file_path: str, mode='r'):
