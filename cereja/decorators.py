@@ -1,14 +1,15 @@
 import functools
 import time
 from abc import abstractmethod
-from typing import Callable, Any, Sequence, Union, List
+from typing import Callable, Any
 import abc
 import logging
+from cereja.concurrently import SyncToAsync, AsyncToSync
 
 logger = logging.getLogger(__name__)
 
 # exclude from the root import
-_explicit_exclude = ['valid_output_shape', 'time_exec', 'BaseDecorator', 'Decorator', 'logger']
+_explicit_exclude = ['time_exec', 'BaseDecorator', 'Decorator', 'logger']
 
 
 class BaseDecorator(abc.ABC):
@@ -48,24 +49,9 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
     return wrapper
 
 
-def valid_output_shape(func: Callable[[Sequence[Union[Any]]], Any]) -> Callable:
-    # TODO: Fix import
-    from .common import get_shape, is_sequence
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> List[Union[float, Any]]:
-        expected_shape = kwargs.get("shape") or args
-        v = kwargs.get("v") or None
-        if is_sequence(args):
-            func_result = func(expected_shape, v=v)
-        else:
-            func_result = func(*args, **kwargs)
-        shape = get_shape(func_result)
-        assert shape == expected_shape, f"expected shape {shape} is different from the current {expected_shape}"
-        return func_result
-
-    return wrapper
-
+# Lowercase is more sensible for most things
+sync_to_async = SyncToAsync
+async_to_sync = AsyncToSync
 
 if __name__ == '__main__':
     pass

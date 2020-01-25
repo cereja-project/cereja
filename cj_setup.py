@@ -32,29 +32,6 @@ if tests_case_result == 0:
             print("Ok Exiting...")
 
 if tests_case_result == 0 and allow_update_version:
-    level_change = int(input(choice_level_change))
-    with open(conf_file, 'r') as f:
-        lines = f.readlines()
-        for i, line in enumerate(lines):
-            if "VERSION = " in line:
-                major, minor, micro = [int(i) for i in
-                                       line.strip().split('=')[1].strip(' "').split('.')]
-                is_release = input("Is Final? Y/n")
-                if micro < 10:
-                    micro = micro + 1
-                elif minor < 10:
-                    micro = 0
-                    minor = minor + 1
-                else:
-                    minor = 0
-                    major = major + 1
-
-                version = f'{major}.{minor}.{micro}'
-                lines[i] = f'VERSION = "{version}"\n'
-                break
-
-    with open(conf_file, 'w') as f:
-        f.writelines(lines)
 
     required_libs = ["setuptools", "wheel", "twine"]
 

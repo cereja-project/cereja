@@ -2,7 +2,6 @@ import random
 from functools import reduce
 import math
 
-from cereja.decorators import time_exec
 from cereja.cj_types import Tuple, Any, Sequence, Number, Union, List, Optional
 import logging
 
@@ -170,7 +169,6 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     return v[0]
 
 
-@time_exec
 def _flatten(sequence: list, max_recursion: int = -1):
     logger.warning(f"[!] {_flatten.__name__} still under development")
     if not isinstance(max_recursion, int):
@@ -188,7 +186,6 @@ def _flatten(sequence: list, max_recursion: int = -1):
     return [sequence]
 
 
-@time_exec
 def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
