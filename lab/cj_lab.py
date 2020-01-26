@@ -1,7 +1,10 @@
+import itertools
 import operator
 from typing import TypeVar, Sequence
 
 from cereja.common import flatten, get_shape
+from cereja.decorators import time_exec
+from cereja.utils import set_log_level
 
 T = TypeVar('T')
 
@@ -35,44 +38,65 @@ class Vector(list):
         return flatten(self)
 
 
-class Matrix:
+class Array:
     def __init__(self, values):
         self.values = values
-        self.shape = cj.get_shape(self.values)
+        self.shape = get_shape(self.values)
+        self.cols = self._get_cols()
+        self.n_max_repr = min(50, len(self.values))
 
     def __iter__(self):
         return iter(self.values)
 
-    def __repr__(self):
-        return f'Matrix({self.values})'
+    def __repr(self):
+        values = self.values[:self.n_max_repr]
+        if len(self.shape) <= 1:
+            return values
+        return '\n      '.join(
+            f'{val}' for i, val in enumerate(values) if i <= self.n_max_repr)
 
-    def _get_col(self, idx, values=None):
-        input(idx)
-        values = self.values if values is None else values
-        return [i[idx] for i in values]
+    def __repr__(self):
+
+        if len(self.values) >= 50:
+            dott = f"""
+            .
+            .
+            .
+            """
+            msg_max_display = f"\n\ndisplaying {self.n_max_repr} of {len(self.values)} lines"
+        else:
+            msg_max_display = ''
+            dott = ''
+        return f"{self.__class__.__name__}({self.__repr()}{dott}){msg_max_display}"
 
     def __getitem__(self, slice_):
         if isinstance(slice_, int):
             result = self.values[slice_]
             if isinstance(result, int):
                 return result
-            return Matrix(result)
+            return Array(result)
         if isinstance(slice_, tuple):
-            a1, a2 = slice_
-            values = self[a1]
-            if isinstance(a2, int) or not any((a2.start, a2.step, a2.stop)) or len(values.shape) > 1:
-                return values[a2]
-            return Matrix(self._get_col(a2, values))
-        return Matrix(self.values[slice_])
+            slice_1, slice_2 = slice_
+            values = Array(self.values[slice_1])
+            if isinstance(slice_2, int):
+                if len(values.shape) <= 1:
+                    return values[slice_2]
+                return values.cols[slice_2]
+            if not any((slice_2.start, slice_2.step, slice_2.stop)) or len(values.shape) <= 1:
+                return values[slice_2]
+            if values.cols:
+                return Array(values.cols[slice_2]).cols
+            return values.values[slice_2]
+        return Array(self.values[slice_])
+
+    @time_exec
+    def _get_cols(self):
+        if len(self.shape) <= 1:
+            return []
+        return list(map(list, itertools.zip_longest(*self.values)))
 
 
 def get_cols(sequence: Sequence):
-    """
-    >>>get_cols([[1,2,3],[1,2,3]])
-    [[1, 1], [2, 2], [3, 3]]
-    :param sequence:
-    :return:
-    """
     lines, cols = get_shape(sequence)
     return [[sequence[i][j] for i in range(lines)] for j in range(cols)]
 
@@ -88,16 +112,6 @@ def dot(a, b):
     return [[dotproduct(line, col) for col in get_cols(b)] for line in a]
 
 
-def test_get_cols():
-    assert get_cols([[1, 2, 3], [1, 2, 3]]) == [[1, 1], [2, 2], [3, 3]]
-
-
-def test_dot():
-    a = [[1, 2], [3, 4]]
-    b = a
-    assert dot(a, b) == [[7, 10], [15, 22]]
-
-
 if __name__ == '__main__':
-    a = Matrix([1, 2, 3])
-    print(a)
+    set_log_level('INFO')
+    print(Array([[1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3]] * 100000)[:, 1])
