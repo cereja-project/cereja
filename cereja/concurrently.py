@@ -218,6 +218,8 @@ class TaskList:
     INFO:cereja.decorators:[run] performed 5.0174219608306885
     [None, None, None, None, None] # the return is empty because the function returns nothing
     >>>task_list._run_functional()
+    INFO:cereja.decorators:[_run_functional] performed 25.0233952999115
+    [None, None, None, None, None]
 
     """
 
@@ -232,6 +234,15 @@ class TaskList:
         self.func = func
         self.sequence = sequence
 
+    @property
+    def loop(self):
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop
+        return loop
+
     @SyncToAsync
     def _wrapper(self, val):
         return self.func(val)
@@ -241,9 +252,9 @@ class TaskList:
 
     @time_exec
     def run(self):
-        if hasattr(asyncio, 'run'):  # Only python 3.7
+        loop = self.loop
+        if hasattr(asyncio, 'runs'):  # Only python 3.7
             return asyncio.run(self._run())
-        loop = asyncio.get_event_loop()
         return loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
 
     @time_exec
