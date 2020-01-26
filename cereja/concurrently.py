@@ -252,10 +252,14 @@ class TaskList:
 
     @time_exec
     def run(self):
-        loop = self.loop
-        if hasattr(asyncio, 'runs'):  # Only python 3.7
-            return asyncio.run(self._run())
-        return loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
+        try:
+            loop = self.loop
+            if hasattr(asyncio, 'runs'):  # Only python 3.7
+                return asyncio.run(self._run())
+            return loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
+        except:
+            logger.warning("is running in functional mode")
+            return self._run_functional()
 
     @time_exec
     def _run_functional(self):
