@@ -1,4 +1,4 @@
-from typing import TypeVar
+from typing import TypeVar, Sequence
 
 from cereja.common import flatten, get_shape
 
@@ -32,3 +32,12 @@ class Vector(list):
 
     def flatten(self):
         return flatten(self)
+
+
+def get_cols(sequence):
+    lines, cols = get_shape(sequence)
+    return [[sequence[i][j] for i in range(lines)] for j in range(cols)]
+
+
+def dot(a: Sequence, b: Sequence):
+    pass
