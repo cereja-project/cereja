@@ -10,6 +10,7 @@ from typing import Sequence, Any
 from cereja.cj_types import Function
 from cereja.common import is_sequence
 from cereja.decorators import time_exec
+from cereja.utils import set_log_level
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +204,21 @@ class TaskList:
 
     It is not yet possible to send more than one argument, be aware of that!
 
+    e.g:
+
+    note that in this example each execution of the function would take 5 seconds and we are forcing 5 executions.
+    See the difference in waiting time between execution using concurrency / parallelism and functional execution
+
+    >>>import time
+    >>>import cereja as cj
+    >>>cj.set_log_level('INFO') # need to see perform log
+    INFO:cereja.utils:Update log level to INFO
+    >>>task_list = cj.TaskList(lambda foo: time.sleep(5), [1,2,3,4,5])
+    >>>task_list.run() # concurrency / parallelism
+    INFO:cereja.decorators:[run] performed 5.0174219608306885
+    [None, None, None, None, None] # the return is empty because the function returns nothing
+    >>>task_list._run_functional()
+
     """
 
     def __init__(self, func: Function, sequence: Sequence[Any]):
@@ -217,19 +233,19 @@ class TaskList:
         self.sequence = sequence
 
     @SyncToAsync
-    def _wrapper(self, val):  # Only asyncio
+    def _wrapper(self, val):
         return self.func(val)
 
-    async def _run(self):  # Only asyncio
+    async def _run(self):  # only python3.7
         return await asyncio.gather(*map(self._wrapper, self.sequence))
 
     @time_exec
     def run(self):
         if hasattr(asyncio, 'run'):  # Only python 3.7
             return asyncio.run(self._run())
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
 
-        with Pool(10) as p:
-            return p.map(self.func, self.sequence)  # need sleep*
-
+    @time_exec
     def _run_functional(self):
         return list(map(self.func, self.sequence))

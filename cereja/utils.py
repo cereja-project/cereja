@@ -8,6 +8,8 @@ import sys
 import types
 from typing import Any, Union
 import logging
+# Needed init configs
+from logging import config
 
 from cereja.cj_types import PEP440
 
@@ -84,7 +86,7 @@ def install_if_not(lib_name: str):
         subprocess.run([f"{sys.executable}", "-m", "pip", "install", "--user", f"{lib_name}"])
 
 
-def set_log_level(level: int):
+def set_log_level(level: Union[int, str]):
     """
     Default log level is INFO
 
@@ -97,9 +99,6 @@ def set_log_level(level: int):
     DEBUG = 10
     NOTSET = 0
     """
-    if not isinstance(level, int):
-        raise TypeError(f"Value is'nt valid. {set_log_level.__doc__}")
-    import logging
     log = logging.getLogger()
     log.setLevel(level)
     logger.info(f"Update log level to {level}")
