@@ -1,8 +1,9 @@
 import random
 from functools import reduce
 import math
+from typing import Any, Sequence, Tuple, Union, List, Optional
 
-from cereja.cj_types import Tuple, Any, Sequence, Number, Union, List, Optional
+from cereja.cj_types import Number
 import logging
 
 logger = logging.getLogger(__name__)
