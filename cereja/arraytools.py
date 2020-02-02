@@ -251,15 +251,16 @@ def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List
     assert _from < to, "please send a valid range. The first value must not be greater than the second"
 
     _to = to
-    values = [rand_uniform(_from, to)]
+    values = [rand_uniform(_from, to)/n]
     n = n - 1
 
     if not n:
         return values[0]  # if n was not sent
 
     while n:
-        to = (_from - to) - values[-1]  # get last
-        values.append(rand_uniform(_from, to))
+        to = to - values[-1]
+        assert _from < to < _to
+        values.append(rand_uniform(_from, to)/n)
         n -= 1
 
     # recover to value
