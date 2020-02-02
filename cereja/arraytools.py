@@ -96,13 +96,18 @@ def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
     """
     if not sequence:
         return None,
+    sequence_length = len(flatten(sequence))
     wkij = []
     while True:
         if is_sequence(sequence) and sequence:
             wkij.append(len(sequence))
             sequence = sequence[0]
             continue
-        return tuple(wkij)
+        break
+    # is sanity validation
+    if sequence_length != prod(wkij):
+        return wkij[0],
+    return tuple(wkij)
 
 
 def get_shape_recursive(sequence: Sequence[Any], wki: Tuple[int, ...] = None) -> Tuple[int, ...]:
@@ -251,7 +256,7 @@ def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List
     assert _from < to, "please send a valid range. The first value must not be greater than the second"
 
     _to = to
-    values = [rand_uniform(_from, to)/n]
+    values = [rand_uniform(_from, to) / n]
     n = n - 1
 
     if not n:
@@ -260,7 +265,7 @@ def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List
     while n:
         to = to - values[-1]
         assert _from < to < _to
-        values.append(rand_uniform(_from, to)/n)
+        values.append(rand_uniform(_from, to) / n)
         n -= 1
 
     # recover to value
@@ -405,6 +410,13 @@ class Matrix(object):
 
     def __matmul__(self, other):
         return self.dot(other)
+
+    def __add__(self, other):
+        assert self.shape == get_shape(other), "the shape must be the same"
+        return Matrix([list(map(sum, zip(*t))) for t in zip(self, other)])
+
+    def __sub__(self, other):
+        pass
 
     def __mul__(self, other):
         return Matrix(array_gen(self.shape, list(map(lambda x: x * other, self.flatten()))))
