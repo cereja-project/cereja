@@ -8,7 +8,7 @@ import logging
 from typing import Sequence, Any
 
 from cereja.cj_types import Function
-from cereja.common import is_sequence
+from cereja.arraytools import is_sequence
 from cereja.decorators import time_exec
 from cereja.utils import set_log_level
 

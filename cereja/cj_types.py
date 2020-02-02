@@ -17,3 +17,4 @@ Function = type(_f)
 
 Number = T_number
 PEP440 = Tuple[int, int, int, str, int]
+Shape = Tuple[int, ...]
