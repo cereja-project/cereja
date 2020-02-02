@@ -1,7 +1,7 @@
 import os
 import random
 from typing import List
-from cereja.common import group_items_in_batches
+from cereja.arraytools import group_items_in_batches
 
 __all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir']
 
