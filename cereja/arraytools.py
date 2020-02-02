@@ -4,7 +4,7 @@ import random
 from functools import reduce
 import math
 from typing import Any, Sequence, Tuple, Union, List, Optional
-
+import copy
 from cereja.cj_types import Number, Shape
 import logging
 
@@ -429,6 +429,9 @@ class Matrix(object):
     def __mul__(self, other):
         return Matrix(array_gen(self.shape, list(map(lambda x: x * other, self.flatten()))))
 
+    def __iadd__(self, other):
+        return Matrix(list(map(lambda x: x + other, self.flatten())))
+
     def __getitem__(self, slice_):
         if isinstance(slice_, int):
             result = self.to_list()[slice_]
@@ -467,6 +470,9 @@ class Matrix(object):
         if isinstance(obj, list):
             return Matrix(obj)
         return obj
+
+    def copy(self):
+        return copy.copy(self)
 
     def __repr(self):
         values = self.to_list()[:self._n_max_repr]
