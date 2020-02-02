@@ -38,32 +38,34 @@ class Vector(list):
         return flatten(self)
 
 
-class Array(object):
+class Matrix(object):
     def __init__(self, values):
         self.values = values
         self.shape = get_shape(values)
-        self.cols = None
-        self.n_max_repr = min(50, len(values))
+        self.cols = self._get_cols()
+        self._n_max_repr = min(50, len(values))
 
     def __iter__(self):
-        return iter(self.values)
+        return iter(self.to_list())
+
+    def __len__(self):
+        return len(self.to_list())
 
     def __repr(self):
-        values = self.values[:self.n_max_repr]
+        values = self.to_list()[:self._n_max_repr]
         if len(self.shape) <= 1:
             return values
         return '\n      '.join(
-            f'{val}' for i, val in enumerate(values) if i <= self.n_max_repr)
+            f'{val}' for i, val in enumerate(values) if i <= self._n_max_repr)
 
     def __repr__(self):
-
         if len(self.values) >= 50:
             dott = f"""
             .
             .
             .
             """
-            msg_max_display = f"\n\ndisplaying {self.n_max_repr} of {len(self.values)} lines"
+            msg_max_display = f"\n\ndisplaying {self._n_max_repr} of {len(self.values)} lines"
         else:
             msg_max_display = ''
             dott = ''
@@ -71,19 +73,22 @@ class Array(object):
 
     def __getattribute__(self, item):
         obj = object.__getattribute__(self, item)
-        if isinstance(obj, list) and item == 'cols' and obj is None:
-            return self._get_cols()
-        return self.__new__()
+        if isinstance(obj, list):
+            return Matrix(obj)
+        return obj
+
+    def to_list(self):
+        return object.__getattribute__(self, 'values')
 
     def __getitem__(self, slice_):
         if isinstance(slice_, int):
-            result = self.values[slice_]
+            result = self.to_list()[slice_]
             if isinstance(result, int):
                 return result
-            return result
+            return Matrix(result)
         if isinstance(slice_, tuple):
             slice_1, slice_2 = slice_
-            values = self.values[slice_1]
+            values = Matrix(self.to_list()[slice_1])
             if isinstance(slice_2, int):
                 if len(values.shape) <= 1:
                     return values[slice_2]
@@ -93,13 +98,21 @@ class Array(object):
             if values.cols:
                 return values.cols[slice_2].cols
             return values.values[slice_2]
-        return self.values[slice_]
+        return Matrix(self.to_list()[slice_])
 
     def _get_cols(self):
+        obj = self.to_list()
         shape = self.shape
         if len(shape) <= 1:
-            return []
-        return list(map(list, itertools.zip_longest(*self.values)))
+            return [obj]
+        return list(map(list, itertools.zip_longest(*obj)))
+
+    def dot(self, b):
+        b = Matrix(b)
+        if not len(b.shape) == 1:
+            assert self.shape[-1] == b.shape[-2], f'Number of columns {self.shape[-1]} != number of rows {b.shape[-2]}'
+            return Matrix([[dotproduct(line, col) for col in b.cols] for line in self])
+        return Matrix([dotproduct(line, col) for col in b.cols for line in self])
 
 
 def get_cols(sequence: Sequence):
