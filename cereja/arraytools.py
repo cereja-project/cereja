@@ -75,6 +75,13 @@ def prod(sequence: Sequence[Number]) -> Number:
     return reduce((lambda x, y: x * y), sequence)
 
 
+def sub(sequence: Sequence[Number]) -> Number:
+    if not is_sequence(sequence):
+        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+
+    return reduce((lambda x, y: x - y), sequence)
+
+
 def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, ...]) -> bool:
     """
     Check the number of items the array has and compare it with the shape product
@@ -416,7 +423,8 @@ class Matrix(object):
         return Matrix([list(map(sum, zip(*t))) for t in zip(self, other)])
 
     def __sub__(self, other):
-        pass
+        assert self.shape == get_shape(other), "the shape must be the same"
+        return Matrix([list(map(sub, zip(*t))) for t in zip(self, other)])
 
     def __mul__(self, other):
         return Matrix(array_gen(self.shape, list(map(lambda x: x * other, self.flatten()))))
