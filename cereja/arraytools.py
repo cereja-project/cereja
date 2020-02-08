@@ -288,7 +288,6 @@ def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List
 
     while n:
         to = to - values[-1]
-        assert _from < to < _to
         values.append(rand_uniform(_from, to) / n)
         n -= 1
 
