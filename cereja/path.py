@@ -1,8 +1,12 @@
+import logging
 import os
 import random
+import shutil
 import time
 from typing import List
 from cereja.arraytools import group_items_in_batches
+
+logger = logging.getLogger(__name__)
 
 __all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir']
 
@@ -113,9 +117,12 @@ def listdir(path: str, only_relative_path: bool = False) -> List[str]:
 
 def clean_dir(path_: str):
     """
-    Delete all files of dir
+    Delete all files on dir
     """
-    os.remove(*listdir(path_))
+    content = listdir(path_)
+    for p in content:
+        shutil.rmtree(p)
+    logger.info(f"{len(content)} files were removed")
 
 
 if __name__ == '__main__':
