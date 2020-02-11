@@ -1,5 +1,6 @@
 import os
 import random
+import time
 from typing import List
 from cereja.arraytools import group_items_in_batches
 
@@ -84,6 +85,11 @@ def file_name(file_path: str, with_ext: bool = False) -> str:
         return base_name
     f_name, _ = os.path.splitext(base_name)
     return f_name
+
+
+def change_date_from_path(path_: str, format_: str = '%d-%m-%Y %H:%M:%S'):
+    m_time = os.path.getctime(path_)
+    return time.strftime(format_, time.localtime(m_time))
 
 
 def get_base_dir(__file__: str) -> str:
