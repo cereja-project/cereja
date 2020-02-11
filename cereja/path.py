@@ -111,5 +111,12 @@ def listdir(path: str, only_relative_path: bool = False) -> List[str]:
     return [os.path.join(path, p) if not only_relative_path else p for p in os.listdir(path)]
 
 
+def clean_dir(path_: str):
+    """
+    Delete all files of dir
+    """
+    os.remove(*listdir(path_))
+
+
 if __name__ == '__main__':
     pass
