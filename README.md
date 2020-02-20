@@ -1,4 +1,6 @@
 # Cereja
+
+![Python package](https://github.com/jlsneto/cereja/workflows/Python%20package/badge.svg)
 [![PyPI version](https://badge.fury.io/py/cereja.svg)](https://badge.fury.io/py/cereja)
 [![Downloads](https://pepy.tech/badge/cereja)](https://pepy.tech/project/cereja)
 [![MIT LICENSE](https://img.shields.io/pypi/l/pyzipcode-cli.svg)](LICENSE)
