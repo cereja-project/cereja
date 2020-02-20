@@ -6,8 +6,11 @@ import subprocess
 import importlib
 import sys
 import types
-from typing import Any, Union
+import random
+from typing import Any, Union, Sequence, List, Tuple
 import logging
+import itertools
+
 # Needed init configs
 from logging import config
 
@@ -177,5 +180,28 @@ def get_version_pep440_compliant(version: str = None) -> str:
     return f"{root_version}{sub}"
 
 
+def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: bool = False) -> List[Tuple[Any, ...]]:
+    """
+    >>> a = [1, 2, 3]
+    >>> b = ['anything_a', 'anything_b']
+    >>> combine_with_all(a, b)
+    [(1, 'anything_a'), (1, 'anything_b'), (2, 'anything_a'), (2, 'anything_b'), (3, 'anything_a'), (3, 'anything_b')]
+
+    >>> combine_with_all(a, b, n_a_combinations=2)
+    [((1, 2), 'anything_a'), ((1, 2), 'anything_b'),
+    ((1, 3), 'anything_a'), ((1, 3), 'anything_b'),
+    ((2, 3), 'anything_a'), ((2, 3), 'anything_b')]
+    """
+    if not isinstance(n_a_combinations, int):
+        raise TypeError(f"Please send {int}.")
+    n_a_combinations = len(a) if n_a_combinations > len(a) else abs(n_a_combinations)
+
+    combination = itertools.combinations(a, n_a_combinations) if n_a_combinations > 1 else a
+    product_with_b = list(itertools.product(combination, b))
+    if is_random:
+        random.shuffle(product_with_b)
+    return product_with_b
+
+
 if __name__ == '__main__':
-    print(get_version_pep440_compliant())
+    print(combine_with_all([1, 2, 3], ['anything_a', 'anything_b'], 2))
