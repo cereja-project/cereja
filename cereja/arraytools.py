@@ -1,10 +1,11 @@
 import itertools
 import operator
 import random
+import statistics
 from functools import reduce
 import math
 from typing import Any, Sequence, Tuple, Union, List, Optional
-
+import copy
 from cereja.cj_types import Number, Shape
 import logging
 
@@ -75,6 +76,20 @@ def prod(sequence: Sequence[Number]) -> Number:
     return reduce((lambda x, y: x * y), sequence)
 
 
+def sub(sequence: Sequence[Number]) -> Number:
+    if not is_sequence(sequence):
+        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+
+    return reduce((lambda x, y: x - y), sequence)
+
+
+def div(sequence: Sequence[Number]) -> Number:
+    if not is_sequence(sequence):
+        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+
+    return reduce((lambda x, y: x / y), sequence)
+
+
 def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, ...]) -> bool:
     """
     Check the number of items the array has and compare it with the shape product
@@ -87,6 +102,15 @@ def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, 
     return prod(expected_shape) == sequence_len
 
 
+def is_empty(sequence: Sequence) -> bool:
+    if is_sequence(sequence):
+        try:
+            sequence[0]
+        except:
+            return True
+    return False
+
+
 def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
     """
     Responsible for analyzing the depth of a sequence
@@ -94,15 +118,20 @@ def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
     :param sequence: Is sequence of values.
     :return: number of dimensions
     """
-    if not sequence:
+    if is_empty(sequence):
         return None,
+    sequence_length = len(flatten(sequence))
     wkij = []
     while True:
-        if is_sequence(sequence) and sequence:
+        if is_sequence(sequence) and not is_empty(sequence):
             wkij.append(len(sequence))
             sequence = sequence[0]
             continue
-        return tuple(wkij)
+        break
+    # is sanity validation
+    if sequence_length != prod(wkij):
+        return wkij[0],
+    return tuple(wkij)
 
 
 def get_shape_recursive(sequence: Sequence[Any], wki: Tuple[int, ...] = None) -> Tuple[int, ...]:
@@ -251,15 +280,15 @@ def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List
     assert _from < to, "please send a valid range. The first value must not be greater than the second"
 
     _to = to
-    values = [rand_uniform(_from, to)]
+    values = [rand_uniform(_from, to) / n]
     n = n - 1
 
     if not n:
         return values[0]  # if n was not sent
 
     while n:
-        to = (_from - to) - values[-1]  # get last
-        values.append(rand_uniform(_from, to))
+        to = to - values[-1]
+        values.append(rand_uniform(_from, to) / n)
         n -= 1
 
     # recover to value
@@ -405,13 +434,33 @@ class Matrix(object):
     def __matmul__(self, other):
         return self.dot(other)
 
+    def __add__(self, other):
+        assert self.shape == get_shape(other), "the shape must be the same"
+        return Matrix([list(map(sum, zip(*t))) for t in zip(self, other)])
+
+    def __sub__(self, other):
+        if is_numeric_sequence(other):
+            assert self.shape == get_shape(other), "the shape must be the same"
+            return Matrix([list(map(sub, zip(*t))) for t in zip(self, other)])
+        return Matrix(array_gen(self.shape, list(map(lambda x: x - other, self.flatten()))))
+
     def __mul__(self, other):
         return Matrix(array_gen(self.shape, list(map(lambda x: x * other, self.flatten()))))
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __truediv__(self, other):
+        assert self.shape == get_shape(other), "the shape must be the same"
+        return Matrix([list(map(div, zip(*t))) for t in zip(self, other)])
+
+    def __iadd__(self, other):
+        return Matrix(list(map(lambda x: x + other, self.flatten())))
 
     def __getitem__(self, slice_):
         if isinstance(slice_, int):
             result = self.to_list()[slice_]
-            if isinstance(result, int):
+            if isinstance(result, (float, int)):
                 return result
             return Matrix(result)
         if isinstance(slice_, tuple):
@@ -447,6 +496,15 @@ class Matrix(object):
             return Matrix(obj)
         return obj
 
+    def std(self):
+        return statistics.pstdev(self.flatten())
+
+    def sqrt(self):
+        return Matrix(list(map(math.sqrt, self.flatten()))).reshape(self.shape)
+
+    def copy(self):
+        return copy.copy(self)
+
     def __repr(self):
         values = self.to_list()[:self._n_max_repr]
         if len(self.shape) <= 1:
@@ -475,6 +533,10 @@ class Matrix(object):
 
     def flatten(self):
         return Matrix(flatten(self))
+
+    def mean(self):
+        flattened = self.flatten()
+        return sum(flattened) / len(flattened)
 
     def reshape(self, shape: Shape):
         return Matrix(array_gen(shape, self.flatten().to_list()))
@@ -576,4 +638,7 @@ class Freq:
 
 
 if __name__ == "__main__":
-    pass
+    a = Matrix(
+        [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+         1.0, 1.0, 1.0, 1.0])
+    a[0]

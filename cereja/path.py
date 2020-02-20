@@ -1,7 +1,12 @@
+import logging
 import os
 import random
+import shutil
+import time
 from typing import List
 from cereja.arraytools import group_items_in_batches
+
+logger = logging.getLogger(__name__)
 
 __all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir']
 
@@ -86,6 +91,11 @@ def file_name(file_path: str, with_ext: bool = False) -> str:
     return f_name
 
 
+def change_date_from_path(path_: str, format_: str = '%d-%m-%Y %H:%M:%S'):
+    m_time = os.path.getctime(path_)
+    return time.strftime(format_, time.localtime(m_time))
+
+
 def get_base_dir(__file__: str) -> str:
     """
     :param __file__: send your __file__ string.
@@ -103,6 +113,16 @@ def listdir(path: str, only_relative_path: bool = False) -> List[str]:
 
     """
     return [os.path.join(path, p) if not only_relative_path else p for p in os.listdir(path)]
+
+
+def clean_dir(path_: str):
+    """
+    Delete all files on dir
+    """
+    content = listdir(path_)
+    for p in content:
+        shutil.rmtree(p)
+    logger.info(f"{len(content)} files were removed")
 
 
 if __name__ == '__main__':
