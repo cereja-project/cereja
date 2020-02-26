@@ -1,4 +1,5 @@
 import functools
+import sys
 import time
 from abc import abstractmethod
 from typing import Callable, Any
@@ -6,6 +7,7 @@ import abc
 import logging
 
 from cereja import utils
+from cereja.arraytools import rand_n
 
 __all__ = ['time_exec']
 logger = logging.getLogger(__name__)
@@ -54,6 +56,3 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
 # Lowercase is more sensible for most things, and import_string is because Cyclic imports
 sync_to_async = utils.import_string('cereja.concurrently.SyncToAsync')
 async_to_sync = utils.import_string('cereja.concurrently.AsyncToSync')
-
-if __name__ == '__main__':
-    pass
