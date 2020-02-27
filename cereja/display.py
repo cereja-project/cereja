@@ -6,13 +6,14 @@ __all__ = 'Progress'
 
 
 class Progress(object):
+    NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
     DONE_UNICODE = "\U00002705"
     CLOCKS_UNICODE = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
                       "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
 
     CHERRY_UNICODE = "\U0001F352"
 
-    def __init__(self, style="loading", **kwargs):
+    def __init__(self, job_name="Progress Tool", style="loading", **kwargs):
         self._style = style
         self._default_loading_symb = "."
         self._default_bar_symb = "="
@@ -25,6 +26,27 @@ class Progress(object):
         self._bar = ' ' * self._max_percent_value
         self._use_loading_with_clock = False
         self._sleep_time = 0.5
+        self.job_name = job_name
+        self.first_time = time.time()
+
+        try:
+            sys.stdout.write(f"{self.CHERRY_UNICODE} {self.job_name}: Created!")
+            self.non_bmp_supported = True
+        except UnicodeEncodeError:
+            self.non_bmp_supported = False
+
+    def __parse(self, msg: str):
+        if self.non_bmp_supported:
+            return msg
+        return msg.translate(self.NON_BMP_MAP)
+
+    def __send_msg(self, msg):
+        sys.stdout.write(f'\r')
+        sys.stdout.write(self.__parse(msg))
+        sys.stdout.flush()
+
+    def _time(self):
+        return f"Time: {round(time.time() - self.first_time, 2)}s"
 
     def _default_loading(self):
         self._n_times += 1
@@ -56,15 +78,15 @@ class Progress(object):
 
     def _current_value_info(self):
         if self._finish:
-            return f"Done! {self.DONE_UNICODE}"
+            return f"Done! {self.DONE_UNICODE} - {self._time()}"
         return f"{self._current_percent}%"
 
     def _write(self):
-        sys.stdout.write(f"\r")
         if self._current_percent == 0:
-            sys.stdout.write(f"{self.CHERRY_UNICODE} Awaiting Data {self._loading_progress()}")
+            self.__send_msg(
+                f"{self.CHERRY_UNICODE} {self.job_name}: Awaiting {self._loading_progress()} {self._current_value_info()}")
         else:
-            sys.stdout.write(f"{self.CHERRY_UNICODE} Progress --> [{self._display()}] {self._current_value_info()}")
+            self.__send_msg(f"{self.CHERRY_UNICODE} {self.job_name}: [{self._display()}] {self._current_value_info()}")
         self._last_percent = self._current_percent
 
     def _looping(self):
@@ -92,7 +114,8 @@ class Progress(object):
 
 
 if __name__ == '__main__':
-    with Progress() as bar:
+
+    with Progress(job_name="Progress Bar Test", style='bar') as bar:
         for i in range(1, 100):
             time.sleep(1 / i)
             bar.set_percent(i)
