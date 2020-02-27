@@ -204,4 +204,4 @@ def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: boo
 
 
 if __name__ == '__main__':
-    print(combine_with_all([1, 2, 3], ['anything_a', 'anything_b'], 2))
+    print(get_version_pep440_compliant())
