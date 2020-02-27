@@ -22,8 +22,9 @@ class Progress(object):
         self._last_percent = None
         self._n_times = 0
         self._max_loading_symb = 3
-        self._max_percent_value = 100
-        self._bar = ' ' * self._max_percent_value
+        self._max_percent_value = kwargs.get("max_percent", 100)
+        self._bar_size = kwargs.get('bar_size', 30)
+        self._bar = ' ' * self._bar_size
         self._use_loading_with_clock = False
         self._sleep_time = 0.5
         self.job_name = job_name
@@ -69,7 +70,8 @@ class Progress(object):
     def _bar_progress(self):
         if self._current_percent != self._last_percent:
             self._last_percent = self._current_percent
-        return self._bar.replace(' ', self._default_bar_symb, round(self._current_percent)).replace(' ', '>', 1)
+        current_bar_value = int((self._bar_size / self._max_percent_value) * self._current_percent)
+        return self._bar.replace(' ', self._default_bar_symb, current_bar_value).replace(' ', '>', 1)
 
     def _display(self):
         if self._style == 'bar':
@@ -120,3 +122,4 @@ if __name__ == '__main__':
     with Progress(job_name="Progress Bar Test", style='bar') as bar:
         for i in range(1, 100):
             time.sleep(1 / i)
+            bar.set_percent(i)
