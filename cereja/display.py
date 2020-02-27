@@ -79,6 +79,8 @@ class Progress(object):
     def _current_value_info(self):
         if self._finish:
             return f"Done! {self.DONE_UNICODE} - {self._time()}"
+        if self._current_percent == 0:
+            return ''
         return f"{self._current_percent}%"
 
     def _write(self):
@@ -118,4 +120,3 @@ if __name__ == '__main__':
     with Progress(job_name="Progress Bar Test", style='bar') as bar:
         for i in range(1, 100):
             time.sleep(1 / i)
-            bar.set_percent(i)
