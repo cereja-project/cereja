@@ -40,8 +40,9 @@ def _walk_dirs_and_replace(dir_path, old, new, ext_in: list = None):
         if files:
             with Progress(f"Looking to {root_dir}", max_value=len(files)) as prog:
                 for i, file_ in enumerate(files):
+                    file_path = os.path.join(root_dir, file_)
                     file_name, ext = os.path.splitext(file_)
-                    if os.path.islink(file_) or (ext_in and ext not in ext_in):
+                    if os.path.islink(file_path) or (ext_in and ext not in ext_in):
                         continue
                     prog.task_name = f"Converting {root_dir} ({file_})"
                     file_path = os.path.join(root_dir, file_)
@@ -100,4 +101,5 @@ def _auto_ident_py(path: str):
 
 
 if __name__ == '__main__':
-    crlf_to_lf("/home/jlsneto/PycharmProjects/monorepo")
+    #crlf_to_lf("/home/jlsneto/PycharmProjects/monorepo")
+    print(os.path.islink("/home/jlsneto/PycharmProjects/monorepo/web/src/shared"))
