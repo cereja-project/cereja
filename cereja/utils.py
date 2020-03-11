@@ -7,7 +7,7 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, Sequence, List, Tuple
+from typing import Any, Union, Sequence, List, Tuple, Dict
 import logging
 import itertools
 
@@ -17,6 +17,20 @@ from logging import config
 from cereja.cj_types import PEP440
 
 logger = logging.getLogger(__name__)
+
+
+def invert_dict(dict_: Dict[Any, Any]) -> dict:
+    """
+    Inverts the key by value
+    e.g:
+    >>> dict_ = {"a": "b", "c": "d"}
+    >>> invert_dict(dict_)
+    {"b" : "a", "d": "c"}
+    :return: dict
+    """
+    if not isinstance(dict_, dict):
+        raise TypeError("Send a dict object.")
+    return dict(zip(dict_.values(), dict_.keys()))
 
 
 def import_string(dotted_path):
