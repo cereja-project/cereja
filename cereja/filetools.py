@@ -5,7 +5,6 @@ import os
 from typing import Union, List, Iterator, Tuple, Sequence
 
 from cereja.arraytools import is_sequence
-from cereja.path import get_base_dir
 from cereja.display import Progress
 import logging
 
@@ -13,9 +12,7 @@ from cereja.utils import invert_dict
 
 logger = logging.Logger(__name__)
 
-__all__ = []  # is'nt public https://www.python.org/dev/peps/pep-0008/#id50
-
-_base_dir = get_base_dir(__file__)
+_explicit_exclude = ["_auto_ident_py", "FileBase", "_walk_dirs_and_replace"]
 
 """
 CRLF platforms:
