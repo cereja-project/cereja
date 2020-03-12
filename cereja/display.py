@@ -1,3 +1,26 @@
+"""
+
+Copyright (c) 2019 The Cereja Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 import threading
 import sys
 import time
@@ -23,6 +46,7 @@ class Progress(object):
     """
     NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
     DONE_UNICODE = "\U00002705"
+    ERROR_UNICODE = "\U0000274C"
     CLOCKS_UNICODE = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
                       "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
 
@@ -30,9 +54,10 @@ class Progress(object):
 
     def __init__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs):
         self._style = style
+        self.max_value = max_value
         self._default_loading_symb = "."
         self._default_bar_symb = "="
-        self._current_percent = 0
+        self.current_value = 0
         self._finish = False
         self._started = False
         self._last_percent = None
@@ -44,7 +69,6 @@ class Progress(object):
         self._sleep_time = 0.5
         self.task_name = task_name
         self.first_time = time.time()
-        self.set_max_value(max_value)
 
         # This is important, as there may be an exception if the terminal does not support unicode bmp
         try:
@@ -100,7 +124,9 @@ class Progress(object):
 
     def _current_value_info(self):
         if self._finish:
-            return f"Done! {self.DONE_UNICODE} - {self._time()}"
+            error_msg = f"Error: {self.ERROR_UNICODE} - {self._time()}"
+            done_msg = f"Done! {self.DONE_UNICODE} - {self._time()}"
+            return done_msg
         if self._current_percent == 0:
             return ''
         return f"{self._current_percent}%"
@@ -127,6 +153,7 @@ class Progress(object):
         Start progress task, you will need to use this method if it does not run with the "with statement"
         :param task_name: Defines the name to be displayed in progress
         """
+        self.first_time = time.time()
         if task_name is not None:
             self.task_name = task_name
         if not self._started:
@@ -153,7 +180,21 @@ class Progress(object):
         self.stop()
         self.start()
 
-    def set_max_value(self, value: Number):
+    @property
+    def current_value(self):
+        return self.__current_value
+
+    @current_value.setter
+    def current_value(self, value):
+        self._current_percent = (value / self.max_value) * 100
+        self.__current_value = value
+
+    @property
+    def max_value(self):
+        return self.__max_value
+
+    @max_value.setter
+    def max_value(self, value: Number):
         """
         :param value: This number represents the maximum amount you want to achieve.
                   It is not a percentage, although it is purposely set to 100 by default.
@@ -162,7 +203,7 @@ class Progress(object):
         """
         if value is not None:
             if isinstance(value, (int, float, complex)) and value > 0:
-                self.max_value = value
+                self.__max_value = value
             else:
                 raise Exception("Send Number.")
 
@@ -175,14 +216,12 @@ class Progress(object):
         :param max_value: This number represents the maximum amount you want to achieve.
                           It is not a percentage, although it is purposely set to 100 by default.
         """
-        self.set_max_value(max_value)
-        current_value = (current_value / self.max_value) * 100
 
-        # TODO: improve the identification of another task
-        if current_value < self._current_percent:
-            self._reload()
-
-        self._current_percent = current_value
+        if max_value is not None:
+            if max_value != self.max_value:
+                self._reload()
+        self.max_value = max_value
+        self.current_value = current_value
 
     def display_only_once(self, current_value: float = None):
         """
@@ -205,7 +244,7 @@ class Progress(object):
         self.th.start()
         return self
 
-    def __exit__(self, *args, **kwargs):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self._finish = True
         self._started = False
         self.th.join()
@@ -225,11 +264,11 @@ if __name__ == '__main__':
 
     bar = Progress(task_name="Progress Bar Test", style='bar', max_value=500)
     bar.start()
-    for i in range(1, 500):
+    for i in range(1, 501):
         time.sleep(1 / i)
         bar.update(i)
 
-    for i in range(1, 400):
+    for i in range(1, 401):
         time.sleep(1 / i)
         bar.update(i, max_value=400)
     bar.stop()

@@ -21,23 +21,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-"""
-This module defines the types of variables, used for hint
+import argparse
+import sys
+from cereja.utils import get_version_pep440_compliant
+from cereja.filetools import crlf_to_lf
 
-see more PEP484 (Python Enhancement Proposals) :
-https://www.python.org/dev/peps/pep-0484/
-"""
-from typing import TypeVar, Iterable, Tuple
-
-
-def _f(*args, **kwargs): pass
-
-
-T_number = TypeVar('T_number', int, float, complex)  # Number type
-Vector = Iterable[Tuple[T_number, T_number]]
-
-Function = type(_f)
-
-Number = T_number
-PEP440 = Tuple[int, int, int, str, int]
-Shape = Tuple[int, ...]
+if __name__ == "__main__":
+    sys.stdout.write("\U0001F352 Cereja Tools\n")
+    sys.stdout.flush()
+    parser = argparse.ArgumentParser(description='Cereja Tools.')
+    parser.add_argument('--version', action='version', version=get_version_pep440_compliant())
+    parser.add_argument('--crlf_to_lf')
+    args = parser.parse_args()
+    if args.crlf_to_lf:
+        crlf_to_lf(args.crlf_to_lf)

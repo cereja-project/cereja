@@ -1,3 +1,26 @@
+"""
+
+Copyright (c) 2019 The Cereja Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 import logging
 import os
 import random
@@ -8,7 +31,7 @@ from cereja.arraytools import group_items_in_batches
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir']
+__all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir', 'normalize_path']
 
 
 def mkdir(path_dir: str):
@@ -113,6 +136,32 @@ def listdir(path: str, only_relative_path: bool = False) -> List[str]:
 
     """
     return [os.path.join(path, p) if not only_relative_path else p for p in os.listdir(path)]
+
+
+def _norm_path(path_: str):
+    return os.path.normpath(path_) if os.path.isabs(path_) else os.path.abspath(path_)
+
+
+def normalize_file_path(path_: str) -> str:
+    path_ = _norm_path(path_)
+    if not os.path.isfile(path_):
+        raise ValueError(f"{path_} Is'nt File")
+    return path_
+
+
+def normalize_dir_path(path_: str) -> str:
+    path_ = _norm_path(path_)
+    if not os.path.isdir(path_):
+        raise ValueError(f"{path_} Is'nt Dir")
+    return path_
+
+
+def normalize_path(path_: str, is_file: bool = None, is_dir: bool = None) -> str:
+    if is_file is True:
+        return normalize_file_path(path_)
+    elif is_dir is True:
+        return normalize_dir_path(path_)
+    return _norm_path(path_)
 
 
 def clean_dir(path_: str):
