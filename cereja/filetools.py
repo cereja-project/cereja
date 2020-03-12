@@ -1,13 +1,11 @@
-"""
-High-level API for creating and manipulating files
-"""
 import os
-from typing import Union, List, Iterator, Tuple, Sequence
+from typing import Union, List, Iterator, Tuple, Sequence, Any
 
 from cereja.arraytools import is_sequence
 from cereja.display import Progress
 import logging
 
+from cereja.path import normalize_path
 from cereja.utils import invert_dict
 
 logger = logging.Logger(__name__)
@@ -54,38 +52,47 @@ class FileBase(object):
     _dont_read = [".pyc",
                   ]
 
-    def __init__(self, path_: str, content_lines: List[str]):
-        self.path_ = path_
-        self.content_lines = content_lines
+    def __init__(self, path_: str, content_file: Union[Sequence, str, Any]):
+        self.__line_sep = None
+        self.path_ = normalize_path(path_)
+        self.content_file = content_file
         if self.is_empty:
             self.line_sep = self._default_end_line
-            self.content_lines = [self._default_end_line]
+            self.content_file = [self._default_end_line]
         else:
-            self.line_sep = self.parse_line_sep(self.__lines[0])
+            line_sep_ = self.parse_line_sep(self.__lines[0])
+            if line_sep_ is None:
+                self.line_sep = self._default_end_line
+            else:
+                self.line_sep = line_sep_
 
         self.__lock = True
 
+    @classmethod
+    def normalize_data(cls, data: Any):
+        if is_sequence(data):
+            return list(map(str, data))
+        elif isinstance(data, str):
+            return data.splitlines(keepends=True)
+        else:
+            raise ValueError("Invalid value. Send other ")
+
     @property
-    def content_lines(self):
+    def content_file(self) -> List[str]:
         return self.__lines
+
+    @content_file.setter
+    def content_file(self, lines: Sequence[str]):
+        if hasattr(self, "__lock"):
+            if self.__lock:
+                raise AttributeError("Unable to apply content lines again, use another method.")
+        self.__lines = self.normalize_data(lines)
 
     @classmethod
     def normalize_line_sep(cls, content: str) -> str:
         return content.replace(cls._str_line_sep_map['CRLF'],
                                cls._default_end_line).replace(cls._str_line_sep_map['CR'],
                                                               cls._default_end_line)
-
-    @content_lines.setter
-    def content_lines(self, lines: Sequence[str]):
-        if hasattr(self, "__lock"):
-            if self.__lock:
-                raise AttributeError("Unable to apply content lines again, use another method.")
-        if is_sequence(lines):
-            self.__lines = lines
-        elif isinstance(lines, str):
-            self.__lines = lines.splitlines(keepends=True)
-        else:
-            raise ValueError("Invalid value. Send other ")
 
     @classmethod
     def parse_line_sep(cls, line_sep_: str) -> Union[str, None]:
@@ -132,6 +139,10 @@ class FileBase(object):
 
     @property
     def dir_name(self):
+        return os.path.basename(self.dir_path)
+
+    @property
+    def dir_path(self):
         return os.path.dirname(self.path_)
 
     @property
@@ -151,6 +162,7 @@ class FileBase(object):
             return
         self.__lines = self.normalize_line_sep(self.content_str).replace(self._default_end_line, new).splitlines(
             keepends=True)
+        self.line_sep = new
 
     @classmethod
     def read(cls, path_: str, mode='r+', encoding='utf-8', **kwargs):
@@ -193,6 +205,9 @@ class FileBase(object):
                             logger.error(f'Error reading the file {file_name}: {err}')
             yield os.path.basename(dir_name), len(files_), files_
 
+    def _insert(self, index: int, data: Union[Sequence, str]):
+        pass
+
     @classmethod
     def save(cls, path_: Union[str, None]):
         raise NotImplementedError
@@ -202,12 +217,15 @@ class FileBase(object):
 
 
 class File(FileBase):
+    """
+    High-level API for creating and manipulating files
+    """
 
     def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', **kwargs):
         if on_new_path is not None:
             self.path_ = on_new_path
         with open(self.path_, 'w', newline='', encoding=encoding, **kwargs) as fp:
-            fp.writelines(self.content_lines)
+            fp.writelines(self.content_file)
         return self
 
     def replace_file_sep(self, new, save: bool = True):
@@ -221,6 +239,11 @@ class File(FileBase):
         except UnicodeDecodeError:
             logger.error(f'Not possibility convert {self.file_name}')
         return self
+
+
+class _FilePython(File):
+    def insert_license(self):
+        pass
 
 
 def _walk_dirs_and_replace(dir_path, new, ext_in: list = None):

@@ -1,8 +1,11 @@
+import os
 import unittest
 import logging
 
 from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
     is_sequence, array_gen, get_shape
+from cereja import filetools
+from cereja import path as cj_path
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +108,27 @@ class UtilsTestCase(unittest.TestCase):
 
     def test_randn(self):
         logger.warning("Awaiting tests!")
+
+
+class FileToolsTestCase(unittest.TestCase):
+
+    def battery_tests(self, cj_file_instance, expected_values):
+        self.assertEqual(cj_file_instance.line_sep, expected_values[0])
+        self.assertEqual(cj_file_instance.file_name, expected_values[1])
+        self.assertEqual(cj_file_instance.dir_name, expected_values[2])
+        self.assertEqual(cj_file_instance.is_empty, expected_values[3])
+        self.assertEqual(cj_file_instance.content_str, expected_values[4])
+        self.assertEqual(cj_file_instance.n_lines, expected_values[5])
+
+    def test_file_obj(self):
+        content_file = [1, 2, 3]
+        file = filetools.File('./teste.py', content_file)
+        expected_values = ["LF", "teste.py", 'tests', False, ''.join([str(i) for i in content_file]), len(content_file)]
+        self.battery_tests(file, expected_values)
+
+        file = file.replace_file_sep("CRLF", save=False)
+        expected_values[0] = "CRLF"
+        self.battery_tests(file, expected_values)
 
 
 if __name__ == '__main__':
