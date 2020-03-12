@@ -182,6 +182,7 @@ class FileBase(object):
 
     @classmethod
     def read(cls, path_: str, mode='r+', encoding='utf-8', **kwargs):
+        path_ = normalize_path(path_)
         file_name = os.path.basename(path_)
         ext = os.path.splitext(file_name)[-1]
         if ext in cls._dont_read:
@@ -325,6 +326,6 @@ def _auto_ident_py(path: str):
 
 if __name__ == '__main__':
     # f = File('./test.py', ['for i in range(5):', "    print(i)"]).save()
-    lf_to_crlf('lab/__init__.py')
+    lf_to_crlf('../lab/__init__.py')
 
     pass
