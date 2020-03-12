@@ -122,9 +122,9 @@ class FileToolsTestCase(unittest.TestCase):
 
     def test_file_obj(self):
         content_file = [1, 2, 3]
-        file = filetools.File('./teste.py', content_file)
+        file = filetools.File('cereja/teste.py', content_file)
         normalized_data = ''.join(filetools.File.add_line_sep(content_file, "LF"))
-        expected_values = ["LF", "teste.py", 'tests', False, normalized_data, len(content_file)]
+        expected_values = ["LF", "teste.py", 'cereja', False, normalized_data, len(content_file)]
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CRLF", save=False)
