@@ -1,7 +1,7 @@
 import os
 from typing import Union, List, Iterator, Tuple, Sequence, Any
 
-from cereja.arraytools import is_sequence
+from cereja.arraytools import is_sequence, is_iterable
 from cereja.display import Progress
 import logging
 
@@ -55,7 +55,7 @@ class FileBase(object):
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any]):
         self.__line_sep = None
         self.path_ = normalize_path(path_)
-        self.content_file = content_file
+        self.__lines = self.normalize_data(content_file)
         if self.is_empty:
             self.line_sep = self._default_end_line
             self.content_file = [self._default_end_line]
@@ -63,29 +63,37 @@ class FileBase(object):
             line_sep_ = self.parse_line_sep(self.__lines[0])
             if line_sep_ is None:
                 self.line_sep = self._default_end_line
-                self.__lines = self.add_line_sep(self.__lines, self.__line_sep)
             else:
                 self.line_sep = line_sep_
 
         self.__lock = True
 
     @classmethod
-    def add_line_sep(cls, data: List, line_sep_):
-        data = cls.normalize_data(data)
+    def _add_line_sep(cls, data: List, line_sep_):
+        if line_sep_ is None:
+            line_sep_ = cls._default_end_line
         line_sep_ = cls.parse_line_sep(line_sep_)
         data_has_end_line = bool(cls.parse_line_sep(data[0]))
-        if not data_has_end_line and line_sep_ is not None:
+        if not data_has_end_line:
             return list(map(lambda line: line + f'{line_sep_}', data))
-        else:
-            logger.error("It has already been applied.")
+        elif data_has_end_line:
+            logger.info("It has already been applied.")
         return data
 
     @classmethod
-    def normalize_data(cls, data: Any):
-        if is_sequence(data):
-            return list(map(str, data))
-        elif isinstance(data, str):
-            return data.splitlines(keepends=True)
+    def normalize_unix_line_sep(cls, content: str) -> str:
+        return content.replace(cls._str_line_sep_map['CRLF'],
+                               cls._default_end_line).replace(cls._str_line_sep_map['CR'],
+                                                              cls._default_end_line)
+
+    @classmethod
+    def normalize_data(cls, data: Any, line_sep_=None):
+        if is_iterable(data):
+            if is_sequence(data):
+                data = list(map(str, data))
+            elif isinstance(data, str):
+                data = data.splitlines(keepends=True)
+            return cls._add_line_sep(data, line_sep_)
         else:
             raise ValueError("Invalid value. Send other ")
 
@@ -101,21 +109,17 @@ class FileBase(object):
         self.__lines = self.normalize_data(lines)
 
     @classmethod
-    def normalize_line_sep(cls, content: str) -> str:
-        return content.replace(cls._str_line_sep_map['CRLF'],
-                               cls._default_end_line).replace(cls._str_line_sep_map['CR'],
-                                                              cls._default_end_line)
-
-    @classmethod
     def parse_line_sep(cls, line_sep_: str) -> Union[str, None]:
-        for ln in cls._line_sep_map:
-            if ln in line_sep_:
-                return ln
+        if is_iterable(line_sep_):
+            for ln in cls._line_sep_map:
+                if ln in line_sep_:
+                    return ln
 
         if line_sep_ in cls._str_line_sep_map:
             return cls._str_line_sep_map[line_sep_]
-        else:
-            return None
+
+        logger.info("unknown end line.")
+        return None
 
     @property
     def line_sep(self):
@@ -172,7 +176,7 @@ class FileBase(object):
     def _replace_file_sep(self, new):
         if new == self.__line_sep:
             return
-        self.__lines = self.normalize_line_sep(self.content_str).replace(self._default_end_line, new).splitlines(
+        self.__lines = self.normalize_unix_line_sep(self.content_str).replace(self._default_end_line, new).splitlines(
             keepends=True)
         self.line_sep = new
 
