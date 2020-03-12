@@ -63,10 +63,22 @@ class FileBase(object):
             line_sep_ = self.parse_line_sep(self.__lines[0])
             if line_sep_ is None:
                 self.line_sep = self._default_end_line
+                self.__lines = self.add_line_sep(self.__lines, self.__line_sep)
             else:
                 self.line_sep = line_sep_
 
         self.__lock = True
+
+    @classmethod
+    def add_line_sep(cls, data: List, line_sep_):
+        data = cls.normalize_data(data)
+        line_sep_ = cls.parse_line_sep(line_sep_)
+        data_has_end_line = bool(cls.parse_line_sep(data[0]))
+        if not data_has_end_line and line_sep_ is not None:
+            return list(map(lambda line: line + f'{line_sep_}', data))
+        else:
+            logger.error("It has already been applied.")
+        return data
 
     @classmethod
     def normalize_data(cls, data: Any):
