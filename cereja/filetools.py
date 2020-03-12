@@ -1,3 +1,118 @@
+"""
+
+Copyright (c) 2019 The Cereja Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+"""
+
+Copyright (c) 2019 The Cereja Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+"""
+
+Copyright (c) 2019 The Cereja Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+"""
+
+Copyright (c) 2019 The Cereja Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+"""
+
+Copyright (c) 2019 The Cereja Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 import os
 from typing import Union, List, Iterator, Tuple, Sequence, Any
 
@@ -49,8 +164,8 @@ class FileBase(object):
     _line_sep_map = _LINE_SEP_MAP.copy()
     _str_line_sep_map = _STR_LINE_SEP_MAP.copy()
     _default_end_line = DEFAULT_END_LINE
-    _dont_read = [".pyc",
-                  ]
+    _dont_read = [".pyc"]
+    _ignore_dir = [".git"]
 
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any]):
         self.__line_sep = None
@@ -88,14 +203,16 @@ class FileBase(object):
 
     @classmethod
     def normalize_data(cls, data: Any, line_sep_=None):
-        if is_iterable(data):
+        if not data:
+            return ''
+        if is_iterable(data) and data:
             if is_sequence(data):
                 data = list(map(str, data))
             elif isinstance(data, str):
                 data = data.splitlines(keepends=True)
             return cls._add_line_sep(data, line_sep_)
         else:
-            raise ValueError("Invalid value. Send other ")
+            raise ValueError(f"{data} Invalid value. Send other ")
 
     @property
     def content_file(self) -> List[str]:
@@ -218,12 +335,17 @@ class FileBase(object):
                             file_obj = cls.read(file_path)
                             if file_obj is not None:
                                 files_.append(file_obj)
-                        except UnicodeDecodeError as err:
+                        except Exception as err:
                             logger.error(f'Error reading the file {file_name}: {err}')
             yield os.path.basename(dir_name), len(files_), files_
 
-    def _insert(self, index: int, data: Union[Sequence, str]):
-        pass
+    def insert(self, index: int, data: Union[Sequence, str]):
+        data = self.normalize_data(data, self.__line_sep)
+        if is_sequence(data):
+            for i in data:
+                self.__lines.insert(index, i)
+        if isinstance(data, str):
+            self.__lines.insert(index, data)
 
     @classmethod
     def save(cls, path_: Union[str, None]):
@@ -325,7 +447,18 @@ def _auto_ident_py(path: str):
 
 
 if __name__ == '__main__':
-    # f = File('./test.py', ['for i in range(5):', "    print(i)"]).save()
-    lf_to_crlf('../lab/__init__.py')
-
-    pass
+    file = File.read("C:\\Users\\handtalk\\PycharmProjects\\cereja\\LICENSE")
+    file_content = ['"""\n\n'] + list(reversed(file.content_file)) + [f'"""\n\n']
+    dir_path_ = "C:\\Users\\handtalk\\PycharmProjects\\cereja"
+    ext_in = ['.py']
+    with Progress(f"Looking to {dir_path_}") as prog:
+        for dir_name, n_files, files_obj in File.walk(dir_path_):
+            if files_obj:
+                prog.update(1, n_files)
+                for i, file_obj in enumerate(files_obj):
+                    if file_obj.is_link or (ext_in and file_obj.ext not in ext_in):
+                        continue
+                    prog.task_name = f"Add license on {dir_name} ({file_obj})"
+                    file_obj.insert(0, file_content)
+                    file_obj.save()
+                    prog.update(i)
