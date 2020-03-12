@@ -2,8 +2,9 @@
 High-level API for creating and manipulating files
 """
 import os
-from typing import Union, List, Iterator, Tuple
+from typing import Union, List, Iterator, Tuple, Sequence
 
+from cereja.arraytools import is_sequence
 from cereja.path import get_base_dir
 from cereja.display import Progress
 import logging
@@ -40,10 +41,9 @@ DEFAULT_END_LINE = LF
 _LINE_SEP_MAP = {
     CRLF: "CRLF",
     LF: "LF",
-    CR: "CR",
-    '': DEFAULT_END_LINE
+    CR: "CR"
 }
-_LINE_SEP_MAP.update(invert_dict(_LINE_SEP_MAP))
+_STR_LINE_SEP_MAP = invert_dict(_LINE_SEP_MAP)
 
 
 class FileBase(object):
@@ -52,22 +52,62 @@ class FileBase(object):
     """
 
     _line_sep_map = _LINE_SEP_MAP.copy()
+    _str_line_sep_map = _STR_LINE_SEP_MAP.copy()
     _default_end_line = DEFAULT_END_LINE
     _dont_read = [".pyc",
                   ]
 
     def __init__(self, path_: str, content_lines: List[str]):
         self.path_ = path_
-        self.__lines = content_lines
-        if self.line_sep is '':
-            self._apply_default_line_sep()
+        self.content_lines = content_lines
+        if self.is_empty:
+            self.line_sep = self._default_end_line
+            self.content_lines = [self._default_end_line]
+        else:
+            self.line_sep = self.parse_line_sep(self.__lines[0])
 
-    def _parse_line_sep(self, _line_sep):
-        _line_sep = self._line_sep_map.get(_line_sep)
-        return '' if _line_sep is None else _line_sep
+        self.__lock = True
 
-    def _apply_default_line_sep(self):
-        self.__lines = list(map(lambda line: line + f'{self._default_end_line}', self.__lines))
+    @property
+    def content_lines(self):
+        return self.__lines
+
+    @classmethod
+    def normalize_line_sep(cls, content: str) -> str:
+        return content.replace(cls._str_line_sep_map['CRLF'],
+                               cls._default_end_line).replace(cls._str_line_sep_map['CR'],
+                                                              cls._default_end_line)
+
+    @content_lines.setter
+    def content_lines(self, lines: Sequence[str]):
+        if hasattr(self, "__lock"):
+            if self.__lock:
+                raise AttributeError("Unable to apply content lines again, use another method.")
+        if is_sequence(lines):
+            self.__lines = lines
+        elif isinstance(lines, str):
+            self.__lines = lines.splitlines(keepends=True)
+        else:
+            raise ValueError("Invalid value. Send other ")
+
+    @classmethod
+    def parse_line_sep(cls, line_sep_: str) -> Union[str, None]:
+        for ln in cls._line_sep_map:
+            if ln in line_sep_:
+                return ln
+
+        if line_sep_ in cls._str_line_sep_map:
+            return cls._str_line_sep_map[line_sep_]
+        else:
+            return None
+
+    @property
+    def line_sep(self):
+        return self._line_sep_map[self.__line_sep]
+
+    @line_sep.setter
+    def line_sep(self, line_sep_: str):
+        self.__line_sep = self.parse_line_sep(line_sep_) or self._default_end_line
 
     @property
     def path_(self):
@@ -109,19 +149,11 @@ class FileBase(object):
     def ext(self):
         return os.path.splitext(self.file_name)[-1]
 
-    @property
-    def line_sep(self):
-        if self.is_empty:
-            return self._parse_line_sep('')
-        return self._parse_line_sep(self.__lines[0][-1])
-
-    @property
-    def content_lines(self):
-        return self.__lines
-
     def _replace_file_sep(self, new):
-        sep = self._line_sep_map[self.line_sep]
-        self.__lines = self.content_str.replace(sep, new).splitlines(keepends=True)
+        if new == self.__line_sep:
+            return
+        self.__lines = self.normalize_line_sep(self.content_str).replace(self._default_end_line, new).splitlines(
+            keepends=True)
 
     @classmethod
     def read(cls, path_: str, mode='r+', encoding='utf-8', **kwargs):
@@ -182,7 +214,7 @@ class File(FileBase):
         return self
 
     def replace_file_sep(self, new, save: bool = True):
-        new = self._parse_line_sep(new)
+        new = self.parse_line_sep(new)
         if new is None:
             raise ValueError(f"{new} is'nt valid.")
         try:
@@ -209,15 +241,16 @@ def _walk_dirs_and_replace(dir_path, new, ext_in: list = None):
 
 
 def convert_line_sep(path_: str, line_sep: str, ext_in: list = None):
-    line_sep = _LINE_SEP_MAP.get(line_sep)
+    line_sep = File.parse_line_sep(line_sep)
 
     if line_sep is None:
         raise ValueError(f"The value sent {line_sep} is not valid.")
 
     if os.path.isdir(path_):
         _walk_dirs_and_replace(path_, LF, ext_in)
-    with Progress(f"Converting {os.path.basename(path_)}") as prog:
-        File.read(path_).replace_file_sep(line_sep)
+    else:
+        with Progress(f"Converting {os.path.basename(path_)}") as prog:
+            File.read(path_).replace_file_sep(line_sep)
 
 
 def crlf_to_lf(path_: str, ext_in: list = None):
@@ -235,7 +268,7 @@ def lf_to_crlf(path_: str, ext_in: list = None):
     :param ext_in:
     :return:
     """
-    convert_line_sep(path_, LF, ext_in=ext_in)
+    convert_line_sep(path_, CRLF, ext_in=ext_in)
 
 
 def to_lf(path_: str):
@@ -256,6 +289,6 @@ def _auto_ident_py(path: str):
 
 if __name__ == '__main__':
     # f = File('./test.py', ['for i in range(5):', "    print(i)"]).save()
-    crlf_to_lf('../')
+    lf_to_crlf('lab/__init__.py')
 
     pass
