@@ -247,13 +247,13 @@ class FileBase(object):
                             logger.error(f'Error reading the file {file_name}: {err}')
             yield os.path.basename(dir_name), len(files_), files_
 
-    def insert(self, index: int, data: Union[Sequence, str]):
+    def insert(self, line: int, data: Union[Sequence, str]):
         data = self.normalize_data(data, self.__line_sep)
         if is_sequence(data):
             for i in data:
-                self.__lines.insert(index, i)
+                self.__lines.insert(line, i)
         if isinstance(data, str):
-            self.__lines.insert(index, data)
+            self.__lines.insert(line, data)
 
     @classmethod
     def save(cls, path_: Union[str, None]):
