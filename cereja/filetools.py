@@ -22,7 +22,7 @@ SOFTWARE.
 """
 
 import os
-from typing import Union, List, Iterator, Tuple, Sequence, Any
+from typing import Union, List, Iterator, Tuple, Sequence, Any, Optional
 
 from cereja.arraytools import is_sequence, is_iterable
 from cereja.display import Progress
@@ -68,6 +68,12 @@ class FileBase(object):
     """
     High-level API for creating and manipulating files
     """
+    __size_map = {"B": 1.e0,
+                 "KB": 1.e3,
+                 "MB": 1.e6,
+                 "GB": 1.e9,
+                 "TB": 1.e12
+                 }
 
     _line_sep_map = _LINE_SEP_MAP.copy()
     _str_line_sep_map = _STR_LINE_SEP_MAP.copy()
@@ -197,6 +203,24 @@ class FileBase(object):
     @property
     def ext(self):
         return os.path.splitext(self.file_name)[-1]
+
+    def size(self, unit: str = "KB"):
+        """
+        returns the size that the file occupies on the disk.
+
+        :param unit: choose anyone in ('B', 'KB', 'MB', 'GB', 'TB')
+        
+        """
+        assert isinstance(unit, str), f"expected {str.__name__} not {type(unit).__name__}."
+
+        unit = unit.upper()
+
+        assert unit in self.__size_map, f"{repr(unit)} is'nt valid. Choose anyone in {tuple(self.__size_map)}"
+
+        return self.__sizeof__() / self.__size_map[unit]
+
+    def __sizeof__(self):
+        return self.content_str.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
 
     def _replace_file_sep(self, new):
         if new == self.__line_sep:

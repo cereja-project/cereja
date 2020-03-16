@@ -142,24 +142,27 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertEqual(cj_file_instance.is_empty, expected_values[3])
         self.assertEqual(cj_file_instance.content_str, expected_values[4])
         self.assertEqual(cj_file_instance.n_lines, expected_values[5])
+        self.assertEqual(cj_file_instance.size("KB"), expected_values[6])
 
     def test_file_obj(self):
         content_file = [1, 2, 3]
         file = filetools.File('cereja/teste.py', content_file)
         normalized_data = ''.join(filetools.File.normalize_data(content_file, "LF"))
-        expected_values = ["LF", "teste.py", 'cereja', False, normalized_data, len(content_file)]
+        expected_values = ["LF", "teste.py", 'cereja', False, normalized_data, len(content_file), 0.006]
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CRLF", save=False)
         normalized_data = ''.join(filetools.File.normalize_data(content_file, "CRLF"))
         expected_values[0] = "CRLF"
         expected_values[4] = normalized_data
+        expected_values[6] = 0.009
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CR", save=False)
         normalized_data = ''.join(filetools.File.normalize_data(content_file, "CR"))
         expected_values[0] = "CR"
         expected_values[4] = normalized_data
+        expected_values[6] = 0.006
         self.battery_tests(file, expected_values)
 
 
