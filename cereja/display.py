@@ -186,7 +186,7 @@ class Progress(object):
 
     @current_value.setter
     def current_value(self, value):
-        self._current_percent = (value / self.max_value) * 100
+        self._current_percent = round((value / self.max_value) * 100, 2)
         self.__current_value = value
 
     @property
