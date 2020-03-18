@@ -29,6 +29,47 @@ from cereja.cj_types import Number
 
 __all__ = 'Progress'
 
+if sys.platform.lower() == "win32":
+    os.system('color')
+
+
+class ConsoleBase(object):
+    CL_DEFAULT = '\033[30m'
+    CL_RED = '\033[31m'
+    CL_GREEN = '\033[32m'
+    CL_YELLOW = '\033[33m'
+    CL_BLUE = '\033[34m'
+    CL_MAGENTA = '\033[35m'
+    CL_CYAN = '\033[36m'
+    CL_WHITE = '\033[37m'
+    CL_UNDERLINE = '\033[4m'
+
+    __text_color = CL_DEFAULT
+    __stdout_original = sys.stdout
+    __stderr_original = sys.stderr
+    __right_point = f"{CL_CYAN}\U000000bb{__text_color}"
+    __msg_prefix = f"{CL_RED}\U0001F352{__text_color}"
+
+    def __init__(self, text_color=CL_DEFAULT):
+        self.__text_color = text_color
+        self.__stdout_buffer = io.StringIO()
+        self.__stderr_buffer = io.StringIO()
+
+    def __bg(self, text_, color):
+        return f"\33[48;5;{color}m{text_}{self.__text_color}"
+
+    def text_bg(self, text_, color):
+        return self.__bg(text_, color)
+
+    def __msg_parse(self, msg: str, title=None):
+        return f"{self.__msg_prefix}{self.__text_color} {title or ''} {self.__right_point} {msg}"
+
+    def log(self, msg, title="Cereja"):
+        msg = self.__msg_parse(msg, )
+        self.__stdout_original.write(msg)
+        self.__stdout_original.write('\u001b[0m')
+        self.__stdout_original.flush()
+
 
 class Progress(object):
     """
@@ -257,10 +298,19 @@ class Progress(object):
         self._write()
 
     @classmethod
+    def decorator(cls, func):
+        def wrapper(*args, **kwargs):
+            with cls(f"{func.__name__}"):
+                result = func(*args, **kwargs)
+            return result
+
+        return wrapper
+
+    @classmethod
     def bar(cls, iterator_):
-        with cls("Cereja Bar", max_value=len(iterator_)) as bar:
+        with cls("Cereja Bar", style="bar", max_value=len(iterator_)) as bar_:
             for n, value in enumerate(iterator_):
-                bar.update(i)
+                bar_.update(n)
                 yield value
 
     def __enter__(self):
@@ -298,13 +348,15 @@ class Progress(object):
 
 if __name__ == '__main__':
     # console = ConsoleBase(text_color=ConsoleBase.CL_BLUE)
-    # console.log("oi")
-    with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
-        for i in range(1, 100):
-            time.sleep(1 / i)
-            bar.update(i)
-            print('oi')
-
-        for i in range(1, 400):
-            time.sleep(1 / i)
-            bar.update(i, max_value=400)
+    # console.log("oi", title="Test")
+    for i in Progress.bar(range(90000)):
+        print(i)
+    # with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
+    #     for i in range(1, 100):
+    #         time.sleep(1 / i)
+    #         bar.update(i)
+    #         print('oi')
+    #
+    #     for i in range(1, 400):
+    #         time.sleep(1 / i)
+    #         bar.update(i, max_value=400)
