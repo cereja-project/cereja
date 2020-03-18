@@ -162,6 +162,12 @@ class FileToolsTestCase(unittest.TestCase):
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
 
+    def test_insertion_content(self):
+        content_file = [1, 2, 3]
+        file = filetools.File(os.path.dirname(__file__), content_file)
+        file.insert(3, [4, 5])
+        self.assertEqual(file.content_file, ["1\n", "2\n", "3\n", "4\n", "5\n"])
+
 
 if __name__ == '__main__':
     unittest.main()
