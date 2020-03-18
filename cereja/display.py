@@ -20,7 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
+import os
 import threading
 import sys
 import time
@@ -54,6 +54,7 @@ class Progress(object):
 
     def __init__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs):
         self._style = style
+        self.__error = False
         self.max_value = max_value
         self._default_loading_symb = "."
         self._default_bar_symb = "="
@@ -66,7 +67,7 @@ class Progress(object):
         self._bar_size = kwargs.get('bar_size', 30)
         self._bar = ' ' * self._bar_size
         self._use_loading_with_clock = bool(kwargs.get("loading_with_clock", False))
-        self._sleep_time = 0.5
+        self._sleep_time = 0.01
         self.task_name = task_name
         self.first_time = time.time()
 
@@ -86,9 +87,8 @@ class Progress(object):
         return msg.translate(self.NON_BMP_MAP)
 
     def __send_msg(self, msg):
-        sys.stdout.write(f'\r')
-        sys.stdout.write(self.__parse(msg))
-        sys.stdout.flush()
+        writer = sys.stderr.write if self.__error else sys.stdout.write
+        writer(f'\r{self.__parse(msg)}')
 
     def _time(self):
         return f"Time: {round(time.time() - self.first_time, 2)}s"
@@ -124,9 +124,9 @@ class Progress(object):
 
     def _current_value_info(self):
         if self._finish:
-            error_msg = f"Error: {self.ERROR_UNICODE} - {self._time()}"
+            error_msg = f"Error: {self.__error} {self.ERROR_UNICODE} - {self._time()}"
             done_msg = f"Done! {self.DONE_UNICODE} - {self._time()}"
-            return done_msg
+            return error_msg if self.__error else done_msg
         if self._current_percent == 0:
             return ''
         return f"{self._current_percent}%"
@@ -146,6 +146,8 @@ class Progress(object):
         while not self._finish:
             self._write()
             time.sleep(self._sleep_time)
+        if not self.__error:
+            self.current_value = self.__max_value
         self._write()
 
     def start(self, task_name: str = None):
@@ -245,14 +247,17 @@ class Progress(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if isinstance(exc_val, Exception):
+            self.__error = f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}'
         self._finish = True
         self._started = False
         self.th.join()
         self.__send_msg('\n')
+        if self.__error:
+            sys.exit()
 
 
 if __name__ == '__main__':
-
     with Progress(task_name="Progress Bar Test", max_value=500) as bar:
         for i in range(1, 500):
             time.sleep(1 / i)
