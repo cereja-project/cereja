@@ -50,7 +50,8 @@ class ConsoleBase(object):
     __right_point = f"{CL_CYAN}\U000000bb{__text_color}"
     __msg_prefix = f"{CL_RED}\U0001F352{__text_color}"
 
-    def __init__(self, text_color=CL_DEFAULT):
+    def __init__(self, text_color=CL_DEFAULT, title="Cereja"):
+        self.__title = title
         self.__text_color = text_color
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
@@ -64,10 +65,22 @@ class ConsoleBase(object):
     def __msg_parse(self, msg: str, title=None):
         return f"{self.__msg_prefix}{self.__text_color} {title or ''} {self.__right_point} {msg}"
 
-    def log(self, msg, title="Cereja"):
-        msg = self.__msg_parse(msg, )
+    def log(self, msg, title):
+        msg = self.__msg_parse(msg, title)
         self.__stdout_original.write(msg)
         self.__stdout_original.write('\u001b[0m')
+        self.__stdout_original.flush()
+
+    def write(self, msg):
+        if not msg == '\n':
+            msg = self.__msg_parse(msg, "Cereja")
+            self.__stdout_original.write(msg)
+            self.__stdout_original.write('\n')
+
+    def set_up(self):
+        sys.stdout = self
+
+    def flush(self):
         self.__stdout_original.flush()
 
 
@@ -355,19 +368,20 @@ class Progress(object):
 
 
 if __name__ == '__main__':
-    # console = ConsoleBase(text_color=ConsoleBase.CL_BLUE)
-    # console.log("oi", title="Test")
-
+    console = ConsoleBase(text_color=ConsoleBase.CL_BLUE)
+    console.set_up()
+    print("Ficou legal")
+    print("Acho que está bem bacana")
     # a = Progress.bar(range(1, 1001))
     # for i in a:
     #     time.sleep(1 / i)
     #     print(i)
 
-    with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
-        for i in range(1, 100):
-            time.sleep(1 / i)
-            bar.update(i)
-            print('oi')
+    # with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
+    #     for i in range(1, 100):
+    #         time.sleep(1 / i)
+    #         bar.update(i)
+    #         print('oi')
 
     #     for i in range(1, 400):
     #         time.sleep(1 / i)
