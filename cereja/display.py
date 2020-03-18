@@ -20,11 +20,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import io
 import os
 import threading
 import sys
 import time
-
 from cereja.cj_types import Number
 
 __all__ = 'Progress'
@@ -49,12 +49,17 @@ class Progress(object):
     ERROR_UNICODE = "\U0000274C"
     CLOCKS_UNICODE = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
                       "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
-
     CHERRY_UNICODE = "\U0001F352"
+    RIGHT_POINTER = "\U000000bb"
+    __stdout_original = sys.__stdout__
+    __stderr_original = sys.__stderr__
 
     def __init__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs):
         self._style = style
         self.__error = False
+        self.__stdout_buffer = None
+        self.__stderr_buffer = None
+        self.__sleep_time = 0.5
         self.max_value = max_value
         self._default_loading_symb = "."
         self._default_bar_symb = "="
@@ -66,10 +71,14 @@ class Progress(object):
         self._max_loading_symb = 3
         self._bar_size = kwargs.get('bar_size', 30)
         self._bar = ' ' * self._bar_size
-        self._use_loading_with_clock = bool(kwargs.get("loading_with_clock", False))
-        self._sleep_time = 0.01
+        custom_loading_seq = kwargs.get("custom_loading_seq", [])
+        if not isinstance(custom_loading_seq, list):
+            raise TypeError("Please send unicode list.")
+        self._unicode_sequence = custom_loading_seq or self.CLOCKS_UNICODE
+        self.__use_sequence = bool(kwargs.get("loading_with_clock") or custom_loading_seq)  # loading is default
         self.task_name = task_name
         self.first_time = time.time()
+        self.buffer = bool(kwargs.get("buffer", True))
 
         # This is important, as there may be an exception if the terminal does not support unicode bmp
         try:
@@ -77,6 +86,16 @@ class Progress(object):
             self.non_bmp_supported = True
         except UnicodeEncodeError:
             self.non_bmp_supported = False
+
+        if self.buffer:
+            self._setup_buffer()
+
+    def _setup_buffer(self):
+        if self.buffer:
+            self.__stdout_buffer = io.StringIO()
+            self.__stderr_buffer = io.StringIO()
+        sys.stdout = self.__stdout_buffer
+        sys.stderr = self.__stderr_buffer
 
     def __parse(self, msg: str):
         """
@@ -87,11 +106,12 @@ class Progress(object):
         return msg.translate(self.NON_BMP_MAP)
 
     def __send_msg(self, msg):
-        writer = sys.stderr.write if self.__error else sys.stdout.write
+        writer = self.__stderr_original.write if self.__error else self.__stdout_original.write
         writer(f'\r{self.__parse(msg)}')
 
     def _time(self):
-        return f"Time: {round(time.time() - self.first_time, 2)}s"
+        self.__send_msg(time.time() - self.first_time)
+        return f"Time: {round((time.time() - self.first_time) - self.__sleep_time, 2)}s"
 
     def _default_loading(self):
         self._n_times += 1
@@ -102,25 +122,26 @@ class Progress(object):
             return self._default_loading_symb * self._max_loading_symb
         return (self._default_loading_symb * self._n_times) + n_blanks
 
-    def _loading_progress_with_clock(self):
+    def _loading_progress_in_seq(self):
         self._n_times += 1
-        if len(self.CLOCKS_UNICODE) == self._n_times:
+        if len(self._unicode_sequence) == self._n_times:
             self._n_times = 0
-        return self.CLOCKS_UNICODE[self._n_times - 1]
+        return self._unicode_sequence[self._n_times - 1]
 
     def _loading_progress(self):
-        return self._loading_progress_with_clock() if self._use_loading_with_clock else self._default_loading()
+        return self._loading_progress_in_seq() if self.__use_sequence else self._default_loading()
 
     def _bar_progress(self):
         if self._current_percent != self._last_percent:
             self._last_percent = self._current_percent
         current_bar_value = int((self._bar_size / 100) * self._current_percent)
-        return self._bar.replace(' ', self._default_bar_symb, current_bar_value).replace(' ', '>', 1)
+        return self._bar.replace(' ', self._default_bar_symb, current_bar_value).replace(' ', '>',
+                                                                                         1)
 
     def _display(self):
         if self._style == 'bar':
             return self._bar_progress()
-        return self._loading_progress_with_clock() if self._use_loading_with_clock else self._loading_progress()
+        return self._loading_progress_in_seq() if self.__use_sequence else self._loading_progress()
 
     def _current_value_info(self):
         if self._finish:
@@ -145,7 +166,7 @@ class Progress(object):
         """
         while not self._finish:
             self._write()
-            time.sleep(self._sleep_time)
+            time.sleep(self.__sleep_time)
         if not self.__error:
             self.current_value = self.__max_value
         self._write()
@@ -235,6 +256,13 @@ class Progress(object):
             self.update(current_value)
         self._write()
 
+    @classmethod
+    def bar(cls, iterator_):
+        with cls("Cereja Bar", max_value=len(iterator_)) as bar:
+            for n, value in enumerate(iterator_):
+                bar.update(i)
+                yield value
+
     def __enter__(self):
         """
         intern method used by "with st
@@ -253,27 +281,30 @@ class Progress(object):
         self._started = False
         self.th.join()
         self.__send_msg('\n')
+        if self.buffer:
+            output = sys.stdout.getvalue()
+            error = sys.stderr.getvalue()
+            self.__stdout_buffer.seek(0)
+            self.__stdout_buffer.truncate()
+            self.__stderr_buffer.seek(0)
+            self.__stderr_buffer.truncate()
+            print(output)
+            print(error)
+        sys.stdout = self.__stdout_original
+        sys.stderr = self.__stderr_original
         if self.__error:
             sys.exit()
 
 
 if __name__ == '__main__':
-    with Progress(task_name="Progress Bar Test", max_value=500) as bar:
-        for i in range(1, 500):
+    # console = ConsoleBase(text_color=ConsoleBase.CL_BLUE)
+    # console.log("oi")
+    with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
+        for i in range(1, 100):
             time.sleep(1 / i)
             bar.update(i)
+            print('oi')
 
         for i in range(1, 400):
             time.sleep(1 / i)
             bar.update(i, max_value=400)
-
-    bar = Progress(task_name="Progress Bar Test", style='bar', max_value=500)
-    bar.start()
-    for i in range(1, 501):
-        time.sleep(1 / i)
-        bar.update(i)
-
-    for i in range(1, 401):
-        time.sleep(1 / i)
-        bar.update(i, max_value=400)
-    bar.stop()
