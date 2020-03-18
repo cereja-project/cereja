@@ -236,6 +236,7 @@ class Progress(object):
         self._started = False
         self.th.join()
         self.__send_msg('\n')
+        self.__exit__(None, None, None)
 
     def _reload(self):
         """
@@ -306,12 +307,18 @@ class Progress(object):
 
         return wrapper
 
+    def __iter__(self):
+        return next(self.__items)
+
     @classmethod
     def bar(cls, iterator_):
-        with cls("Cereja Bar", style="bar", max_value=len(iterator_)) as bar_:
-            for n, value in enumerate(iterator_):
-                bar_.update(n)
-                yield value
+        bar_ = cls("Cereja Bar", style="bar", max_value=len(iterator_), buffer=True)
+        bar_.start()
+        for n, value in enumerate(iterator_):
+            bar_.__items = yield value
+            bar_.update(current_value=n)
+        bar_.stop()
+        return bar_
 
     def __enter__(self):
         """
@@ -338,10 +345,11 @@ class Progress(object):
             self.__stdout_buffer.truncate()
             self.__stderr_buffer.seek(0)
             self.__stderr_buffer.truncate()
-            print(output)
-            print(error)
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
+        if self.buffer:
+            print(output)
+            print(error)
         if self.__error:
             sys.exit()
 
@@ -349,14 +357,18 @@ class Progress(object):
 if __name__ == '__main__':
     # console = ConsoleBase(text_color=ConsoleBase.CL_BLUE)
     # console.log("oi", title="Test")
-    for i in Progress.bar(range(90000)):
-        print(i)
-    # with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
-    #     for i in range(1, 100):
-    #         time.sleep(1 / i)
-    #         bar.update(i)
-    #         print('oi')
-    #
+
+    # a = Progress.bar(range(1, 1001))
+    # for i in a:
+    #     time.sleep(1 / i)
+    #     print(i)
+
+    with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
+        for i in range(1, 100):
+            time.sleep(1 / i)
+            bar.update(i)
+            print('oi')
+
     #     for i in range(1, 400):
     #         time.sleep(1 / i)
     #         bar.update(i, max_value=400)
