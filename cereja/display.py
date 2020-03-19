@@ -44,17 +44,55 @@ class ConsoleBase(object):
     CL_WHITE = '\033[37m'
     CL_UNDERLINE = '\033[4m'
 
+    __line_sep = ['\r\n', '\n', '\r']
+    __os_line_sep = os.linesep
+
+    __title = "Cereja"
     __text_color = CL_DEFAULT
     __stdout_original = sys.stdout
     __stderr_original = sys.stderr
-    __right_point = f"{CL_CYAN}\U000000bb{__text_color}"
-    __msg_prefix = f"{CL_RED}\U0001F352{__text_color}"
+    __right_point = f"{CL_CYAN}\U000000bb{CL_DEFAULT}"
+    __msg_prefix = f"{CL_RED}\U0001F352{CL_BLUE}"
+    __color_map = {
+        "black": CL_DEFAULT,
+        "red": CL_RED,
+        "green": CL_GREEN,
+        "yellow": CL_YELLOW,
+        "blue": CL_BLUE,
+        "magenta": CL_MAGENTA,
+        "cyan": CL_CYAN,
+        "white": CL_WHITE,
+        "default": CL_DEFAULT
+    }
 
-    def __init__(self, text_color=CL_DEFAULT, title="Cereja"):
+    def __init__(self, title: str = "Cereja", color_text: str = "default"):
         self.__title = title
-        self.__text_color = text_color
+        self.text_color = color_text
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
+
+    @property
+    def title(self):
+        return self.__title
+
+    @title.setter
+    def title(self, title_: str):
+        try:
+            title_ = str(title_)
+        except Exception as err:
+            raise ValueError(f"Title isn't valid. {err}")
+        self.__title = title_
+
+    @property
+    def text_color(self):
+        return self.__text_color
+
+    @text_color.setter
+    def text_color(self, color: str):
+        color = color.strip('CL_').lower() if color.upper().startswith('CL_') else color.lower()
+        if color not in self.__color_map:
+            raise ValueError(f"Color not found.")
+        self.__text_color = self.__color_map[color]
 
     def __bg(self, text_, color):
         return f"\33[48;5;{color}m{text_}{self.__text_color}"
@@ -62,20 +100,54 @@ class ConsoleBase(object):
     def text_bg(self, text_, color):
         return self.__bg(text_, color)
 
-    def __msg_parse(self, msg: str, title=None):
-        return f"{self.__msg_prefix}{self.__text_color} {title or ''} {self.__right_point} {msg}"
+    def _msg_prefix(self, title=None):
+        if title is None:
+            title = self.title
+        return f"{self.__msg_prefix} {title} {self.__right_point}{self.__text_color}"
 
-    def log(self, msg, title):
-        msg = self.__msg_parse(msg, title)
+    def __msg_parse(self, msg: str, title=None):
+        prefix = self._msg_prefix(title)
+        return f"{prefix} {msg}"
+
+    def __write(self, msg):
         self.__stdout_original.write(msg)
-        self.__stdout_original.write('\u001b[0m')
         self.__stdout_original.flush()
 
+    def log(self, msg, level=1, title=None, line_sep: str = __os_line_sep):
+        if title is None:
+            title = self.title
+
+        if level == 2:
+            msg = f'{self.__color_map["red"]}{msg}'
+        msg = self.__msg_parse(msg, title)
+        self.__write(msg)
+        if line_sep:
+            self.__write(self.__os_line_sep)
+
     def write(self, msg):
-        if not msg == '\n':
-            msg = self.__msg_parse(msg, "Cereja")
-            self.__stdout_original.write(msg)
-            self.__stdout_original.write('\n')
+        if not msg or msg not in self.__line_sep:
+            msg = self.__msg_parse(msg)
+        self.__write(msg)
+
+    def __normalize_format(self, s):
+        for color_name in self.__color_map:
+            s = s.replace(f'end{color_name}', 'default')
+        s = s.replace('  ', ' ')
+        return s.replace('} ', '}')
+
+    def format(self, s):
+        """
+        You can make format with variables
+        :param s:
+        :return:
+        """
+        s = self.__normalize_format(s)
+        try:
+            s = f'{s}'.format_map(self.__color_map)
+            return s
+        except KeyError as err:
+            self.log(f"Color {err} not found.", level=2, title="Error")
+        return self.__line_sep
 
     def set_up(self):
         sys.stdout = self
@@ -97,6 +169,7 @@ class Progress(object):
                       It is not a percentage, although it is purposely set to 100 by default.
     :param kwargs:
             loading_with_clock: You will see a clock if the style is loading
+            custom_loading_seq: you will see all items of your seq while loading
     """
     NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
     DONE_UNICODE = "\U00002705"
@@ -367,11 +440,18 @@ class Progress(object):
             sys.exit()
 
 
+class Questions(ConsoleBase):
+    pass
+
+
 if __name__ == '__main__':
-    console = ConsoleBase(text_color=ConsoleBase.CL_BLUE)
+    console = ConsoleBase("Console")
     console.set_up()
     print("Ficou legal")
     print("Acho que está bem bacana")
+    test = "tudo bem mas {greesn} VOCÊ {endgreen} não sabe de nada!"
+    console.format(test)
+    print('oi')
     # a = Progress.bar(range(1, 1001))
     # for i in a:
     #     time.sleep(1 / i)
