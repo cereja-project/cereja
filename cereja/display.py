@@ -25,6 +25,10 @@ import os
 import threading
 import sys
 import time
+from abc import ABCMeta as ABC, abstractmethod
+from typing import Iterable, Union
+
+from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
 
 __all__ = 'Progress'
@@ -33,7 +37,7 @@ if sys.platform.lower() == "win32":
     os.system('color')
 
 
-class ConsoleBase(object):
+class ConsoleBase(metaclass=ABC):
     CL_DEFAULT = '\033[30m'
     CL_RED = '\033[31m'
     CL_GREEN = '\033[32m'
@@ -47,7 +51,7 @@ class ConsoleBase(object):
     __line_sep = ['\r\n', '\n', '\r']
     __os_line_sep = os.linesep
 
-    __title = "Cereja"
+    __name = "Cereja"
     __text_color = CL_DEFAULT
     __stdout_original = sys.stdout
     __stderr_original = sys.stderr
@@ -64,16 +68,19 @@ class ConsoleBase(object):
         "white": CL_WHITE,
         "default": CL_DEFAULT
     }
+    MAX_SPACE = 20
+    MAX_BLOCKS = 5
 
-    def __init__(self, title: str = "Cereja", color_text: str = "default"):
-        self.__title = title
+    SPACE_BLOCKS = {""}
+
+    def __init__(self, color_text: str = "default"):
         self.text_color = color_text
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
 
     @property
     def title(self):
-        return self.__title
+        return self.__name
 
     @title.setter
     def title(self, title_: str):
@@ -81,7 +88,7 @@ class ConsoleBase(object):
             title_ = str(title_)
         except Exception as err:
             raise ValueError(f"Title isn't valid. {err}")
-        self.__title = title_
+        self.__name = title_
 
     @property
     def text_color(self):
@@ -105,7 +112,11 @@ class ConsoleBase(object):
             title = self.title
         return f"{self.__msg_prefix} {title} {self.__right_point}{self.__text_color}"
 
+    def parse_text(self, text, color: str):
+        pass
+
     def __msg_parse(self, msg: str, title=None):
+        msg = ' '.join(msg.splitlines())
         prefix = self._msg_prefix(title)
         return f"{prefix} {msg}"
 
@@ -124,10 +135,18 @@ class ConsoleBase(object):
         if line_sep:
             self.__write(self.__os_line_sep)
 
-    def write(self, msg):
-        if not msg or msg not in self.__line_sep:
-            msg = self.__msg_parse(msg)
+    def override(self, value: str):
+        if value not in self.__line_sep:
+            self.__write('\r')
+            value = f"{self.__msg_parse(value)}"
+            self.__write(value)
+
+    def write(self, msg, override_last: bool = False):
+        if override_last:
+            self.__write('\r')
+        msg = self.__msg_parse(msg)
         self.__write(msg)
+        self.write(self.__os_line_sep)
 
     def __normalize_format(self, s):
         for color_name in self.__color_map:
@@ -152,8 +171,120 @@ class ConsoleBase(object):
     def set_up(self):
         sys.stdout = self
 
+    def error(self, msg):
+        pass
+
     def flush(self):
         self.__stdout_original.flush()
+
+
+class BaseProgress(ConsoleBase):
+    NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
+    DONE_UNICODE = "\U00002705"
+    ERROR_UNICODE = "\U0000274C"
+    CLOCKS_UNICODE = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
+                      "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
+    CHERRY_UNICODE = "\U0001F352"
+    RIGHT_POINTER = "\U000000bb"
+
+    __loading_seq = ('.', '.', '.')
+
+    __user_output_state: str = None
+    __use_loading = True
+    __running: bool = False
+
+    __state: str = None
+    __loading_state: str = None
+
+    def __init__(self, name="Cereja Progress", style="loading", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.state = "Awaiting"
+        self.__name = name
+        self.__time_sleep = 0.5
+        self.show_user_output = True
+        self.root = threading.Thread(name=self.__name, target=self.__update)
+        if style == 'loading':
+            self.th_loading = threading.Thread(name="loading", target=self._loading_loop)
+        
+    @property
+    def loading_seq(self):
+        return self.__loading_seq
+
+    @loading_seq.setter
+    def loading_seq(self, values: Union[list, tuple, str]):
+        if is_iterable(values):
+            self.__loading_seq = values
+
+    def _loading_loop(self):
+        while self.__use_loading:
+            for i in range(len(self.loading_seq) + 1):
+                n_blanks = len(self.loading_seq) - i
+                blanks = ' ' * n_blanks
+                self.__loading_state = f"{''.join(self.loading_seq[:i])}{blanks}"
+                time.sleep(self.__time_sleep)
+
+    @property
+    def state(self) -> str:
+        n_blanks = 30 - len(self.__state)
+        state_ = f"{self.__state}"
+        if self.__use_loading:
+            state_ = f"{self.__loading_state} {state_}"
+        if self.show_user_output:
+            state_ = f"{state_}{' ' * n_blanks} Output[User]: {self.__user_output_state}"
+        return state_
+
+    @state.setter
+    def state(self, value: str):
+        self.__state = value
+
+    def _write(self, state_):
+        super().write(state_, override_last=True)
+
+    # Don't use this function, is exclusive for printing users' outputs
+    def write(self, msg, override_last: bool = True):
+        self.__user_output_state = msg
+
+    def __update(self):
+        while self.__running:
+            time.sleep(self.__time_sleep)
+            self._write(self.state)
+
+    def set_up(self):
+        if self.__running:
+            self.log(f"{self.__name} already started!")
+        else:
+            self.__running = True
+            self.state = "Running"
+            super().set_up()
+            if self.__use_loading:
+                self.th_loading.start()
+            self.root.start()
+
+    @classmethod
+    def reset(cls, _state_msg, user_msg=None):
+        return NotImplementedError
+
+    def done(self, _state_msg="Done!", user_msg=None):
+        self.state = self.format(f"{{green}}{self.DONE_UNICODE} {_state_msg} {{endgreen}}")
+        if user_msg is not None:
+            self.__user_output_state = user_msg
+        self.stop()
+
+    def stop(self):
+        self.__running = False
+        self.root.join()
+
+    def error(self, msg):
+        self.state = self.format(f"{{red}}{self.ERROR_UNICODE} Error{{endred}}")
+        self.__user_output_state = self.format(f'{{red}}{msg}{{endred}}')
+        self.stop()
+
+    def __enter__(self):
+        self.set_up()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if isinstance(exc_val, Exception):
+            self.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
 
 
 class Progress(object):
@@ -183,6 +314,7 @@ class Progress(object):
 
     def __init__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs):
         self._style = style
+        self.__last_msg_user = None
         self.__error = False
         self.__stdout_buffer = None
         self.__stderr_buffer = None
@@ -217,6 +349,8 @@ class Progress(object):
         if self.buffer:
             self._setup_buffer()
 
+        sys.stdout = self
+
     def _setup_buffer(self):
         if self.buffer:
             self.__stdout_buffer = io.StringIO()
@@ -233,8 +367,9 @@ class Progress(object):
         return msg.translate(self.NON_BMP_MAP)
 
     def __send_msg(self, msg):
+        msg_ = f"{self.__parse(msg)}\tUser Output: {self.__last_msg_user}"
         writer = self.__stderr_original.write if self.__error else self.__stdout_original.write
-        writer(f'\r{self.__parse(msg)}')
+        writer(f'\r{msg_}')
 
     def _time(self):
         self.__send_msg(time.time() - self.first_time)
@@ -406,6 +541,13 @@ class Progress(object):
         bar_.stop()
         return bar_
 
+    def write(self, msg):
+        if msg not in ['\n', '\r\n', '\r']:
+            self.__last_msg_user = msg
+
+    def flush(self):
+        self.__stdout_original.flush()
+
     def __enter__(self):
         """
         intern method used by "with st
@@ -445,24 +587,25 @@ class Questions(ConsoleBase):
 
 
 if __name__ == '__main__':
-    console = ConsoleBase("Console")
-    console.set_up()
-    print("Ficou legal")
-    print("Acho que está bem bacana")
-    test = "tudo bem mas {greesn} VOCÊ {endgreen} não sabe de nada!"
-    console.format(test)
-    print('oi')
-    # a = Progress.bar(range(1, 1001))
-    # for i in a:
-    #     time.sleep(1 / i)
-    #     print(i)
-
-    # with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
+    p = BaseProgress()
+    p.set_up()
+    time.sleep(1)
+    print("oi")
+    time.sleep(2)
+    p.state = "Updating"
+    # console = ConsoleBase("Console")
+    # console.set_up()
+    # print("Ficou legal")
+    # print("Acho que está bem bacana")
+    # test = "tudo bem mas {greesn} VOCÊ {endgreen} não sabe de nada!"
+    # console.format(test)
+    # print('oi')
+    # with Progress(task_name="Progress Bar Test", style="bar", max_value=100, buffer=False) as bar:
     #     for i in range(1, 100):
     #         time.sleep(1 / i)
     #         bar.update(i)
     #         print('oi')
-
+    #
     #     for i in range(1, 400):
     #         time.sleep(1 / i)
     #         bar.update(i, max_value=400)
