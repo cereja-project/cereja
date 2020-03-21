@@ -52,6 +52,7 @@ class ConsoleBase(metaclass=ABC):
 
     __line_sep = ['\r\n', '\n', '\r']
     __os_line_sep = os.linesep
+    __user_output_state: str = None
 
     __name = "Cereja"
     __text_color = CL_DEFAULT
@@ -77,8 +78,18 @@ class ConsoleBase(metaclass=ABC):
 
     def __init__(self, color_text: str = "default"):
         self.text_color = color_text
+        self._user_is_last = False
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
+
+    @property
+    def user_output(self):
+        return self.__user_output_state
+
+    @user_output.setter
+    def user_output(self, msg: str):
+        if msg not in ['\r\n', '\n', '\r']:
+            self.__user_output_state = msg
 
     @property
     def title(self):
@@ -137,18 +148,23 @@ class ConsoleBase(metaclass=ABC):
         if line_sep:
             self.__write(self.__os_line_sep)
 
-    def override(self, value: str):
+    def write(self, value: str, is_service=False):
         if value not in self.__line_sep:
-            self.__write('\r')
-            value = f"{self.__msg_parse(value)}"
-            self.__write(value)
-
-    def write(self, msg, override_last: bool = False):
-        if override_last:
-            self.__write('\r')
-        msg = self.__msg_parse(msg)
-        self.__write(msg)
-        self.write(self.__os_line_sep)
+            if is_service:
+                value = f"{self.__msg_parse(value)}"
+                self._user_is_last = value
+                self.__write('\r')
+                self.__write(value)
+            else:
+                original_title = self.title
+                self.title = "Sys[out]"
+                value = f"{self.__msg_parse(value)}"
+                self.__write('\r')
+                self.__write(value)
+                self.__write('\n')
+                self.title = original_title
+                self.__write(self._user_is_last)
+                time.sleep(0.05)
 
     def __normalize_format(self, s):
         for color_name in self.__color_map:
@@ -170,14 +186,37 @@ class ConsoleBase(metaclass=ABC):
             self.log(f"Color {err} not found.", level=2, title="Error")
         return self.__line_sep
 
-    def set_up(self):
+    def enable_console(self):
         sys.stdout = self
+        sys.stderr = self.Error()
+
+    def __print(self, msg):
+        msg = self.__msg_parse(msg)
+        msg = self.format(msg)
+        self.__write('\n')
+        self.__write(msg)
+        self.__write('\n')
+
+    def disable_console(self):
+        self.title = "Cereja"
+        self.__print(f"Cereja's console {{red}}out!{{endred}}{{default}}")
+
+        self.__stdout_buffer.seek(0)
+        self.__stdout_buffer.truncate()
+        self.__stderr_buffer.seek(0)
+        self.__stderr_buffer.truncate()
+        sys.stdout = self.__stdout_original
+        sys.stderr = self.__stderr_original
 
     def error(self, msg):
-        pass
+        self.write(msg)
 
     def flush(self):
         self.__stdout_original.flush()
+
+    class Error:
+        def write(self, msg, consoler):
+            consoler.write(msg)
 
 
 class BaseProgress(ConsoleBase):
@@ -186,11 +225,10 @@ class BaseProgress(ConsoleBase):
     ERROR_UNICODE = "\U0000274C"
     CHERRY_UNICODE = "\U0001F352"
     RIGHT_POINTER = "\U000000bb"
-
-    __user_output_state: str = None
     __use_loading = True
     __running: bool = False
     __done = False
+    __error = False
 
     __state: str = None
     __loading_state: str = None
@@ -209,23 +247,12 @@ class BaseProgress(ConsoleBase):
         self.th_loading = threading.Thread(name="loading", target=self.__update_loading)
 
     @property
-    def user_output(self):
-        return self.__user_output_state
-
-    @user_output.setter
-    def user_output(self, msg: str):
-        if msg not in ['\r\n', '\n', '\r']:
-            self.__user_output_state = msg
-
-    @property
     def state(self) -> str:
         percent = f"{self.current_percent}%"
         n_loading_blanks = 5 - len(percent)
         state_ = f"{self.current_percent}% {' ' * n_loading_blanks}{self.__state}"
         if self.__use_loading:
             state_ = f"{self.__loading_state} {state_}"
-        if self.show_user_output:
-            state_ = f"{state_} Output[User]: {self.__user_output_state}"
         return state_
 
     @state.setter
@@ -298,31 +325,24 @@ class BaseProgress(ConsoleBase):
             self.loading_state = self.progress()
             self.sleep()
 
-    def _write(self, state_):
-        super().write(state_, override_last=True)
-
-    # Don't use this function, is exclusive for printing users' outputs
-    def write(self, msg, override_last: bool = True):
-        self.user_output = msg
-
     def __update(self):
         while self.__running:
-            self._write(self.state)
+            self.write(self.state, True)
             self.sleep()
         self._done()
 
     def sleep(self):
         time.sleep(self.__time_sleep)
 
-    def set_up(self):
+    def _set_up(self):
         if self.__running:
             self.log(f"{self.__name} already started!")
         else:
             self.__running = True
             self.state = "Running"
-            super().set_up()
             if self.__use_loading:
                 self.th_loading.start()
+            self.enable_console()
             self.root.start()
 
     @classmethod
@@ -330,6 +350,8 @@ class BaseProgress(ConsoleBase):
         return NotImplementedError
 
     def _done(self, _state_msg="Done!", user_msg=None, color: str = 'green'):
+        if self.__error:
+            return
         self.__done = True
         self.done()
         self.state = self.format(f"{{{color}}}{self.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
@@ -340,15 +362,16 @@ class BaseProgress(ConsoleBase):
         self.__running = False
         self.th_loading.join()
         self.root.join()
-        self._write(self.state)  # las update
+        self.write(self.state, True)  # las update
+        self.disable_console()
 
     def error(self, msg):
-        self.state = self.format(f"{{red}}{self.ERROR_UNICODE} Error{{endred}}")
-        self.__user_output_state = self.format(f'{{red}}{msg}{{endred}}')
+        self.__error = True
+        self.state = self.format(f"{{red}}{self.ERROR_UNICODE} Error: {msg}{{endred}}")
         self.stop()
 
     def __enter__(self):
-        self.set_up()
+        self._set_up()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -756,6 +779,8 @@ class Questions(ConsoleBase):
     pass
 
 
+console = ConsoleBase()
+
 if __name__ == '__main__':
     bar = True
     if bar:
@@ -767,15 +792,17 @@ if __name__ == '__main__':
         with p() as p:
             for i in range(1, 101):
                 time.sleep(1 / i)
-                print(i)
+                if i % 5 == 0:
+                    print(i)
                 p.current_value = i
-
 
     else:
         time.sleep(1)
         p.state = "Upda"
         time.sleep(1)
         p.state = "Updating"
+
+    print('oi')
     # console = ConsoleBase("Console")
     # console.set_up()
     # print("Ficou legal")
