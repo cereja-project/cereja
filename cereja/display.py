@@ -184,8 +184,6 @@ class BaseProgress(ConsoleBase):
     NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
     DONE_UNICODE = "\U00002705"
     ERROR_UNICODE = "\U0000274C"
-    CLOCKS_UNICODE = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
-                      "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
     CHERRY_UNICODE = "\U0001F352"
     RIGHT_POINTER = "\U000000bb"
 
@@ -336,7 +334,29 @@ class BaseProgress(ConsoleBase):
 
 
 class ProgressLoading(BaseProgress):
+    CLOCKS_UNICODE = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
+                      "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
     __default_char = '.'
+    __left_right_delimiter = '[]'
+
+    @property
+    def left_right_delimiter(self):
+        return self.__left_right_delimiter
+
+    @left_right_delimiter.setter
+    def left_right_delimiter(self, value: str):
+        """
+        Are the delimiters of the default_char
+        The default value is '[]'.
+        e.g: [=============] # left is '[' and right is ']'
+
+        :param value: str = String of length 2 e.g: '[]'
+        """
+        if not isinstance(value, str):
+            raise TypeError("Delimiters validation. Please send string.")
+        elif len(value) != 2:
+            raise ValueError("Delimiters validation. Please send a string of length 2")
+        self.__left_right_delimiter = value
 
     @property
     def default_char(self):
@@ -368,7 +388,6 @@ class ProgressBar(ProgressLoading):
     __arrow: str = '>'
     __use_arrow: bool = True
     __bar_char: str = '='
-    __left_right_delimiter = '[]'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -385,7 +404,7 @@ class ProgressBar(ProgressLoading):
 
     def progress(self):
         last_char = self.__arrow if self.__use_arrow and not self.is_done else self.default_char
-        l_delimiter, r_delimiter = self.__left_right_delimiter
+        l_delimiter, r_delimiter = self.left_right_delimiter
         prop_max_size = int(self._size_prop(self.current_value))
         blanks = ' ' * (self.max_size - prop_max_size)
         return f"{l_delimiter}{self.default_char * prop_max_size}{last_char}{blanks}{r_delimiter}"
