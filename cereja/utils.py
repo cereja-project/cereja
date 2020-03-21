@@ -217,6 +217,10 @@ def get_version_pep440_compliant(version: str = None) -> str:
     return f"{root_version}{sub}"
 
 
+def proportional(value, pro_of_val: int):
+    return (pro_of_val / 100) * value
+
+
 def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: bool = False) -> List[Tuple[Any, ...]]:
     """
     >>> a = [1, 2, 3]

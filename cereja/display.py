@@ -33,6 +33,8 @@ from cereja.cj_types import Number
 
 __all__ = 'Progress'
 
+from cereja.utils import proportional
+
 if sys.platform.lower() == "win32":
     os.system('color')
 
@@ -187,8 +189,6 @@ class BaseProgress(ConsoleBase):
     CHERRY_UNICODE = "\U0001F352"
     RIGHT_POINTER = "\U000000bb"
 
-    __loading_seq = ('.', '.', '.')
-
     __user_output_state: str = None
     __use_loading = True
     __running: bool = False
@@ -196,32 +196,34 @@ class BaseProgress(ConsoleBase):
     __state: str = None
     __loading_state: str = None
 
-    def __init__(self, name="Cereja Progress", style="loading", *args, **kwargs):
+    def __init__(self, name="Cereja Progress", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.state = "Awaiting"
         self.__name = name
         self.__time_sleep = 0.5
         self.show_user_output = True
         self.root = threading.Thread(name=self.__name, target=self.__update)
-        if style == 'loading':
-            self.th_loading = threading.Thread(name="loading", target=self._loading_loop)
-        
+        self.th_loading = threading.Thread(name="loading", target=self._loading_loop)
+
     @property
-    def loading_seq(self):
-        return self.__loading_seq
+    def loading_state(self):
+        return self.__loading_state
 
-    @loading_seq.setter
-    def loading_seq(self, values: Union[list, tuple, str]):
-        if is_iterable(values):
-            self.__loading_seq = values
+    @loading_state.setter
+    def loading_state(self, value):
+        self.__loading_state = value
 
-    def _loading_loop(self):
-        while self.__use_loading:
-            for i in range(len(self.loading_seq) + 1):
-                n_blanks = len(self.loading_seq) - i
-                blanks = ' ' * n_blanks
-                self.__loading_state = f"{''.join(self.loading_seq[:i])}{blanks}"
-                time.sleep(self.__time_sleep)
+    @property
+    def time_sleep(self):
+        return self.__time_sleep
+
+    @property
+    def is_running(self):
+        return self.__running
+
+    @classmethod
+    def _loading_loop(cls):
+        raise NotImplementedError
 
     @property
     def state(self) -> str:
@@ -285,6 +287,75 @@ class BaseProgress(ConsoleBase):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if isinstance(exc_val, Exception):
             self.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
+
+
+class ProgressLoading(BaseProgress):
+    __default_char = '.'
+    __current_value = 0
+    __max_size: int = 3
+    __current_percent: float = 0.0
+    __max_value = 100
+
+    @property
+    def default_char(self):
+        return self.__default_char
+
+    @default_char.setter
+    def default_char(self, value):
+        self.__default_char = value
+
+    @property
+    def max_size(self):
+        return self.__max_size
+
+    @max_size.setter
+    def max_size(self, value):
+        self.__max_size = value
+
+    @property
+    def max_value(self):
+        return self.__max_value
+
+    @max_value.setter
+    def max_value(self, value):
+        self.__max_value = value
+
+    @property
+    def current_value(self):
+        return self.__current_value
+
+    @property
+    def current_percent(self):
+        return round((self.__current_value / self.max_value) * 100, 2)
+
+    @current_value.setter
+    def current_value(self, value):
+        self.__current_value = value
+
+    @property
+    def current_loading_state(self):
+        prop_max_size = int(proportional(self.current_percent, self.max_size))
+        blanks = ' ' * (self.max_size - prop_max_size)
+        return f"{self.default_char * prop_max_size}{blanks}"
+
+    def _loading_loop(self):
+        while self.is_running:
+            for current_value in range(1, self.max_size):
+                self.current_value = current_value
+                self.loading_state = self.current_loading_state
+                time.sleep(self.time_sleep)
+
+
+class ProgressBar(ProgressLoading):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_size = 20
+        self.default_char = '='
+
+    def _loading_loop(self):
+        while self.is_running:
+            self.loading_state = self.current_loading_state
 
 
 class Progress(object):
@@ -587,11 +658,15 @@ class Questions(ConsoleBase):
 
 
 if __name__ == '__main__':
-    p = BaseProgress()
+    p = ProgressBar()
     p.set_up()
+    for i in range(1, 100):
+        time.sleep(1/i)
+        print("UPDATE"[:i])
+        p.current_value = i
     time.sleep(1)
-    print("oi")
-    time.sleep(2)
+    p.state = "Upda"
+    time.sleep(1)
     p.state = "Updating"
     # console = ConsoleBase("Console")
     # console.set_up()
