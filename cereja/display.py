@@ -257,8 +257,13 @@ class BaseProgress(ConsoleBase):
         return self.__running
 
     @classmethod
-    def progress(cls):
-        raise NotImplementedError
+    def progress(cls) -> str:
+        """
+        Is a callback to threading named loading. This function is always being called.
+        The request time is defined by the `time_sleep` property
+        :return: You need to return a string with the status of your progress
+        """
+        pass
 
     def __update_loading(self):
         while self.is_running:
@@ -341,15 +346,18 @@ class ProgressLoading(BaseProgress):
 
     @property
     def left_right_delimiter(self):
-        return self.__left_right_delimiter
-
-    @left_right_delimiter.setter
-    def left_right_delimiter(self, value: str):
         """
         Are the delimiters of the default_char
         The default value is '[]'.
         e.g: [=============] # left is '[' and right is ']'
 
+        :return: string e.g '[]'
+        """
+        return self.__left_right_delimiter
+
+    @left_right_delimiter.setter
+    def left_right_delimiter(self, value: str):
+        """
         :param value: str = String of length 2 e.g: '[]'
         """
         if not isinstance(value, str):
@@ -360,17 +368,32 @@ class ProgressLoading(BaseProgress):
 
     @property
     def default_char(self):
+        """
+        Value that will be added or replaced simulating animation.
+        """
         return self.__default_char
 
     @default_char.setter
     def default_char(self, value):
+        """
+        :param value: Single string you can send a unicode :)
+        """
         self.__default_char = value
 
     def _complete_with_blank(self, value: str) -> str:
+        """
+        Calculates and adds blanks, allowing a more static display
+        :param value: is the current sizeof default char value or the proportion of this value in the case of a bar
+        :return: string with sizeof max_size
+        """
         blanks = ' ' * (self.max_size - len(value))
         return f"{value}{blanks}"
 
     def _size_prop(self, value):
+        """
+        Returns the proportion of any number in relation to max_size
+        :param value: any number
+        """
         return proportional(value, self.max_size)
 
     def progress(self):
@@ -379,7 +402,7 @@ class ProgressLoading(BaseProgress):
         if current is not None and len(current) < self.max_size:
             current = f"{current}{self.default_char}"
         else:
-            current = self.default_char
+            current = ''
         current = self._complete_with_blank(current)
         return f"{current}"
 
@@ -710,7 +733,7 @@ class Questions(ConsoleBase):
 
 
 if __name__ == '__main__':
-    bar = True
+    bar = False
     if bar:
         p = ProgressBar()
     else:
