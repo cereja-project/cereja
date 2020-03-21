@@ -115,7 +115,7 @@ class ConsoleBase(metaclass=ABC):
         return f"{self.__msg_prefix} {title} {self.__right_point}{self.__text_color}"
 
     def parse_text(self, text, color: str):
-        pass
+        return text
 
     def __msg_parse(self, msg: str, title=None):
         msg = ' '.join(msg.splitlines())
@@ -209,6 +209,30 @@ class BaseProgress(ConsoleBase):
         self.th_loading = threading.Thread(name="loading", target=self.__update_loading)
 
     @property
+    def user_output(self):
+        return self.__user_output_state
+
+    @user_output.setter
+    def user_output(self, msg: str):
+        if msg not in ['\r\n', '\n', '\r']:
+            self.__user_output_state = msg
+
+    @property
+    def state(self) -> str:
+        percent = f"{self.current_percent}%"
+        n_loading_blanks = 5 - len(percent)
+        state_ = f"{self.current_percent}% {' ' * n_loading_blanks}{self.__state}"
+        if self.__use_loading:
+            state_ = f"{self.__loading_state} {state_}"
+        if self.show_user_output:
+            state_ = f"{state_} Output[User]: {self.__user_output_state}"
+        return state_
+
+    @state.setter
+    def state(self, value: str):
+        self.__state = value
+
+    @property
     def is_done(self):
         return self.__done
 
@@ -257,6 +281,10 @@ class BaseProgress(ConsoleBase):
         return self.__running
 
     @classmethod
+    def done(cls, *args, **kwargs):
+        pass
+
+    @classmethod
     def progress(cls) -> str:
         """
         Is a callback to threading named loading. This function is always being called.
@@ -266,35 +294,22 @@ class BaseProgress(ConsoleBase):
         pass
 
     def __update_loading(self):
-        while self.is_running:
-            self.sleep()
+        while self.is_running and not self.__done:
             self.loading_state = self.progress()
-
-    @property
-    def state(self) -> str:
-        n_blanks = 30 - len(self.__state)
-        state_ = f"{self.__state}"
-        if self.__use_loading:
-            state_ = f"{self.__loading_state} {state_}"
-        if self.show_user_output:
-            state_ = f"{state_}{' ' * n_blanks} Output[User]: {self.__user_output_state}"
-        return state_
-
-    @state.setter
-    def state(self, value: str):
-        self.__state = value
+            self.sleep()
 
     def _write(self, state_):
         super().write(state_, override_last=True)
 
     # Don't use this function, is exclusive for printing users' outputs
     def write(self, msg, override_last: bool = True):
-        self.__user_output_state = msg
+        self.user_output = msg
 
     def __update(self):
         while self.__running:
-            self.sleep()
             self._write(self.state)
+            self.sleep()
+        self._done()
 
     def sleep(self):
         time.sleep(self.__time_sleep)
@@ -314,16 +329,18 @@ class BaseProgress(ConsoleBase):
     def reset(cls, _state_msg, user_msg=None):
         return NotImplementedError
 
-    def done(self, _state_msg="Done!", user_msg=None):
+    def _done(self, _state_msg="Done!", user_msg=None, color: str = 'green'):
         self.__done = True
-        self.state = self.format(f"{{green}}{self.DONE_UNICODE} {_state_msg} {{endgreen}}")
+        self.done()
+        self.state = self.format(f"{{{color}}}{self.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
         if user_msg is not None:
             self.__user_output_state = user_msg
-        self.stop()
 
     def stop(self):
         self.__running = False
+        self.th_loading.join()
         self.root.join()
+        self._write(self.state)  # las update
 
     def error(self, msg):
         self.state = self.format(f"{{red}}{self.ERROR_UNICODE} Error{{endred}}")
@@ -332,10 +349,13 @@ class BaseProgress(ConsoleBase):
 
     def __enter__(self):
         self.set_up()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if isinstance(exc_val, Exception):
             self.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
+
+        self.stop()
 
 
 class ProgressLoading(BaseProgress):
@@ -431,6 +451,10 @@ class ProgressBar(ProgressLoading):
         prop_max_size = int(self._size_prop(self.current_value))
         blanks = ' ' * (self.max_size - prop_max_size)
         return f"{l_delimiter}{self.default_char * prop_max_size}{last_char}{blanks}{r_delimiter}"
+
+    def done(self, *args, **kwargs):
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        self.loading_state = f"{l_delimiter}{self.default_char * self.max_size}{r_delimiter}"
 
 
 class Progress(object):
@@ -733,17 +757,20 @@ class Questions(ConsoleBase):
 
 
 if __name__ == '__main__':
-    bar = False
+    bar = True
     if bar:
-        p = ProgressBar()
+        p = ProgressBar
     else:
-        p = ProgressLoading()
-    p.set_up()
+        p = ProgressLoading
 
     if bar:
-        for i in range(1, 101):
-            time.sleep(1 / i)
-            p.current_value = i
+        with p() as p:
+            for i in range(1, 101):
+                time.sleep(1 / i)
+                print(i)
+                p.current_value = i
+
+
     else:
         time.sleep(1)
         p.state = "Upda"
