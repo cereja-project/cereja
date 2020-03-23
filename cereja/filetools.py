@@ -274,8 +274,8 @@ class FileBase(object):
     def insert(self, line: int, data: Union[Sequence, str]):
         data = self.normalize_data(data, self.__line_sep)
         if is_sequence(data):
-            for i in data:
-                self.__lines.insert(line, i)
+            for pos, i in enumerate(data, line):
+                self.__lines.insert(pos, i)
         if isinstance(data, str):
             self.__lines.insert(line, data)
 
