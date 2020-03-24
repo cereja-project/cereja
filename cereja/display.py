@@ -1,5 +1,4 @@
 """
-
 Copyright (c) 2019 The Cereja Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,14 +25,11 @@ import threading
 import sys
 import time
 from abc import ABCMeta as ABC, abstractmethod
-from typing import Iterable, Union, List
+from typing import Union, List
 import random
-from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
 
 __all__ = 'Progress'
-
-from cereja.decorators import synchronized
 
 from cereja.utils import proportional
 
@@ -44,11 +40,37 @@ if sys.platform.lower() == "win32":
 class _Stdout:
     __stdout_original = sys.stdout
     __stderr_original = sys.stderr
+    __user_msg = []
 
     def __init__(self, console):
         self.last_console_msg = ""
         self.console = console
         self._stdout_err = _StdoutErr(self)
+        self.use_th_console = True
+        self.__stdout_buffer = io.StringIO()
+        self.__stderr_buffer = io.StringIO()
+        self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
+        self.th_console.setDaemon(True)
+        self.th_console.start()
+
+    def set_message(self, msg):
+        self.__user_msg = msg
+
+    def write_user_msg(self):
+        while True:
+            stdout = self.__stdout_buffer.getvalue()
+            stderr = self.__stderr_buffer.getvalue()
+            if stdout and not (stdout in ["\n", "\r\n", "\n"]):
+                value = self.console.parse(stdout, title='Sys[out]')
+                value = f"\r{stdout}\n{value}"
+                self._write(value)
+            if stderr and not (stderr in ["\n", "\r\n", "\n"]):
+                self.write_error(stderr)
+            self.__stdout_buffer.seek(0)
+            self.__stdout_buffer.truncate()
+            self.__stderr_buffer.seek(0)
+            self.__stderr_buffer.truncate()
+            time.sleep(1)
 
     def _write(self, msg: str):
         self.__stdout_original.write(msg)
@@ -68,14 +90,10 @@ class _Stdout:
 
     # reserved for the system
     def write(self, value: str):
-        if value in ["\n", "\r\n", "\n"]:
-            return
-        value = f"{self.console.parse(value, title='Sys[out]')}"
-        value = f"\r{value}\n{self.last_console_msg}"
-        self._write(value)
-        time.sleep(0.05)
+        if not (value in ["\n", "\r\n", "\n"]):
+            self.__user_msg.append(value)
 
-    def write_error(self, msg):
+    def write_error(self, msg, **ars):
         msg = self.console.format(msg, color="red")
         self.write(msg)
 
@@ -83,10 +101,12 @@ class _Stdout:
         self.__stdout_original.flush()
 
     def persist(self):
-        sys.stdout = self
-        sys.stderr = self._stdout_err
+        # self.th_console.start()
+        sys.stdout = self.__stdout_buffer
+        sys.stderr = self.__stderr_original
 
     def disable(self):
+        # self.th_console.join()
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
 
@@ -384,15 +404,15 @@ class BaseProgress:
 
     def reset(self, new_max_value, _state_msg="Reseted!"):
         self.max_value = new_max_value
+        self.stop()
+        self.set_up()
         self.loading_state = ''
-        self.console._write("\n")
-        self.console.log(self.console.random_color(_state_msg))
 
     def _done(self, _state_msg="Done!", user_msg=None, color: str = 'green'):
         if self.__error:
             return
-        self.__done = True
         self.done()
+        self.__done = True
         self.current_percent = 100
         self.state = self.console.template_format(f"{{{color}}}{self.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
         if user_msg is not None:
@@ -402,7 +422,7 @@ class BaseProgress:
         self.__running = False
         self.th_loading.join()
         self.root.join()
-        self.console.replace_last_msg(self.state, "\n")  # las update
+        self.console.replace_last_msg(self.__parse(), "\n")  # las update
         self.console.disable()
 
     def _error(self, msg):
@@ -484,16 +504,26 @@ class ProgressBar(ProgressLoading):
         self.loading_state = f"{l_delimiter}{self.default_char * self.progress_size}{r_delimiter}"
 
 
-class Progress: pass
+class P:
+    __a = 5
+
+    @property
+    def a(self):
+        return self.__a
+
+    @a.setter
+    def a(self):
+        self.__a = 10
 
 
 if __name__ == '__main__':
 
-    with ProgressBar("Cerejinha", max_value=600) as p:
+    with ProgressBar("Cerejinha", max_value=300) as p:
         for i in range(1, 300):
             time.sleep(1 / i)
+            print(i)
             p.update(i)
         for i in range(1, 300):
             time.sleep(1 / i)
+            print(i)
             p.update(i, max_value=300)
-        time.sleep(5)
