@@ -45,7 +45,6 @@ class _Stdout:
     def __init__(self, console):
         self.last_console_msg = ""
         self.console = console
-        self._stdout_err = _StdoutErr(self)
         self.use_th_console = True
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
@@ -58,18 +57,27 @@ class _Stdout:
 
     def write_user_msg(self):
         while True:
-            stdout = self.__stdout_buffer.getvalue()
-            stderr = self.__stderr_buffer.getvalue()
+            stdout = self.__stdout_buffer.getvalue()[:-1]
+            stderr = self.__stderr_buffer.getvalue()[:-1]
             if stdout and not (stdout in ["\n", "\r\n", "\n"]):
-                value = self.console.parse(stdout, title='Sys[out]')
-                value = f"\r{stdout}\n{value}"
+                values = []
+                for value in stdout.splitlines():
+                    value = f"{self.console.parse(value, title='Sys[out]')}"
+                    values.append(value)
+                value = '\n'.join(values)
+                value = f'\r{value}\n{self.last_console_msg}'
                 self._write(value)
+                self.__stdout_buffer.seek(0)
+                self.__stdout_buffer.truncate()
             if stderr and not (stderr in ["\n", "\r\n", "\n"]):
-                self.write_error(stderr)
-            self.__stdout_buffer.seek(0)
-            self.__stdout_buffer.truncate()
-            self.__stderr_buffer.seek(0)
-            self.__stderr_buffer.truncate()
+                unicode_err = '\U0000274C'
+                prefix = self.console.template_format(f"{{red}}{unicode_err} Error:{{endred}}")
+                msg_err_prefix = f"{self.console.parse(prefix, title='Sys[err]')}"
+                msg_err = self.console.format(stderr, color="red")
+                msg_err = f'\r{msg_err_prefix}\n{msg_err}\n{self.last_console_msg}'
+                self._write(msg_err)
+                self.__stderr_buffer.seek(0)
+                self.__stderr_buffer.truncate()
             time.sleep(1)
 
     def _write(self, msg: str):
@@ -88,35 +96,20 @@ class _Stdout:
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
 
-    # reserved for the system
-    def write(self, value: str):
-        if not (value in ["\n", "\r\n", "\n"]):
-            self.__user_msg.append(value)
-
     def write_error(self, msg, **ars):
         msg = self.console.format(msg, color="red")
-        self.write(msg)
+        self.__stdout_buffer.write(msg)
 
     def flush(self):
         self.__stdout_original.flush()
 
     def persist(self):
-        # self.th_console.start()
         sys.stdout = self.__stdout_buffer
-        sys.stderr = self.__stderr_original
+        sys.stderr = self.__stderr_buffer
 
     def disable(self):
-        # self.th_console.join()
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
-
-
-class _StdoutErr:
-    def __init__(self, stdout):
-        self.stdout = stdout
-
-    def write(self, msg, **kwargs):
-        self.stdout.write_error(msg)
 
 
 class ConsoleBase(metaclass=ABC):
@@ -314,6 +307,7 @@ class BaseProgress:
         self.progress_size = progress_size
         self.root = threading.Thread(name=self.name, target=self.__update)
         self.th_loading = threading.Thread(name="loading", target=self.__update_loading)
+        self.th_loading.setDaemon(True)
         self.console = ConsoleBase(name)
 
     def complete_with_blank(self, value: str) -> str:
@@ -420,15 +414,13 @@ class BaseProgress:
 
     def stop(self):
         self.__running = False
-        self.th_loading.join()
-        self.root.join()
         self.console.replace_last_msg(self.__parse(), "\n")  # las update
+        self.root.join()
         self.console.disable()
 
     def _error(self, msg):
         self.__error = True
-        self._set_state = self.console.template_format(f"{{red}}{self.ERROR_UNICODE} Error: {msg}{{endred}}")
-        self.stop()
+        self.state = self.console.template_format(f"{{red}}{self.ERROR_UNICODE} Error: {msg}{{endred}}")
 
     def __enter__(self):
         self.set_up()
@@ -504,24 +496,11 @@ class ProgressBar(ProgressLoading):
         self.loading_state = f"{l_delimiter}{self.default_char * self.progress_size}{r_delimiter}"
 
 
-class P:
-    __a = 5
-
-    @property
-    def a(self):
-        return self.__a
-
-    @a.setter
-    def a(self):
-        self.__a = 10
-
-
 if __name__ == '__main__':
 
     with ProgressBar("Cerejinha", max_value=300) as p:
         for i in range(1, 300):
             time.sleep(1 / i)
-            print(i)
             p.update(i)
         for i in range(1, 300):
             time.sleep(1 / i)
