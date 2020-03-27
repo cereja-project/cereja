@@ -127,7 +127,8 @@ class ConsoleBase(metaclass=ABC):
     ERROR_UNICODE = "\U0000274C"
     CHERRY_UNICODE = "\U0001F352"
     RIGHT_POINTER = "\U000000bb"
-    __CL_DEFAULT = '\033[30m'
+    __CL_DEFAULT = '\033[37m'
+    CL_BLACK = '\033[30m'
     CL_RED = '\033[31m'
     CL_GREEN = '\033[32m'
     CL_YELLOW = '\033[33m'
@@ -144,7 +145,7 @@ class ConsoleBase(metaclass=ABC):
     __right_point = f"{CL_CYAN}{RIGHT_POINTER}{__CL_DEFAULT}"
     __msg_prefix = f"{CL_RED}{CHERRY_UNICODE}{CL_BLUE}"
     __color_map = {
-        "black": __CL_DEFAULT,
+        "black": CL_BLACK,
         "red": CL_RED,
         "green": CL_GREEN,
         "yellow": CL_YELLOW,
@@ -200,7 +201,7 @@ class ConsoleBase(metaclass=ABC):
     def _msg_prefix(self, title=None):
         if title is None:
             title = self.title
-        return f"{self.__msg_prefix} {title} {self.__right_point}{self.__text_color}"
+        return f"{self.__msg_prefix} {title} {self.__right_point}"
 
     def translate_non_bmp(self, msg: str):
         """
@@ -218,7 +219,7 @@ class ConsoleBase(metaclass=ABC):
         if remove_line_sep:
             msg = ' '.join(msg.splitlines())
         prefix = self._msg_prefix(title)
-        return f"{prefix} {msg}{self.__CL_DEFAULT}"
+        return f"{prefix} {msg} {self.__CL_DEFAULT}"
 
     def _write(self, msg, line_sep=None):
         self.__stdout.cj_msg(msg, line_sep)
