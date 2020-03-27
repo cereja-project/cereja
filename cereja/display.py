@@ -563,7 +563,6 @@ class Progress:
 
     def __init__(self):
         self.__items = None
-        self.__n_times = 0
 
     def __call__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs) -> BaseProgress:
         return self._get_progress(style=style, task_name=task_name, max_value=max_value, **kwargs)
@@ -580,20 +579,21 @@ class Progress:
         task_name = task_name or "Cereja Progress"
         bar_ = self._get_progress(task_name=task_name, style=progress_style, max_value=len(iterator_))
         bar_.start()
-        for n, value in enumerate(iterator_):
-            self.__n_times += 1
+        for n, value in enumerate(iterator_, start=1):
             self.__items = yield value
-            bar_.update(n + 1)
+            bar_.update(n)
         bar_.stop()
         return bar_
 
 
 Progress = Progress()
 if __name__ == '__main__':
-    # a = Progress.bar(range(1, 1001))
-    # for i in a:
-    #     time.sleep(1 / i)
-    #     print(i)
-    for i in Progress.prog(["joab"] * 100):
-        time.sleep(0.5)
+    for n, i in enumerate(Progress.prog(range(100))):
+        if n > 0:
+            time.sleep(1 / n)
+        print(i)
+
+    for n, i in enumerate(Progress.prog(['cj_progress'] * 300)):
+        if n > 0:
+            time.sleep(1 / n)
         print(i)
