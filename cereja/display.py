@@ -576,7 +576,7 @@ class Progress:
     def __iter__(self):
         return next(self.__items)
 
-    def load_data(self, iterator_, progress_style="bar", task_name=None) -> iter:
+    def prog(self, iterator_, progress_style="bar", task_name=None) -> iter:
         task_name = task_name or "Cereja Progress"
         bar_ = self._get_progress(task_name=task_name, style=progress_style, max_value=len(iterator_))
         bar_.start()
@@ -594,6 +594,6 @@ if __name__ == '__main__':
     # for i in a:
     #     time.sleep(1 / i)
     #     print(i)
-    for i in Progress.load_data(["joab"] * 100):
+    for i in Progress.prog(["joab"] * 100):
         time.sleep(0.5)
         print(i)
