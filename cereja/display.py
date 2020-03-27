@@ -113,6 +113,11 @@ class _Stdout:
 
 
 class ConsoleBase(metaclass=ABC):
+    NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
+    DONE_UNICODE = "\U00002705"
+    ERROR_UNICODE = "\U0000274C"
+    CHERRY_UNICODE = "\U0001F352"
+    RIGHT_POINTER = "\U000000bb"
     __CL_DEFAULT = '\033[30m'
     CL_RED = '\033[31m'
     CL_GREEN = '\033[32m'
@@ -122,13 +127,12 @@ class ConsoleBase(metaclass=ABC):
     CL_CYAN = '\033[36m'
     CL_WHITE = '\033[37m'
     CL_UNDERLINE = '\033[4m'
-
     __line_sep_list = ['\r\n', '\n', '\r']
     __os_line_sep = os.linesep
 
     __login_name = os.getlogin()
-    __right_point = f"{CL_CYAN}\U000000bb{__CL_DEFAULT}"
-    __msg_prefix = f"{CL_RED}\U0001F352{CL_BLUE}"
+    __right_point = f"{CL_CYAN}{RIGHT_POINTER}{__CL_DEFAULT}"
+    __msg_prefix = f"{CL_RED}{CHERRY_UNICODE}{CL_BLUE}"
     __color_map = {
         "black": __CL_DEFAULT,
         "red": CL_RED,
@@ -140,6 +144,7 @@ class ConsoleBase(metaclass=ABC):
         "white": CL_WHITE,
         "default": __CL_DEFAULT
     }
+
     MAX_SPACE = 20
     MAX_BLOCKS = 5
 
@@ -150,6 +155,12 @@ class ConsoleBase(metaclass=ABC):
         self.__color_map = self._color_map  # get copy
         self.text_color = color_text
         self.__stdout = _Stdout(self)
+        # This is important, as there may be an exception if the terminal does not support unicode bmp
+        try:
+            self.log("Starting Cereja Console.")
+            self.non_bmp_supported = True
+        except UnicodeEncodeError:
+            self.non_bmp_supported = False
 
     @property
     def title(self):
@@ -183,7 +194,16 @@ class ConsoleBase(metaclass=ABC):
             title = self.title
         return f"{self.__msg_prefix} {title} {self.__right_point}{self.__text_color}"
 
+    def translate_non_bmp(self, msg: str):
+        """
+        This is important, as there may be an exception if the terminal does not support unicode bmp
+        """
+        if self.non_bmp_supported:
+            return msg
+        return msg.translate(self.NON_BMP_MAP)
+
     def _parse(self, msg: str, title=None, color: str = None, remove_line_sep=True):
+
         if color is None:
             color = "default"
         msg = self.format(msg, color)
@@ -202,7 +222,7 @@ class ConsoleBase(metaclass=ABC):
         return s
 
     def parse(self, msg, title=None):
-        return self._parse(msg, title)
+        return self.translate_non_bmp(self._parse(msg, title))
 
     def template_format(self, s):
         """
@@ -284,32 +304,23 @@ class ConsoleBase(metaclass=ABC):
         self.__stdout.disable()
 
 
-class BaseProgress:
-    NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
-    DONE_UNICODE = "\U00002705"
-    ERROR_UNICODE = "\U0000274C"
-    CHERRY_UNICODE = "\U0001F352"
-    RIGHT_POINTER = "\U000000bb"
+class BaseProgress(metaclass=ABC):
 
-    def __init__(self, name: str, progress_size: int, max_value=100, **kwargs):
+    def __init__(self, task_name: str, progress_size: int, max_value=100, **kwargs):
         self.__use_loading = True
-        self.__restarted = False
         self.__running: bool = False
         self.__done = False
         self.__error = False
         self.__time_sleep = 0.5
-        self.name = name
+        self.task_name = task_name
         self.loading_state: str = ''
         self.state: str = ''
         self.max_value: float = max_value
-        self.distance_inner_states = 10
+        self.distance_inner_states = 5
         self.current_value = 0.0
         self.current_percent = 0.0
         self.progress_size = progress_size
-        self.root = threading.Thread(name=self.name, target=self.__update)
-        self.th_loading = threading.Thread(name="loading", target=self.__update_loading)
-        self.th_loading.setDaemon(True)
-        self.console = ConsoleBase(name)
+        self.first_time = 0.0
 
     def complete_with_blank(self, value: str) -> str:
         """
@@ -317,7 +328,7 @@ class BaseProgress:
         :param value: is the current sizeof default char value or the proportion of this value in the case of a bar
         :return: string with sizeof max_size
         """
-        blanks = '  ' * (self.distance_inner_states - len(value))
+        blanks = '  ' * (self.progress_size - len(value))
         return f"{value}{blanks}"
 
     def size_prop(self, value: Number):
@@ -327,7 +338,7 @@ class BaseProgress:
         """
         return proportional(value, self.progress_size)
 
-    def update(self, current_value: Number):
+    def update(self, current_value: Number, max_value=100):
         """
         :param current_value: Fraction of the "max_value" you want to achieve.
                               Remember that this value is not necessarily the percentage.
@@ -335,12 +346,17 @@ class BaseProgress:
         :param max_value: This number represents the maximum amount you want to achieve.
                           It is not a percentage, although it is purposely set to 100 by default.
         """
+        self.max_value = max(self.max_value, max_value)
+        if current_value > self.max_value:
+            raise ValueError(f"Current value {current_value} when it is greater than max_value")
+
         if current_value is not None:
             if isinstance(current_value, (int, float, complex)) and current_value > 0:
                 percent = round((current_value / self.max_value) * 100, 2)
-                if percent < self.current_percent:
+                if self.current_percent > percent:
                     self.reset()
-                self.current_percent = round((current_value / self.max_value) * 100, 2)
+                self.current_percent = percent
+                self.state = f"Loading"
                 self.current_value = current_value
             else:
                 raise Exception("Send Number.")
@@ -350,7 +366,7 @@ class BaseProgress:
         percent = f"{self.current_percent}%"
         state_ = f"{percent} {self.state}"
         if self.__use_loading:
-            state_ = f"{loading_state} - {state_}"
+            state_ = f"{loading_state} {state_} \U0001F55C {self._time_it()}s"
         return state_
 
     def is_done(self):
@@ -363,14 +379,17 @@ class BaseProgress:
     def done(cls, *args, **kwargs):
         pass
 
-    @classmethod
-    def progress(cls) -> str:
+    @abstractmethod
+    def progress(self) -> str:
         """
         Is a callback to threading named loading. This function is always being called.
         The request time is defined by the `time_sleep` property
         :return: You need to return a string with the status of your progress
         """
         pass
+
+    def _time_it(self) -> float:
+        return round((time.time() - self.first_time) - self.__time_sleep, 2)
 
     def __update_loading(self):
         while self.is_running and not self.__done:
@@ -386,45 +405,54 @@ class BaseProgress:
     def sleep(self):
         time.sleep(self.__time_sleep)
 
-    def set_up(self):
-        if self.__running:
-            self.console.log(f"{self.name} already started!")
-        else:
-            self.__running = True
-            self.state = "Running"
-            if self.__use_loading:
-                self.th_loading.start()
-            self.console.persist_on_runtime()
-            self.root.start()
-
-    def reset(self, _state_msg="Reseted!"):
-        self.__restarted = True
-        self._done()
-        self.console.replace_last_msg(self.__parse(), "\n")
-        self.state = "Restarted"
-        self.__done = False
-        self.__restarted = False
-
-    def stop(self):
-        self.__running = False
-        self.console.replace_last_msg(self.__parse(), "\n")  # las update
-        self.root.join()
-        self.console.disable()
-
     def _done(self, _state_msg="Done!", color: str = 'green'):
         if self.__error:
             return
         self.done()
         self.__done = True
         self.current_percent = 100
-        self.state = self.console.template_format(f"{{{color}}}{self.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
+        self.state = self.console.template_format(
+            f"{{{color}}}{self.console.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
 
     def _error(self, msg):
         self.__error = True
-        self.state = self.console.template_format(f"{{red}}{self.ERROR_UNICODE} Error: {msg}{{endred}}")
+        self.state = self.console.template_format(f"{{red}}{self.console.ERROR_UNICODE} Error: {msg}{{endred}}")
+
+    def _reset(self):
+        self._done()
+        self.__done = False
+        self.console.replace_last_msg(self.__parse(), "\n")  # las update
+        self.current_percent = 0
+        self.current_value = 1
+        self.first_time = time.time()
+
+    def start(self):
+        if not self.__running:
+            self.__enter__()
+
+    def stop(self, restart_only: bool = False):
+        if restart_only:
+            self._reset()
+        else:
+            self.__exit__(None, None, None)
+
+    def reset(self, _state_msg="Reseted!"):
+        self.stop(restart_only=True)
+        self.start()
 
     def __enter__(self):
-        self.set_up()
+        self.th_loading = threading.Thread(name="loading", target=self.__update_loading)
+        self.root = threading.Thread(name=self.task_name, target=self.__update)
+        self.console = ConsoleBase(self.task_name)
+        self.first_time = time.time()
+        self.__running = True
+        self.__done = False
+        self.state = "Loading"
+        if self.__use_loading:
+            self.th_loading.setDaemon(True)
+            self.th_loading.start()
+        self.console.persist_on_runtime()
+        self.root.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -432,7 +460,10 @@ class BaseProgress:
             self._error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
         else:
             self._done()
-        self.stop()
+        self.__running = False
+        self.console.replace_last_msg(self.__parse(), "\n")  # las update
+        self.root.join()
+        self.console.disable()
 
 
 class ProgressLoading(BaseProgress):
@@ -450,8 +481,8 @@ class ProgressLoading(BaseProgress):
             Value that will be added or replaced simulating animation.
     """
 
-    def __init__(self, name, progress_size=3, default_char='.', lef_right_delimiter="[]", **kwargs):
-        super().__init__(name=name, progress_size=progress_size, **kwargs)
+    def __init__(self, task_name, progress_size=3, default_char='.', lef_right_delimiter="[]", **kwargs):
+        super().__init__(task_name=task_name, progress_size=progress_size, **kwargs)
         self.default_char = default_char
 
         if not isinstance(lef_right_delimiter, str):
@@ -462,20 +493,22 @@ class ProgressLoading(BaseProgress):
         self.left_right_delimiter = lef_right_delimiter
 
     def progress(self):
+        l_delimiter, r_delimiter = self.left_right_delimiter
         current = self.loading_state or ''
-        current = current.strip()  # clean blanks
+        current = current.strip(l_delimiter).strip(r_delimiter).strip()  # clean blanks
         if current is not None and len(current) < self.progress_size:
             current = f"{current}{self.default_char}"
         else:
             current = ''
         current = self.complete_with_blank(current)
-        return f"{current}"
+        return f"{l_delimiter}{current}{r_delimiter}"
 
 
 class ProgressBar(ProgressLoading):
 
-    def __init__(self, name, max_value=100, progress_size=30, default_char='=', lef_right_delimiter="[]", **kwargs):
-        super().__init__(name, max_value=max_value, progress_size=progress_size, default_char=default_char,
+    def __init__(self, task_name, max_value=100, progress_size=30, default_char='=', lef_right_delimiter="[]",
+                 **kwargs):
+        super().__init__(task_name, max_value=max_value, progress_size=progress_size, default_char=default_char,
                          lef_right_delimiter=lef_right_delimiter, **kwargs)
         self.arrow: str = '>'
         self.use_arrow: bool = True
@@ -498,13 +531,35 @@ class ProgressBar(ProgressLoading):
         self.loading_state = f"{l_delimiter}{self.default_char * self.progress_size}{r_delimiter}"
 
 
-if __name__ == '__main__':
+class Progress:
+    __style_map = {
+        "loading": ProgressLoading,
+        "bar": ProgressBar
+    }
 
-    with ProgressBar("Cerejinha", max_value=300) as p:
-        for i in range(1, 300):
+    def __call__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs) -> BaseProgress:
+        if style not in self.__style_map:
+            raise ValueError("Not found Progress style.")
+        return self.__style_map[style](task_name=task_name, max_value=max_value, **kwargs)
+
+    @classmethod
+    def bar(cls, *args, **kwargs):
+        return ProgressBar(*args, **kwargs)
+
+
+Progress = Progress()
+
+if __name__ == '__main__':
+    # a = Progress.bar(range(1, 1001))
+    # for i in a:
+    #     time.sleep(1 / i)
+    #     print(i)
+
+    with Progress(task_name="Progress Bar Test", style="bar") as bar:
+        for i in range(1, 101):
+            time.sleep(2 / i)
+            bar.update(i)
+
+        for i in range(1, 400):
             time.sleep(1 / i)
-            p.update(i)
-        for i in range(1, 300):
-            time.sleep(1 / i)
-            print(i)
-            p.update(i)
+            bar.update(i, 401)
