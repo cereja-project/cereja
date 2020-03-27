@@ -33,7 +33,7 @@ from cereja.utils import invert_dict
 
 logger = logging.Logger(__name__)
 
-_explicit_exclude = ["_auto_ident_py", "FileBase", "_walk_dirs_and_replace"]
+_exclude = ["_auto_ident_py", "FileBase", "_walk_dirs_and_replace"]
 
 """
 CRLF platforms:

@@ -23,10 +23,10 @@ SOFTWARE.
 
 import sys
 import logging
-
+from .utils import get_version_pep440_compliant
 __all__ = []
 # using by utils.module_references
-_explicit_exclude = ["console_logger", "cj_modules_dotted_path"]
+_exclude = ["console_logger", "cj_modules_dotted_path"]
 
 # Used to add the functions of each module at the root
 cj_modules_dotted_path = ['cereja.arraytools', 'cereja.conf', 'cereja.decorators', 'cereja.path',
@@ -34,3 +34,13 @@ cj_modules_dotted_path = ['cereja.arraytools', 'cereja.conf', 'cereja.decorators
 
 console_logger = logging.StreamHandler(sys.stdout)
 logging.basicConfig(handlers=(console_logger,), level=logging.WARN)
+
+NON_BMP_SUPPORTED = None
+if NON_BMP_SUPPORTED is None:
+    # This is important, as there may be an exception if the terminal does not support unicode bmp
+    try:
+        unicode_ = f"\033[31m\U0001F352\033[30m"
+        sys.stdout.write(f"{unicode_} {get_version_pep440_compliant()}\n")
+        __NON_BMP_SUPPORTED = True
+    except UnicodeEncodeError:
+        __NON_BMP_SUPPORTED = False

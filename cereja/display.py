@@ -28,11 +28,14 @@ from abc import ABCMeta as ABC, abstractmethod
 from typing import Union, List, Sequence, Any
 import random
 from cereja.cj_types import Number
-from cereja import __version__
+from cereja.conf import NON_BMP_SUPPORTED
+from cereja.utils import proportional
 
 __all__ = ['Progress']
+_exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
+                     "ProgressLoadingSequence"]
 
-from cereja.utils import proportional
+_include = ["console", "Progress"]
 
 if sys.platform.lower() == "win32":
     os.system('color')
@@ -129,6 +132,7 @@ class ConsoleBase(metaclass=ABC):
     CL_WHITE = '\033[37m'
     CL_UNDERLINE = '\033[4m'
     __line_sep_list = ['\r\n', '\n', '\r']
+    __non_bmp_supported = NON_BMP_SUPPORTED
     __os_line_sep = os.linesep
 
     __login_name = os.getlogin()
@@ -145,12 +149,7 @@ class ConsoleBase(metaclass=ABC):
         "white": CL_WHITE,
         "default": __CL_DEFAULT
     }
-    # This is important, as there may be an exception if the terminal does not support unicode bmp
-    try:
-        sys.stdout.write(f"{__msg_prefix} {__version__}")
-        __non_bmp_supported = True
-    except UnicodeEncodeError:
-        __non_bmp_supported = False
+
     MAX_SPACE = 20
     MAX_BLOCKS = 5
 

@@ -89,11 +89,11 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     dict of all functions and classes defined in the module.
 
     To also list the variables it is necessary to define explicitly with the special variable on your module
-    _implicit_include
+    _include
 
     **kwargs:
-    _implicit_include -> to include any definition and variables
-    _explicit_exclude -> to exclude any definition
+    _include -> to includes any definition and variables
+    _exclude -> to exclude any definition
 
     :param instance:
     :return: List[str]
@@ -104,15 +104,15 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     for i in dir(instance):
         if i.startswith('_'):
             continue
-        excludes = get_attr_if_exists(instance, "_explicit_exclude") or kwargs.get("_explicit_exclude") or []
-        implicit = get_attr_if_exists(instance, "_explicit_include") or kwargs.get("_explicit_include") or []
+        exclude = get_attr_if_exists(instance, "_exclude") or kwargs.get("_exclude") or []
+        include = get_attr_if_exists(instance, "_include") or kwargs.get("_include") or []
 
         obj = get_attr_if_exists(instance, i)
 
-        if i in implicit:
+        if i in include:
             definitions[i] = obj
 
-        if obj is not None and i not in excludes and callable(obj):
+        if obj is not None and i not in exclude and callable(obj):
             if obj.__module__ == instance.__name__:
                 definitions[i] = obj
     logger.debug(f"Collected: {definitions}")

@@ -30,13 +30,11 @@ import abc
 import logging
 
 from cereja import utils
-from cereja.arraytools import rand_n
-
 __all__ = ['time_exec']
 logger = logging.getLogger(__name__)
 
 # exclude from the root import
-_explicit_exclude = ['BaseDecorator', 'Decorator', 'logger']
+_exclude = ['BaseDecorator', 'Decorator', 'logger']
 
 
 class BaseDecorator(abc.ABC):
