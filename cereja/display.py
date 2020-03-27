@@ -467,9 +467,6 @@ class BaseProgress(metaclass=ABC):
 
 
 class ProgressLoading(BaseProgress):
-    CLOCKS_UNICODE = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
-                      "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
-
     """
     :param lef_right_delimiter: str = String of length 2 e.g: '[]'
             Are the delimiters of the default_char
@@ -503,6 +500,10 @@ class ProgressLoading(BaseProgress):
         current = self.complete_with_blank(current)
         return f"{l_delimiter}{current}{r_delimiter}"
 
+    def done(self):
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        self.loading_state = f"{l_delimiter}{self.default_char * self.progress_size}{r_delimiter}"
+
 
 class ProgressBar(ProgressLoading):
 
@@ -526,15 +527,28 @@ class ProgressBar(ProgressLoading):
         blanks = '  ' * (self.progress_size - prop_max_size)
         return f"{l_delimiter}{self.default_char * prop_max_size}{last_char}{blanks}{r_delimiter}"
 
-    def done(self, *args, **kwargs):
-        l_delimiter, r_delimiter = self.left_right_delimiter
-        self.loading_state = f"{l_delimiter}{self.default_char * self.progress_size}{r_delimiter}"
+class ProgressLoadingSequence(ProgressLoading):
+    __sequence = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
+                  "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
+
+    def __init__(self, task_name, sequence: Union[list, tuple] = None, *args, **kwargs):
+        super().__init__(task_name, *args, **kwargs)
+        if sequence is not None:
+            self.__sequence = sequence
+        self._n_times = 0
+
+    def progress(self):
+        self._n_times += 1
+        if len(self.__sequence) == self._n_times:
+            self._n_times = 0
+        return self.__sequence[self._n_times - 1]
 
 
 class Progress:
     __style_map = {
         "loading": ProgressLoading,
-        "bar": ProgressBar
+        "bar": ProgressBar,
+        "sequence": ProgressLoadingSequence
     }
 
     def __call__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs) -> BaseProgress:
@@ -548,14 +562,13 @@ class Progress:
 
 
 Progress = Progress()
-
 if __name__ == '__main__':
     # a = Progress.bar(range(1, 1001))
     # for i in a:
     #     time.sleep(1 / i)
     #     print(i)
 
-    with Progress(task_name="Progress Bar Test", style="bar") as bar:
+    with Progress(task_name="Progress Bar Test", style="sequence") as bar:
         for i in range(1, 101):
             time.sleep(2 / i)
             bar.update(i)
