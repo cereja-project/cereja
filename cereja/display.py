@@ -293,6 +293,7 @@ class BaseProgress:
 
     def __init__(self, name: str, progress_size: int, max_value=100, **kwargs):
         self.__use_loading = True
+        self.__restarted = False
         self.__running: bool = False
         self.__done = False
         self.__error = False
@@ -326,7 +327,7 @@ class BaseProgress:
         """
         return proportional(value, self.progress_size)
 
-    def update(self, current_value: Number, max_value=None):
+    def update(self, current_value: Number):
         """
         :param current_value: Fraction of the "max_value" you want to achieve.
                               Remember that this value is not necessarily the percentage.
@@ -334,11 +335,11 @@ class BaseProgress:
         :param max_value: This number represents the maximum amount you want to achieve.
                           It is not a percentage, although it is purposely set to 100 by default.
         """
-        if max_value is not None:
-            if max_value != self.max_value:
-                self.reset(new_max_value=max_value)
         if current_value is not None:
             if isinstance(current_value, (int, float, complex)) and current_value > 0:
+                percent = round((current_value / self.max_value) * 100, 2)
+                if percent < self.current_percent:
+                    self.reset()
                 self.current_percent = round((current_value / self.max_value) * 100, 2)
                 self.current_value = current_value
             else:
@@ -396,27 +397,27 @@ class BaseProgress:
             self.console.persist_on_runtime()
             self.root.start()
 
-    def reset(self, new_max_value, _state_msg="Reseted!"):
-        self.max_value = new_max_value
-        self.stop()
-        self.set_up()
-        self.loading_state = ''
-
-    def _done(self, _state_msg="Done!", user_msg=None, color: str = 'green'):
-        if self.__error:
-            return
-        self.done()
-        self.__done = True
-        self.current_percent = 100
-        self.state = self.console.template_format(f"{{{color}}}{self.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
-        if user_msg is not None:
-            self.__user_output_state = user_msg
+    def reset(self, _state_msg="Reseted!"):
+        self.__restarted = True
+        self._done()
+        self.console.replace_last_msg(self.__parse(), "\n")
+        self.state = "Restarted"
+        self.__done = False
+        self.__restarted = False
 
     def stop(self):
         self.__running = False
         self.console.replace_last_msg(self.__parse(), "\n")  # las update
         self.root.join()
         self.console.disable()
+
+    def _done(self, _state_msg="Done!", color: str = 'green'):
+        if self.__error:
+            return
+        self.done()
+        self.__done = True
+        self.current_percent = 100
+        self.state = self.console.template_format(f"{{{color}}}{self.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
 
     def _error(self, msg):
         self.__error = True
@@ -429,7 +430,8 @@ class BaseProgress:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if isinstance(exc_val, Exception):
             self._error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
-
+        else:
+            self._done()
         self.stop()
 
 
@@ -505,4 +507,4 @@ if __name__ == '__main__':
         for i in range(1, 300):
             time.sleep(1 / i)
             print(i)
-            p.update(i, max_value=300)
+            p.update(i)
