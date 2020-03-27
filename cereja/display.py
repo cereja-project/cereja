@@ -33,7 +33,7 @@ from cereja.utils import proportional
 
 __all__ = ['Progress']
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
-                     "ProgressLoadingSequence"]
+            "ProgressLoadingSequence"]
 
 _include = ["console", "Progress"]
 
@@ -90,8 +90,13 @@ class _Stdout:
             time.sleep(1)
 
     def _write(self, msg: str):
-        self.__stdout_original.write(msg)
-        self.__stdout_original.flush()
+        try:
+            self.__stdout_original.write(msg)
+            self.__stdout_original.flush()
+        except UnicodeError:
+            msg = self.console.translate_non_bmp(msg)
+            self.__stdout_original.write(msg)
+            self.__stdout_original.flush()
 
     def cj_msg(self, msg: str, line_sep=None, replace_last=False):
         self.last_console_msg = msg
@@ -231,7 +236,7 @@ class ConsoleBase(metaclass=ABC):
         return s
 
     def parse(self, msg, title=None):
-        return self.translate_non_bmp(self._parse(msg, title))
+        return self._parse(msg, title)
 
     def template_format(self, s):
         """
