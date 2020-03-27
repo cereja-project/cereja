@@ -28,8 +28,9 @@ from abc import ABCMeta as ABC, abstractmethod
 from typing import Union, List, Sequence, Any
 import random
 from cereja.cj_types import Number
+from cereja import __version__
 
-__all__ = 'Progress'
+__all__ = ['Progress']
 
 from cereja.utils import proportional
 
@@ -144,7 +145,12 @@ class ConsoleBase(metaclass=ABC):
         "white": CL_WHITE,
         "default": __CL_DEFAULT
     }
-
+    # This is important, as there may be an exception if the terminal does not support unicode bmp
+    try:
+        sys.stdout.write(f"{__msg_prefix} {__version__}")
+        __non_bmp_supported = True
+    except UnicodeEncodeError:
+        __non_bmp_supported = False
     MAX_SPACE = 20
     MAX_BLOCKS = 5
 
@@ -155,12 +161,10 @@ class ConsoleBase(metaclass=ABC):
         self.__color_map = self._color_map  # get copy
         self.text_color = color_text
         self.__stdout = _Stdout(self)
-        # This is important, as there may be an exception if the terminal does not support unicode bmp
-        try:
-            self.log("Starting Cereja Console.")
-            self.non_bmp_supported = True
-        except UnicodeEncodeError:
-            self.non_bmp_supported = False
+
+    @property
+    def non_bmp_supported(self):
+        return self.__non_bmp_supported
 
     @property
     def title(self):
@@ -615,6 +619,12 @@ class Progress:
         return bar_
 
 
+class __Console(ConsoleBase):
+    pass
+
+
+console = __Console()
+
 Progress = Progress()
 if __name__ == '__main__':
     for n, i in enumerate(Progress.prog(range(100))):
@@ -628,3 +638,5 @@ if __name__ == '__main__':
             time.sleep(1 / n)
         if n % 10 == 0:
             print(i)
+
+    console.log(console.random_color("hi"))
