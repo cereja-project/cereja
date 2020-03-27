@@ -37,6 +37,11 @@ _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "Progre
 
 _include = ["console", "Progress"]
 
+try:
+    _LOGIN_NAME = os.getlogin()
+except OSError:
+    _LOGIN_NAME = "Cereja"
+
 if sys.platform.lower() == "win32":
     os.system('color')
 
@@ -135,7 +140,7 @@ class ConsoleBase(metaclass=ABC):
     __non_bmp_supported = NON_BMP_SUPPORTED
     __os_line_sep = os.linesep
 
-    __login_name = os.getlogin()
+    __login_name = _LOGIN_NAME
     __right_point = f"{CL_CYAN}{RIGHT_POINTER}{__CL_DEFAULT}"
     __msg_prefix = f"{CL_RED}{CHERRY_UNICODE}{CL_BLUE}"
     __color_map = {
