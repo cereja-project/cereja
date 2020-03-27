@@ -348,7 +348,7 @@ class BaseProgress(metaclass=ABC):
         """
         self.max_value = max(self.max_value, max_value)
         if current_value > self.max_value:
-            raise ValueError(f"Current value {current_value} when it is greater than max_value")
+            raise ValueError(f"Current value {current_value} is greater than max_value")
 
         if current_value is not None:
             if isinstance(current_value, (int, float, complex)) and current_value > 0:
@@ -359,14 +359,18 @@ class BaseProgress(metaclass=ABC):
                 self.state = f"Loading"
                 self.current_value = current_value
             else:
-                raise Exception("Send Number.")
+                raise Exception(f"Current value {current_value} isn't valid.")
 
     def __parse(self) -> str:
         loading_state = self.loading_state
         percent = f"{self.current_percent}%"
-        state_ = f"{percent} {self.state}"
+        state_ = f"{percent} - {self.state}"
+        if self.__done:
+            time_ = f"\U0001F55C Total: {self._time_it()}s"
+        else:
+            time_ = f"\U0001F55C Estimated: {self.estimated_time()}s"
         if self.__use_loading:
-            state_ = f"{loading_state} {state_} \U0001F55C {self._time_it()}s"
+            state_ = f"{loading_state} {state_} - {time_}"
         return state_
 
     def is_done(self):
@@ -389,7 +393,12 @@ class BaseProgress(metaclass=ABC):
         pass
 
     def _time_it(self) -> float:
-        return round((time.time() - self.first_time) - self.__time_sleep, 2)
+        return round((time.time() - self.first_time), 2)
+
+    def estimated_time(self):
+        time_it = max(self._time_it(), 1)
+        current_value = self.current_value or 1
+        return round((time_it / current_value) * self.max_value - time_it, 2)
 
     def __update_loading(self):
         while self.is_running and not self.__done:
@@ -527,6 +536,7 @@ class ProgressBar(ProgressLoading):
         blanks = '  ' * (self.progress_size - prop_max_size)
         return f"{l_delimiter}{self.default_char * prop_max_size}{last_char}{blanks}{r_delimiter}"
 
+
 class ProgressLoadingSequence(ProgressLoading):
     __sequence = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
                   "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
@@ -551,14 +561,31 @@ class Progress:
         "sequence": ProgressLoadingSequence
     }
 
+    def __init__(self):
+        self.__items = None
+        self.__n_times = 0
+
     def __call__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs) -> BaseProgress:
+        return self._get_progress(style=style, task_name=task_name, max_value=max_value, **kwargs)
+
+    def _get_progress(self, style, **kwargs):
         if style not in self.__style_map:
             raise ValueError("Not found Progress style.")
-        return self.__style_map[style](task_name=task_name, max_value=max_value, **kwargs)
+        return self.__style_map[style](**kwargs)
 
-    @classmethod
-    def bar(cls, *args, **kwargs):
-        return ProgressBar(*args, **kwargs)
+    def __iter__(self):
+        return next(self.__items)
+
+    def load_data(self, iterator_, progress_style="bar", task_name=None) -> iter:
+        task_name = task_name or "Cereja Progress"
+        bar_ = self._get_progress(task_name=task_name, style=progress_style, max_value=len(iterator_))
+        bar_.start()
+        for n, value in enumerate(iterator_):
+            self.__n_times += 1
+            self.__items = yield value
+            bar_.update(n + 1)
+        bar_.stop()
+        return bar_
 
 
 Progress = Progress()
@@ -567,12 +594,6 @@ if __name__ == '__main__':
     # for i in a:
     #     time.sleep(1 / i)
     #     print(i)
-
-    with Progress(task_name="Progress Bar Test", style="sequence") as bar:
-        for i in range(1, 101):
-            time.sleep(2 / i)
-            bar.update(i)
-
-        for i in range(1, 400):
-            time.sleep(1 / i)
-            bar.update(i, 401)
+    for i in Progress.load_data(["joab"] * 100):
+        time.sleep(0.5)
+        print(i)
