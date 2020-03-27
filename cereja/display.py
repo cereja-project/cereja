@@ -25,7 +25,7 @@ import threading
 import sys
 import time
 from abc import ABCMeta as ABC, abstractmethod
-from typing import Union, List
+from typing import Union, List, Sequence, Any
 import random
 from cereja.cj_types import Number
 
@@ -300,6 +300,7 @@ class ConsoleBase(metaclass=ABC):
 
     def disable(self):
         self.title = "Cereja"
+        self.__stdout._write("\n")
         self.__print(f"Cereja's console {{red}}out!{{endred}}{{default}}")
         self.__stdout.disable()
 
@@ -564,20 +565,48 @@ class Progress:
     def __init__(self):
         self.__items = None
 
+    @property
+    def styles(self):
+        return list(self.__style_map)
+
     def __call__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs) -> BaseProgress:
+        """
+        Percentage calculation is based on max_value (default is 100) and current_value:
+        percent = (current_value / max_value) * 100
+
+        :param style: defines the type of progress that will be used. "loading" is Default
+                    You can choose those available ['loading', 'bar', 'sequence']
+        :param task_name: Defines the name to be displayed in progress
+        :param max_value: This number represents the maximum amount you want to achieve.
+                          It is not a percentage, although it is purposely set to 100 by default.
+        :param kwargs:
+                loading_with_clock: You will see a clock if the style is loading
+        :return: Progress
+        """
+        if "loading_with_clock" in kwargs and style == "loading":
+            use_sequence = bool(kwargs.pop("loading_with_clock"))
+            style = "sequence" if use_sequence else "loading"
         return self._get_progress(style=style, task_name=task_name, max_value=max_value, **kwargs)
 
     def _get_progress(self, style, **kwargs):
         if style not in self.__style_map:
-            raise ValueError("Not found Progress style.")
+            raise ValueError(f"Unknown {repr(style)} progress style. You can choose those available {self.styles}")
         return self.__style_map[style](**kwargs)
 
     def __iter__(self):
         return next(self.__items)
 
-    def prog(self, iterator_, progress_style="bar", task_name=None) -> iter:
-        task_name = task_name or "Cereja Progress"
-        bar_ = self._get_progress(task_name=task_name, style=progress_style, max_value=len(iterator_))
+    def prog(self, iterator_: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> Sequence[Any]:
+        """
+        Percentage calculation is based on iterator_ length and current_value:
+        percent = (current_value / len(iterator_)) * 100
+
+        :param iterator_: Sequence of anything
+        :param style: choose those available 'loading', 'bar' and 'sequence'
+        :param task_name: Prefix on console.
+        :return: Same sequence.
+        """
+        bar_ = self._get_progress(task_name=task_name, style=style, max_value=len(iterator_))
         bar_.start()
         for n, value in enumerate(iterator_, start=1):
             self.__items = yield value
@@ -591,9 +620,11 @@ if __name__ == '__main__':
     for n, i in enumerate(Progress.prog(range(100))):
         if n > 0:
             time.sleep(1 / n)
-        print(i)
+        if n % 20 == 0:
+            print(i)
 
     for n, i in enumerate(Progress.prog(['cj_progress'] * 300)):
         if n > 0:
             time.sleep(1 / n)
-        print(i)
+        if n % 10 == 0:
+            print(i)
