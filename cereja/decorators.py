@@ -1,5 +1,4 @@
 """
-
 Copyright (c) 2019 The Cereja Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,38 +21,34 @@ SOFTWARE.
 """
 
 import functools
-import sys
+import threading
 import time
 from abc import abstractmethod
 from typing import Callable, Any
 import abc
 import logging
-
+import warnings
 from cereja import utils
+
+
 __all__ = ['time_exec']
+
+from cereja.cj_types import PEP440
+
 logger = logging.getLogger(__name__)
 
 # exclude from the root import
 _exclude = ['BaseDecorator', 'Decorator', 'logger']
 
 
-class BaseDecorator(abc.ABC):
-    def __init__(self):
-        self.func = None
+def synchronized(func):
+    func.__lock__ = threading.Lock()
 
-    def register(self, name, wrapper):
-        setattr(self, name, wrapper)
-        return self.__getattribute__(name)
+    def synced_func(*args, **kws):
+        with func.__lock__:
+            return func(*args, **kws)
 
-    @abstractmethod
-    def wrapper(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-
-
-class Decorator(BaseDecorator):
-    def wrapper(self, *args, **kwargs):
-        result = super().wrapper(*args, **kwargs)
-        return result
+    return synced_func
 
 
 def time_exec(func: Callable[[Any], Any]) -> Callable:
@@ -77,3 +72,75 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
 # Lowercase is more sensible for most things, and import_string is because Cyclic imports
 sync_to_async = utils.import_string('cereja.concurrently.SyncToAsync')
 async_to_sync = utils.import_string('cereja.concurrently.AsyncToSync')
+
+
+class BaseDecorator(abc.ABC):
+    def __init__(self):
+        self.func = None
+
+    @abstractmethod
+    def __call__(self, *args, **kwargs):
+        """
+        You can override and
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        return self._register
+
+    def _register(self, func):
+        self.func = func
+        return self.wrapper
+
+    @abstractmethod
+    def wrapper(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+
+class __Deprecated(BaseDecorator):
+    __warn = "This function will be deprecated in future versions"
+    __alternative_template = "You can use {dotted_path}."
+
+    def __call__(self, alternative: str, from_version: PEP440 = None, more_info: str = None):
+        logger.warning("[!] It's still under development [!]")
+        if more_info is not None:
+            more_info = f" {more_info}."
+        else:
+            more_info = ''
+        self.warn = f"{self.__warn}. {self.__alternative_template.format(dotted_path=alternative)}{more_info}"
+        self.from_version = from_version
+        return super().__call__()
+
+    def wrapper(self, *args, **kwargs):
+        warnings.warn(self.warn, DeprecationWarning)
+        result = super().wrapper(*args, **kwargs)
+        return result
+
+
+__deprecated = __Deprecated()
+
+
+# Function version
+def depreciation(alternative: str = None):
+    alternative = f"You can use {alternative}" or "There is no alternative to this function"
+
+    def register(func):
+        def wrapper(*args, **kwargs):
+            warnings.warn(f"This function will be deprecated in future versions. "
+                          f"{alternative}", DeprecationWarning, 2)
+            result = func(*args, **kwargs)
+            return result
+
+        return wrapper
+
+    return register
+
+
+if __name__ == "__main__":
+    @depreciation(alternative="arraytools.rand_n")
+    def test_deprecated_warn(val):
+        from cereja.arraytools import rand_n as randn
+        return randn(val, 3)
+
+
+    test_deprecated_warn(1)
