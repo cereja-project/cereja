@@ -25,15 +25,14 @@ import asyncio
 import functools
 import os
 import threading
+import time
 from concurrent.futures import Future, ThreadPoolExecutor
-from multiprocessing.pool import Pool
 import logging
 from typing import Sequence, Any
 
 from cereja.cj_types import Function
 from cereja.arraytools import is_sequence
 from cereja.decorators import time_exec
-from cereja.utils import set_log_level
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +246,6 @@ class TaskList:
     """
 
     def __init__(self, func: Function, sequence: Sequence[Any]):
-        logger.warning("[!] class still under development")
         if not isinstance(func, Function):
             raise TypeError(f"{func} is not a function.")
 
@@ -273,16 +271,10 @@ class TaskList:
     async def _run(self):  # only python3.7
         return await asyncio.gather(*map(self._wrapper, self.sequence))
 
-    @time_exec
     def run(self):
-        try:
-            loop = self.loop
-            if hasattr(asyncio, 'run'):  # Only python 3.7
-                return asyncio.run(self._run())
-            return loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
-        except:
-            logger.warning("is running in functional mode")
-            return self._run_functional()
+        if hasattr(asyncio, 'run'):  # Only python 3.7
+            return asyncio.run(self._run())
+        return self.loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
 
     @time_exec
     def _run_functional(self):
