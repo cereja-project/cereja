@@ -92,8 +92,19 @@ def estimate(from_: Number, to: Number, based: Number) -> Number:
     return float('NaN')
 
 
-def is_function(obj: Any) -> bool:
-    return isinstance(obj, types.FunctionType)
+def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
+    """
+    Calculates and adds value
+    """
+    fill_values = [with_] * (max_size - len(value))
+    if isinstance(value, str):
+        fill_values = ' '.join(fill_values)
+        value = f"{value}{fill_values}"
+    elif isinstance(value, list):
+        value += fill_values
+    elif isinstance(value, tuple):
+        value += tuple(fill_values)
+    return value
 
 
 def module_references(instance: types.ModuleType, **kwargs) -> dict:
