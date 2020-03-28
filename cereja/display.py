@@ -43,18 +43,21 @@ except OSError:
     _LOGIN_NAME = "Cereja"
 
 
-class _Stdout:
+class __Stdout:
     __stdout_original = sys.stdout
     __stderr_original = sys.stderr
     __user_msg = []
 
-    def __init__(self, console):
+    def __init__(self):
+        self.th_console = None
         self.last_console_msg = ""
-        self.console = console
-        self.use_th_console = True
+        self.use_th_console = False
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
-        self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
+
+    def __call__(self, console_):
+        self.console = console_
+        return self
 
     def set_message(self, msg):
         self.__user_msg = msg
@@ -113,6 +116,8 @@ class _Stdout:
         self.__stdout_original.flush()
 
     def persist(self):
+        self.use_th_console = True
+        self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
         self.th_console.start()
         sys.stdout = self.__stdout_buffer
         sys.stderr = self.__stderr_buffer
@@ -125,6 +130,9 @@ class _Stdout:
             self.th_console.join()
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
+
+
+_Stdout = __Stdout()
 
 
 class ConsoleBase(metaclass=ABC):
@@ -637,7 +645,7 @@ console = ConsoleBase()
 
 Progress = Progress()
 if __name__ == '__main__':
-    prog = Progress.prog(['joab']*3000)
+    prog = Progress.prog(['joab'] * 3000)
     for i, value in enumerate(prog, 1):
-        time.sleep(1/i)
+        time.sleep(1 / i)
         print(i)

@@ -1,3 +1,4 @@
+import os
 import time
 from abc import ABCMeta, abstractmethod
 from typing import Sequence, Any, Union
@@ -79,29 +80,8 @@ class Progress:
         state_conf = f"{self.__class__.__name__}{self._parse_states()}"
         return f"{state_conf}\n{self.console.parse(progress_example_view, title='Example States View')}"
 
-    @property
-    def states(self):
-        return self._parse_states()
-
     def _parse_states(self):
         return tuple(map(lambda stt: stt.__name__, self._states))
-
-    def add_state(self, state: Union[State, Sequence[State]]):
-        if state is not None:
-            self._filter_and_add_state(state)
-
-    def _filter_and_add_state(self, state: Union[State, Sequence[State]]):
-        filtered = tuple(
-            filter(
-                lambda stt: issubclass(type(stt), type(State)) and stt not in self._states,
-                tuple(state)
-            ))
-        if any(filtered):
-            self._states += filtered
-            self.console.log(f"Added new states! {filtered}")
-
-    def percent_(self, for_value: Number) -> Number:
-        return percent(for_value, self.max_value)
 
     def _states_view(self, for_value: Number):
         kwargs = {
@@ -120,29 +100,67 @@ class Progress:
         result = TaskList(get_state, self._states).run()
         return ' - '.join(result)
 
+    def add_state(self, state: Union[State, Sequence[State]]):
+        if state is not None:
+            self._filter_and_add_state(state)
+
+    def _filter_and_add_state(self, state: Union[State, Sequence[State]]):
+        filtered = tuple(
+            filter(
+                lambda stt: issubclass(type(stt), type(State)) and stt not in self._states,
+                tuple(state)
+            ))
+        if any(filtered):
+            self._states += filtered
+            self.console.log(f"Added new states! {filtered}")
+
+    @property
+    def states(self):
+        return self._parse_states()
+
+    def percent_(self, for_value: Number) -> Number:
+        return percent(for_value, self.max_value)
+
     def show_progress(self, for_value):
         mounted_display = self._states_view(for_value)
         self.console.replace_last_msg(mounted_display)
 
-    def __next__(self):
+    def _start(self):
         self.started_time = time.time()
-        self.started = True
-        self.console.persist_on_runtime()
+        if not self.started:
+            self.started = True
+            self.console.persist_on_runtime()
+
+    def _stop(self):
+        if self.started:
+            self.started = False
+            self.console.disable()
+
+    def __next__(self):
+        self._start()
         for n, value in enumerate(self.sequence):
-            self.show_progress(for_value=n)
+            if self.started:
+                self.show_progress(for_value=n)
             yield value
-        self.started = False
-        self.console.disable()
+        self._stop()
 
     def __iter__(self):
         return next(self)
 
+    def __enter__(self, *args, **kwargs):
+        self._start()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if isinstance(exc_val, Exception):
+            self.console.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
+
 
 if __name__ == "__main__":
     prog = Progress(["joab"] * 100)
-    print(prog)
     for i, k in enumerate(prog, start=1):
         time.sleep(1 / i)
         print(k)
 
-    prog.console.disable()
+    for i, k in enumerate(prog, start=1):
+        time.sleep(1 / i)
+        print(i)
