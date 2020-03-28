@@ -118,8 +118,11 @@ class _Stdout:
         sys.stderr = self.__stderr_buffer
 
     def disable(self):
-        self.use_th_console = False
-        self.th_console.join()
+        if self.use_th_console:
+            msg = self.console.parse(f"Cereja's console {{red}}out!{{endred}}{{default}}")
+            self.cj_msg(f'\n{msg}')
+            self.use_th_console = False
+            self.th_console.join()
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
 
@@ -314,7 +317,6 @@ class ConsoleBase(metaclass=ABC):
 
     def disable(self):
         self.title = "Cereja"
-        self.__print(f"Cereja's console {{red}}out!{{endred}}{{default}}")
         self.__stdout.disable()
 
 

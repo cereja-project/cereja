@@ -110,7 +110,7 @@ class Progress:
             "current_percent": self.percent_(for_value),
             "time_it": time.time() - (self.started_time or 0)
         }
-        if self.max_value - 1 == for_value:
+        if for_value >= self.max_value - 1:
             def get_state(state: State):
                 return state.done(**kwargs)
         else:
