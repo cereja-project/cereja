@@ -1,5 +1,4 @@
 """
-
 Copyright (c) 2019 The Cereja Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,16 +24,116 @@ import os
 import threading
 import sys
 import time
+from abc import ABCMeta as ABC, abstractmethod
+from typing import Union, List, Sequence, Any
+import random
 from cereja.cj_types import Number
+from cereja.conf import NON_BMP_SUPPORTED
+from cereja.utils import proportional
 
-__all__ = 'Progress'
+__all__ = ['Progress']
+_exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
+            "ProgressLoadingSequence"]
+
+_include = ["console", "Progress"]
+
+try:
+    _LOGIN_NAME = os.getlogin()
+except OSError:
+    _LOGIN_NAME = "Cereja"
 
 if sys.platform.lower() == "win32":
     os.system('color')
 
 
-class ConsoleBase(object):
-    CL_DEFAULT = '\033[30m'
+class _Stdout:
+    __stdout_original = sys.stdout
+    __stderr_original = sys.stderr
+    __user_msg = []
+
+    def __init__(self, console):
+        self.last_console_msg = ""
+        self.console = console
+        self.use_th_console = True
+        self.__stdout_buffer = io.StringIO()
+        self.__stderr_buffer = io.StringIO()
+        self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
+        self.th_console.setDaemon(True)
+        self.th_console.start()
+
+    def set_message(self, msg):
+        self.__user_msg = msg
+
+    def write_user_msg(self):
+        while True:
+            stdout = self.__stdout_buffer.getvalue()[:-1]
+            stderr = self.__stderr_buffer.getvalue()[:-1]
+            if stdout and not (stdout in ["\n", "\r\n", "\n"]):
+                values = []
+                for value in stdout.splitlines():
+                    value = f"{self.console.parse(value, title='Sys[out]')}"
+                    values.append(value)
+                value = '\n'.join(values)
+                value = f'\r{value}\n{self.last_console_msg}'
+                self._write(value)
+                self.__stdout_buffer.seek(0)
+                self.__stdout_buffer.truncate()
+            if stderr and not (stderr in ["\n", "\r\n", "\n"]):
+                unicode_err = '\U0000274C'
+                prefix = self.console.template_format(f"{{red}}{unicode_err} Error:{{endred}}")
+                msg_err_prefix = f"{self.console.parse(prefix, title='Sys[err]')}"
+                msg_err = self.console.format(stderr, color="red")
+                msg_err = f'\r{msg_err_prefix}\n{msg_err}\n{self.last_console_msg}'
+                self._write(msg_err)
+                self.__stderr_buffer.seek(0)
+                self.__stderr_buffer.truncate()
+            time.sleep(1)
+
+    def _write(self, msg: str):
+        try:
+            self.__stdout_original.write(msg)
+            self.__stdout_original.flush()
+        except UnicodeError:
+            msg = self.console.translate_non_bmp(msg)
+            self.__stdout_original.write(msg)
+            self.__stdout_original.flush()
+
+    def cj_msg(self, msg: str, line_sep=None, replace_last=False):
+        self.last_console_msg = msg
+        if replace_last:
+            msg = f"\r{msg}"
+        self._write(msg)
+        if line_sep is not None:
+            self._write(line_sep)
+
+    def __del__(self):
+        sys.stdout = self.__stdout_original
+        sys.stderr = self.__stderr_original
+
+    def write_error(self, msg, **ars):
+        msg = self.console.format(msg, color="red")
+        self.__stdout_buffer.write(msg)
+
+    def flush(self):
+        self.__stdout_original.flush()
+
+    def persist(self):
+        sys.stdout = self.__stdout_buffer
+        sys.stderr = self.__stderr_buffer
+
+    def disable(self):
+        sys.stdout = self.__stdout_original
+        sys.stderr = self.__stderr_original
+
+
+class ConsoleBase(metaclass=ABC):
+    NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
+    DONE_UNICODE = "\U00002705"
+    ERROR_UNICODE = "\U0000274C"
+    CHERRY_UNICODE = "\U0001F352"
+    RIGHT_POINTER = "\U000000bb"
+    __CL_DEFAULT = '\033[37m'
+    CL_BLACK = '\033[30m'
     CL_RED = '\033[31m'
     CL_GREEN = '\033[32m'
     CL_YELLOW = '\033[33m'
@@ -43,115 +142,73 @@ class ConsoleBase(object):
     CL_CYAN = '\033[36m'
     CL_WHITE = '\033[37m'
     CL_UNDERLINE = '\033[4m'
+    __line_sep_list = ['\r\n', '\n', '\r']
+    __non_bmp_supported = NON_BMP_SUPPORTED
+    __os_line_sep = os.linesep
 
-    __text_color = CL_DEFAULT
-    __stdout_original = sys.stdout
-    __stderr_original = sys.stderr
-    __right_point = f"{CL_CYAN}\U000000bb{__text_color}"
-    __msg_prefix = f"{CL_RED}\U0001F352{__text_color}"
+    __login_name = _LOGIN_NAME
+    __right_point = f"{CL_CYAN}{RIGHT_POINTER}{__CL_DEFAULT}"
+    __msg_prefix = f"{CL_RED}{CHERRY_UNICODE}{CL_BLUE}"
+    __color_map = {
+        "black": CL_BLACK,
+        "red": CL_RED,
+        "green": CL_GREEN,
+        "yellow": CL_YELLOW,
+        "blue": CL_BLUE,
+        "magenta": CL_MAGENTA,
+        "cyan": CL_CYAN,
+        "white": CL_WHITE,
+        "default": __CL_DEFAULT
+    }
 
-    def __init__(self, text_color=CL_DEFAULT, title="Cereja"):
-        self.__title = title
-        self.__text_color = text_color
-        self.__stdout_buffer = io.StringIO()
-        self.__stderr_buffer = io.StringIO()
+    MAX_SPACE = 20
+    MAX_BLOCKS = 5
+
+    SPACE_BLOCKS = {""}
+
+    def __init__(self, title: str = __login_name, color_text: str = "default"):
+        self.title = title
+        self.__color_map = self._color_map  # get copy
+        self.text_color = color_text
+        self.__stdout = _Stdout(self)
+
+    @property
+    def non_bmp_supported(self):
+        return self.__non_bmp_supported
+
+    @property
+    def title(self):
+        return self.__name
+
+    @property
+    def _color_map(self):
+        return self.__color_map.copy()
+
+    @title.setter
+    def title(self, value):
+        self.__name = value
+
+    @property
+    def text_color(self):
+        return self.__text_color
+
+    @text_color.setter
+    def text_color(self, color: str):
+        color = color.strip('CL_').lower() if color.upper().startswith('CL_') else color.lower()
+        if color not in self.__color_map:
+            raise ValueError(f"Color not found.")
+        self.__color_map['default'] = self.__color_map[color]
+        self.__text_color = self.__color_map[color]
 
     def __bg(self, text_, color):
         return f"\33[48;5;{color}m{text_}{self.__text_color}"
 
-    def text_bg(self, text_, color):
-        return self.__bg(text_, color)
+    def _msg_prefix(self, title=None):
+        if title is None:
+            title = self.title
+        return f"{self.__msg_prefix} {title} {self.__right_point}"
 
-    def __msg_parse(self, msg: str, title=None):
-        return f"{self.__msg_prefix}{self.__text_color} {title or ''} {self.__right_point} {msg}"
-
-    def log(self, msg, title):
-        msg = self.__msg_parse(msg, title)
-        self.__stdout_original.write(msg)
-        self.__stdout_original.write('\u001b[0m')
-        self.__stdout_original.flush()
-
-    def write(self, msg):
-        if not msg == '\n':
-            msg = self.__msg_parse(msg, "Cereja")
-            self.__stdout_original.write(msg)
-            self.__stdout_original.write('\n')
-
-    def set_up(self):
-        sys.stdout = self
-
-    def flush(self):
-        self.__stdout_original.flush()
-
-
-class Progress(object):
-    """
-    Percentage calculation is based on max_value (default is 100) and current_value:
-    percent = (current_value / max_value) * 100
-
-    :param style: defines the type of progress that will be used. "loading" is Default
-
-    :param task_name: Defines the name to be displayed in progress
-
-    :param max_value: This number represents the maximum amount you want to achieve.
-                      It is not a percentage, although it is purposely set to 100 by default.
-    :param kwargs:
-            loading_with_clock: You will see a clock if the style is loading
-    """
-    NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
-    DONE_UNICODE = "\U00002705"
-    ERROR_UNICODE = "\U0000274C"
-    CLOCKS_UNICODE = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
-                      "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
-    CHERRY_UNICODE = "\U0001F352"
-    RIGHT_POINTER = "\U000000bb"
-    __stdout_original = sys.__stdout__
-    __stderr_original = sys.__stderr__
-
-    def __init__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs):
-        self._style = style
-        self.__error = False
-        self.__stdout_buffer = None
-        self.__stderr_buffer = None
-        self.__sleep_time = 0.5
-        self.max_value = max_value
-        self._default_loading_symb = "."
-        self._default_bar_symb = "="
-        self.current_value = 0
-        self._finish = False
-        self._started = False
-        self._last_percent = None
-        self._n_times = 0
-        self._max_loading_symb = 3
-        self._bar_size = kwargs.get('bar_size', 30)
-        self._bar = ' ' * self._bar_size
-        custom_loading_seq = kwargs.get("custom_loading_seq", [])
-        if not isinstance(custom_loading_seq, list):
-            raise TypeError("Please send unicode list.")
-        self._unicode_sequence = custom_loading_seq or self.CLOCKS_UNICODE
-        self.__use_sequence = bool(kwargs.get("loading_with_clock") or custom_loading_seq)  # loading is default
-        self.task_name = task_name
-        self.first_time = time.time()
-        self.buffer = bool(kwargs.get("buffer", True))
-
-        # This is important, as there may be an exception if the terminal does not support unicode bmp
-        try:
-            sys.stdout.write(f"{self.CHERRY_UNICODE} {self.task_name}: Created!")
-            self.non_bmp_supported = True
-        except UnicodeEncodeError:
-            self.non_bmp_supported = False
-
-        if self.buffer:
-            self._setup_buffer()
-
-    def _setup_buffer(self):
-        if self.buffer:
-            self.__stdout_buffer = io.StringIO()
-            self.__stderr_buffer = io.StringIO()
-        sys.stdout = self.__stdout_buffer
-        sys.stderr = self.__stderr_buffer
-
-    def __parse(self, msg: str):
+    def translate_non_bmp(self, msg: str):
         """
         This is important, as there may be an exception if the terminal does not support unicode bmp
         """
@@ -159,230 +216,437 @@ class Progress(object):
             return msg
         return msg.translate(self.NON_BMP_MAP)
 
-    def __send_msg(self, msg):
-        writer = self.__stderr_original.write if self.__error else self.__stdout_original.write
-        writer(f'\r{self.__parse(msg)}')
+    def _parse(self, msg: str, title=None, color: str = None, remove_line_sep=True):
 
-    def _time(self):
-        self.__send_msg(time.time() - self.first_time)
-        return f"Time: {round((time.time() - self.first_time) - self.__sleep_time, 2)}s"
+        if color is None:
+            color = "default"
+        msg = self.format(msg, color)
+        if remove_line_sep:
+            msg = ' '.join(msg.splitlines())
+        prefix = self._msg_prefix(title)
+        return f"{prefix} {msg} {self.__CL_DEFAULT}"
 
-    def _default_loading(self):
-        self._n_times += 1
-        if self._n_times > self._max_loading_symb:
-            self._n_times = 0
-        n_blanks = ' ' * (self._max_loading_symb - self._n_times)
-        if self._finish:
-            return self._default_loading_symb * self._max_loading_symb
-        return (self._default_loading_symb * self._n_times) + n_blanks
+    def _write(self, msg, line_sep=None):
+        self.__stdout.cj_msg(msg, line_sep)
 
-    def _loading_progress_in_seq(self):
-        self._n_times += 1
-        if len(self._unicode_sequence) == self._n_times:
-            self._n_times = 0
-        return self._unicode_sequence[self._n_times - 1]
+    def _normalize_format(self, s):
+        for color_name in self.__color_map:
+            s = s.replace(f'end{color_name}', 'default')
+        s = s.replace('  ', ' ')
+        return s
 
-    def _loading_progress(self):
-        return self._loading_progress_in_seq() if self.__use_sequence else self._default_loading()
+    def parse(self, msg, title=None):
+        return self._parse(msg, title)
 
-    def _bar_progress(self):
-        if self._current_percent != self._last_percent:
-            self._last_percent = self._current_percent
-        current_bar_value = int((self._bar_size / 100) * self._current_percent)
-        return self._bar.replace(' ', self._default_bar_symb, current_bar_value).replace(' ', '>',
-                                                                                         1)
-
-    def _display(self):
-        if self._style == 'bar':
-            return self._bar_progress()
-        return self._loading_progress_in_seq() if self.__use_sequence else self._loading_progress()
-
-    def _current_value_info(self):
-        if self._finish:
-            error_msg = f"Error: {self.__error} {self.ERROR_UNICODE} - {self._time()}"
-            done_msg = f"Done! {self.DONE_UNICODE} - {self._time()}"
-            return error_msg if self.__error else done_msg
-        if self._current_percent == 0:
-            return ''
-        return f"{self._current_percent}%"
-
-    def _write(self):
-        if self._current_percent == 0:
-            self.__send_msg(
-                f"{self.CHERRY_UNICODE} {self.task_name}: Awaiting {self._loading_progress()} {self._current_value_info()}")
-        else:
-            self.__send_msg(f"{self.CHERRY_UNICODE} {self.task_name}: [{self._display()}] {self._current_value_info()}")
-        self._last_percent = self._current_percent
-
-    def _looping(self):
+    def template_format(self, s):
         """
-        Used by the thread. Checks and shows current progress
-        """
-        while not self._finish:
-            self._write()
-            time.sleep(self.__sleep_time)
-        if not self.__error:
-            self.current_value = self.__max_value
-        self._write()
-
-    def start(self, task_name: str = None):
-        """
-        Start progress task, you will need to use this method if it does not run with the "with statement"
-        :param task_name: Defines the name to be displayed in progress
-        """
-        self.first_time = time.time()
-        if task_name is not None:
-            self.task_name = task_name
-        if not self._started:
-            self._current_percent = 0
-            self.__enter__()
-
-    def stop(self):
-        """
-        Stop the current task.
-        This is necessary because the task is running on a separate thread.
-
-        If you are not using with statement it is extremely important to call this method at the end,
-        otherwise the thread will never die. Unless it ends the runtime.
-        """
-        self._finish = True
-        self._started = False
-        self.th.join()
-        self.__send_msg('\n')
-        self.__exit__(None, None, None)
-
-    def _reload(self):
-        """
-        Intermediate that calls stop and start in sequence
-        """
-        self.stop()
-        self.start()
-
-    @property
-    def current_value(self):
-        return self.__current_value
-
-    @current_value.setter
-    def current_value(self, value):
-        self._current_percent = round((value / self.max_value) * 100, 2)
-        self.__current_value = value
-
-    @property
-    def max_value(self):
-        return self.__max_value
-
-    @max_value.setter
-    def max_value(self, value: Number):
-        """
-        :param value: This number represents the maximum amount you want to achieve.
-                  It is not a percentage, although it is purposely set to 100 by default.
-        :param value:
+        You can make format with variables
+        :param s:
         :return:
         """
-        if value is not None:
-            if isinstance(value, (int, float, complex)) and value > 0:
-                self.__max_value = value
-            else:
-                raise Exception("Send Number.")
+        s = self._normalize_format(s)
+        try:
+            s = f'{s}'.format_map(self.__color_map)
+            return s
+        except KeyError as err:
+            self.error(f"Color {err} not found.")
+        return s
 
-    def update(self, current_value: float, max_value=None):
+    def format(self, s: str, color: str):
+        if color not in self.__color_map:
+            raise ValueError(
+                f"Color {repr(color)} not found. Choose an available color"
+                f" [red, green, yellow, blue, magenta and cyan].")
+        s = f"{{{color}}}{s}{{{'end' + color}}}"
+        return self.template_format(s)
+
+    def random_color(self, text: str):
+        color = random.choice(list(self.__color_map))
+        template_format = f'{{{color}}}{text}{{{"end" + color}}}'
+        return self.template_format(template_format)
+
+    def colorful_words(self, text: Union[List[str], str]) -> str:
+        msg_error = "You need send string or list of string."
+        if isinstance(text, str):
+            text = text.split()
+        elif isinstance(text, list):
+            if not isinstance(next(iter(text)), str):
+                self.error(msg_error)
+        else:
+            self.error(msg_error)
+        result = []
+        for word in text:
+            result.append(self.random_color(word))
+        return ' '.join(result)
+
+    def text_bg(self, text_, color):
+        return self.__bg(text_, color)
+
+    def error(self, msg: str):
+        msg = f"Error: {msg}"
+        msg = self.format(msg, color="red")
+        self.__print(msg)
+
+    def replace_last_msg(self, msg: str, end=None):
+        msg = self._parse(msg, remove_line_sep=True)
+        self.__stdout.cj_msg(msg, replace_last=True, line_sep=end)
+
+    def log(self, msg, title=None, color: str = "default", end: str = __os_line_sep):
         """
+        Send message with default configuration and colors
+        title is login name.
 
+        :param msg: value you want to display
+        :param title: You can custom title of message
+        :param color: You can custom color of message
+                colors available: black, red, green, yellow, blue, magenta, cyan and white.
+        :param end: if you send None or '' remove line_sep
+        """
+        self.__print(msg=msg, title=title, color=color, end=end)
+
+    def persist_on_runtime(self):
+        self.__stdout.persist()
+
+    def __print(self, msg, title=None, color: str = None, end=__os_line_sep):
+        remove_line_sep = True if end is None else False
+        msg = self._parse(msg=msg, title=title, color=color, remove_line_sep=remove_line_sep)
+        self.__stdout.cj_msg(msg, end)
+
+    def disable(self):
+        self.title = "Cereja"
+        self.__stdout._write("\n")
+        self.__print(f"Cereja's console {{red}}out!{{endred}}{{default}}")
+        self.__stdout.disable()
+
+
+class BaseProgress(metaclass=ABC):
+
+    def __init__(self, task_name: str, progress_size: int, max_value=100, **kwargs):
+        self.__use_loading = True
+        self.__running: bool = False
+        self.__done = False
+        self.__error = False
+        self.__time_sleep = 0.5
+        self.task_name = task_name
+        self.loading_state: str = ''
+        self.state: str = ''
+        self.max_value: float = max_value
+        self.distance_inner_states = 5
+        self.current_value = 0.0
+        self.current_percent = 0.0
+        self.progress_size = progress_size
+        self.first_time = 0.0
+
+    def complete_with_blank(self, value: str) -> str:
+        """
+        Calculates and adds blanks, allowing a more static display
+        :param value: is the current sizeof default char value or the proportion of this value in the case of a bar
+        :return: string with sizeof max_size
+        """
+        blanks = '  ' * (self.progress_size - len(value))
+        return f"{value}{blanks}"
+
+    def size_prop(self, value: Number):
+        """
+        Returns the proportion of any number in relation to max_size
+        :param value: any number
+        """
+        return proportional(value, self.progress_size)
+
+    def update(self, current_value: Number, max_value=100):
+        """
         :param current_value: Fraction of the "max_value" you want to achieve.
                               Remember that this value is not necessarily the percentage.
                               It is totally dependent on the "max_value"
         :param max_value: This number represents the maximum amount you want to achieve.
                           It is not a percentage, although it is purposely set to 100 by default.
         """
+        self.max_value = max(self.max_value, max_value)
+        if current_value > self.max_value:
+            raise ValueError(f"Current value {current_value} is greater than max_value")
 
-        if max_value is not None:
-            if max_value != self.max_value:
-                self._reload()
-        self.max_value = max_value
-        self.current_value = current_value
-
-    def display_only_once(self, current_value: float = None):
-        """
-        In case you need to show the bar only once. This method will cause the code to be executed on the main thread
-        :param current_value:
-        :return:
-        """
         if current_value is not None:
-            self.update(current_value)
-        self._write()
+            if isinstance(current_value, (int, float, complex)) and current_value > 0:
+                percent = round((current_value / self.max_value) * 100, 2)
+                if self.current_percent > percent:
+                    self.reset()
+                self.current_percent = percent
+                self.state = f"Loading"
+                self.current_value = current_value
+            else:
+                raise Exception(f"Current value {current_value} isn't valid.")
+
+    def __parse(self) -> str:
+        loading_state = self.loading_state
+        percent = f"{self.current_percent}%"
+        state_ = f"{percent} - {self.state}"
+        if self.__done:
+            time_ = f"\U0001F55C Total: {self._time_it()}s"
+        else:
+            time_ = f"\U0001F55C Estimated: {self.estimated_time()}s"
+        if self.__use_loading:
+            state_ = f"{loading_state} {state_} - {time_}"
+        return state_
+
+    def is_done(self):
+        return self.__done
+
+    def is_running(self):
+        return self.__running
 
     @classmethod
-    def decorator(cls, func):
-        def wrapper(*args, **kwargs):
-            with cls(f"{func.__name__}"):
-                result = func(*args, **kwargs)
-            return result
+    def done(cls, *args, **kwargs):
+        pass
 
-        return wrapper
+    @abstractmethod
+    def progress(self) -> str:
+        """
+        Is a callback to threading named loading. This function is always being called.
+        The request time is defined by the `time_sleep` property
+        :return: You need to return a string with the status of your progress
+        """
+        pass
 
-    def __iter__(self):
-        return next(self.__items)
+    def _time_it(self) -> float:
+        return round((time.time() - self.first_time), 2)
 
-    @classmethod
-    def bar(cls, iterator_):
-        bar_ = cls("Cereja Bar", style="bar", max_value=len(iterator_), buffer=True)
-        bar_.start()
-        for n, value in enumerate(iterator_):
-            bar_.__items = yield value
-            bar_.update(current_value=n)
-        bar_.stop()
-        return bar_
+    def estimated_time(self):
+        time_it = max(self._time_it(), 1)
+        current_value = self.current_value or 1
+        return round((time_it / current_value) * self.max_value - time_it, 2)
+
+    def __update_loading(self):
+        while self.is_running and not self.__done:
+            self.loading_state = self.progress()
+            self.sleep()
+
+    def __update(self):
+        while self.__running:
+            self.console.replace_last_msg(self.__parse())
+            self.sleep()
+        self._done()
+
+    def sleep(self):
+        time.sleep(self.__time_sleep)
+
+    def _done(self, _state_msg="Done!", color: str = 'green'):
+        if self.__error:
+            return
+        self.done()
+        self.__done = True
+        self.current_percent = 100
+        self.state = self.console.template_format(
+            f"{{{color}}}{self.console.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
+
+    def _error(self, msg):
+        self.__error = True
+        self.state = self.console.template_format(f"{{red}}{self.console.ERROR_UNICODE} Error: {msg}{{endred}}")
+
+    def _reset(self):
+        self._done()
+        self.__done = False
+        self.console.replace_last_msg(self.__parse(), "\n")  # las update
+        self.current_percent = 0
+        self.current_value = 1
+        self.first_time = time.time()
+
+    def start(self):
+        if not self.__running:
+            self.__enter__()
+
+    def stop(self, restart_only: bool = False):
+        if restart_only:
+            self._reset()
+        else:
+            self.__exit__(None, None, None)
+
+    def reset(self, _state_msg="Reseted!"):
+        self.stop(restart_only=True)
+        self.start()
 
     def __enter__(self):
-        """
-        intern method used by "with st
-        :return:
-        """
-        self._finish = False
-        self._started = True
-        self.th = threading.Thread(name=self.task_name, target=self._looping)
-        self.th.start()
+        self.th_loading = threading.Thread(name="loading", target=self.__update_loading)
+        self.root = threading.Thread(name=self.task_name, target=self.__update)
+        self.console = ConsoleBase(self.task_name)
+        self.first_time = time.time()
+        self.__running = True
+        self.__done = False
+        self.state = "Loading"
+        if self.__use_loading:
+            self.th_loading.setDaemon(True)
+            self.th_loading.start()
+        self.console.persist_on_runtime()
+        self.root.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if isinstance(exc_val, Exception):
-            self.__error = f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}'
-        self._finish = True
-        self._started = False
-        self.th.join()
-        self.__send_msg('\n')
-        if self.buffer:
-            output = sys.stdout.getvalue()
-            error = sys.stderr.getvalue()
-            self.__stdout_buffer.seek(0)
-            self.__stdout_buffer.truncate()
-            self.__stderr_buffer.seek(0)
-            self.__stderr_buffer.truncate()
-        sys.stdout = self.__stdout_original
-        sys.stderr = self.__stderr_original
-        if self.buffer:
-            print(output)
-            print(error)
-        if self.__error:
-            sys.exit()
+            self._error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
+        else:
+            self._done()
+        self.__running = False
+        self.console.replace_last_msg(self.__parse(), "\n")  # las update
+        self.root.join()
+        self.console.disable()
 
 
+class ProgressLoading(BaseProgress):
+    """
+    :param lef_right_delimiter: str = String of length 2 e.g: '[]'
+            Are the delimiters of the default_char
+            The default value is '[]'.
+            e.g: [=============] # left is '[' and right is ']'
+            
+            
+    :param default_char: Single string you can send a unicode :)
+            Value that will be added or replaced simulating animation.
+    """
+
+    def __init__(self, task_name, progress_size=3, default_char='.', lef_right_delimiter="[]", **kwargs):
+        super().__init__(task_name=task_name, progress_size=progress_size, **kwargs)
+        self.default_char = default_char
+
+        if not isinstance(lef_right_delimiter, str):
+            raise TypeError("Delimiters validation. Please send string.")
+        elif len(lef_right_delimiter) != 2:
+            raise ValueError("Delimiters validation. Please send a string of length 2")
+
+        self.left_right_delimiter = lef_right_delimiter
+
+    def progress(self):
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        current = self.loading_state or ''
+        current = current.strip(l_delimiter).strip(r_delimiter).strip()  # clean blanks
+        if current is not None and len(current) < self.progress_size:
+            current = f"{current}{self.default_char}"
+        else:
+            current = ''
+        current = self.complete_with_blank(current)
+        return f"{l_delimiter}{current}{r_delimiter}"
+
+    def done(self):
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        self.loading_state = f"{l_delimiter}{self.default_char * self.progress_size}{r_delimiter}"
+
+
+class ProgressBar(ProgressLoading):
+
+    def __init__(self, task_name, max_value=100, progress_size=30, default_char='=', lef_right_delimiter="[]",
+                 **kwargs):
+        super().__init__(task_name, max_value=max_value, progress_size=progress_size, default_char=default_char,
+                         lef_right_delimiter=lef_right_delimiter, **kwargs)
+        self.arrow: str = '>'
+        self.use_arrow: bool = True
+
+    def use_arrow(self):
+        return self.use_arrow
+
+    def set_arrow(self, value: bool):
+        self.use_arrow = value
+
+    def progress(self):
+        last_char = self.arrow if self.use_arrow and not self.is_done() else self.default_char
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        prop_max_size = int(self.size_prop(self.current_percent))
+        blanks = '  ' * (self.progress_size - prop_max_size)
+        return f"{l_delimiter}{self.default_char * prop_max_size}{last_char}{blanks}{r_delimiter}"
+
+
+class ProgressLoadingSequence(ProgressLoading):
+    __sequence = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
+                  "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
+
+    def __init__(self, task_name, sequence: Union[list, tuple] = None, *args, **kwargs):
+        super().__init__(task_name, *args, **kwargs)
+        if sequence is not None:
+            self.__sequence = sequence
+        self._n_times = 0
+
+    def progress(self):
+        self._n_times += 1
+        if len(self.__sequence) == self._n_times:
+            self._n_times = 0
+        return self.__sequence[self._n_times - 1]
+
+
+class Progress:
+    __style_map = {
+        "loading": ProgressLoading,
+        "bar": ProgressBar,
+        "sequence": ProgressLoadingSequence
+    }
+
+    def __init__(self):
+        self.__items = None
+
+    @property
+    def styles(self):
+        return list(self.__style_map)
+
+    def __call__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs) -> BaseProgress:
+        """
+        Percentage calculation is based on max_value (default is 100) and current_value:
+        percent = (current_value / max_value) * 100
+
+        :param style: defines the type of progress that will be used. "loading" is Default
+                    You can choose those available ['loading', 'bar', 'sequence']
+        :param task_name: Defines the name to be displayed in progress
+        :param max_value: This number represents the maximum amount you want to achieve.
+                          It is not a percentage, although it is purposely set to 100 by default.
+        :param kwargs:
+                loading_with_clock: You will see a clock if the style is loading
+        :return: Progress
+        """
+        if "loading_with_clock" in kwargs and style == "loading":
+            use_sequence = bool(kwargs.pop("loading_with_clock"))
+            style = "sequence" if use_sequence else "loading"
+        return self._get_progress(style=style, task_name=task_name, max_value=max_value, **kwargs)
+
+    def _get_progress(self, style, **kwargs):
+        if style not in self.__style_map:
+            raise ValueError(f"Unknown {repr(style)} progress style. You can choose those available {self.styles}")
+        return self.__style_map[style](**kwargs)
+
+    def __iter__(self):
+        return next(self.__items)
+
+    def prog(self, iterator_: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> Sequence[Any]:
+        """
+        Percentage calculation is based on iterator_ length and current_value:
+        percent = (current_value / len(iterator_)) * 100
+
+        :param iterator_: Sequence of anything
+        :param style: choose those available 'loading', 'bar' and 'sequence'
+        :param task_name: Prefix on console.
+        :return: Same sequence.
+        """
+        bar_ = self._get_progress(task_name=task_name, style=style, max_value=len(iterator_))
+        bar_.start()
+        for n, value in enumerate(iterator_, start=1):
+            self.__items = yield value
+            bar_.update(n)
+        bar_.stop()
+        return bar_
+
+
+class __Console(ConsoleBase):
+    pass
+
+
+console = __Console()
+
+Progress = Progress()
 if __name__ == '__main__':
-    console = ConsoleBase(text_color=ConsoleBase.CL_BLUE)
-    console.set_up()
-    print("Ficou legal")
-    print("Acho que está bem bacana")
-    # a = Progress.bar(range(1, 1001))
-    # for i in a:
-    #     time.sleep(1 / i)
-    #     print(i)
+    for n, i in enumerate(Progress.prog(range(100))):
+        if n > 0:
+            time.sleep(1 / n)
+        if n % 20 == 0:
+            print(i)
 
-    # with Progress(task_name="Progress Bar Test", style="bar", max_value=100) as bar:
-    #     for i in range(1, 100):
-    #         time.sleep(1 / i)
-    #         bar.update(i)
-    #         print('oi')
+    for n, i in enumerate(Progress.prog(['cj_progress'] * 300)):
+        if n > 0:
+            time.sleep(1 / n)
+        if n % 10 == 0:
+            print(i)
 
-    #     for i in range(1, 400):
-    #         time.sleep(1 / i)
-    #         bar.update(i, max_value=400)
+    console.log(console.random_color("hi"))

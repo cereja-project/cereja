@@ -37,7 +37,7 @@ from cereja.utils import set_log_level
 
 logger = logging.getLogger(__name__)
 
-_explicit_exclude = ['AsyncToSync', 'SyncToAsync']
+_exclude = ['AsyncToSync', 'SyncToAsync']
 
 try:
     import contextvars  # Python 3.7+ only.

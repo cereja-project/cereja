@@ -30,6 +30,7 @@ import logging
 import warnings
 from cereja import utils
 
+
 __all__ = ['time_exec']
 
 from cereja.cj_types import PEP440
@@ -37,7 +38,7 @@ from cereja.cj_types import PEP440
 logger = logging.getLogger(__name__)
 
 # exclude from the root import
-_explicit_exclude = ['BaseDecorator', 'Decorator', 'logger']
+_exclude = ['BaseDecorator', 'Decorator', 'logger']
 
 
 def synchronized(func):
