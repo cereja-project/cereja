@@ -42,9 +42,6 @@ try:
 except OSError:
     _LOGIN_NAME = "Cereja"
 
-if sys.platform.lower() == "win32":
-    os.system('color')
-
 
 class _Stdout:
     __stdout_original = sys.stdout
@@ -58,14 +55,12 @@ class _Stdout:
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
         self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
-        self.th_console.setDaemon(True)
-        self.th_console.start()
 
     def set_message(self, msg):
         self.__user_msg = msg
 
     def write_user_msg(self):
-        while True:
+        while self.use_th_console:
             stdout = self.__stdout_buffer.getvalue()[:-1]
             stderr = self.__stderr_buffer.getvalue()[:-1]
             if stdout and not (stdout in ["\n", "\r\n", "\n"]):
@@ -118,10 +113,13 @@ class _Stdout:
         self.__stdout_original.flush()
 
     def persist(self):
+        self.th_console.start()
         sys.stdout = self.__stdout_buffer
         sys.stderr = self.__stderr_buffer
 
     def disable(self):
+        self.use_th_console = False
+        self.th_console.join()
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
 
@@ -253,12 +251,14 @@ class ConsoleBase(metaclass=ABC):
         return s
 
     def format(self, s: str, color: str):
+        if color == "random":
+            return self.random_color(s)
         if color not in self.__color_map:
             raise ValueError(
                 f"Color {repr(color)} not found. Choose an available color"
                 f" [red, green, yellow, blue, magenta and cyan].")
-        s = f"{{{color}}}{s}{{{'end' + color}}}"
-        return self.template_format(s)
+        s = self.template_format(s)
+        return f"{self._color_map[color]}{s}{self._color_map[color]}"
 
     def random_color(self, text: str):
         color = random.choice(list(self.__color_map))
@@ -314,7 +314,6 @@ class ConsoleBase(metaclass=ABC):
 
     def disable(self):
         self.title = "Cereja"
-        self.__stdout._write("\n")
         self.__print(f"Cereja's console {{red}}out!{{endred}}{{default}}")
         self.__stdout.disable()
 
@@ -361,12 +360,13 @@ class BaseProgress(metaclass=ABC):
         :param max_value: This number represents the maximum amount you want to achieve.
                           It is not a percentage, although it is purposely set to 100 by default.
         """
+        current_value = current_value or 1
+
         self.max_value = max(self.max_value, max_value)
         if current_value > self.max_value:
-            raise ValueError(f"Current value {current_value} is greater than max_value")
-
+            raise ValueError(f"Current value {current_value} is greater than {self.max_value} the max_value ")
         if current_value is not None:
-            if isinstance(current_value, (int, float, complex)) and current_value > 0:
+            if isinstance(current_value, (int, float, complex)):
                 percent = round((current_value / self.max_value) * 100, 2)
                 if self.current_percent > percent:
                     self.reset()
@@ -383,7 +383,7 @@ class BaseProgress(metaclass=ABC):
         if self.__done:
             time_ = f"\U0001F55C Total: {self._time_it()}s"
         else:
-            time_ = f"\U0001F55C Estimated: {self.estimated_time()}s"
+            time_ = f"\U0001F55C Estimated: {self.estimated_time()}"
         if self.__use_loading:
             state_ = f"{loading_state} {state_} - {time_}"
         return state_
@@ -410,10 +410,12 @@ class BaseProgress(metaclass=ABC):
     def _time_it(self) -> float:
         return round((time.time() - self.first_time), 2)
 
-    def estimated_time(self):
-        time_it = max(self._time_it(), 1)
-        current_value = self.current_value or 1
-        return round((time_it / current_value) * self.max_value - time_it, 2)
+    def estimated_time(self) -> str:
+        if self.current_value > 0:
+            time_it = max(self._time_it(), 1)
+            current_value = self.current_value or 1
+            return f'{round((time_it / current_value) * self.max_value - time_it, 2)}s'
+        return 'NaN'
 
     def __update_loading(self):
         while self.is_running and not self.__done:
@@ -473,7 +475,6 @@ class BaseProgress(metaclass=ABC):
         self.__done = False
         self.state = "Loading"
         if self.__use_loading:
-            self.th_loading.setDaemon(True)
             self.th_loading.start()
         self.console.persist_on_runtime()
         self.root.start()
@@ -486,8 +487,9 @@ class BaseProgress(metaclass=ABC):
             self._done()
         self.__running = False
         self.console.replace_last_msg(self.__parse(), "\n")  # las update
-        self.root.join()
         self.console.disable()
+        self.th_loading.join()
+        self.root.join()
 
 
 class ProgressLoading(BaseProgress):
@@ -629,24 +631,11 @@ class Progress:
         return bar_
 
 
-class __Console(ConsoleBase):
-    pass
-
-
-console = __Console()
+console = ConsoleBase()
 
 Progress = Progress()
 if __name__ == '__main__':
-    for n, i in enumerate(Progress.prog(range(100))):
-        if n > 0:
-            time.sleep(1 / n)
-        if n % 20 == 0:
-            print(i)
-
-    for n, i in enumerate(Progress.prog(['cj_progress'] * 300)):
-        if n > 0:
-            time.sleep(1 / n)
-        if n % 10 == 0:
-            print(i)
-
-    console.log(console.random_color("hi"))
+    prog = Progress.prog(['joab']*3000)
+    for i, value in enumerate(prog, 1):
+        time.sleep(1/i)
+        print(i)
