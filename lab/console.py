@@ -1,89 +1,121 @@
 import os
 import time
 from abc import ABCMeta, abstractmethod
-from typing import Sequence, Any, Union
+from typing import Sequence, Any, Union, Type
 
 from cereja.arraytools import is_sequence, is_iterable
 from cereja.cj_types import Number
 from cereja.concurrently import TaskList
 from cereja.display import ConsoleBase
-from cereja.utils import percent, estimate, proportional
+from cereja.utils import percent, estimate, proportional, fill
 
 
 class State(metaclass=ABCMeta):
+    __repr_default_mgs = """
+    {self.name} e.g:
+    on display: {{self.display(100, 100, 100, 0, 100)}}
+    on done: {{self.done(100, 100, 100, 0, 100)}}"
+    """
+
+    def __repr__(self):
+        return f"{self.__repr_default_mgs}"
+
+    @property
+    def name(self):
+        return f"{self.__class__.__name__.replace('__State', '')} field"
 
     @abstractmethod
-    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
         pass
 
     @abstractmethod
-    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
         pass
 
 
-class StateLoading(State):
+class __StateLoading(State):
     __sequence = ('.', '.', '.',)
     left_right_delimiter = "[]"
     default_char = "."
     size = 3
+    n_times = 0
 
     @classmethod
-    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
-        cls._n_times += 1
-        if len(cls.__sequence) == cls._n_times:
-            cls._n_times = 0
-        return cls.__sequence[cls._n_times - 1]
+    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        idx = n_times % cls.size
+        value = ''.join(cls.__sequence[idx:])
+        filled = fill(value, 3, with_=' ')
+        l_delimiter, r_delimiter = cls.left_right_delimiter
+        return f"{l_delimiter}{filled}{r_delimiter}"
 
     @classmethod
-    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
         l_delimiter, r_delimiter = cls.left_right_delimiter
         return f"{l_delimiter}{cls.default_char * cls.size}{r_delimiter}"
 
 
-class StateBar(State):
+class __StateBar(State):
     left_right_delimiter = "[]"
     arrow = ">"
     default_char = "="
     size = 30
 
     @classmethod
-    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
         l_delimiter, r_delimiter = cls.left_right_delimiter
         prop_max_size = int(proportional(current_percent, cls.size))
         blanks = '  ' * (cls.size - prop_max_size)
         return f"{l_delimiter}{'=' * prop_max_size}{cls.arrow}{blanks}{r_delimiter}"
 
     @classmethod
-    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
         l_delimiter, r_delimiter = cls.left_right_delimiter
         return f"{l_delimiter}{cls.default_char * cls.size}{r_delimiter}"
 
 
-class StatePercent(State):
+class __StatePercent(State):
     @classmethod
-    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
         return f"{current_percent}%"
 
     @classmethod
-    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
         return f"{100}%"
 
 
-class StateTime(State):
+class __StateTime(State):
     @classmethod
-    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: float) -> str:
         time_estimate = estimate(current_value, max_value, time_it)
         return f"Estimated: {round(time_estimate, 2)}s"
 
     @classmethod
-    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: float) -> str:
         return f"Total: {round(time_it, 2)}s"
+
+
+StateBase = State
+StateBar = __StateBar()
+StatePercent = __StatePercent()
+StateTime = __StateTime()
+StateLoading = __StateLoading()
 
 
 class Progress:
     default_states = (StateBar, StatePercent, StateTime,)
 
     def __init__(self, sequence: Sequence[Any], states=None):
+        self.n_times = None
         if not is_sequence(sequence):
             raise TypeError(f"sequence is not valid.")
         self.started = False
@@ -103,11 +135,13 @@ class Progress:
         return tuple(map(lambda stt: stt.__name__, self._states))
 
     def _states_view(self, for_value: Number):
+        self.n_times += 1
         kwargs = {
             "current_value": for_value,
             "max_value": self.max_value,
             "current_percent": self.percent_(for_value),
-            "time_it": time.time() - (self.started_time or time.time())
+            "time_it": time.time() - (self.started_time or time.time()),
+            "n_times": self.n_times
         }
         if for_value >= self.max_value - 1:
             def get_state(state: State):
@@ -119,13 +153,13 @@ class Progress:
         result = TaskList(get_state, self._states).run()
         return ' - '.join(result)
 
-    def add_state(self, state: Union[State, Sequence[State]]):
+    def add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
         if state is not None:
             if not is_iterable(state):
                 state = (state,)
             self._filter_and_add_state(state)
 
-    def _filter_and_add_state(self, state: Union[State, Sequence[State]]):
+    def _filter_and_add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
         filtered = tuple(
             filter(
                 lambda stt: issubclass(type(stt), type(State)) and stt not in self._states,
@@ -151,6 +185,7 @@ class Progress:
         if not self.started:
             self.started = True
             self.console.persist_on_runtime()
+            self.n_times = 0
 
     def _stop(self):
         if self.started:
@@ -182,5 +217,8 @@ class Progress:
 
 if __name__ == "__main__":
     prog = Progress(["joab"] * 100)
-    prog.add_state(StateLoading)
-    print(prog)
+    prog.add_state(__StateLoading)
+    # for i, k in enumerate(prog, 1):
+    #     time.sleep(1 / i)
+    #     print(i)
+    print(prog[1])
