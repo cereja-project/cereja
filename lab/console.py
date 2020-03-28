@@ -3,7 +3,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import Sequence, Any, Union
 
-from cereja.arraytools import is_sequence
+from cereja.arraytools import is_sequence, is_iterable
 from cereja.cj_types import Number
 from cereja.concurrently import TaskList
 from cereja.display import ConsoleBase
@@ -19,6 +19,25 @@ class State(metaclass=ABCMeta):
     @abstractmethod
     def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
         pass
+
+
+class StateLoading(State):
+    __sequence = ('.', '.', '.',)
+    left_right_delimiter = "[]"
+    default_char = "."
+    size = 3
+
+    @classmethod
+    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+        cls._n_times += 1
+        if len(cls.__sequence) == cls._n_times:
+            cls._n_times = 0
+        return cls.__sequence[cls._n_times - 1]
+
+    @classmethod
+    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number) -> str:
+        l_delimiter, r_delimiter = cls.left_right_delimiter
+        return f"{l_delimiter}{cls.default_char * cls.size}{r_delimiter}"
 
 
 class StateBar(State):
@@ -88,7 +107,7 @@ class Progress:
             "current_value": for_value,
             "max_value": self.max_value,
             "current_percent": self.percent_(for_value),
-            "time_it": time.time() - (self.started_time or 0)
+            "time_it": time.time() - (self.started_time or time.time())
         }
         if for_value >= self.max_value - 1:
             def get_state(state: State):
@@ -102,6 +121,8 @@ class Progress:
 
     def add_state(self, state: Union[State, Sequence[State]]):
         if state is not None:
+            if not is_iterable(state):
+                state = (state,)
             self._filter_and_add_state(state)
 
     def _filter_and_add_state(self, state: Union[State, Sequence[State]]):
@@ -136,6 +157,10 @@ class Progress:
             self.started = False
             self.console.disable()
 
+    def __getitem__(self, slice_):
+        if isinstance(slice_, int):
+            return self._states[slice_]
+
     def __next__(self):
         self._start()
         for n, value in enumerate(self.sequence):
@@ -157,10 +182,5 @@ class Progress:
 
 if __name__ == "__main__":
     prog = Progress(["joab"] * 100)
-    for i, k in enumerate(prog, start=1):
-        time.sleep(1 / i)
-        print(k)
-
-    for i, k in enumerate(prog, start=1):
-        time.sleep(1 / i)
-        print(i)
+    prog.add_state(StateLoading)
+    print(prog)
