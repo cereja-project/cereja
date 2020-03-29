@@ -244,5 +244,45 @@ def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: boo
     return product_with_b
 
 
+class CjTest(object):
+    __prefix_attr_err = "Attr Check Error {attr_}."
+
+    # todo: can it be another class?
+    __template_test = {"attr": "",
+                       "expected": "",
+                       "callable": False,
+                       "args": (),
+                       "kwargs": {},
+                       }
+
+    @classmethod
+    def template_test(cls, instance_obj):
+        attr_collected = []
+        for attr_ in dir(instance_obj):
+            if attr_.startswith('_'):
+                continue
+
+            obj = getattr(instance_obj, attr_)
+            template_ = cls.__template_test
+            template_["attr"] = attr_
+            template_["callable"] = callable(obj)
+            attr_collected.append(template_)
+        return attr_collected
+
+    @classmethod
+    def test_sanity(cls, instance_obj, attr_, expected_attr__value):
+        assert hasattr(instance_obj, attr_), f"{cls.__prefix_attr_err.format(attr_=attr_)} isn't defined."
+        attr_value = getattr(instance_obj, attr_)
+        msg_err = f"{cls.__prefix_attr_err.format(attr_=attr_)} {repr(attr_value)} != {repr(expected_attr__value)}"
+        assert attr_value == expected_attr__value, msg_err
+
+    @classmethod
+    def run_test(cls, instance_obj, attrs_with_expected_values):
+        print(f"Test {instance_obj} Sanity started!")
+        for attr_name, expected_value in attrs_with_expected_values:
+            cls.test_sanity(instance_obj, attr_name, expected_value)
+        print("Test ok!")
+
+
 if __name__ == '__main__':
     print(get_version_pep440_compliant())
