@@ -1,24 +1,41 @@
+import io
 import os
 import time
 from abc import ABCMeta, abstractmethod
-from typing import Sequence, Any, Union, Type
+from typing import Sequence, Any, Union, Type, AnyStr
 
 from cereja.arraytools import is_sequence, is_iterable
 from cereja.cj_types import Number
 from cereja.concurrently import TaskList
-from cereja.display import ConsoleBase
+from cereja.display import ConsoleBase as Console
 from cereja.utils import percent, estimate, proportional, fill
 
 
+class __Stdout:
+    __stdout_buffer = io.StringIO()
+    __stderr_buffer = io.StringIO()
+
+    def _write(self):
+        pass
+
+    def write(self):
+        pass
+
+
+class ConsoleBase(metaclass=ABCMeta):
+
+    def __init__(self, name: str):
+        self.name = name
+
+    @abstractmethod
+    def log(self, msg: str) -> str:
+        pass
+
+
 class State(metaclass=ABCMeta):
-    __repr_default_mgs = """
-    {self.name} e.g:
-    on display: {{self.display(100, 100, 100, 0, 100)}}
-    on done: {{self.done(100, 100, 100, 0, 100)}}"
-    """
 
     def __repr__(self):
-        return f"{self.__repr_default_mgs}"
+        return f"{self.name} {self.done(100, 100, 100, 0, 100)}"
 
     @property
     def name(self):
@@ -66,7 +83,7 @@ class __StateBar(State):
 
     @classmethod
     def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
-                n_times: int) -> str:
+                n_times: int) -> AnyStr:
         l_delimiter, r_delimiter = cls.left_right_delimiter
         prop_max_size = int(proportional(current_percent, cls.size))
         blanks = '  ' * (cls.size - prop_max_size)
@@ -111,20 +128,17 @@ StateTime = __StateTime()
 StateLoading = __StateLoading()
 
 
-class Progress:
+class ProgressBase:
     default_states = (StateBar, StatePercent, StateTime,)
 
-    def __init__(self, sequence: Sequence[Any], states=None):
-        self.n_times = None
-        if not is_sequence(sequence):
-            raise TypeError(f"sequence is not valid.")
+    def __init__(self, console: Console, states=None):
+        self.n_times = 0
         self.started = False
-        self.console = ConsoleBase("Progress Tools")
+        self.console = console
         self.started_time = None
         self._states = self.default_states
         self.add_state(states)
-        self.sequence = sequence
-        self.max_value = len(sequence)
+        self.max_value = 100
 
     def __repr__(self):
         progress_example_view = f"{self._states_view(self.max_value)}"
@@ -132,7 +146,7 @@ class Progress:
         return f"{state_conf}\n{self.console.parse(progress_example_view, title='Example States View')}"
 
     def _parse_states(self):
-        return tuple(map(lambda stt: stt.__name__, self._states))
+        return tuple(map(lambda stt: stt.__class__.__name__, self._states))
 
     def _states_view(self, for_value: Number):
         self.n_times += 1
@@ -180,45 +194,65 @@ class Progress:
         mounted_display = self._states_view(for_value)
         self.console.replace_last_msg(mounted_display)
 
-    def _start(self):
+    def start(self):
         self.started_time = time.time()
         if not self.started:
             self.started = True
             self.console.persist_on_runtime()
             self.n_times = 0
 
-    def _stop(self):
+    def stop(self):
         if self.started:
             self.started = False
             self.console.disable()
 
-    def __getitem__(self, slice_):
-        if isinstance(slice_, int):
-            return self._states[slice_]
+    def __len__(self):
+        return len(self._states)
 
-    def __next__(self):
-        self._start()
-        for n, value in enumerate(self.sequence):
-            if self.started:
-                self.show_progress(for_value=n)
-            yield value
-        self._stop()
+    def __getitem__(self, slice_):
+        if isinstance(slice_, tuple):
+            if max(slice_) > len(self):
+                raise IndexError(f"{max(slice_)} isn't in progress")
+            return tuple(self._states[idx] for idx in slice_ if idx < len(self))
+        return self._states[slice_]
 
     def __iter__(self):
         return next(self)
 
     def __enter__(self, *args, **kwargs):
-        self._start()
+        self.start()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if isinstance(exc_val, Exception):
             self.console.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
 
 
+class ProgressIterator:
+    def __init__(self, progress: ProgressBase, sequence: Sequence[Any]):
+        self.sequence = sequence
+        self.progress = progress
+
+    def __next__(self):
+        self.progress.start()
+        for n, value in enumerate(self.sequence):
+            if self.progress.started:
+                self.progress.show_progress(for_value=n)
+            yield value
+        self.progress.stop()
+
+
+class Progress(ProgressBase):
+    def __init__(self, name, states=None):
+        super().__init__(states)
+        self.name = name
+
+    def __call__(self, sequence: Sequence[Any]):
+        pass
+
+
 if __name__ == "__main__":
     prog = Progress(["joab"] * 100)
-    prog.add_state(__StateLoading)
     # for i, k in enumerate(prog, 1):
     #     time.sleep(1 / i)
     #     print(i)
-    print(prog[1])
+    print(prog[0])
