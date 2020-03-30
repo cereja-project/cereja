@@ -29,6 +29,8 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
     is_sequence, array_gen, get_shape
 from cereja import filetools
 from cereja import path as cj_path
+from cereja.unicode import Unicode
+from cereja.utils import CjTest
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +172,34 @@ class FileToolsTestCase(unittest.TestCase):
         file = filetools.File(os.path.dirname(__file__), content_file)
         file.insert(3, [4, 5])
         self.assertEqual(file.content_file, ["1\n", "2\n", "3\n", "4\n", "5\n"])
+
+
+class UnicodeToolTestCase(unittest.TestCase):
+    def test_sanity(self):
+        unicode_ = 0x1F352
+        # instance
+        instance_ = Unicode.parse(unicode_)
+        # expected
+        attrs_with_expected_values = [
+            ("name", "CHERRIES"),
+            ("value", "\U0001F352"),
+            ("decimal", 127826),
+            ("bin", "0b11111001101010010"),
+            ("hex", "0x1f352"),
+            ("oct", '0o371522')
+        ]
+
+        CjTest.run_test(instance_, attrs_with_expected_values)
+
+        unicode_ = "2705"
+        # instance
+        instance_b = Unicode(unicode_)
+        # expected
+        attrs_with_expected_values = [
+            ("value", "\U00002705")
+        ]
+
+        CjTest.run_test(instance_b, attrs_with_expected_values)
 
 
 if __name__ == '__main__':
