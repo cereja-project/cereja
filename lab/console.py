@@ -240,11 +240,31 @@ class ProgressBase:
     def percent_(self, for_value: Number) -> Number:
         return percent(for_value, self.max_value)
 
+    def update_max_value(self, max_value: int):
+        """
+        You can modify the progress to another value. It is not a percentage,
+        although it is purposely set to 100 by default.
+
+        :param max_value: This number represents the maximum amount you want to achieve.
+        """
+        if not isinstance(max_value, (int, float, complex)):
+            raise Exception(f"Current value {max_value} isn't valid.")
+        self.max_value = max_value
+
     def show_progress(self, for_value, max_value=None):
+        """
+        Build progress by a value.
+
+        :param for_value: Fraction of the "max_value" you want to achieve.
+                              Remember that this value is not necessarily the percentage.
+                              It is totally dependent on the "max_value"
+        :param max_value: This number represents the maximum amount you want to achieve.
+                          It is not a percentage, although it is purposely set to 100 by default.
+        """
         if max_value is not None:
-            self.max_value = max_value
-        mounted_display = self._states_view(for_value)
-        self.console.replace_last_msg(mounted_display)
+            self.update_max_value(max_value)
+        build_progress = self._states_view(for_value)
+        self.console.replace_last_msg(build_progress)
 
     def start(self):
         self.started_time = time.time()
