@@ -88,7 +88,7 @@ def percent(from_: Number, to: Number) -> Number:
 def estimate(from_: Number, to: Number, based: Number) -> Number:
     if from_ > 0:
         based = based or 1
-        return round((based / from_) * to, 2)
+        return round((based / from_) * to - based, 2)
     return float('NaN')
 
 
