@@ -141,7 +141,7 @@ class __StateTime(State):
     def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> str:
         time_estimate = estimate(current_value, max_value, time_it)
-        idx = int(proportional(current_value, cls.__max_sequence))
+        idx = int(proportional(int(current_percent), cls.__max_sequence))
         return f"{cls.__clock + idx} Estimated: {cls.time_format(time_estimate)}"
 
     @classmethod
@@ -240,7 +240,9 @@ class ProgressBase:
     def percent_(self, for_value: Number) -> Number:
         return percent(for_value, self.max_value)
 
-    def show_progress(self, for_value):
+    def show_progress(self, for_value, max_value=None):
+        if max_value is not None:
+            self.max_value = max_value
         mounted_display = self._states_view(for_value)
         self.console.replace_last_msg(mounted_display)
 
@@ -309,22 +311,10 @@ class Progress(ProgressBase):
 
 if __name__ == "__main__":
 
-    with Progress("Cereja3") as prog3:
-        for i in range(1, 100):
-            time.sleep(0.05)
-
     with Progress("Cereja") as prog1:
         for i, k in enumerate(prog1(range(100)), 1):
             time.sleep(0.05)
 
-    prog2 = Progress("Cereja2")
-    prog2.start()
-    for i in range(1, 100):
-        time.sleep(0.05)
-        prog2.show_progress(i)
-
-    prog2.stop()
-
-    with Progress("Cereja3") as prog3:
-        for i in range(1, 100):
+        for i in range(1, 600):
             time.sleep(0.05)
+            prog1.show_progress(i, 600)
