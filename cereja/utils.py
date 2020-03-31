@@ -24,6 +24,7 @@ SOFTWARE.
 import datetime
 import functools
 import os
+import time
 from importlib import import_module
 import subprocess
 import importlib
@@ -37,7 +38,7 @@ import itertools
 # Needed init configs
 from logging import config
 
-from cereja.cj_types import PEP440
+from cereja.cj_types import PEP440, Number
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +81,41 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
     return None
 
 
-def is_function(obj: Any) -> bool:
-    return isinstance(obj, types.FunctionType)
+def percent(from_: Number, to: Number) -> Number:
+    to = to or 1
+    return round((from_ / to) * 100, 2)
+
+
+def estimate(from_: Number, to: Number, based: Number) -> Number:
+    if from_ > 0:
+        based = based or 1
+        return round((based / from_) * to - based, 2)
+    return float('NaN')
+
+
+def time_format(seconds: float, format_='%H:%M:%S') -> Union[str, float]:
+    # this because NaN
+    if seconds >= 0 or seconds < 0:
+        time_ = time.strftime(format_, time.gmtime(abs(seconds)))
+        if seconds < 0:
+            return f"-{time_}"
+        return time_
+    return seconds  # NaN
+
+
+def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
+    """
+    Calculates and adds value
+    """
+    fill_values = [with_] * (max_size - len(value))
+    if isinstance(value, str):
+        fill_values = ' '.join(fill_values)
+        value = f"{value}{fill_values}"
+    elif isinstance(value, list):
+        value += fill_values
+    elif isinstance(value, tuple):
+        value += tuple(fill_values)
+    return value
 
 
 def module_references(instance: types.ModuleType, **kwargs) -> dict:

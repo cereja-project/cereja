@@ -43,18 +43,21 @@ except OSError:
     _LOGIN_NAME = "Cereja"
 
 
-class _Stdout:
+class __Stdout:
     __stdout_original = sys.stdout
     __stderr_original = sys.stderr
     __user_msg = []
 
-    def __init__(self, console):
+    def __init__(self):
+        self.th_console = None
         self.last_console_msg = ""
-        self.console = console
-        self.use_th_console = True
+        self.use_th_console = False
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
-        self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
+
+    def __call__(self, console_):
+        self.console = console_
+        return self
 
     def set_message(self, msg):
         self.__user_msg = msg
@@ -113,15 +116,23 @@ class _Stdout:
         self.__stdout_original.flush()
 
     def persist(self):
+        self.use_th_console = True
+        self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
         self.th_console.start()
         sys.stdout = self.__stdout_buffer
         sys.stderr = self.__stderr_buffer
 
     def disable(self):
-        self.use_th_console = False
-        self.th_console.join()
+        if self.use_th_console:
+            msg = self.console.parse(f"Cereja's console {{red}}out!{{endred}}{{default}}")
+            self.cj_msg(f'\n{msg}')
+            self.use_th_console = False
+            self.th_console.join()
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
+
+
+_Stdout = __Stdout()
 
 
 class ConsoleBase(metaclass=ABC):
@@ -314,328 +325,416 @@ class ConsoleBase(metaclass=ABC):
 
     def disable(self):
         self.title = "Cereja"
-        self.__print(f"Cereja's console {{red}}out!{{endred}}{{default}}")
         self.__stdout.disable()
 
 
-class BaseProgress(metaclass=ABC):
+import os
+import threading
+import time
+import warnings
+from abc import ABCMeta, abstractmethod
+from typing import Sequence, Any, Union, Type, AnyStr
 
-    def __init__(self, task_name: str, progress_size: int, max_value=100, **kwargs):
-        self.__use_loading = True
-        self.__running: bool = False
-        self.__done = False
-        self.__error = False
-        self.__time_sleep = 0.5
-        self.task_name = task_name
-        self.loading_state: str = ''
-        self.state: str = ''
-        self.max_value: float = max_value
-        self.distance_inner_states = 5
-        self.current_value = 0.0
-        self.current_percent = 0.0
-        self.progress_size = progress_size
-        self.first_time = 0.0
+from cereja.arraytools import is_iterable
+from cereja.cj_types import Number
+from cereja.concurrently import TaskList
+from cereja.display import ConsoleBase as Console
+from cereja.unicode import Unicode
+from cereja.utils import percent, estimate, proportional, fill, time_format
 
-    def complete_with_blank(self, value: str) -> str:
-        """
-        Calculates and adds blanks, allowing a more static display
-        :param value: is the current sizeof default char value or the proportion of this value in the case of a bar
-        :return: string with sizeof max_size
-        """
-        blanks = '  ' * (self.progress_size - len(value))
-        return f"{value}{blanks}"
 
-    def size_prop(self, value: Number):
-        """
-        Returns the proportion of any number in relation to max_size
-        :param value: any number
-        """
-        return proportional(value, self.progress_size)
+class State(metaclass=ABCMeta):
+    size = 10
 
-    def update(self, current_value: Number, max_value=100):
+    def __repr__(self):
+        return f"{self.name} {self.done(100, 100, 100, 0, 100)}"
+
+    def blanks(self, current_size):
+        blanks = '  ' * (self.size - current_size - 1)
+        return blanks
+
+    @property
+    def name(self):
+        return f"{self.__class__.__name__.replace('__State', '')} field"
+
+    @abstractmethod
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
         """
+        This function is always being called.
+        :return: You need to return a string with the status of your progress
+        """
+        pass
+
+    @abstractmethod
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
+        pass
+
+
+class __StateLoading(State):
+    """
+    lef_right_delimiter: str = String of length 2 e.g: '[]'
+            Are the delimiters of the default_char
+            The default value is '[]'.
+            e.g: [=============] # left is '[' and right is ']'
+
+
+    default_char: Single string you can send a unicode :)
+            Value that will be added or replaced simulating animation.
+    """
+    sequence = (".", ".", ".")
+    left_right_delimiter = "[]"
+    default_char = "."
+    size = 3
+
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        idx = n_times % self.size
+        value = ''.join(self.sequence[:idx + 1])
+        filled = fill(value, self.size, with_=' ')
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        return f"{l_delimiter}{filled}{r_delimiter}"
+
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        return f"{l_delimiter}{self.default_char * self.size}{r_delimiter}"
+
+
+class __StateAwaiting(__StateLoading):
+
+    def _clean(self, result):
+        return result.strip(self.left_right_delimiter)
+
+    def display(self, *args, **kwargs) -> str:
+        result = self._clean(super().display(*args, **kwargs))
+        return f"Awaiting{result}"
+
+    def done(self, *args, **kwargs) -> str:
+        result = self._clean(super().done(*args, **kwargs))
+        return f"Awaiting{result} Done!"
+
+
+class __StateBar(State):
+    left_right_delimiter = "[]"
+    arrow = ">"
+    default_char = "="
+    size = 30
+
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> AnyStr:
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        prop_max_size = int(proportional(current_percent, self.size))
+        blanks = '  ' * (self.size - prop_max_size - 1)
+        return f"{l_delimiter}{'=' * prop_max_size}{self.arrow}{blanks}{r_delimiter}"
+
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        return f"{l_delimiter}{self.default_char * self.size}{r_delimiter}"
+
+
+class __StatePercent(State):
+    size = 8
+
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        value = f"{current_percent:.2f}"
+        zeros = f"{'0' * (6 - len(value))}"
+        return f"{zeros}{value}%"
+
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
+        return f"{100:.2f}%"
+
+
+class __StateTime(State):
+    __clock = Unicode("\U0001F55C")
+    __max_sequence = 12
+    size = 11
+
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        time_estimate = estimate(current_value, max_value, time_it)
+        idx = int(proportional(int(current_percent), self.__max_sequence))
+        t_format = f"{time_format(time_estimate)}"
+        value = f"{self.__clock + idx} {t_format}"
+        return f"{value}{self.blanks(len(value))} estimated"
+
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: float) -> str:
+        return f"{self.__clock} {time_format(time_it)} total"
+
+
+StateBase = State
+StateBar = __StateBar()
+StatePercent = __StatePercent()
+StateTime = __StateTime()
+StateLoading = __StateLoading()
+StateAwaiting = __StateAwaiting()
+
+
+class ProgressBase:
+    default_states = (StateBar, StatePercent, StateTime,)
+
+    __awaiting_state = StateAwaiting
+    __done_unicode = Unicode("\U00002705")
+    __key_map = {
+        "loading": StateLoading,
+        "time": StateTime,
+        "percent": StatePercent,
+        "bar": StateBar
+
+    }
+
+    def __init__(self, console: Console, max_value: int = 100, states=None):
+        self.n_times = 0
+        self.started = False
+        self._awaiting_update = True
+        self.console = console
+        self.started_time = None
+        self._states = self.default_states
+        self.add_state(states)
+        self.max_value = max_value
+        self.th_awaiting = self._create_awaiting()
+
+    def __repr__(self):
+        progress_example_view = f"{self._states_view(self.max_value)}"
+        state_conf = f"{self.__class__.__name__}{self._parse_states()}"
+        return f"{state_conf}\n{self.console.parse(progress_example_view, title='Example States View')}"
+
+    def _create_awaiting(self, time_: float = None):
+        return threading.Thread(name="awaiting", target=self._show_awaiting, args=(time_,))
+
+    def _show_awaiting(self, time_: float = None):
+        n_times = 0
+        time_it = time.time()
+        while self._awaiting_update:
+            self.console.replace_last_msg(self.__awaiting_state.display(0, 0, 0, 0, n_times=n_times))
+            n_times += 1
+            if time_ is not None:
+                if (time.time() - time_it) > time_:
+                    break
+            time.sleep(0.01)
+        self.console.replace_last_msg(self.__awaiting_state.done(0, 0, 0, 0, 0))
+
+    def _parse_states(self):
+        return tuple(map(lambda stt: stt.__class__.__name__, self._states))
+
+    def _states_view(self, for_value: Number):
+        self._awaiting_update = False
+        self.n_times += 1
+        kwargs = {
+            "current_value": for_value,
+            "max_value": self.max_value,
+            "current_percent": self.percent_(for_value),
+            "time_it": time.time() - (self.started_time or time.time()),
+            "n_times": self.n_times
+        }
+        is_done = False
+        if for_value >= self.max_value - 1:
+            is_done = True
+
+            def get_state(state: State):
+                return state.done(**kwargs)
+        else:
+            def get_state(state: State):
+                return state.display(**kwargs)
+        result = TaskList(get_state, self._states).run()
+        if is_done:
+            result.append(f"Done! {self.__done_unicode}")
+        return ' - '.join(result)
+
+    def add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
+        if state is not None:
+            if not is_iterable(state):
+                state = (state,)
+            self._filter_and_add_state(state)
+
+    def _filter_and_add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
+        filtered = tuple(
+            filter(
+                lambda stt: stt not in self._states,
+                tuple(state)
+            ))
+        if any(filtered):
+            self._states += filtered
+            self.console.log(f"Added new states! {filtered}")
+
+    @property
+    def states(self):
+        return self._parse_states()
+
+    def percent_(self, for_value: Number) -> Number:
+        return percent(for_value, self.max_value)
+
+    def update_max_value(self, max_value: int):
+        """
+        You can modify the progress to another value. It is not a percentage,
+        although it is purposely set to 100 by default.
+
+        :param max_value: This number represents the maximum amount you want to achieve.
+        """
+        if not isinstance(max_value, (int, float, complex)):
+            raise Exception(f"Current value {max_value} isn't valid.")
+        if max_value != self.max_value:
+            self.restart()
+            self.max_value = max_value
+
+    def show_progress(self, for_value, max_value=None):
+        """
+        Build progress by a value.
+
+        :param for_value: Fraction of the "max_value" you want to achieve.
+                              Remember that this value is not necessarily the percentage.
+                              It is totally dependent on the "max_value"
+        :param max_value: This number represents the maximum amount you want to achieve.
+                          It is not a percentage, although it is purposely set to 100 by default.
+        """
+        if max_value is not None:
+            self.update_max_value(max_value)
+        build_progress = self._states_view(for_value)
+        self.console.replace_last_msg(build_progress)
+
+    def start(self):
+        if self.started:
+            self.restart()
+        self._awaiting_update = True
+        self.started_time = time.time()
+        self.started = True
+        self.console.persist_on_runtime()
+        self.th_awaiting = self._create_awaiting()
+        self.th_awaiting.start()
+        self.n_times = 0
+
+    def stop(self):
+        if self.started:
+            self._awaiting_update = False
+            self.th_awaiting.join()
+            self.started = False
+            self.console.disable()
+
+    def restart(self):
+        self.stop()
+        self.start()
+
+    def __len__(self):
+        return len(self._states)
+
+    def __getitem__(self, slice_):
+        if isinstance(slice_, tuple):
+            if max(slice_) > len(self):
+                raise IndexError(f"{max(slice_)} isn't in progress")
+            return tuple(self._states[idx] for idx in slice_ if idx < len(self))
+        if isinstance(slice_, str):
+            key = self.__key_map[slice_]
+            if key in self._states:
+                slice_ = self._states.index(key)
+            else:
+                raise KeyError(f"Not exists {key}")
+        return self._states[slice_]
+
+    def __setitem__(self, key, value):
+        if isinstance(key, int):
+            states_ = list(self._states)
+            states_[key] = value
+            self._states = tuple(states_)
+        else:
+            raise Exception("isn't possible!")
+
+    def __enter__(self, *args, **kwargs):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if isinstance(exc_val, Exception) and not isinstance(exc_val, DeprecationWarning):
+            self.console.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
+        self.stop()
+
+
+class ProgressIterator:
+    def __init__(self, progress: ProgressBase, sequence: Sequence[Any]):
+        self.sequence = sequence
+        self.progress = progress
+        self.progress.update_max_value(len(self.sequence))
+
+    def __next__(self):
+        self.progress.start()
+        for n, value in enumerate(self.sequence):
+            if self.progress.started:
+                self.progress.show_progress(for_value=n)
+            yield value
+        self.progress.stop()
+
+    def __iter__(self):
+        return next(self)
+
+
+class Progress(ProgressBase):
+    def __init__(self, name="Progress Tool", max_value=100, states=None, **kwargs):
+        """
+        Percentage calculation is based on max_value (default is 100) and current_value:
+        percent = (current_value / max_value) * 100
+
+        :param name: Defines the name to be displayed in progress
+        :param max_value: This number represents the maximum amount you want to achieve.
+                          It is not a percentage, although it is purposely set to 100 by default.
+        """
+        task_name = kwargs.get("task_name")
+        style = kwargs.get("style")
+        if task_name:
+            name = task_name
+
+        super().__init__(Console(name), states=states)
+        self.name = name
+        if max_value:
+            self.max_value = max_value
+
+        if style == "loading":
+            self[0] = StateLoading
+
+    def __call__(self, sequence: Sequence[Any]) -> ProgressIterator:
+        """
+        Percentage calculation is based on iterator_ length and current_value:
+        percent = (current_value / len(iterator_)) * 100
+
+        :param sequence: Sequence of anything
+        :return: ProgressIterator
+        """
+        return ProgressIterator(self, sequence)
+
+    @staticmethod
+    def prog(sequence: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> ProgressIterator:
+        warnings.warn(f"Will be deprecated in future versions. You can call youself see __call__ method",
+                      DeprecationWarning, 2)
+        prog_ = Progress(task_name=task_name, style=style)
+        return prog_.__call__(sequence)
+
+    def update(self, current_value: Number, max_value=None):
+        """
+        --------------------- DEPRECATED ---------------------
+
         :param current_value: Fraction of the "max_value" you want to achieve.
                               Remember that this value is not necessarily the percentage.
                               It is totally dependent on the "max_value"
         :param max_value: This number represents the maximum amount you want to achieve.
                           It is not a percentage, although it is purposely set to 100 by default.
         """
-        current_value = current_value or 1
-
-        self.max_value = max(self.max_value, max_value)
-        if current_value > self.max_value:
-            raise ValueError(f"Current value {current_value} is greater than {self.max_value} the max_value ")
-        if current_value is not None:
-            if isinstance(current_value, (int, float, complex)):
-                percent = round((current_value / self.max_value) * 100, 2)
-                if self.current_percent > percent:
-                    self.reset()
-                self.current_percent = percent
-                self.state = f"Loading"
-                self.current_value = current_value
-            else:
-                raise Exception(f"Current value {current_value} isn't valid.")
-
-    def __parse(self) -> str:
-        loading_state = self.loading_state
-        percent = f"{self.current_percent}%"
-        state_ = f"{percent} - {self.state}"
-        if self.__done:
-            time_ = f"\U0001F55C Total: {self._time_it()}s"
-        else:
-            time_ = f"\U0001F55C Estimated: {self.estimated_time()}"
-        if self.__use_loading:
-            state_ = f"{loading_state} {state_} - {time_}"
-        return state_
-
-    def is_done(self):
-        return self.__done
-
-    def is_running(self):
-        return self.__running
-
-    @classmethod
-    def done(cls, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def progress(self) -> str:
-        """
-        Is a callback to threading named loading. This function is always being called.
-        The request time is defined by the `time_sleep` property
-        :return: You need to return a string with the status of your progress
-        """
-        pass
-
-    def _time_it(self) -> float:
-        return round((time.time() - self.first_time), 2)
-
-    def estimated_time(self) -> str:
-        if self.current_value > 0:
-            time_it = max(self._time_it(), 1)
-            current_value = self.current_value or 1
-            return f'{round((time_it / current_value) * self.max_value - time_it, 2)}s'
-        return 'NaN'
-
-    def __update_loading(self):
-        while self.is_running and not self.__done:
-            self.loading_state = self.progress()
-            self.sleep()
-
-    def __update(self):
-        while self.__running:
-            self.console.replace_last_msg(self.__parse())
-            self.sleep()
-        self._done()
-
-    def sleep(self):
-        time.sleep(self.__time_sleep)
-
-    def _done(self, _state_msg="Done!", color: str = 'green'):
-        if self.__error:
-            return
-        self.done()
-        self.__done = True
-        self.current_percent = 100
-        self.state = self.console.template_format(
-            f"{{{color}}}{self.console.DONE_UNICODE} {_state_msg}{{{'end' + color}}}")
-
-    def _error(self, msg):
-        self.__error = True
-        self.state = self.console.template_format(f"{{red}}{self.console.ERROR_UNICODE} Error: {msg}{{endred}}")
-
-    def _reset(self):
-        self._done()
-        self.__done = False
-        self.console.replace_last_msg(self.__parse(), "\n")  # las update
-        self.current_percent = 0
-        self.current_value = 1
-        self.first_time = time.time()
-
-    def start(self):
-        if not self.__running:
-            self.__enter__()
-
-    def stop(self, restart_only: bool = False):
-        if restart_only:
-            self._reset()
-        else:
-            self.__exit__(None, None, None)
-
-    def reset(self, _state_msg="Reseted!"):
-        self.stop(restart_only=True)
-        self.start()
-
-    def __enter__(self):
-        self.th_loading = threading.Thread(name="loading", target=self.__update_loading)
-        self.root = threading.Thread(name=self.task_name, target=self.__update)
-        self.console = ConsoleBase(self.task_name)
-        self.first_time = time.time()
-        self.__running = True
-        self.__done = False
-        self.state = "Loading"
-        if self.__use_loading:
-            self.th_loading.start()
-        self.console.persist_on_runtime()
-        self.root.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if isinstance(exc_val, Exception):
-            self._error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
-        else:
-            self._done()
-        self.__running = False
-        self.console.replace_last_msg(self.__parse(), "\n")  # las update
-        self.console.disable()
-        self.th_loading.join()
-        self.root.join()
+        warnings.warn(f"Will be deprecated in future versions. Use 'update_max_value' or 'show_progress' methods.",
+                      DeprecationWarning, 2)
+        self.show_progress(current_value, max_value)
 
 
-class ProgressLoading(BaseProgress):
-    """
-    :param lef_right_delimiter: str = String of length 2 e.g: '[]'
-            Are the delimiters of the default_char
-            The default value is '[]'.
-            e.g: [=============] # left is '[' and right is ']'
-            
-            
-    :param default_char: Single string you can send a unicode :)
-            Value that will be added or replaced simulating animation.
-    """
+if __name__ == "__main__":
 
-    def __init__(self, task_name, progress_size=3, default_char='.', lef_right_delimiter="[]", **kwargs):
-        super().__init__(task_name=task_name, progress_size=progress_size, **kwargs)
-        self.default_char = default_char
+    with Progress("Cereja") as prog1:
+        for i, k in enumerate(prog1(range(100)), 1):
+            time.sleep(1 / i)
 
-        if not isinstance(lef_right_delimiter, str):
-            raise TypeError("Delimiters validation. Please send string.")
-        elif len(lef_right_delimiter) != 2:
-            raise ValueError("Delimiters validation. Please send a string of length 2")
-
-        self.left_right_delimiter = lef_right_delimiter
-
-    def progress(self):
-        l_delimiter, r_delimiter = self.left_right_delimiter
-        current = self.loading_state or ''
-        current = current.strip(l_delimiter).strip(r_delimiter).strip()  # clean blanks
-        if current is not None and len(current) < self.progress_size:
-            current = f"{current}{self.default_char}"
-        else:
-            current = ''
-        current = self.complete_with_blank(current)
-        return f"{l_delimiter}{current}{r_delimiter}"
-
-    def done(self):
-        l_delimiter, r_delimiter = self.left_right_delimiter
-        self.loading_state = f"{l_delimiter}{self.default_char * self.progress_size}{r_delimiter}"
-
-
-class ProgressBar(ProgressLoading):
-
-    def __init__(self, task_name, max_value=100, progress_size=30, default_char='=', lef_right_delimiter="[]",
-                 **kwargs):
-        super().__init__(task_name, max_value=max_value, progress_size=progress_size, default_char=default_char,
-                         lef_right_delimiter=lef_right_delimiter, **kwargs)
-        self.arrow: str = '>'
-        self.use_arrow: bool = True
-
-    def use_arrow(self):
-        return self.use_arrow
-
-    def set_arrow(self, value: bool):
-        self.use_arrow = value
-
-    def progress(self):
-        last_char = self.arrow if self.use_arrow and not self.is_done() else self.default_char
-        l_delimiter, r_delimiter = self.left_right_delimiter
-        prop_max_size = int(self.size_prop(self.current_percent))
-        blanks = '  ' * (self.progress_size - prop_max_size)
-        return f"{l_delimiter}{self.default_char * prop_max_size}{last_char}{blanks}{r_delimiter}"
-
-
-class ProgressLoadingSequence(ProgressLoading):
-    __sequence = ("\U0001F55C", "\U0001F55D", "\U0001F55E", "\U0001F55F", "\U0001F560", "\U0001F561", "\U0001F562",
-                  "\U0001F563", "\U0001F564", "\U0001F565", "\U0001F566", "\U0001F567")
-
-    def __init__(self, task_name, sequence: Union[list, tuple] = None, *args, **kwargs):
-        super().__init__(task_name, *args, **kwargs)
-        if sequence is not None:
-            self.__sequence = sequence
-        self._n_times = 0
-
-    def progress(self):
-        self._n_times += 1
-        if len(self.__sequence) == self._n_times:
-            self._n_times = 0
-        return self.__sequence[self._n_times - 1]
-
-
-class Progress:
-    __style_map = {
-        "loading": ProgressLoading,
-        "bar": ProgressBar,
-        "sequence": ProgressLoadingSequence
-    }
-
-    def __init__(self):
-        self.__items = None
-
-    @property
-    def styles(self):
-        return list(self.__style_map)
-
-    def __call__(self, task_name="Progress Tool", style="loading", max_value=100, **kwargs) -> BaseProgress:
-        """
-        Percentage calculation is based on max_value (default is 100) and current_value:
-        percent = (current_value / max_value) * 100
-
-        :param style: defines the type of progress that will be used. "loading" is Default
-                    You can choose those available ['loading', 'bar', 'sequence']
-        :param task_name: Defines the name to be displayed in progress
-        :param max_value: This number represents the maximum amount you want to achieve.
-                          It is not a percentage, although it is purposely set to 100 by default.
-        :param kwargs:
-                loading_with_clock: You will see a clock if the style is loading
-        :return: Progress
-        """
-        if "loading_with_clock" in kwargs and style == "loading":
-            use_sequence = bool(kwargs.pop("loading_with_clock"))
-            style = "sequence" if use_sequence else "loading"
-        return self._get_progress(style=style, task_name=task_name, max_value=max_value, **kwargs)
-
-    def _get_progress(self, style, **kwargs):
-        if style not in self.__style_map:
-            raise ValueError(f"Unknown {repr(style)} progress style. You can choose those available {self.styles}")
-        return self.__style_map[style](**kwargs)
-
-    def __iter__(self):
-        return next(self.__items)
-
-    def prog(self, iterator_: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> Sequence[Any]:
-        """
-        Percentage calculation is based on iterator_ length and current_value:
-        percent = (current_value / len(iterator_)) * 100
-
-        :param iterator_: Sequence of anything
-        :param style: choose those available 'loading', 'bar' and 'sequence'
-        :param task_name: Prefix on console.
-        :return: Same sequence.
-        """
-        bar_ = self._get_progress(task_name=task_name, style=style, max_value=len(iterator_))
-        bar_.start()
-        for n, value in enumerate(iterator_, start=1):
-            self.__items = yield value
-            bar_.update(n)
-        bar_.stop()
-        return bar_
-
-
-console = ConsoleBase()
-
-Progress = Progress()
-if __name__ == '__main__':
-    prog = Progress.prog(['joab']*3000)
-    for i, value in enumerate(prog, 1):
-        time.sleep(1/i)
-        print(i)
+        for i in range(1, 300):
+            time.sleep(1 / i)
+            prog1.show_progress(i, 300)
+        prog1.update_max_value(100)
+        for i in range(1, 100):
+            time.sleep(1 / i)

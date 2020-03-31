@@ -41,7 +41,7 @@ if NON_BMP_SUPPORTED is None:
     # This is important, as there may be an exception if the terminal does not support unicode bmp
     try:
         unicode_ = f"\033[31m\U0001F352\033[30m"
-        sys.stdout.write(f"{unicode_} {get_version_pep440_compliant()}\n")
-        __NON_BMP_SUPPORTED = True
+        sys.stdout.write(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\n")
+        NON_BMP_SUPPORTED = True
     except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
-        __NON_BMP_SUPPORTED = False
+        NON_BMP_SUPPORTED = False
