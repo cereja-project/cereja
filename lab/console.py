@@ -10,7 +10,7 @@ from cereja.cj_types import Number
 from cereja.concurrently import TaskList
 from cereja.display import ConsoleBase as Console
 from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill
+from cereja.utils import percent, estimate, proportional, fill, time_format
 
 
 class __Stdout:
@@ -35,9 +35,14 @@ class ConsoleBase(metaclass=ABCMeta):
 
 
 class State(metaclass=ABCMeta):
+    size = 10
 
     def __repr__(self):
         return f"{self.name} {self.done(100, 100, 100, 0, 100)}"
+
+    def blanks(self, current_size):
+        blanks = '  ' * (self.size - current_size - 1)
+        return blanks
 
     @property
     def name(self):
@@ -59,38 +64,32 @@ class __StateLoading(State):
     left_right_delimiter = "[]"
     default_char = "."
     size = 3
-    n_times = 0
 
-    @classmethod
-    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> str:
-        idx = n_times % cls.size
-        value = ''.join(cls.sequence[idx:])
-        filled = fill(value, 3, with_=' ')
-        l_delimiter, r_delimiter = cls.left_right_delimiter
+        idx = n_times % self.size
+        value = ''.join(self.sequence[:idx+1])
+        filled = fill(value, self.size, with_=' ')
+        l_delimiter, r_delimiter = self.left_right_delimiter
         return f"{l_delimiter}{filled}{r_delimiter}"
 
-    @classmethod
-    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
              n_times: int) -> str:
-        l_delimiter, r_delimiter = cls.left_right_delimiter
-        return f"{l_delimiter}{cls.default_char * cls.size}{r_delimiter}"
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        return f"{l_delimiter}{self.default_char * self.size}{r_delimiter}"
 
 
 class __StateAwaiting(__StateLoading):
 
-    @classmethod
-    def _clean(cls, result):
-        return result.strip(cls.left_right_delimiter)
+    def _clean(self, result):
+        return result.strip(self.left_right_delimiter)
 
-    @classmethod
-    def display(cls, *args, **kwargs) -> str:
-        result = cls._clean(super().display(*args, **kwargs))
+    def display(self, *args, **kwargs) -> str:
+        result = self._clean(super().display(*args, **kwargs))
         return f"Awaiting{result}"
 
-    @classmethod
-    def done(cls, *args, **kwargs) -> str:
-        result = cls._clean(super().done(*args, **kwargs))
+    def done(self, *args, **kwargs) -> str:
+        result = self._clean(super().done(*args, **kwargs))
         return f"Awaiting{result} Done!"
 
 
@@ -100,54 +99,49 @@ class __StateBar(State):
     default_char = "="
     size = 30
 
-    @classmethod
-    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> AnyStr:
-        l_delimiter, r_delimiter = cls.left_right_delimiter
-        prop_max_size = int(proportional(current_percent, cls.size))
-        blanks = '  ' * (cls.size - prop_max_size)
-        return f"{l_delimiter}{'=' * prop_max_size}{cls.arrow}{blanks}{r_delimiter}"
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        prop_max_size = int(proportional(current_percent, self.size))
+        blanks = '  ' * (self.size - prop_max_size - 1)
+        return f"{l_delimiter}{'=' * prop_max_size}{self.arrow}{blanks}{r_delimiter}"
 
-    @classmethod
-    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
              n_times: int) -> str:
-        l_delimiter, r_delimiter = cls.left_right_delimiter
-        return f"{l_delimiter}{cls.default_char * cls.size}{r_delimiter}"
+        l_delimiter, r_delimiter = self.left_right_delimiter
+        return f"{l_delimiter}{self.default_char * self.size}{r_delimiter}"
 
 
 class __StatePercent(State):
-    @classmethod
-    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
-                n_times: int) -> str:
-        return f"{current_percent: .2f}%"
+    size = 8
 
-    @classmethod
-    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        value = f"{current_percent:.2f}"
+        zeros = f"{'0' * (6 - len(value))}"
+        return f"{zeros}{value}%"
+
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
              n_times: int) -> str:
-        return f"{100}%"
+        return f"{100:.2f}%"
 
 
 class __StateTime(State):
     __clock = Unicode("\U0001F55C")
     __max_sequence = 12
+    size = 11
 
-    @classmethod
-    def time_format(cls, time_estimate: float):
-        if time_estimate >= 0:
-            return time.strftime('%H:%M:%S', time.gmtime(time_estimate))
-        return time_estimate
-
-    @classmethod
-    def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> str:
         time_estimate = estimate(current_value, max_value, time_it)
-        idx = int(proportional(int(current_percent), cls.__max_sequence))
-        return f"{cls.__clock + idx} Estimated: {cls.time_format(time_estimate)}"
+        idx = int(proportional(int(current_percent), self.__max_sequence))
+        t_format = f"{time_format(time_estimate)}"
+        value = f"{self.__clock + idx} {t_format}"
+        return f"{value}{self.blanks(len(value))} estimated"
 
-    @classmethod
-    def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
              n_times: float) -> str:
-        return f"{cls.__clock} Total: {time.strftime('%H:%M:%S', time.gmtime(time_it))}"
+        return f"{self.__clock} {time_format(time_it)} total"
 
 
 StateBase = State
@@ -162,6 +156,7 @@ class ProgressBase:
     default_states = (StateBar, StatePercent, StateTime,)
 
     __awaiting_state = StateAwaiting
+    __done_unicode = Unicode("\U00002705")
 
     def __init__(self, console: Console, states=None):
         self.n_times = 0
@@ -207,7 +202,10 @@ class ProgressBase:
             "time_it": time.time() - (self.started_time or time.time()),
             "n_times": self.n_times
         }
+        is_done = False
         if for_value >= self.max_value - 1:
+            is_done = True
+
             def get_state(state: State):
                 return state.done(**kwargs)
         else:
@@ -215,6 +213,8 @@ class ProgressBase:
                 return state.display(**kwargs)
 
         result = TaskList(get_state, self._states).run()
+        if is_done:
+            result.append(f"Done! {self.__done_unicode}")
         return ' - '.join(result)
 
     def add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
@@ -249,7 +249,9 @@ class ProgressBase:
         """
         if not isinstance(max_value, (int, float, complex)):
             raise Exception(f"Current value {max_value} isn't valid.")
-        self.max_value = max_value
+        if max_value != self.max_value:
+            self.restart()
+            self.max_value = max_value
 
     def show_progress(self, for_value, max_value=None):
         """
@@ -267,14 +269,15 @@ class ProgressBase:
         self.console.replace_last_msg(build_progress)
 
     def start(self):
-        self.started_time = time.time()
+        if self.started:
+            self.restart()
         self._awaiting_update = True
-        if not self.started:
-            self.started = True
-            self.console.persist_on_runtime()
-            self.th_awaiting = self._create_awaiting()
-            self.th_awaiting.start()
-            self.n_times = 0
+        self.started_time = time.time()
+        self.started = True
+        self.console.persist_on_runtime()
+        self.th_awaiting = self._create_awaiting()
+        self.th_awaiting.start()
+        self.n_times = 0
 
     def stop(self):
         if self.started:
@@ -282,6 +285,10 @@ class ProgressBase:
             self.th_awaiting.join()
             self.started = False
             self.console.disable()
+
+    def restart(self):
+        self.stop()
+        self.start()
 
     def __len__(self):
         return len(self._states)
@@ -333,8 +340,12 @@ if __name__ == "__main__":
 
     with Progress("Cereja") as prog1:
         for i, k in enumerate(prog1(range(100)), 1):
-            time.sleep(0.05)
+            time.sleep(1 / i)
 
-        for i in range(1, 600):
-            time.sleep(0.05)
-            prog1.show_progress(i, 600)
+        for i in range(1, 300):
+            time.sleep(1 / i)
+            prog1.show_progress(i, 300)
+
+        prog1.update_max_value(100)
+        for i in range(1, 100):
+            time.sleep(1 / i)
