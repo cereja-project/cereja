@@ -1,5 +1,6 @@
 import io
 import os
+import threading
 import time
 from abc import ABCMeta, abstractmethod
 from typing import Sequence, Any, Union, Type, AnyStr
@@ -54,7 +55,7 @@ class State(metaclass=ABCMeta):
 
 
 class __StateLoading(State):
-    __sequence = (".", ".", ".")
+    sequence = (".", ".", ".")
     left_right_delimiter = "[]"
     default_char = "."
     size = 3
@@ -64,7 +65,7 @@ class __StateLoading(State):
     def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> str:
         idx = n_times % cls.size
-        value = ''.join(cls.__sequence[idx:])
+        value = ''.join(cls.sequence[idx:])
         filled = fill(value, 3, with_=' ')
         l_delimiter, r_delimiter = cls.left_right_delimiter
         return f"{l_delimiter}{filled}{r_delimiter}"
@@ -74,6 +75,23 @@ class __StateLoading(State):
              n_times: int) -> str:
         l_delimiter, r_delimiter = cls.left_right_delimiter
         return f"{l_delimiter}{cls.default_char * cls.size}{r_delimiter}"
+
+
+class __StateAwaiting(__StateLoading):
+
+    @classmethod
+    def _clean(cls, result):
+        return result.strip(cls.left_right_delimiter)
+
+    @classmethod
+    def display(cls, *args, **kwargs) -> str:
+        result = cls._clean(super().display(*args, **kwargs))
+        return f"Awaiting{result}"
+
+    @classmethod
+    def done(cls, *args, **kwargs) -> str:
+        result = cls._clean(super().done(*args, **kwargs))
+        return f"Awaiting{result} Done!"
 
 
 class __StateBar(State):
@@ -137,29 +155,50 @@ StateBar = __StateBar()
 StatePercent = __StatePercent()
 StateTime = __StateTime()
 StateLoading = __StateLoading()
+StateAwaiting = __StateAwaiting()
 
 
 class ProgressBase:
     default_states = (StateBar, StatePercent, StateTime,)
 
+    __awaiting_state = StateAwaiting
+
     def __init__(self, console: Console, states=None):
         self.n_times = 0
         self.started = False
+        self._awaiting_update = True
         self.console = console
         self.started_time = None
         self._states = self.default_states
         self.add_state(states)
         self.max_value = 100
+        self.th_awaiting = self._create_awaiting()
 
     def __repr__(self):
         progress_example_view = f"{self._states_view(self.max_value)}"
         state_conf = f"{self.__class__.__name__}{self._parse_states()}"
         return f"{state_conf}\n{self.console.parse(progress_example_view, title='Example States View')}"
 
+    def _create_awaiting(self, time_: float = None):
+        return threading.Thread(name="awaiting", target=self._show_awaiting, args=(time_,))
+
+    def _show_awaiting(self, time_: float = None):
+        n_times = 0
+        time_it = time.time()
+        while self._awaiting_update:
+            self.console.replace_last_msg(self.__awaiting_state.display(0, 0, 0, 0, n_times=n_times))
+            n_times += 1
+            if time_ is not None:
+                if (time.time() - time_it) > time_:
+                    break
+            time.sleep(1)
+        self.console.replace_last_msg(self.__awaiting_state.done(0, 0, 0, 0, 0))
+
     def _parse_states(self):
         return tuple(map(lambda stt: stt.__class__.__name__, self._states))
 
     def _states_view(self, for_value: Number):
+        self._awaiting_update = False
         self.n_times += 1
         kwargs = {
             "current_value": for_value,
@@ -207,13 +246,18 @@ class ProgressBase:
 
     def start(self):
         self.started_time = time.time()
+        self._awaiting_update = True
         if not self.started:
             self.started = True
             self.console.persist_on_runtime()
+            self.th_awaiting = self._create_awaiting()
+            self.th_awaiting.start()
             self.n_times = 0
 
     def stop(self):
         if self.started:
+            self._awaiting_update = False
+            self.th_awaiting.join()
             self.started = False
             self.console.disable()
 
@@ -264,6 +308,10 @@ class Progress(ProgressBase):
 
 
 if __name__ == "__main__":
+
+    with Progress("Cereja3") as prog3:
+        for i in range(1, 100):
+            time.sleep(0.05)
 
     with Progress("Cereja") as prog1:
         for i, k in enumerate(prog1(range(100)), 1):
