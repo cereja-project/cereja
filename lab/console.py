@@ -8,6 +8,7 @@ from cereja.arraytools import is_sequence, is_iterable
 from cereja.cj_types import Number
 from cereja.concurrently import TaskList
 from cereja.display import ConsoleBase as Console
+from cereja.unicode import Unicode
 from cereja.utils import percent, estimate, proportional, fill
 
 
@@ -53,7 +54,7 @@ class State(metaclass=ABCMeta):
 
 
 class __StateLoading(State):
-    __sequence = ('.', '.', '.',)
+    __sequence = (".", ".", ".")
     left_right_delimiter = "[]"
     default_char = "."
     size = 3
@@ -100,7 +101,7 @@ class __StatePercent(State):
     @classmethod
     def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> str:
-        return f"{current_percent}%"
+        return f"{current_percent: .2f}%"
 
     @classmethod
     def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
@@ -109,16 +110,26 @@ class __StatePercent(State):
 
 
 class __StateTime(State):
+    __clock = Unicode("\U0001F55C")
+    __max_sequence = 12
+
+    @classmethod
+    def time_format(cls, time_estimate: float):
+        if time_estimate >= 0:
+            return time.strftime('%H:%M:%S', time.gmtime(time_estimate))
+        return time_estimate
+
     @classmethod
     def display(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
-                n_times: float) -> str:
+                n_times: int) -> str:
         time_estimate = estimate(current_value, max_value, time_it)
-        return f"Estimated: {round(time_estimate, 2)}s"
+        idx = int(proportional(current_value, cls.__max_sequence))
+        return f"{cls.__clock + idx} Estimated: {cls.time_format(time_estimate)}"
 
     @classmethod
     def done(cls, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
              n_times: float) -> str:
-        return f"Total: {round(time_it, 2)}s"
+        return f"{cls.__clock} Total: {time.strftime('%H:%M:%S', time.gmtime(time_it))}"
 
 
 StateBase = State
@@ -176,7 +187,7 @@ class ProgressBase:
     def _filter_and_add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
         filtered = tuple(
             filter(
-                lambda stt: issubclass(type(stt), type(State)) and stt not in self._states,
+                lambda stt: stt not in self._states,
                 tuple(state)
             ))
         if any(filtered):
@@ -216,15 +227,14 @@ class ProgressBase:
             return tuple(self._states[idx] for idx in slice_ if idx < len(self))
         return self._states[slice_]
 
-    def __iter__(self):
-        return next(self)
-
     def __enter__(self, *args, **kwargs):
         self.start()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if isinstance(exc_val, Exception):
             self.console.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
+        self.stop()
 
 
 class ProgressIterator:
@@ -240,19 +250,33 @@ class ProgressIterator:
             yield value
         self.progress.stop()
 
+    def __iter__(self):
+        return next(self)
+
 
 class Progress(ProgressBase):
     def __init__(self, name, states=None):
-        super().__init__(states)
+        super().__init__(Console(name), states=states)
         self.name = name
 
     def __call__(self, sequence: Sequence[Any]):
-        pass
+        return ProgressIterator(self, sequence)
 
 
 if __name__ == "__main__":
-    prog = Progress(["joab"] * 100)
-    # for i, k in enumerate(prog, 1):
-    #     time.sleep(1 / i)
-    #     print(i)
-    print(prog[0])
+
+    with Progress("Cereja") as prog1:
+        for i, k in enumerate(prog1(range(100)), 1):
+            time.sleep(0.05)
+
+    prog2 = Progress("Cereja2")
+    prog2.start()
+    for i in range(1, 100):
+        time.sleep(0.05)
+        prog2.show_progress(i)
+
+    prog2.stop()
+
+    with Progress("Cereja3") as prog3:
+        for i in range(1, 100):
+            time.sleep(0.05)
