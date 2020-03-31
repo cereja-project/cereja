@@ -24,6 +24,7 @@ SOFTWARE.
 import datetime
 import functools
 import os
+import time
 from importlib import import_module
 import subprocess
 import importlib
@@ -90,6 +91,16 @@ def estimate(from_: Number, to: Number, based: Number) -> Number:
         based = based or 1
         return round((based / from_) * to - based, 2)
     return float('NaN')
+
+
+def time_format(seconds: float, format_='%H:%M:%S') -> Union[str, float]:
+    # this because NaN
+    if seconds >= 0 or seconds < 0:
+        time_ = time.strftime(format_, time.gmtime(abs(seconds)))
+        if seconds < 0:
+            return f"-{time_}"
+        return time_
+    return seconds  # NaN
 
 
 def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
