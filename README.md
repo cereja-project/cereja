@@ -40,9 +40,6 @@ python3 -m pip install cereja
 
 ### Cereja Example usage
 #### Progress
-<div>
- <img src="https://media.giphy.com/media/ieJ3fmswKizqT1X195/giphy.gif">
-</div>
 
 ```python
 from cereja.display import Progress
@@ -52,6 +49,10 @@ data_to_process = range(1, 5000)
 for i in my_progress(data_to_process):
     ...
 ```
+
+<div>
+ <img src="https://media.giphy.com/media/ieJ3fmswKizqT1X195/giphy.gif">
+</div>
 
 [See Usage - Jupyter Notebook](./docs/cereja_example.ipynb)
 
