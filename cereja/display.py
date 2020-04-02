@@ -20,16 +20,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import io
+import sys
+from abc import ABCMeta as ABC
+from typing import List
+import random
+from cereja.conf import NON_BMP_SUPPORTED
 import os
 import threading
-import sys
 import time
-from abc import ABCMeta as ABC, abstractmethod
-from typing import Union, List, Sequence, Any
-import random
+import warnings
+from abc import ABCMeta, abstractmethod
+from typing import Sequence, Any, Union, Type, AnyStr
+
+from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
-from cereja.conf import NON_BMP_SUPPORTED
-from cereja.utils import proportional
+from cereja.concurrently import TaskList
+from cereja.unicode import Unicode
+from cereja.utils import percent, estimate, proportional, fill, time_format
 
 __all__ = ['Progress']
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
@@ -159,14 +166,14 @@ class ConsoleBase(metaclass=ABC):
     __right_point = f"{CL_CYAN}{RIGHT_POINTER}{__CL_DEFAULT}"
     __msg_prefix = f"{CL_RED}{CHERRY_UNICODE}{CL_BLUE}"
     __color_map = {
-        "black": CL_BLACK,
-        "red": CL_RED,
-        "green": CL_GREEN,
-        "yellow": CL_YELLOW,
-        "blue": CL_BLUE,
+        "black":   CL_BLACK,
+        "red":     CL_RED,
+        "green":   CL_GREEN,
+        "yellow":  CL_YELLOW,
+        "blue":    CL_BLUE,
         "magenta": CL_MAGENTA,
-        "cyan": CL_CYAN,
-        "white": CL_WHITE,
+        "cyan":    CL_CYAN,
+        "white":   CL_WHITE,
         "default": __CL_DEFAULT
     }
 
@@ -266,8 +273,8 @@ class ConsoleBase(metaclass=ABC):
             return self.random_color(s)
         if color not in self.__color_map:
             raise ValueError(
-                f"Color {repr(color)} not found. Choose an available color"
-                f" [red, green, yellow, blue, magenta and cyan].")
+                    f"Color {repr(color)} not found. Choose an available color"
+                    f" [red, green, yellow, blue, magenta and cyan].")
         s = self.template_format(s)
         return f"{self._color_map[color]}{s}{self._color_map[color]}"
 
@@ -324,23 +331,7 @@ class ConsoleBase(metaclass=ABC):
         self.__stdout.cj_msg(msg, end)
 
     def disable(self):
-        self.title = "Cereja"
         self.__stdout.disable()
-
-
-import os
-import threading
-import time
-import warnings
-from abc import ABCMeta, abstractmethod
-from typing import Sequence, Any, Union, Type, AnyStr
-
-from cereja.arraytools import is_iterable
-from cereja.cj_types import Number
-from cereja.concurrently import TaskList
-from cereja.display import ConsoleBase as Console
-from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill, time_format
 
 
 class State(metaclass=ABCMeta):
@@ -473,6 +464,8 @@ StatePercent = __StatePercent()
 StateTime = __StateTime()
 StateLoading = __StateLoading()
 StateAwaiting = __StateAwaiting()
+Console = ConsoleBase
+console = ConsoleBase()
 
 
 class ProgressBase:
@@ -482,17 +475,17 @@ class ProgressBase:
     __done_unicode = Unicode("\U00002705")
     __key_map = {
         "loading": StateLoading,
-        "time": StateTime,
+        "time":    StateTime,
         "percent": StatePercent,
-        "bar": StateBar
+        "bar":     StateBar
 
     }
 
-    def __init__(self, console: Console, max_value: int = 100, states=None):
+    def __init__(self, console_: Console, max_value: int = 100, states=None):
         self.n_times = 0
         self.started = False
         self._awaiting_update = True
-        self.console = console
+        self.console = console_
         self.started_time = None
         self._states = self.default_states
         self.add_state(states)
@@ -526,11 +519,11 @@ class ProgressBase:
         self._awaiting_update = False
         self.n_times += 1
         kwargs = {
-            "current_value": for_value,
-            "max_value": self.max_value,
+            "current_value":   for_value,
+            "max_value":       self.max_value,
             "current_percent": self.percent_(for_value),
-            "time_it": time.time() - (self.started_time or time.time()),
-            "n_times": self.n_times
+            "time_it":         time.time() - (self.started_time or time.time()),
+            "n_times":         self.n_times
         }
         is_done = False
         if for_value >= self.max_value - 1:
@@ -543,7 +536,9 @@ class ProgressBase:
                 return state.display(**kwargs)
         result = TaskList(get_state, self._states).run()
         if is_done:
-            result.append(f"Done! {self.__done_unicode}")
+            done_msg = f"Done! {self.__done_unicode}"
+            done_msg = self.console.format(done_msg, 'green')
+            result.append(done_msg)
         return ' - '.join(result)
 
     def add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
@@ -554,10 +549,10 @@ class ProgressBase:
 
     def _filter_and_add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
         filtered = tuple(
-            filter(
-                lambda stt: stt not in self._states,
-                tuple(state)
-            ))
+                filter(
+                        lambda stt: stt not in self._states,
+                        tuple(state)
+                ))
         if any(filtered):
             self._states += filtered
             self.console.log(f"Added new states! {filtered}")
@@ -728,13 +723,19 @@ class Progress(ProgressBase):
 
 if __name__ == "__main__":
 
-    with Progress("Cereja") as prog1:
-        for i, k in enumerate(prog1(range(100)), 1):
-            time.sleep(1 / i)
+    my_progress = Progress("Prefix")
+    data_to_process = range(1, 5000)
+    for i in my_progress(data_to_process):
+        ...
+    # with Progress("Cereja") as prog1:
+    #     for i, k in enumerate(prog1(range(100)), 1):
+    #         time.sleep(1 / i)
+    #
+    #     for i in range(1, 300):
+    #         time.sleep(1 / i)
+    #         prog1.show_progress(i, 300)
+    #     prog1.update_max_value(100)
+    #     for i in range(1, 100):
+    #         time.sleep(1 / i)
 
-        for i in range(1, 300):
-            time.sleep(1 / i)
-            prog1.show_progress(i, 300)
-        prog1.update_max_value(100)
-        for i in range(1, 100):
-            time.sleep(1 / i)
+    time.sleep(5)

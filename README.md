@@ -17,7 +17,7 @@ How many times have you needed to rewrite that function or base class? Well, I t
 
 Not well structured yet :( ... But you can help me !!!
 
-## Getting Started
+## Getting Started DEV
 
 Do not be shy \0/ ... Clone the repository and submit a function or module you made or use some function you liked.
 
@@ -39,6 +39,20 @@ python3 -m pip install cereja
 > Note: If you are using Windows, you do not need to use python3, but make sure your python path settings are correct. 
 
 ### Cereja Example usage
+#### Progress
+<div align="center">
+ <img src="https://media.giphy.com/media/ieJ3fmswKizqT1X195/giphy.gif">
+</div>
+
+```python
+from cereja.display import Progress
+
+my_progress = Progress("Prefix")
+data_to_process = range(1, 5000)
+for i in my_progress(data_to_process):
+    ...
+```
+
 [See Usage - Jupyter Notebook](./docs/cereja_example.ipynb)
 
 ## License
