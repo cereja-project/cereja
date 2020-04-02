@@ -40,7 +40,7 @@ python3 -m pip install cereja
 
 ### Cereja Example usage
 #### Progress
-<div align="center">
+<div>
  <img src="https://media.giphy.com/media/ieJ3fmswKizqT1X195/giphy.gif">
 </div>
 
