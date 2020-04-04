@@ -20,22 +20,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import io
+from typing import Tuple
 import sys
 from abc import ABCMeta as ABC
-from typing import List, Tuple
+from typing import List
 import random
 from cereja.conf import NON_BMP_SUPPORTED
 import os
-import threading
-import time
-import warnings
-from abc import ABCMeta, abstractmethod
-from typing import Sequence, Any, Union, Type, AnyStr
-
-from cereja.arraytools import is_iterable
-from cereja.cj_types import Number
-from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill, time_format
+from typing import Union
 
 __all__ = ['Progress', "StateBase"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
@@ -347,7 +339,23 @@ class ConsoleBase(metaclass=ABC):
         self.__stdout.cj_msg(msg, end)
 
     def disable(self):
+        self.title = "Cereja"
         self.__stdout.disable()
+
+
+import os
+import threading
+import time
+import warnings
+from abc import ABCMeta, abstractmethod
+from typing import Sequence, Any, Union, Type, AnyStr
+
+from cereja.arraytools import is_iterable
+from cereja.cj_types import Number
+from cereja.concurrently import TaskList
+from cereja.display import ConsoleBase as Console
+from cereja.unicode import Unicode
+from cereja.utils import percent, estimate, proportional, fill, time_format
 
 
 class State(metaclass=ABCMeta):
@@ -728,10 +736,10 @@ class ProgressBase:
         return next(self)
 
     def __setitem__(self, key, value):
-        value = self._valid_states(value)
-        if not value:
-            value = value[0]
-            if isinstance(key, int) and isinstance(value, State):
+        value = self._valid_states(value)[0]
+        if isinstance(value, State):
+            value = value
+            if isinstance(key, int):
                 states_ = list(self._states)
                 states_[key] = value
                 self._states = tuple(states_)
