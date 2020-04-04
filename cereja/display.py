@@ -20,29 +20,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import io
+from typing import Tuple
 import sys
 from abc import ABCMeta as ABC
 from typing import List
 import random
 from cereja.conf import NON_BMP_SUPPORTED
 import os
-import threading
-import time
-import warnings
-from abc import ABCMeta, abstractmethod
-from typing import Sequence, Any, Union, Type, AnyStr
+from typing import Union
 
-from cereja.arraytools import is_iterable
-from cereja.cj_types import Number
-from cereja.concurrently import TaskList
-from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill, time_format
-
-__all__ = ['Progress']
+__all__ = ['Progress', "StateBase"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
-            "ProgressLoadingSequence"]
+            "ProgressLoadingSequence", "State"]
 
-_include = ["console", "Progress"]
+_include = ["console", "Progress", "StateBase"]
 
 try:
     _LOGIN_NAME = os.getlogin()
@@ -56,18 +47,28 @@ class __Stdout:
     __user_msg = []
 
     def __init__(self):
+        self.persisting = False
         self.th_console = None
         self.last_console_msg = ""
         self.use_th_console = False
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
+        self.hook_err = None
 
-    def __call__(self, console_):
+    def __call__(self, console_, hook_err=None):
         self.console = console_
+        if hook_err is not None:
+            self.hook_err = hook_err
         return self
 
     def set_message(self, msg):
         self.__user_msg = msg
+
+    def _has_user_msg(self):
+        if self.__stdout_buffer.getvalue():
+            return True
+        else:
+            return False
 
     def write_user_msg(self):
         while self.use_th_console:
@@ -92,7 +93,9 @@ class __Stdout:
                 self._write(msg_err)
                 self.__stderr_buffer.seek(0)
                 self.__stderr_buffer.truncate()
-            time.sleep(1)
+                if self.hook_err is not None:
+                    self.hook_err()
+            time.sleep(0.1)
 
     def _write(self, msg: str):
         try:
@@ -123,18 +126,23 @@ class __Stdout:
         self.__stdout_original.flush()
 
     def persist(self):
-        self.use_th_console = True
-        self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
-        self.th_console.start()
-        sys.stdout = self.__stdout_buffer
-        sys.stderr = self.__stderr_buffer
+        if not self.persisting:
+            self.use_th_console = True
+            self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
+            self.th_console.start()
+            sys.stdout = self.__stdout_buffer
+            sys.stderr = self.__stderr_buffer
+            self.persisting = True
 
     def disable(self):
         if self.use_th_console:
-            msg = self.console.parse(f"Cereja's console {{red}}out!{{endred}}{{default}}")
-            self.cj_msg(f'\n{msg}')
-            self.use_th_console = False
-            self.th_console.join()
+            while self._has_user_msg():
+                pass
+            else:
+                msg = self.console.parse(f"Cereja's console {{red}}out!{{endred}}{{default}}")
+                self.cj_msg(f'\n{msg}')
+                self.use_th_console = False
+                self.th_console.join()
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
 
@@ -182,11 +190,11 @@ class ConsoleBase(metaclass=ABC):
 
     SPACE_BLOCKS = {""}
 
-    def __init__(self, title: str = __login_name, color_text: str = "default"):
+    def __init__(self, title: str = __login_name, color_text: str = "default", hook_error=None):
         self.title = title
         self.__color_map = self._color_map  # get copy
         self.text_color = color_text
-        self.__stdout = _Stdout(self)
+        self.__stdout = _Stdout(self, hook_error)
 
     @property
     def non_bmp_supported(self):
@@ -331,7 +339,23 @@ class ConsoleBase(metaclass=ABC):
         self.__stdout.cj_msg(msg, end)
 
     def disable(self):
+        self.title = "Cereja"
         self.__stdout.disable()
+
+
+import os
+import threading
+import time
+import warnings
+from abc import ABCMeta, abstractmethod
+from typing import Sequence, Any, Union, Type, AnyStr
+
+from cereja.arraytools import is_iterable
+from cereja.cj_types import Number
+from cereja.concurrently import TaskList
+from cereja.display import ConsoleBase as Console
+from cereja.unicode import Unicode
+from cereja.utils import percent, estimate, proportional, fill, time_format
 
 
 class State(metaclass=ABCMeta):
@@ -432,7 +456,7 @@ class __StatePercent(State):
     def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> str:
         value = f"{current_percent:.2f}"
-        zeros = f"{'0' * (6 - len(value))}"
+        zeros = f"{' ' * (6 - len(value))}"
         return f"{zeros}{value}%"
 
     def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
@@ -464,7 +488,6 @@ StatePercent = __StatePercent()
 StateTime = __StateTime()
 StateLoading = __StateLoading()
 StateAwaiting = __StateAwaiting()
-Console = ConsoleBase
 console = ConsoleBase()
 
 
@@ -473,6 +496,7 @@ class ProgressBase:
 
     __awaiting_state = StateAwaiting
     __done_unicode = Unicode("\U00002705")
+    __err_unicode = Unicode("\U0000274C")
     __key_map = {
         "loading": StateLoading,
         "time":    StateTime,
@@ -481,41 +505,62 @@ class ProgressBase:
 
     }
 
-    def __init__(self, console_: Console, max_value: int = 100, states=None):
+    def __init__(self, console_: ConsoleBase, max_value: int = 100, states=None):
         self.n_times = 0
         self.started = False
         self._awaiting_update = True
+        self._show = False
         self.console = console_
         self.started_time = None
         self._states = self.default_states
         self.add_state(states)
         self.max_value = max_value
-        self.th_awaiting = self._create_awaiting()
+        self._current_value = 0
+        self.th_root = self._create_progress_service()
+        self._with_context = False
+        self._was_done = False
+        self._err = False
+
+    def _create_progress_service(self):
+        return threading.Thread(name="awaiting", target=self._progress_service)
 
     def __repr__(self):
-        progress_example_view = f"{self._states_view(self.max_value)}"
+        state, _ = self._states_view(self.max_value)
+        progress_example_view = f"{state}"
         state_conf = f"{self.__class__.__name__}{self._parse_states()}"
         return f"{state_conf}\n{self.console.parse(progress_example_view, title='Example States View')}"
 
-    def _create_awaiting(self, time_: float = None):
-        return threading.Thread(name="awaiting", target=self._show_awaiting, args=(time_,))
-
-    def _show_awaiting(self, time_: float = None):
-        n_times = 0
-        time_it = time.time()
-        while self._awaiting_update:
-            self.console.replace_last_msg(self.__awaiting_state.display(0, 0, 0, 0, n_times=n_times))
-            n_times += 1
-            if time_ is not None:
-                if (time.time() - time_it) > time_:
-                    break
-            time.sleep(0.01)
-        self.console.replace_last_msg(self.__awaiting_state.done(0, 0, 0, 0, 0))
+    def hook_error(self, *args, **kwargs):
+        self._err = True
+        if not self._with_context:
+            self.stop()
 
     def _parse_states(self):
         return tuple(map(lambda stt: stt.__class__.__name__, self._states))
 
-    def _states_view(self, for_value: Number):
+    def _get_done_state(self, **kwargs):
+        result = list(map(lambda state: state.done(**kwargs), self._states))
+        done_msg = f"Done! {self.__done_unicode}"
+        done_msg = self.console.format(done_msg, 'green')
+        result.append(done_msg)
+        return result
+
+    def _get_error_state(self):
+        result, _ = self._states_view(self._current_value)
+        error_msg = f"Error! {self.__err_unicode}"
+        error_msg = self.console.format(error_msg, 'red')
+        return f'{result} {error_msg}'
+
+    def _get_state(self, **kwargs):
+        return list(map(lambda state: state.display(**kwargs), self._states))
+
+    def _states_view(self, for_value: Number) -> Tuple[str, bool]:
+        """
+        Return current state and bool
+        bool:
+        :param for_value:
+        :return: current state and bool if is done else False
+        """
         self._awaiting_update = False
         self.n_times += 1
         kwargs = {
@@ -525,36 +570,36 @@ class ProgressBase:
             "time_it":         time.time() - (self.started_time or time.time()),
             "n_times":         self.n_times
         }
-        is_done = False
         if for_value >= self.max_value - 1:
-            is_done = True
+            return ' - '.join(self._get_done_state(**kwargs)), True
 
-            def get_state(state: State):
-                return state.done(**kwargs)
-        else:
-            def get_state(state: State):
-                return state.display(**kwargs)
-        result = TaskList(get_state, self._states).run()
-        if is_done:
-            done_msg = f"Done! {self.__done_unicode}"
-            done_msg = self.console.format(done_msg, 'green')
-            result.append(done_msg)
-        return ' - '.join(result)
+        return ' - '.join(self._get_state(**kwargs)), False
 
-    def add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
-        if state is not None:
-            if not is_iterable(state):
-                state = (state,)
-            self._filter_and_add_state(state)
+    def add_state(self, state: Union[State, Sequence[State]], idx=-1):
+        self._filter_and_add_state(state, idx)
 
-    def _filter_and_add_state(self, state: Union[Type[State], Sequence[Type[State]]]):
+    def _valid_states(self, states: Union[State, Sequence[State]]):
+        if states is not None:
+            if not is_iterable(states):
+                states = (states,)
+            return tuple(map(lambda st: st if isinstance(st, State) else st(), states))
+        return None,
+
+    def _filter_and_add_state(self, state: Union[State, Sequence[State]], index_=-1):
+        state = self._valid_states(state)
         filtered = tuple(
                 filter(
                         lambda stt: stt not in self._states,
                         tuple(state)
                 ))
         if any(filtered):
-            self._states += filtered
+            if index_ == -1:
+                self._states += filtered
+            else:
+                states = list(self._states)
+                for idx, new_state in enumerate(filtered):
+                    states.insert(index_ + idx, new_state)
+                self._states = tuple(states)
             self.console.log(f"Added new states! {filtered}")
 
     @property
@@ -574,8 +619,42 @@ class ProgressBase:
         if not isinstance(max_value, (int, float, complex)):
             raise Exception(f"Current value {max_value} isn't valid.")
         if max_value != self.max_value:
-            self.restart()
             self.max_value = max_value
+
+    def _progress_service(self):
+        last_value = self._current_value
+        n_times = 0
+        while self.started:
+            if (self._awaiting_update and self._current_value != last_value) or not self._show:
+                n_times += 1
+                self.console.replace_last_msg(self.__awaiting_state.display(0, 0, 0, 0, n_times=n_times))
+                time.sleep(0.5)
+            if not self._awaiting_update or self._show:
+                self._show_progress(self._current_value)
+            last_value = self._current_value
+            time.sleep(0.01)
+        if not self._was_done:
+            self._show_progress(self.max_value)
+
+    def _show_progress(self, for_value=None):
+        build_progress, is_done = self._states_view(for_value)
+        end = '\n' if is_done else None
+
+        if self._err:
+            self.console.replace_last_msg((self._get_error_state()))
+        if not self._was_done and not self._err:
+            self.console.replace_last_msg(build_progress, end=end)
+        if is_done:
+            self._show = False
+            self._awaiting_update = True
+            self._was_done = True
+        else:
+            self._was_done = False
+
+    def _update_value(self, value):
+        self._awaiting_update = False
+        self._show = True
+        self._current_value = value
 
     def show_progress(self, for_value, max_value=None):
         """
@@ -589,30 +668,36 @@ class ProgressBase:
         """
         if max_value is not None:
             self.update_max_value(max_value)
-        build_progress = self._states_view(for_value)
-        self.console.replace_last_msg(build_progress)
+        self._update_value(for_value)
+
+    def _reset(self):
+        self._current_value = 0
+        self.n_times = 0
+        self.started_time = None
 
     def start(self):
         if self.started:
-            self.restart()
-        self._awaiting_update = True
+            return
         self.started_time = time.time()
         self.started = True
+        try:
+            self.th_root.start()
+        except:
+            self.th_root.join()
+            self.th_root = self._create_progress_service()
+            self.th_root.start()
         self.console.persist_on_runtime()
-        self.th_awaiting = self._create_awaiting()
-        self.th_awaiting.start()
         self.n_times = 0
 
     def stop(self):
         if self.started:
             self._awaiting_update = False
-            self.th_awaiting.join()
             self.started = False
+            self.th_root.join()
             self.console.disable()
 
     def restart(self):
-        self.stop()
-        self.start()
+        self._reset()
 
     def __len__(self):
         return len(self._states)
@@ -630,15 +715,39 @@ class ProgressBase:
                 raise KeyError(f"Not exists {key}")
         return self._states[slice_]
 
+    def __call__(self, sequence: Sequence) -> "ProgressBase":
+        if not is_iterable(sequence):
+            raise ValueError("Send a sequence.")
+        self.update_max_value(len(sequence))
+        self.sequence = sequence
+        self.started_time = time.time()
+        return self
+
+    def __next__(self):
+        if not self._with_context:
+            self.start()
+        for n, obj in enumerate(self.sequence, start=1):
+            self._update_value(n + 1)
+            yield obj
+        if not self._with_context:
+            self.stop()
+
+    def __iter__(self):
+        return next(self)
+
     def __setitem__(self, key, value):
-        if isinstance(key, int):
-            states_ = list(self._states)
-            states_[key] = value
-            self._states = tuple(states_)
+        value = self._valid_states(value)[0]
+        if isinstance(value, State):
+            value = value
+            if isinstance(key, int):
+                states_ = list(self._states)
+                states_[key] = value
+                self._states = tuple(states_)
         else:
-            raise Exception("isn't possible!")
+            raise ValueError("Please send State object")
 
     def __enter__(self, *args, **kwargs):
+        self._with_context = True
         self.start()
         return self
 
@@ -646,24 +755,6 @@ class ProgressBase:
         if isinstance(exc_val, Exception) and not isinstance(exc_val, DeprecationWarning):
             self.console.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
         self.stop()
-
-
-class ProgressIterator:
-    def __init__(self, progress: ProgressBase, sequence: Sequence[Any]):
-        self.sequence = sequence
-        self.progress = progress
-        self.progress.update_max_value(len(self.sequence))
-
-    def __next__(self):
-        self.progress.start()
-        for n, value in enumerate(self.sequence):
-            if self.progress.started:
-                self.progress.show_progress(for_value=n)
-            yield value
-        self.progress.stop()
-
-    def __iter__(self):
-        return next(self)
 
 
 class Progress(ProgressBase):
@@ -681,7 +772,7 @@ class Progress(ProgressBase):
         if task_name:
             name = task_name
 
-        super().__init__(Console(name), states=states)
+        super().__init__(ConsoleBase(name, hook_error=self.hook_error), states=states)
         self.name = name
         if max_value:
             self.max_value = max_value
@@ -689,22 +780,10 @@ class Progress(ProgressBase):
         if style == "loading":
             self[0] = StateLoading
 
-    def __call__(self, sequence: Sequence[Any]) -> ProgressIterator:
-        """
-        Percentage calculation is based on iterator_ length and current_value:
-        percent = (current_value / len(iterator_)) * 100
-
-        :param sequence: Sequence of anything
-        :return: ProgressIterator
-        """
-        return ProgressIterator(self, sequence)
-
     @staticmethod
-    def prog(sequence: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> ProgressIterator:
-        warnings.warn(f"Will be deprecated in future versions. You can call youself see __call__ method",
-                      DeprecationWarning, 2)
+    def prog(sequence: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> 'Progress':
         prog_ = Progress(task_name=task_name, style=style)
-        return prog_.__call__(sequence)
+        return prog_(sequence)
 
     def update(self, current_value: Number, max_value=None):
         """
@@ -720,22 +799,16 @@ class Progress(ProgressBase):
                       DeprecationWarning, 2)
         self.show_progress(current_value, max_value)
 
+    def __del__(self):
+        if (not self._with_context and self.started) or self.th_root.is_alive():
+            self.stop()
+        elif self.th_root.is_alive():
+            self.stop()
+
 
 if __name__ == "__main__":
-
-    my_progress = Progress("Prefix")
-    data_to_process = range(1, 5000)
-    for i in my_progress(data_to_process):
-        ...
-    # with Progress("Cereja") as prog1:
-    #     for i, k in enumerate(prog1(range(100)), 1):
-    #         time.sleep(1 / i)
-    #
-    #     for i in range(1, 300):
-    #         time.sleep(1 / i)
-    #         prog1.show_progress(i, 300)
-    #     prog1.update_max_value(100)
-    #     for i in range(1, 100):
-    #         time.sleep(1 / i)
-
-    time.sleep(5)
+    progress = Progress("p")
+    for i in progress(range(1, 500)):
+        time.sleep(1 / i)
+    for i in progress(range(1, 500)):
+        time.sleep(1 / i)
