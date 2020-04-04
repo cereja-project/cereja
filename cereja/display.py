@@ -34,15 +34,14 @@ from typing import Sequence, Any, Union, Type, AnyStr
 
 from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
-from cereja.concurrently import TaskList
 from cereja.unicode import Unicode
 from cereja.utils import percent, estimate, proportional, fill, time_format
 
-__all__ = ['Progress']
+__all__ = ['Progress', "StateBase"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
-            "ProgressLoadingSequence"]
+            "ProgressLoadingSequence", "State"]
 
-_include = ["console", "Progress"]
+_include = ["console", "Progress", "StateBase"]
 
 try:
     _LOGIN_NAME = os.getlogin()
