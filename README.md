@@ -1,4 +1,4 @@
-# Cereja
+# Cereja 🍒
 
 ![Python package](https://github.com/jlsneto/cereja/workflows/Python%20package/badge.svg)
 [![PyPI version](https://badge.fury.io/py/cereja.svg)](https://badge.fury.io/py/cereja)
@@ -20,6 +20,8 @@ Not well structured yet :( ... But you can help me !!!
 ## Getting Started DEV
 
 Do not be shy \0/ ... Clone the repository and submit a function or module you made or use some function you liked.
+
+See [CONTRIBUTING](CONTRIBUTING.md) 💻
 
 ### Prerequisites
 
