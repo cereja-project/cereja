@@ -34,11 +34,11 @@ import random
 from typing import Any, Union, Sequence, List, Tuple, Dict
 import logging
 import itertools
-
+from copy import copy
 # Needed init configs
 from logging import config
 
-from cereja.cj_types import PEP440, Number
+from cereja.cj_types import PEP440, Number, ClassType, FunctionType
 
 logger = logging.getLogger(__name__)
 
@@ -214,9 +214,9 @@ def latest_git():
     """
     repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     git_log = subprocess.run(
-        ['git', 'log', '--pretty=format:%ct', '--quiet', '-1', 'HEAD'],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        shell=True, cwd=repo_dir, universal_newlines=True,
+            ['git', 'log', '--pretty=format:%ct', '--quiet', '-1', 'HEAD'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            shell=True, cwd=repo_dir, universal_newlines=True,
     )
     timestamp = git_log.stdout
     try:
@@ -247,6 +247,8 @@ def get_version_pep440_compliant(version: str = None) -> str:
 
     elif version[3] != 'final':
         sub = version_mapping[version[3]] + str(version[4])
+    elif version[3] == 'final' and version[4] != 0:
+        sub = f'-{version[4]}'
 
     return f"{root_version}{sub}"
 
@@ -279,44 +281,171 @@ def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: boo
 
 
 class CjTest(object):
+    """
+
+    """
     __prefix_attr_err = "Attr Check Error {attr_}."
 
-    # todo: can it be another class?
-    __template_test = {"attr": "",
-                       "expected": "",
-                       "callable": False,
-                       "args": (),
-                       "kwargs": {},
-                       }
+    def __init__(self, instance_obj: object):
+        self._prefix_attr = f"__{instance_obj.__class__.__name__}__"
+        self._instance_obj = instance_obj
+        self._set_attr_current_values()
+        self._checks = []
+        self._n_checks_passed = 0
 
-    @classmethod
-    def template_test(cls, instance_obj):
-        attr_collected = []
-        for attr_ in dir(instance_obj):
-            if attr_.startswith('_'):
-                continue
+    @property
+    def checks(self):
+        return self._checks
 
-            obj = getattr(instance_obj, attr_)
-            template_ = cls.__template_test
-            template_["attr"] = attr_
-            template_["callable"] = callable(obj)
-            attr_collected.append(template_)
-        return attr_collected
+    @property
+    def n_checks(self):
+        return len(self._checks)
 
-    @classmethod
-    def test_sanity(cls, instance_obj, attr_, expected_attr__value):
-        assert hasattr(instance_obj, attr_), f"{cls.__prefix_attr_err.format(attr_=attr_)} isn't defined."
-        attr_value = getattr(instance_obj, attr_)
-        msg_err = f"{cls.__prefix_attr_err.format(attr_=attr_)} {repr(attr_value)} != {repr(expected_attr__value)}"
-        assert attr_value == expected_attr__value, msg_err
+    @property
+    def _instance_obj_attrs(self):
+        return filter(lambda attr_: attr_.__contains__('__') is False, dir(self._instance_obj))
 
-    @classmethod
-    def run_test(cls, instance_obj, attrs_with_expected_values):
-        print(f"Test {instance_obj} Sanity started!")
-        for attr_name, expected_value in attrs_with_expected_values:
-            cls.test_sanity(instance_obj, attr_name, expected_value)
-        print("Test ok!")
+    def _get_attr_obj(self, attr_: str):
+        if not hasattr(self._instance_obj, attr_):
+            raise ValueError(f"Attr {attr_} not found.")
+        value = getattr(self._instance_obj, attr_)
+        return self._Attr(attr_, value)
+
+    def _set_attr_current_values(self):
+        for attr_ in self._instance_obj_attrs:
+            attr_obj = self._get_attr_obj(attr_)
+            attr_name = self.parse_attr(attr_)
+            setattr(self, attr_name, attr_obj)
+
+    def parse_attr(self, attr_: str):
+        attr_ = self._valid_attr(attr_)
+        return f'{self._prefix_attr}{attr_}'
+
+    def __getattr__(self, item):
+        return self.__getattribute__(self.parse_attr(item))
+
+    class _Attr(object):
+        def __init__(self, name: str, value: Any):
+            self.name = name
+            self.is_callable = callable(value)
+            self.is_private = self.name.startswith('_')
+            self.is_bool = value is True or value is False
+            self.is_class = isinstance(value, ClassType)
+            self.is_function = isinstance(value, FunctionType)
+            self.class_of_attr = value.__class__
+            self._operator_repr = None
+            self.tests_case = []
+
+        def __repr__(self):
+            return f"{self.name}"
+
+        def __str__(self):
+            return f"{self.name}"
+
+        def __len__(self):
+            return len(self.tests_case)
+
+        def __eq__(self, other):
+            """ ==value """
+            if isinstance(other, self.__class__):
+                return NotImplemented
+            self.tests_case = (other, self.class_of_attr.__eq__, '==')
+            return self
+
+        def __ge__(self, other):
+            """>=value """
+            if isinstance(other, self.__class__):
+                return NotImplemented
+            self.tests_case = (other, self.class_of_attr.__ge__, '>=')
+            return self
+
+        def __gt__(self, other):
+            """>value """
+            if isinstance(other, self.__class__):
+                return NotImplemented
+            self.tests_case = (other, self.class_of_attr.__gt__, '>')
+            return self
+
+        def __le__(self, other):
+            """ <=value. """
+            if isinstance(other, self.__class__):
+                return NotImplemented
+            self.tests_case = (other, self.class_of_attr.__le__, '<=')
+            return self
+
+        def __lt__(self, other):
+            """ <value. """
+            if isinstance(other, self.__class__):
+                return NotImplemented
+            self.tests_case = (other, self.class_of_attr.__lt__, '<')
+            return self
+
+        def __ne__(self, other):
+            """ !=value. """
+            if isinstance(other, self.__class__):
+                return NotImplemented
+            self.tests_case = (other, self.class_of_attr.__ne__, '!=')
+            return self
+
+        def copy(self):
+            return copy(self)
+
+        def run(self, current_value):
+            expected, operator, _ = self.tests_case
+            if not operator(current_value, expected):
+                return [f"{repr(current_value)} not {_} {repr(expected)}"]
+
+            return []
+
+    def _valid_attr(self, attr_name: str):
+        assert hasattr(self._instance_obj,
+                       attr_name), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
+        return attr_name
+
+    def add_check(self, *check_: _Attr):
+        for i in check_:
+            if i not in self._checks:
+                self._checks.append(i)
+
+    def remove_check(self, index: int):
+        self._checks.pop(index)
+
+    def check_attr(self, attr_name: Union[str, _Attr]):
+        if isinstance(attr_name, str):
+            stored_test = self.__getattribute__(self.parse_attr(attr_name))
+        else:
+            stored_test = attr_name
+        current_value = getattr(self._instance_obj, stored_test.name)
+        if not stored_test.is_callable:
+            tests_ = stored_test.run(current_value)
+            passed = not any(tests_)
+            self._n_checks_passed += len(stored_test) - len(tests_)
+            msg_err = f"{self.__prefix_attr_err.format(attr_=repr(stored_test.name))} {' '.join(tests_)}"
+            assert passed, msg_err
+
+    def check_all(self):
+        for attr_ in self._checks:
+            self.check_attr(attr_)
 
 
 if __name__ == '__main__':
-    print(get_version_pep440_compliant())
+    class A:
+        def __init__(self, attr_a, attr_b):
+            self._attr_a = attr_a
+            self._attr_b = attr_b
+
+        def set_attr_a(self, value):
+            self._attr_a = value
+
+        def set_attr_b(self, value):
+            self._attr_b = value
+
+
+    my_instance = A("Cereja Tests", "Is Easy")
+    my_test = CjTest(my_instance)
+    my_instance.set_attr_a("Cereja")
+    my_test.add_check(
+            my_test._attr_a == 'Cereja',
+            my_test._attr_b == "Joab"
+    )
+    my_test.check_all()

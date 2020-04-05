@@ -22,6 +22,7 @@ SOFTWARE.
 """
 
 import os
+import time
 import unittest
 import logging
 
@@ -29,6 +30,8 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
     is_sequence, array_gen, get_shape
 from cereja import filetools
 from cereja import path as cj_path
+from cereja.cj_types import Number
+from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.unicode import Unicode
 from cereja.utils import CjTest
 
@@ -180,26 +183,76 @@ class UnicodeToolTestCase(unittest.TestCase):
         # instance
         instance_ = Unicode.parse(unicode_)
         # expected
-        attrs_with_expected_values = [
-            ("name", "CHERRIES"),
-            ("value", "\U0001F352"),
-            ("decimal", 127826),
-            ("bin", "0b11111001101010010"),
-            ("hex", "0x1f352"),
-            ("oct", '0o371522')
-        ]
+        test_ = CjTest(instance_)
+        test_.add_check(test_.name == "CHERRIES",
+                        test_.value == '\U0001F352',
+                        test_.decimal == 127826,
+                        test_.bin == "0b11111001101010010",
+                        test_.hex == "0x1f352",
+                        test_.oct == '0o371522'
+                        )
 
-        CjTest.run_test(instance_, attrs_with_expected_values)
+        test_.check_all()
 
-        unicode_ = "2705"
-        # instance
-        instance_b = Unicode(unicode_)
-        # expected
-        attrs_with_expected_values = [
-            ("value", "\U00002705")
-        ]
 
-        CjTest.run_test(instance_b, attrs_with_expected_values)
+class ProgressTestCase:
+    def test_sanity(self):
+        progress = Progress("Cereja Progress Test")
+        progress_test = CjTest(progress)
+
+        class MyCustomSate(State):
+
+            def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                        n_times: int) -> str:
+                return "RUNNING"
+
+            def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                     n_times: int) -> str:
+                return "FINISHED"
+
+        state = MyCustomSate()
+        progress.add_state(state)
+
+        progress_test.add_check(
+                progress_test.name == "Cereja Progress Test",
+                progress_test._awaiting_update == True,
+                progress_test._show == False,
+                progress_test.started_time == None,
+                progress_test.states == StateBar, StatePercent, StateTime, state,
+                progress_test._err == False,
+                progress_test._was_done == False,
+                progress_test._with_context == False
+        )
+        progress_test.check_all()
+
+        with Progress("p") as p:
+            test_p = CjTest(p)
+            test_p.add_check(test_p.name == 'p',
+                             test_p._with_context == True,
+                             test_p.started == True,
+                             test_p._awaiting_update == True,
+                             test_p.max_value == 100
+                             )
+            test_p.check_all()
+            time.sleep(3)
+            p_iterator = p(range(1, 500))
+            test_p.add_check(test_p.max_value == 499)
+            test_p.check_all()
+            for i in p_iterator:
+                time.sleep(1 / i)
+                if i == 1:
+                    test_p.add_check(
+                            test_p._awaiting_update == False,
+                            test_p.max_value == 499,
+                            test_p._current_value == 2
+                    )
+                    test_p.check_all()
+
+            for i in p(range(1, 500)):
+                time.sleep(1 / i)
+
+            for i in p(range(1, 500)):
+                time.sleep(1 / i)
 
 
 if __name__ == '__main__':

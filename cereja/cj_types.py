@@ -33,10 +33,14 @@ https://www.python.org/dev/peps/pep-0484/
 def _f(*args, **kwargs): pass
 
 
+class _C: pass
+
+
 T_number = Union[float, int, complex]
 Vector = Iterable[Tuple[T_number, T_number]]
 
-Function = type(_f)
+FunctionType = type(_f)
+ClassType = type(_C)
 
 Number: T_number = T_number
 PEP440 = Tuple[int, int, int, str, int]
