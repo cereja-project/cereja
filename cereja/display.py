@@ -20,14 +20,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import io
-from typing import Tuple
+import os
+import threading
+import time
+import warnings
 import sys
+import random
+from typing import Tuple
 from abc import ABCMeta as ABC
 from typing import List
-import random
+from abc import ABCMeta, abstractmethod
+from typing import Sequence, Any, Union, AnyStr
+
 from cereja.conf import NON_BMP_SUPPORTED
-import os
-from typing import Union
+from cereja.arraytools import is_iterable
+from cereja.cj_types import Number
+from cereja.unicode import Unicode
+from cereja.utils import percent, estimate, proportional, fill, time_format
 
 __all__ = ['Progress', "StateBase"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
@@ -191,7 +200,7 @@ class ConsoleBase(metaclass=ABC):
     SPACE_BLOCKS = {""}
 
     def __init__(self, title: str = __login_name, color_text: str = "default", hook_error=None):
-        self.title = title
+        self.__name = title
         self.__color_map = self._color_map  # get copy
         self.text_color = color_text
         self.__stdout = _Stdout(self, hook_error)
@@ -201,16 +210,17 @@ class ConsoleBase(metaclass=ABC):
         return self.__non_bmp_supported
 
     @property
-    def title(self):
+    def prefix_name(self):
         return self.__name
+
+    def set_prefix(self, value: str):
+        if not isinstance(value, str):
+            raise TypeError("Please send string value.")
+        self.__name = value
 
     @property
     def _color_map(self):
         return self.__color_map.copy()
-
-    @title.setter
-    def title(self, value):
-        self.__name = value
 
     @property
     def text_color(self):
@@ -229,7 +239,7 @@ class ConsoleBase(metaclass=ABC):
 
     def _msg_prefix(self, title=None):
         if title is None:
-            title = self.title
+            title = self.prefix_name
         return f"{self.__msg_prefix} {title} {self.__right_point}"
 
     def translate_non_bmp(self, msg: str):
@@ -339,23 +349,7 @@ class ConsoleBase(metaclass=ABC):
         self.__stdout.cj_msg(msg, end)
 
     def disable(self):
-        self.title = "Cereja"
         self.__stdout.disable()
-
-
-import os
-import threading
-import time
-import warnings
-from abc import ABCMeta, abstractmethod
-from typing import Sequence, Any, Union, Type, AnyStr
-
-from cereja.arraytools import is_iterable
-from cereja.cj_types import Number
-from cereja.concurrently import TaskList
-from cereja.display import ConsoleBase as Console
-from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill, time_format
 
 
 class State(metaclass=ABCMeta):
@@ -507,6 +501,8 @@ class ProgressBase:
 
     def __init__(self, console_: ConsoleBase, max_value: int = 100, states=None):
         self.n_times = 0
+        self.__name = self.set_name("Cereja Progress Tool")
+        self.__task_count = 0
         self.started = False
         self._awaiting_update = True
         self._show = False
@@ -520,6 +516,15 @@ class ProgressBase:
         self._with_context = False
         self._was_done = False
         self._err = False
+
+    @property
+    def name(self):
+        return self.__name
+
+    def set_name(self, value: str):
+        if not isinstance(value, str):
+            raise TypeError("Please send string.")
+        self.__name = value
 
     def _create_progress_service(self):
         return threading.Thread(name="awaiting", target=self._progress_service)
@@ -561,7 +566,6 @@ class ProgressBase:
         :param for_value:
         :return: current state and bool if is done else False
         """
-        self._awaiting_update = False
         self.n_times += 1
         kwargs = {
             "current_value":   for_value,
@@ -577,6 +581,11 @@ class ProgressBase:
 
     def add_state(self, state: Union[State, Sequence[State]], idx=-1):
         self._filter_and_add_state(state, idx)
+
+    def remove_state(self, idx):
+        states = list(self._states)
+        states.pop(idx)
+        self._states = tuple(states)
 
     def _valid_states(self, states: Union[State, Sequence[State]]):
         if states is not None:
@@ -637,6 +646,7 @@ class ProgressBase:
             self._show_progress(self.max_value)
 
     def _show_progress(self, for_value=None):
+        self._awaiting_update = False
         build_progress, is_done = self._states_view(for_value)
         end = '\n' if is_done else None
 
@@ -715,12 +725,17 @@ class ProgressBase:
                 raise KeyError(f"Not exists {key}")
         return self._states[slice_]
 
-    def __call__(self, sequence: Sequence) -> "ProgressBase":
+    def __call__(self, sequence: Sequence, task_name=None) -> "ProgressBase":
         if not is_iterable(sequence):
             raise ValueError("Send a sequence.")
         self.update_max_value(len(sequence))
         self.sequence = sequence
+        if task_name is not None:
+            self.console.set_prefix(f"{self.name}({task_name})")
+        if self._with_context and task_name is None:
+            self.console.set_prefix(f"{self.name}(iter-{self.__task_count})")
         self.started_time = time.time()
+        self.__task_count += 1
         return self
 
     def __next__(self):
@@ -731,6 +746,8 @@ class ProgressBase:
             yield obj
         if not self._with_context:
             self.stop()
+        self.console.set_prefix(self.name)
+        self.sequence = ()
 
     def __iter__(self):
         return next(self)
@@ -747,6 +764,8 @@ class ProgressBase:
             raise ValueError("Please send State object")
 
     def __enter__(self, *args, **kwargs):
+        if hasattr(self, 'sequence'):
+            raise ChildProcessError("Dont use progress instance on with statement.")
         self._with_context = True
         self.start()
         return self
@@ -755,6 +774,8 @@ class ProgressBase:
         if isinstance(exc_val, Exception) and not isinstance(exc_val, DeprecationWarning):
             self.console.error(f'{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}')
         self.stop()
+        self.__task_count = 0
+        self._with_context = False
 
 
 class Progress(ProgressBase):
@@ -773,12 +794,14 @@ class Progress(ProgressBase):
             name = task_name
 
         super().__init__(ConsoleBase(name, hook_error=self.hook_error), states=states)
-        self.name = name
+
         if max_value:
             self.max_value = max_value
 
         if style == "loading":
             self[0] = StateLoading
+
+        self.set_name(name)
 
     @staticmethod
     def prog(sequence: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> 'Progress':
@@ -807,8 +830,4 @@ class Progress(ProgressBase):
 
 
 if __name__ == "__main__":
-    progress = Progress("p")
-    for i in progress(range(1, 500)):
-        time.sleep(1 / i)
-    for i in progress(range(1, 500)):
-        time.sleep(1 / i)
+    pass

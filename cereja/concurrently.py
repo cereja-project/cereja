@@ -30,7 +30,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 import logging
 from typing import Sequence, Any
 
-from cereja.cj_types import Function
+from cereja.cj_types import FunctionType
 from cereja.arraytools import is_sequence
 from cereja.decorators import time_exec
 
@@ -245,8 +245,8 @@ class TaskList:
 
     """
 
-    def __init__(self, func: Function, sequence: Sequence[Any]):
-        if not isinstance(func, Function):
+    def __init__(self, func: FunctionType, sequence: Sequence[Any]):
+        if not isinstance(func, FunctionType):
             raise TypeError(f"{func} is not a function.")
 
         if not is_sequence(sequence):
