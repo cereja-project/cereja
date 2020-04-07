@@ -75,7 +75,7 @@ class Unicode(object):
         if isinstance(other, int):
             other = self.parse(other)
             return self.parse(self.decimal - other.decimal)
-        raise TypeError("Isn't possible. You can sub with string, integer or Unicode types")
+        raise TypeError("Isn't possible. You can sub with integer type")
 
     @classmethod
     def __parse_ord(cls, value: str) -> int:
