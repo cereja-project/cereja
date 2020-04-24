@@ -24,7 +24,7 @@ SOFTWARE.
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Union, List, Iterator, Tuple, Sequence, Any, Optional
+from typing import Union, List, Iterator, Tuple, Sequence, Any
 
 from cereja.arraytools import is_sequence, is_iterable
 from cereja.display import Progress
@@ -87,12 +87,15 @@ class FileBase(metaclass=ABCMeta):
         if content_file is None:
             content_file = []
         self.__path = normalize_path(path_)
-        self.__lines = self.normalize_data(content_file)
+        self._lines = self.normalize_data(content_file)
         if not self.is_empty:
             line_sep_ = self.parse_line_sep(content_file[0]) or self._default_end_line
             self.set_line_sep(line_sep_)
         else:
             self._line_sep = self._default_end_line
+        self._current_change = 0
+        self._max_history_length = 50
+        self._change_history = []
 
     @classmethod
     def normalize_unix_line_sep(cls, content: str) -> str:
@@ -100,32 +103,68 @@ class FileBase(metaclass=ABCMeta):
                                cls._default_end_line).replace(cls._str_line_sep_map['CR'],
                                                               cls._default_end_line)
 
+    def __setattr__(self, key, value):
+        object.__setattr__(self, key, value)
+        if hasattr(self, '_change_history') and key not in (
+                '_current_change', '_max_history_length', '_change_history'):
+            self._set_change(key, object.__getattribute__(self, key))  # append last_value of attr
+
+    @property
+    def history(self):
+        return self._change_history
+
+    def _set_change(self, key, value):
+        self._change_history = self._change_history[:self._current_change + 1]
+        if len(self._change_history) >= self._max_history_length:
+            self._change_history.pop(0)
+        self._change_history.append((key, value))
+        self._current_change = len(self._change_history) - 1
+
+    def _select_change(self, index):
+        try:
+            object.__setattr__(self, *self._change_history[self._current_change + index])
+            self._current_change += index
+            logger.warning(f'You selected amendment {self._current_change + 1}')
+        except IndexError:
+            logger.info("It's not possible")
+
+    def undo(self):
+        if self._current_change > 0:
+            index = -2 if self._current_change == len(self._change_history) else -1
+            self._select_change(index)
+
+    def redo(self):
+        if self._current_change < len(self._change_history):
+            self._select_change(+1)
+
     @classmethod
     def normalize_data(cls, data: Any) -> Union[List[str], Any]:
         if not data:
             return data
-        if is_iterable(data) and data:
+        if is_iterable(data) or isinstance(data, int):
             if is_sequence(data):
                 data = [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]
             elif isinstance(data, str):
                 data = data.splitlines()
+            elif isinstance(data, int):
+                data = str(data)
             return data
         else:
             raise ValueError(f"{data} Invalid value. Send other ")
 
     @property
     def lines(self) -> List[str]:
-        return self.__lines
+        return self._lines
 
     @property
     def content_str(self):
-        return f'{self._line_sep}'.join(self.__lines)
+        return f'{self._line_sep}'.join(self._lines)
 
     @property
     def content_file(self) -> List[str]:
         warnings.warn(f"This property will be deprecated in future versions. "
                       "you can use property `File.lines`", DeprecationWarning, 2)
-        return self.__lines
+        return self._lines
 
     @classmethod
     def parse_line_sep(cls, line_sep_: str) -> Union[str, None]:
@@ -166,7 +205,7 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def n_lines(self):
-        return len(self.__lines)
+        return len(self._lines)
 
     @property
     def is_empty(self):
@@ -252,9 +291,10 @@ class FileBase(metaclass=ABCMeta):
         data = self.normalize_data(data)
         if is_sequence(data):
             for pos, i in enumerate(data, line):
-                self.__lines.insert(pos, i)
+                self._lines.insert(pos, i)
         if isinstance(data, str):
-            self.__lines.insert(line, data)
+            self._lines.insert(line, data)
+        self._set_change('_lines', self.lines.copy())
 
     def _save(self, encoding='utf-8', **kwargs):
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
