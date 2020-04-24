@@ -145,7 +145,7 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertEqual(cj_file_instance.file_name, expected_values[1])
         self.assertEqual(cj_file_instance.dir_name, expected_values[2])
         self.assertEqual(cj_file_instance.is_empty, expected_values[3])
-        self.assertEqual(cj_file_instance.content_str, expected_values[4])
+        self.assertEqual(cj_file_instance.string, expected_values[4])
         self.assertEqual(cj_file_instance.n_lines, expected_values[5])
 
     def test_file_obj(self):

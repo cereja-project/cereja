@@ -33,6 +33,7 @@ import logging
 from cereja.path import normalize_path
 from cereja.utils import invert_dict
 import copy
+
 logger = logging.Logger(__name__)
 
 _exclude = ["_auto_ident_py", "FileBase", "_walk_dirs_and_replace"]
@@ -115,7 +116,7 @@ class FileBase(metaclass=ABCMeta):
         return self._change_history
 
     def _set_change(self, key, value):
-        self._change_history = self._change_history[:self._current_change+1]
+        self._change_history = self._change_history[:self._current_change + 1]
         if len(self._change_history) >= self._max_history_length:
             self._change_history.pop(0)
         self._change_history.append((key, value))
@@ -160,7 +161,13 @@ class FileBase(metaclass=ABCMeta):
         return self._lines
 
     @property
+    def string(self) -> str:
+        return f'{self._new_line_sep}'.join(self._lines)
+
+    @property
     def content_str(self):
+        warnings.warn(f"This property will be deprecated in future versions. "
+                      "you can use property `File.string`", DeprecationWarning, 2)
         return f'{self._new_line_sep}'.join(self._lines)
 
     @property
@@ -246,7 +253,7 @@ class FileBase(metaclass=ABCMeta):
         return self.__sizeof__() / self.__size_map[unit]
 
     def __sizeof__(self):
-        return self.content_str.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
+        return self.string.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
 
     @classmethod
     def read(cls, path_: str, encoding='utf-8', **kwargs):
@@ -301,7 +308,7 @@ class FileBase(metaclass=ABCMeta):
 
     def _save(self, encoding='utf-8', **kwargs):
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
-            fp.write(self.content_str)
+            fp.write(self.string)
 
     @abstractmethod
     def save(self, path_: Union[str, None]):
