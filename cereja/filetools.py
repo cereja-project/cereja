@@ -306,6 +306,10 @@ class FileBase(metaclass=ABCMeta):
             self._lines.insert(line, data)
         self._set_change('_lines', self._lines.copy())
 
+    def remove(self, line: int):
+        self._lines.pop(line)
+        self._set_change('_lines', self._lines.copy())
+
     def _save(self, encoding='utf-8', **kwargs):
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
             fp.write(self.string)
@@ -320,6 +324,18 @@ class FileBase(metaclass=ABCMeta):
     def __repr__(self):
         return f'{self.__str__()} {self.size(unit="KB")} KB'
 
+    def __getitem__(self, item) -> str:
+        return self._lines[item]
+
+    def __setitem__(self, key, value):
+        if isinstance(key, Tuple):
+            raise ValueError("invalid assignment.")
+        self.insert(key, value)
+
+    def __iter__(self):
+        for i in self._lines:
+            yield i
+            
 
 class File(FileBase):
     """
