@@ -167,11 +167,29 @@ class FileToolsTestCase(unittest.TestCase):
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
 
-    def test_insertion_content(self):
+    def get_file(self):
         content_file = [1, 2, 3]
         file = filetools.File(os.path.dirname(__file__), content_file)
+        return file
+
+    def test_insertion_content(self):
+        file = self.get_file()
         file.insert(3, [4, 5])
         self.assertEqual(file.lines, ["1", "2", "3", "4", "5"])
+
+    def test_prevent_data_loss(self):
+        file = self.get_file()
+        original_lines = file.lines.copy()
+        file.insert(0, [1, 3, 4, 5])
+        file.insert(0, 2)
+        file.undo()
+        file.undo()
+        self.assertEqual(file.lines, original_lines)
+        file.redo()
+        self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
+        file.insert(0, [1])
+        file.undo()
+        self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
 
 
 class UnicodeToolTestCase(unittest.TestCase):

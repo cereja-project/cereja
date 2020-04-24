@@ -32,7 +32,7 @@ import logging
 
 from cereja.path import normalize_path
 from cereja.utils import invert_dict
-
+import copy
 logger = logging.Logger(__name__)
 
 _exclude = ["_auto_ident_py", "FileBase", "_walk_dirs_and_replace"]
@@ -96,6 +96,7 @@ class FileBase(metaclass=ABCMeta):
         self._current_change = 0
         self._max_history_length = 50
         self._change_history = []
+        self._set_change('_lines', self.lines.copy())
 
     @classmethod
     def normalize_unix_line_sep(cls, content: str) -> str:
@@ -114,15 +115,17 @@ class FileBase(metaclass=ABCMeta):
         return self._change_history
 
     def _set_change(self, key, value):
-        self._change_history = self._change_history[:self._current_change + 1]
+        self._change_history = self._change_history[:self._current_change+1]
         if len(self._change_history) >= self._max_history_length:
             self._change_history.pop(0)
         self._change_history.append((key, value))
-        self._current_change = len(self._change_history) - 1
+        self._current_change = len(self._change_history)
 
     def _select_change(self, index):
         try:
-            object.__setattr__(self, *self._change_history[self._current_change + index])
+
+            key, value = self._change_history[self._current_change + index]
+            object.__setattr__(self, key, copy.copy(value))
             self._current_change += index
             logger.warning(f'You selected amendment {self._current_change + 1}')
         except IndexError:
@@ -142,7 +145,7 @@ class FileBase(metaclass=ABCMeta):
         if not data:
             return data
         if is_iterable(data) or isinstance(data, int):
-            if is_sequence(data):
+            if is_sequence(data) and not isinstance(data, int):
                 data = [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]
             elif isinstance(data, str):
                 data = data.splitlines()
@@ -287,14 +290,14 @@ class FileBase(metaclass=ABCMeta):
                             logger.error(f'Error reading the file {file_name}: {err}')
             yield os.path.basename(dir_name), len(files_), files_
 
-    def insert(self, line: int, data: Union[Sequence, str]):
+    def insert(self, line: int, data: Union[Sequence, str, int]):
         data = self.normalize_data(data)
         if is_sequence(data):
             for pos, i in enumerate(data, line):
                 self._lines.insert(pos, i)
         if isinstance(data, str):
             self._lines.insert(line, data)
-        self._set_change('_lines', self.lines.copy())
+        self._set_change('_lines', self._lines.copy())
 
     def _save(self, encoding='utf-8', **kwargs):
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
