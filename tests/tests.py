@@ -141,40 +141,37 @@ class UtilsTestCase(unittest.TestCase):
 class FileToolsTestCase(unittest.TestCase):
 
     def battery_tests(self, cj_file_instance, expected_values):
-        self.assertEqual(cj_file_instance.line_sep, expected_values[0])
+        self.assertEqual(cj_file_instance.line_sep_repr, expected_values[0])
         self.assertEqual(cj_file_instance.file_name, expected_values[1])
         self.assertEqual(cj_file_instance.dir_name, expected_values[2])
         self.assertEqual(cj_file_instance.is_empty, expected_values[3])
         self.assertEqual(cj_file_instance.content_str, expected_values[4])
         self.assertEqual(cj_file_instance.n_lines, expected_values[5])
-        self.assertEqual(cj_file_instance.size("KB"), expected_values[6])
 
     def test_file_obj(self):
         content_file = [1, 2, 3]
         file = filetools.File('cereja/teste.py', content_file)
-        normalized_data = ''.join(filetools.File.normalize_data(content_file, "LF"))
+        normalized_data = f'{filetools.LF}'.join(filetools.File.normalize_data(content_file))
         expected_values = ["LF", "teste.py", 'cereja', False, normalized_data, len(content_file), 0.006]
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CRLF", save=False)
-        normalized_data = ''.join(filetools.File.normalize_data(content_file, "CRLF"))
+        normalized_data = f'{filetools.CRLF}'.join(filetools.File.normalize_data(content_file))
         expected_values[0] = "CRLF"
         expected_values[4] = normalized_data
-        expected_values[6] = 0.009
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CR", save=False)
-        normalized_data = ''.join(filetools.File.normalize_data(content_file, "CR"))
+        normalized_data = f'{filetools.CR}'.join(filetools.File.normalize_data(content_file))
         expected_values[0] = "CR"
         expected_values[4] = normalized_data
-        expected_values[6] = 0.006
         self.battery_tests(file, expected_values)
 
     def test_insertion_content(self):
         content_file = [1, 2, 3]
         file = filetools.File(os.path.dirname(__file__), content_file)
         file.insert(3, [4, 5])
-        self.assertEqual(file.content_file, ["1\n", "2\n", "3\n", "4\n", "5\n"])
+        self.assertEqual(file.lines, ["1", "2", "3", "4", "5"])
 
 
 class UnicodeToolTestCase(unittest.TestCase):
