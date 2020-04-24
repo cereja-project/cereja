@@ -56,14 +56,14 @@ the classic Mac OS, MIT Lisp Machine and OS-9
 CR = "\r"
 
 # UNIX is DEFAULT
-DEFAULT_END_LINE = LF
+DEFAULT_NEW_LINE_SEP = LF
 
-_LINE_SEP_MAP = {
+_NEW_LINE_SEP_MAP = {
     CRLF: "CRLF",
     LF:   "LF",
     CR:   "CR"
 }
-_STR_LINE_SEP_MAP = invert_dict(_LINE_SEP_MAP)
+_STR_NEW_LINE_SEP_MAP = invert_dict(_NEW_LINE_SEP_MAP)
 
 
 class FileBase(metaclass=ABCMeta):
@@ -77,9 +77,9 @@ class FileBase(metaclass=ABCMeta):
                   "TB": 1.e12
                   }
 
-    _line_sep_map = _LINE_SEP_MAP.copy()
-    _str_line_sep_map = _STR_LINE_SEP_MAP.copy()
-    _default_end_line = DEFAULT_END_LINE
+    _new_line_sep_map = _NEW_LINE_SEP_MAP.copy()
+    _str_new_line_sep_map = _STR_NEW_LINE_SEP_MAP.copy()
+    _default_new_line_sep = DEFAULT_NEW_LINE_SEP
     _dont_read = [".pyc"]
     _ignore_dir = [".git"]
 
@@ -89,10 +89,10 @@ class FileBase(metaclass=ABCMeta):
         self.__path = normalize_path(path_)
         self._lines = self.normalize_data(content_file)
         if not self.is_empty:
-            line_sep_ = self.parse_line_sep(content_file[0]) or self._default_end_line
-            self.set_line_sep(line_sep_)
+            line_sep_ = self.parse_new_line_sep(content_file[0]) or self._default_new_line_sep
+            self.set_new_line_sep(line_sep_)
         else:
-            self._line_sep = self._default_end_line
+            self._new_line_sep = self._default_new_line_sep
         self._current_change = 0
         self._max_history_length = 50
         self._change_history = []
@@ -100,9 +100,9 @@ class FileBase(metaclass=ABCMeta):
 
     @classmethod
     def normalize_unix_line_sep(cls, content: str) -> str:
-        return content.replace(cls._str_line_sep_map['CRLF'],
-                               cls._default_end_line).replace(cls._str_line_sep_map['CR'],
-                                                              cls._default_end_line)
+        return content.replace(cls._str_new_line_sep_map['CRLF'],
+                               cls._default_new_line_sep).replace(cls._str_new_line_sep_map['CR'],
+                                                                  cls._default_new_line_sep)
 
     def __setattr__(self, key, value):
         object.__setattr__(self, key, value)
@@ -161,7 +161,7 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def content_str(self):
-        return f'{self._line_sep}'.join(self._lines)
+        return f'{self._new_line_sep}'.join(self._lines)
 
     @property
     def content_file(self) -> List[str]:
@@ -170,26 +170,26 @@ class FileBase(metaclass=ABCMeta):
         return self._lines
 
     @classmethod
-    def parse_line_sep(cls, line_sep_: str) -> Union[str, None]:
-        if is_iterable(line_sep_):
-            for ln in cls._line_sep_map:
-                if ln in line_sep_:
+    def parse_new_line_sep(cls, line: str) -> Union[str, None]:
+        if is_iterable(line):
+            for ln in cls._new_line_sep_map:
+                if ln in line:
                     return ln
 
-        if line_sep_ in cls._str_line_sep_map:
-            return cls._str_line_sep_map[line_sep_]
+        if line in cls._str_new_line_sep_map:
+            return cls._str_new_line_sep_map[line]
         return None
 
     @property
-    def line_sep(self):
-        return self._line_sep
+    def new_line_sep(self) -> str:
+        return self._new_line_sep
 
-    def set_line_sep(self, line_sep_: str):
-        self._line_sep = self.parse_line_sep(line_sep_) or self._default_end_line
+    def set_new_line_sep(self, new_line_: str):
+        self._new_line_sep = self.parse_new_line_sep(new_line_) or self._default_new_line_sep
 
     @property
-    def line_sep_repr(self):
-        return self._line_sep_map[self._line_sep]
+    def new_line_sep_repr(self):
+        return self._new_line_sep_map[self._new_line_sep]
 
     def set_path(self, path_):
         self.__path = normalize_path(path_)
@@ -328,11 +328,11 @@ class File(FileBase):
         return self
 
     def replace_file_sep(self, new, save: bool = True):
-        new = self.parse_line_sep(new)
+        new = self.parse_new_line_sep(new)
         if new is None:
             raise ValueError(f"{new} is'nt valid.")
         try:
-            self.set_line_sep(new)
+            self.set_new_line_sep(new)
             if save is True:
                 self._save()
         except UnicodeDecodeError:
@@ -359,8 +359,8 @@ def _walk_dirs_and_replace(dir_path, new, ext_in: list = None):
                     prog.update(i)
 
 
-def convert_line_sep(path_: str, line_sep: str, ext_in: list = None):
-    line_sep = File.parse_line_sep(line_sep)
+def convert_new_line_sep(path_: str, line_sep: str, ext_in: list = None):
+    line_sep = File.parse_new_line_sep(line_sep)
 
     if line_sep is None:
         raise ValueError(f"The value sent {line_sep} is not valid.")
@@ -378,7 +378,7 @@ def crlf_to_lf(path_: str, ext_in: list = None):
     :param ext_in:
     :return:
     """
-    convert_line_sep(path_, LF, ext_in=ext_in)
+    convert_new_line_sep(path_, LF, ext_in=ext_in)
 
 
 def lf_to_crlf(path_: str, ext_in: list = None):
@@ -387,19 +387,19 @@ def lf_to_crlf(path_: str, ext_in: list = None):
     :param ext_in:
     :return:
     """
-    convert_line_sep(path_, CRLF, ext_in=ext_in)
+    convert_new_line_sep(path_, CRLF, ext_in=ext_in)
 
 
 def to_lf(path_: str):
-    convert_line_sep(path_, LF)
+    convert_new_line_sep(path_, LF)
 
 
 def to_cr(path_: str):
-    convert_line_sep(path_, CR)
+    convert_new_line_sep(path_, CR)
 
 
 def to_crlf(path_: str):
-    convert_line_sep(path_, CRLF)
+    convert_new_line_sep(path_, CRLF)
 
 
 def _auto_ident_py(path: str):

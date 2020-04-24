@@ -141,7 +141,7 @@ class UtilsTestCase(unittest.TestCase):
 class FileToolsTestCase(unittest.TestCase):
 
     def battery_tests(self, cj_file_instance, expected_values):
-        self.assertEqual(cj_file_instance.line_sep_repr, expected_values[0])
+        self.assertEqual(cj_file_instance.new_line_sep_repr, expected_values[0])
         self.assertEqual(cj_file_instance.file_name, expected_values[1])
         self.assertEqual(cj_file_instance.dir_name, expected_values[2])
         self.assertEqual(cj_file_instance.is_empty, expected_values[3])
