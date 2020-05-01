@@ -22,7 +22,9 @@ SOFTWARE.
 """
 
 import os
-from typing import Union, List, Iterator, Tuple, Sequence, Any, Optional
+import warnings
+from abc import ABCMeta, abstractmethod
+from typing import Union, List, Iterator, Tuple, Sequence, Any
 
 from cereja.arraytools import is_sequence, is_iterable
 from cereja.display import Progress
@@ -30,6 +32,7 @@ import logging
 
 from cereja.path import normalize_path
 from cereja.utils import invert_dict
+import copy
 
 logger = logging.Logger(__name__)
 
@@ -54,123 +57,157 @@ the classic Mac OS, MIT Lisp Machine and OS-9
 CR = "\r"
 
 # UNIX is DEFAULT
-DEFAULT_END_LINE = LF
+DEFAULT_NEW_LINE_SEP = LF
 
-_LINE_SEP_MAP = {
+_NEW_LINE_SEP_MAP = {
     CRLF: "CRLF",
-    LF: "LF",
-    CR: "CR"
+    LF:   "LF",
+    CR:   "CR"
 }
-_STR_LINE_SEP_MAP = invert_dict(_LINE_SEP_MAP)
+_STR_NEW_LINE_SEP_MAP = invert_dict(_NEW_LINE_SEP_MAP)
 
 
-class FileBase(object):
+class FileBase(metaclass=ABCMeta):
     """
     High-level API for creating and manipulating files
     """
-    __size_map = {"B": 1.e0,
-                 "KB": 1.e3,
-                 "MB": 1.e6,
-                 "GB": 1.e9,
-                 "TB": 1.e12
-                 }
+    __size_map = {"B":  1.e0,
+                  "KB": 1.e3,
+                  "MB": 1.e6,
+                  "GB": 1.e9,
+                  "TB": 1.e12
+                  }
 
-    _line_sep_map = _LINE_SEP_MAP.copy()
-    _str_line_sep_map = _STR_LINE_SEP_MAP.copy()
-    _default_end_line = DEFAULT_END_LINE
+    _new_line_sep_map = _NEW_LINE_SEP_MAP.copy()
+    _str_new_line_sep_map = _STR_NEW_LINE_SEP_MAP.copy()
+    _default_new_line_sep = DEFAULT_NEW_LINE_SEP
     _dont_read = [".pyc"]
     _ignore_dir = [".git"]
 
-    def __init__(self, path_: str, content_file: Union[Sequence, str, Any]):
-        self.__line_sep = None
-        self.path_ = normalize_path(path_)
-        self.__lines = self.normalize_data(content_file)
-        if self.is_empty:
-            self.line_sep = self._default_end_line
-            self.content_file = [self._default_end_line]
+    def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
+        if content_file is None:
+            content_file = []
+        self.__path = normalize_path(path_)
+        self._lines = self.normalize_data(content_file)
+        if not self.is_empty:
+            line_sep_ = self.parse_new_line_sep(content_file[0]) or self._default_new_line_sep
+            self.set_new_line_sep(line_sep_)
         else:
-            line_sep_ = self.parse_line_sep(self.__lines[0])
-            if line_sep_ is None:
-                self.line_sep = self._default_end_line
-            else:
-                self.line_sep = line_sep_
-
-        self.__lock = True
-
-    @classmethod
-    def _add_line_sep(cls, data: List, line_sep_):
-        if line_sep_ is None:
-            line_sep_ = cls._default_end_line
-        line_sep_ = cls.parse_line_sep(line_sep_)
-        data_has_end_line = bool(cls.parse_line_sep(data[0]))
-        if not data_has_end_line:
-            return list(map(lambda line: line + f'{line_sep_}', data))
-        elif data_has_end_line:
-            logger.info("It has already been applied.")
-        return data
+            self._new_line_sep = self._default_new_line_sep
+        self._current_change = 0
+        self._max_history_length = 50
+        self._change_history = []
+        self._set_change('_lines', self.lines.copy())
 
     @classmethod
     def normalize_unix_line_sep(cls, content: str) -> str:
-        return content.replace(cls._str_line_sep_map['CRLF'],
-                               cls._default_end_line).replace(cls._str_line_sep_map['CR'],
-                                                              cls._default_end_line)
+        return content.replace(cls._str_new_line_sep_map['CRLF'],
+                               cls._default_new_line_sep).replace(cls._str_new_line_sep_map['CR'],
+                                                                  cls._default_new_line_sep)
+
+    def __setattr__(self, key, value):
+        object.__setattr__(self, key, value)
+        if hasattr(self, '_change_history') and key not in (
+                '_current_change', '_max_history_length', '_change_history'):
+            self._set_change(key, object.__getattribute__(self, key))  # append last_value of attr
+
+    @property
+    def history(self):
+        return self._change_history
+
+    def _set_change(self, key, value):
+        self._change_history = self._change_history[:self._current_change + 1]
+        if len(self._change_history) >= self._max_history_length:
+            self._change_history.pop(0)
+        self._change_history.append((key, value))
+        self._current_change = len(self._change_history)
+
+    def _select_change(self, index):
+        try:
+
+            key, value = self._change_history[self._current_change + index]
+            object.__setattr__(self, key, copy.copy(value))
+            self._current_change += index
+            logger.warning(f'You selected amendment {self._current_change + 1}')
+        except IndexError:
+            logger.info("It's not possible")
+
+    def undo(self):
+        if self._current_change > 0:
+            index = -2 if self._current_change == len(self._change_history) else -1
+            self._select_change(index)
+
+    def redo(self):
+        if self._current_change < len(self._change_history):
+            self._select_change(+1)
 
     @classmethod
-    def normalize_data(cls, data: Any, line_sep_=None):
+    def normalize_data(cls, data: Any) -> Union[List[str], Any]:
         if not data:
-            return ''
-        if is_iterable(data) and data:
-            if is_sequence(data):
-                data = list(map(str, data))
+            return data
+        if is_iterable(data) or isinstance(data, int):
+            if is_sequence(data) and not isinstance(data, int):
+                data = [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]
             elif isinstance(data, str):
-                data = data.splitlines(keepends=True)
-            return cls._add_line_sep(data, line_sep_)
+                data = data.splitlines()
+            elif isinstance(data, int):
+                data = str(data)
+            return data
         else:
             raise ValueError(f"{data} Invalid value. Send other ")
 
     @property
-    def content_file(self) -> List[str]:
-        return self.__lines
+    def lines(self) -> List[str]:
+        return self._lines
 
-    @content_file.setter
-    def content_file(self, lines: Sequence[str]):
-        if hasattr(self, "__lock"):
-            if self.__lock:
-                raise AttributeError("Unable to apply content lines again, use another method.")
-        self.__lines = self.normalize_data(lines)
+    @property
+    def string(self) -> str:
+        return f'{self._new_line_sep}'.join(self._lines)
+
+    @property
+    def content_str(self):
+        warnings.warn(f"This property will be deprecated in future versions. "
+                      "you can use property `File.string`", DeprecationWarning, 2)
+        return f'{self._new_line_sep}'.join(self._lines)
+
+    @property
+    def content_file(self) -> List[str]:
+        warnings.warn(f"This property will be deprecated in future versions. "
+                      "you can use property `File.lines`", DeprecationWarning, 2)
+        return self._lines
 
     @classmethod
-    def parse_line_sep(cls, line_sep_: str) -> Union[str, None]:
-        if is_iterable(line_sep_):
-            for ln in cls._line_sep_map:
-                if ln in line_sep_:
+    def parse_new_line_sep(cls, line: str) -> Union[str, None]:
+        if is_iterable(line):
+            for ln in cls._new_line_sep_map:
+                if ln in line:
                     return ln
 
-        if line_sep_ in cls._str_line_sep_map:
-            return cls._str_line_sep_map[line_sep_]
-
-        logger.info("unknown end line.")
+        if line in cls._str_new_line_sep_map:
+            return cls._str_new_line_sep_map[line]
         return None
 
     @property
-    def line_sep(self):
-        return self._line_sep_map[self.__line_sep]
+    def new_line_sep(self) -> str:
+        return self._new_line_sep
 
-    @line_sep.setter
-    def line_sep(self, line_sep_: str):
-        self.__line_sep = self.parse_line_sep(line_sep_) or self._default_end_line
+    def set_new_line_sep(self, new_line_: str):
+        self._new_line_sep = self.parse_new_line_sep(new_line_) or self._default_new_line_sep
 
     @property
-    def path_(self):
-        return self.__path
+    def new_line_sep_repr(self):
+        return self._new_line_sep_map[self._new_line_sep]
 
-    @path_.setter
-    def path_(self, p: str):
-        self.__path = p
+    def set_path(self, path_):
+        self.__path = normalize_path(path_)
+
+    @property
+    def path(self):
+        return self.__path
 
     @property
     def file_name(self):
-        return os.path.basename(self.path_)
+        return os.path.basename(self.__path)
 
     @property
     def file_name_without_ext(self):
@@ -178,7 +215,7 @@ class FileBase(object):
 
     @property
     def n_lines(self):
-        return len(self.__lines)
+        return len(self._lines)
 
     @property
     def is_empty(self):
@@ -190,15 +227,11 @@ class FileBase(object):
 
     @property
     def dir_path(self):
-        return os.path.dirname(self.path_)
+        return os.path.dirname(self.__path)
 
     @property
     def is_link(self):
-        return os.path.islink(self.path_)
-
-    @property
-    def content_str(self):
-        return ''.join(self.__lines)
+        return os.path.islink(self.__path)
 
     @property
     def ext(self):
@@ -209,7 +242,7 @@ class FileBase(object):
         returns the size that the file occupies on the disk.
 
         :param unit: choose anyone in ('B', 'KB', 'MB', 'GB', 'TB')
-        
+
         """
         assert isinstance(unit, str), f"expected {str.__name__} not {type(unit).__name__}."
 
@@ -220,17 +253,10 @@ class FileBase(object):
         return self.__sizeof__() / self.__size_map[unit]
 
     def __sizeof__(self):
-        return self.content_str.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
-
-    def _replace_file_sep(self, new):
-        if new == self.__line_sep:
-            return
-        self.__lines = self.normalize_unix_line_sep(self.content_str).replace(self._default_end_line, new).splitlines(
-            keepends=True)
-        self.line_sep = new
+        return self.string.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
 
     @classmethod
-    def read(cls, path_: str, mode='r+', encoding='utf-8', **kwargs):
+    def read(cls, path_: str, encoding='utf-8', **kwargs):
         path_ = normalize_path(path_)
         file_name = os.path.basename(path_)
         ext = os.path.splitext(file_name)[-1]
@@ -238,13 +264,13 @@ class FileBase(object):
             logger.warning(f"I can't read this file. See class attribute <{cls.__name__}._dont_read>")
             return
         try:
-            with open(path_, mode=mode, encoding=encoding, newline='', **kwargs) as fp:
-                lines = fp.readlines()
+            with open(path_, mode='r+', encoding=encoding, newline='', **kwargs) as fp:
+                content = fp.read()
         except PermissionError as err:
             logger.error(err)
             return
 
-        return cls(path_, lines)
+        return cls(path_, content)
 
     @classmethod
     def replace_file_sep(cls, new, save: bool = True):
@@ -271,42 +297,67 @@ class FileBase(object):
                             logger.error(f'Error reading the file {file_name}: {err}')
             yield os.path.basename(dir_name), len(files_), files_
 
-    def insert(self, line: int, data: Union[Sequence, str]):
-        data = self.normalize_data(data, self.__line_sep)
+    def insert(self, line: int, data: Union[Sequence, str, int]):
+        data = self.normalize_data(data)
         if is_sequence(data):
             for pos, i in enumerate(data, line):
-                self.__lines.insert(pos, i)
+                self._lines.insert(pos, i)
         if isinstance(data, str):
-            self.__lines.insert(line, data)
+            self._lines.insert(line, data)
+        self._set_change('_lines', self._lines.copy())
 
-    @classmethod
-    def save(cls, path_: Union[str, None]):
+    def remove(self, line: int):
+        self._lines.pop(line)
+        self._set_change('_lines', self._lines.copy())
+
+    def _save(self, encoding='utf-8', **kwargs):
+        with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
+            fp.write(self.string)
+
+    @abstractmethod
+    def save(self, path_: Union[str, None]):
         raise NotImplementedError
 
     def __str__(self):
         return f'{self.__class__.__name__}<{self.file_name}>'
 
+    def __repr__(self):
+        return f'{self.__str__()} {self.size(unit="KB")} KB'
+
+    def __getitem__(self, item) -> str:
+        return self._lines[item]
+
+    def __setitem__(self, key, value):
+        if isinstance(key, Tuple):
+            raise ValueError("invalid assignment.")
+        self.insert(key, value)
+
+    def __iter__(self):
+        for i in self._lines:
+            yield i
+            
 
 class File(FileBase):
     """
     High-level API for creating and manipulating files
     """
 
-    def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', **kwargs):
+    def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', exist_ok=False, **kwargs):
         if on_new_path is not None:
-            self.path_ = on_new_path
-        with open(self.path_, 'w', newline='', encoding=encoding, **kwargs) as fp:
-            fp.writelines(self.content_file)
+            self.set_path(on_new_path)
+        assert exist_ok or not os.path.exists(self.path), FileExistsError(
+                "File exists. If you want override, please send 'exist_ok=True'")
+        self._save(encoding, **kwargs)
         return self
 
     def replace_file_sep(self, new, save: bool = True):
-        new = self.parse_line_sep(new)
+        new = self.parse_new_line_sep(new)
         if new is None:
             raise ValueError(f"{new} is'nt valid.")
         try:
-            self._replace_file_sep(new)
+            self.set_new_line_sep(new)
             if save is True:
-                self.save()
+                self._save()
         except UnicodeDecodeError:
             logger.error(f'Not possibility convert {self.file_name}')
         return self
@@ -331,8 +382,8 @@ def _walk_dirs_and_replace(dir_path, new, ext_in: list = None):
                     prog.update(i)
 
 
-def convert_line_sep(path_: str, line_sep: str, ext_in: list = None):
-    line_sep = File.parse_line_sep(line_sep)
+def convert_new_line_sep(path_: str, line_sep: str, ext_in: list = None):
+    line_sep = File.parse_new_line_sep(line_sep)
 
     if line_sep is None:
         raise ValueError(f"The value sent {line_sep} is not valid.")
@@ -350,7 +401,7 @@ def crlf_to_lf(path_: str, ext_in: list = None):
     :param ext_in:
     :return:
     """
-    convert_line_sep(path_, LF, ext_in=ext_in)
+    convert_new_line_sep(path_, LF, ext_in=ext_in)
 
 
 def lf_to_crlf(path_: str, ext_in: list = None):
@@ -359,19 +410,19 @@ def lf_to_crlf(path_: str, ext_in: list = None):
     :param ext_in:
     :return:
     """
-    convert_line_sep(path_, CRLF, ext_in=ext_in)
+    convert_new_line_sep(path_, CRLF, ext_in=ext_in)
 
 
 def to_lf(path_: str):
-    convert_line_sep(path_, LF)
+    convert_new_line_sep(path_, LF)
 
 
 def to_cr(path_: str):
-    convert_line_sep(path_, CR)
+    convert_new_line_sep(path_, CR)
 
 
 def to_crlf(path_: str):
-    convert_line_sep(path_, CRLF)
+    convert_new_line_sep(path_, CRLF)
 
 
 def _auto_ident_py(path: str):
@@ -379,18 +430,4 @@ def _auto_ident_py(path: str):
 
 
 if __name__ == '__main__':
-    file = File.read("C:\\Users\\handtalk\\PycharmProjects\\cereja\\LICENSE")
-    file_content = ['"""\n\n'] + list(reversed(file.content_file)) + [f'"""\n\n']
-    dir_path_ = "C:\\Users\\handtalk\\PycharmProjects\\cereja"
-    ext_in = ['.py']
-    with Progress(f"Looking to {dir_path_}") as prog:
-        for dir_name, n_files, files_obj in File.walk(dir_path_):
-            if files_obj:
-                prog.update(1, n_files)
-                for i, file_obj in enumerate(files_obj):
-                    if file_obj.is_link or (ext_in and file_obj.ext not in ext_in):
-                        continue
-                    prog.task_name = f"Add license on {dir_name} ({file_obj})"
-                    file_obj.insert(0, file_content)
-                    file_obj.save()
-                    prog.update(i)
+    pass
