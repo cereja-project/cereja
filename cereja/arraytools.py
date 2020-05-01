@@ -240,28 +240,6 @@ def _flatten(sequence: list, max_recursion: int = -1):
 
     return [sequence]
 
-def while_flatten(sequence, max_recursion=None):
-    resp=[]
-    i=0
-    deep=0
-    jump=len(sequence)
-    while i<len(sequence):
-        element = sequence[i]
-        if type(element)==list and (max_recursion==None or max_recursion>deep):
-            jump = len(element)
-            deep+=1
-            sequence = element+sequence[i+1:]
-            i=0
-        else:
-            resp.append(element)
-            i+=1
-        if i>=jump:
-            deep-=1
-            jump=len(sequence)
-    return resp
-
-a = flatten([1,2,3,4,[1,2],1,2,[1,[2,9]]], 1)
-print(a)
 
 def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
     """
@@ -291,14 +269,23 @@ def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union
             raise ValueError(f"Value {sequence} is'nt valid. Send Sequence.")
         return sequence
 
-    flattened = []
-    for obj in sequence:
-        if is_sequence(obj) and max_recursion:
-            recursive_flattened = flatten(obj, max_recursion - 1)
-            for i in recursive_flattened:
-                flattened.append(i)
+    flattened=[]
+    i=0
+    deep=0
+    jump=len(sequence)
+    while i<len(sequence):
+        element = sequence[i]
+        if type(element)==list and (max_recursion==None or max_recursion>deep):
+            jump = len(element)
+            deep+=1
+            sequence = element+sequence[i+1:]
+            i=0
         else:
-            flattened.append(obj)
+            flattened.append(element)
+            i+=1
+        if i>=jump:
+            deep-=1
+            jump=len(sequence)
     return flattened
 
 
