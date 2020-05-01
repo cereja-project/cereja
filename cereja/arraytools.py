@@ -119,7 +119,7 @@ def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, 
     """
     try:
         sequence_len = len(flatten(sequence))
-    except ValueError as err:
+    except Exception as err:
         logger.info(f"Error when trying to compare shapes. {err}")
         return False
     return prod(expected_shape) == sequence_len
@@ -241,51 +241,49 @@ def _flatten(sequence: list, max_recursion: int = -1):
     return [sequence]
 
 
-def flatten(sequence: Sequence[Any], max_recursion: Optional[int] = -1) -> Union[List[Any], Any]:
+def flatten(sequence: Sequence[Any], depth: Optional[int] = -1, **kwargs) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
 
     :param sequence: Is sequence of values.
-    :param max_recursion: allows you to control a recursion amount, for example if you send a
-    sequence=[1,2, [[3]]] and max_recursion=1 your return will be [1, 2, [3]].
+    :param depth: allows you to control a max depth, for example if you send a
+    sequence=[1,2, [[3]]] and depth=1 your return will be [1, 2, [3]].
     :return: flattened array
+
+    # thanks https://github.com/rickards
 
     e.g usage:
 
     >>> sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
     >>> flatten(sequence)
     [1, 2, 3, 2, 3, 4, 6]
-    >>> flatten(sequence, max_recursion=2)
+    >>> flatten(sequence, depth=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
+    legacy_arg = kwargs.get('max_recursion')
+    if legacy_arg is not None:
+        depth = legacy_arg
 
-    # TODO: Add version without recursion
-    if not isinstance(max_recursion, int):
-        raise TypeError(f"Type {type(max_recursion)} is not valid for max_recursion. Please send integer.")
+    if not isinstance(depth, int):
+        raise TypeError(f"Type {type(depth)} is not valid for max depth. Please send integer.")
 
-    if not is_sequence(sequence):
-        # Need improve
-        if max_recursion < 0:
-            raise ValueError(f"Value {sequence} is'nt valid. Send Sequence.")
-        return sequence
-
-    flattened=[]
-    i=0
-    deep=0
-    jump=len(sequence)
-    while i<len(sequence):
+    flattened = []
+    i = 0
+    deep = 0
+    jump = len(sequence)
+    while i < len(sequence):
         element = sequence[i]
-        if type(element)==list and (max_recursion==None or max_recursion>deep):
+        if isinstance(element, list) and (depth == -1 or depth > deep):
             jump = len(element)
-            deep+=1
-            sequence = element+sequence[i+1:]
-            i=0
+            deep += 1
+            sequence = element + sequence[i + 1:]
+            i = 0
         else:
             flattened.append(element)
-            i+=1
-        if i>=jump:
-            deep-=1
-            jump=len(sequence)
+            i += 1
+        if i >= jump:
+            deep -= 1
+            jump = len(sequence)
     return flattened
 
 
@@ -542,7 +540,7 @@ class Matrix(object):
         if len(self.shape) <= 1:
             return values
         return '\n      '.join(
-            f'{val}' for i, val in enumerate(values) if i <= self._n_max_repr)
+                f'{val}' for i, val in enumerate(values) if i <= self._n_max_repr)
 
     def to_list(self):
         return object.__getattribute__(self, 'values')
@@ -639,7 +637,7 @@ class Freq:
                 raise TypeError(f"Value {max_items} isn't valid. Please give me integer.")
 
             assert max_items < len(
-                self), "Not possible, because the maximum value taked is greater than the number of items."
+                    self), "Not possible, because the maximum value taked is greater than the number of items."
 
     def _get_dict_from_keys(self, keys: list):
         return {item: self.freq[item] for item in keys}
@@ -671,6 +669,7 @@ class Freq:
 
 if __name__ == "__main__":
     a = Matrix(
-        [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-         1.0, 1.0, 1.0, 1.0])
+            [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+             1.0,
+             1.0, 1.0, 1.0, 1.0])
     a[0]
