@@ -4,10 +4,11 @@ from typing import Tuple, Iterable
 
 from cereja.arraytools import get_cols
 from cereja.filetools import File
+import random
 
 
 class Corpus(object):
-    punctuation = '!,?'
+    punctuation = '!,?.'
 
     def __init__(self, paralel_data: Iterable[Tuple[str, str]], source_language: str = "X", target_language: str = "Y"):
         self._x = []
@@ -34,9 +35,6 @@ class Corpus(object):
     @property
     def n_test(self):
         return len(self._x) - self.n_train
-
-    def min_y_freq(self, n_values: int = 10):
-        pass
 
     def _preprocess(self, value: str, remove_punctuation=True, lower_case=True):
         cleaned_data = []
@@ -141,16 +139,19 @@ class Corpus(object):
             yield [x, y]
 
     def split_data(self, test_max_size: int = None, source_vocab_size: int = None, target_vocab_size: int = None,
-                   take_paralel_data=True):
+                   take_paralel_data=True, shuffle=True):
         train = []
         test = []
         test_max_size = test_max_size if test_max_size is not None and isinstance(test_max_size, (int, float)) else len(
                 self._x) - self.n_train
         if source_vocab_size is not None or target_vocab_size is not None:
-            data = self._get_vocab_data(source_vocab_size=source_vocab_size,
-                                        target_vocab_size=target_vocab_size)
+            data = list(self._get_vocab_data(source_vocab_size=source_vocab_size,
+                                             target_vocab_size=target_vocab_size))
         else:
             data = zip(self._x, self._y)
+
+        if shuffle:
+            random.shuffle(data)
 
         for x, y in data:
             if self._can_go_test(x, y) and len(test) < test_max_size:
@@ -163,10 +164,11 @@ class Corpus(object):
         return train, test
 
     def split_data_and_save(self, save_on_dir: str, test_max_size: int = None, source_vocab_size: int = None,
-                            target_vocab_size: int = None, ext='align', **kwargs):
+                            target_vocab_size: int = None, shuffle=True, ext='align', **kwargs):
         x_train, y_train, x_test, y_test = self.split_data(test_max_size=test_max_size,
                                                            source_vocab_size=source_vocab_size,
-                                                           target_vocab_size=target_vocab_size, take_paralel_data=False)
+                                                           target_vocab_size=target_vocab_size, take_paralel_data=False,
+                                                           shuffle=shuffle)
 
         for prefix, x, y in (('train', x_train, y_train), ('test', x_test, y_test)):
             save_on = os.path.join(save_on_dir, f'{prefix}_{self.source_language}.{ext.strip(".")}')
