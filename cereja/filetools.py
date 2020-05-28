@@ -335,7 +335,10 @@ class FileBase(metaclass=ABCMeta):
     def __iter__(self):
         for i in self._lines:
             yield i
-            
+
+    def __len__(self):
+        return len(self._lines)
+
 
 class File(FileBase):
     """
