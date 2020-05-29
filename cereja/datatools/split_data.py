@@ -91,10 +91,10 @@ class Corpus(object):
             if len(x) < 4:
                 return False
             for i in x:
-                if self._x_words_counter.get(i) == 1:
+                if self._x_words_counter.get(i) <= x.count(i):
                     return False
             for i in y:
-                if self._y_words_counter.get(i) == 1:
+                if self._y_words_counter.get(i) <= y.count(i):
                     return False
             return True
         return False
