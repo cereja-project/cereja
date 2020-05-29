@@ -21,11 +21,13 @@ SOFTWARE.
 """
 import collections
 import os
-from typing import Tuple, Iterable
+from typing import Tuple, Iterable, List
 
 from cereja.arraytools import get_cols
 from cereja.filetools import File
 import random
+
+from cereja.path import listdir
 
 
 class Corpus(object):
@@ -98,12 +100,17 @@ class Corpus(object):
             query = list(filter(lambda item: item[1] <= max_freq, query))
         return dict(query)
 
+    def _valid_paralel_data(self, x, y):
+        assert len(x) == len(y), f"Size of {self.source_language} ({len(x)}) != {self.target_language} ({len(y)})"
+
     def _prepare_data(self, paralel_data: Iterable[Tuple[str, str]]):
         x_words = []
         y_words = []
         x_sentences = []
         y_sentences = []
         for x, y in paralel_data:
+            if x == '' or y == '':
+                continue
             self._x.append(x)
             self._y.append(y)
             x, y = self._preprocess(x), self._preprocess(y)
@@ -113,6 +120,7 @@ class Corpus(object):
             x_words += x.split()
             y_words += y.split()
 
+        self._valid_paralel_data(x_sentences, y_sentences)
         self._x_sentences_counter = collections.Counter(x_sentences)
         self._y_sentences_counter = collections.Counter(y_sentences)
         self._x_words_counter = collections.Counter(x_words)
@@ -158,6 +166,51 @@ class Corpus(object):
                 if not all(list(map(lambda w: w in target_vocab_data, self._preprocess(y).split()))):
                     continue
             yield [x, y]
+
+    @classmethod
+    def _filter_and_load_files(cls, path_, contains_in_path_: List):
+        if os.path.isdir(path_):
+            path_ = [i for i in listdir(path_)]
+        if not isinstance(path_, list):
+            path_ = [path_]
+        loaded = []
+        for p in path_:
+            for verify in contains_in_path_:
+                if verify not in p:
+                    continue
+            if not os.path.exists(p):
+                continue
+            loaded.append(File.read(p))
+        return loaded
+
+    @classmethod
+    def load_corpus_from_dir(cls, path_: str, src: str, trg: str, ext='align'):
+        files_ = cls._filter_and_load_files(path_=path_, contains_in_path_=[src, trg, ext])
+        src_data = []
+        trg_data = []
+        for file in files_:
+            if ext not in file.ext:
+                continue
+            if src in file.file_name_without_ext:
+                src_data += file.lines
+            if trg in file.file_name_without_ext:
+                trg_data += file.lines
+        return cls(zip(src_data, trg_data), source_language=src, target_language=trg)
+
+    @classmethod
+    def load_corpus_from_csv(cls, path_: str, src_col_name: str, trg_col_name: str, source_language="X",
+                             target_language="Y"):
+        import csv
+        csv_read = csv.DictReader(File.read(path_).lines)
+        src_data = []
+        trg_data = []
+        for i in csv_read:
+            for col_name in (src_col_name, trg_col_name):
+                if col_name not in i:
+                    raise ValueError(f"Not found col <{col_name}> in {list(i.keys())}")
+            src_data.append(i[src_col_name])
+            trg_data.append(i[trg_col_name])
+        return cls(zip(src_data, trg_data), source_language=source_language, target_language=target_language)
 
     def split_data(self, test_max_size: int = None, source_vocab_size: int = None, target_vocab_size: int = None,
                    take_paralel_data=True, shuffle=True):
