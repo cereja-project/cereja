@@ -51,6 +51,12 @@ class Corpus(object):
         self._percent_train = 0.8
         self._n_train = self.n_train
 
+        self._temp_x_words_counter = None
+        self._temp_y_words_counter = None
+
+        self._temp_x_sentences_counter = None
+        self._temp_y_sentences_counter = None
+
     @property
     def n_train(self):
         return int(self._percent_train * len(self._x))
@@ -58,6 +64,14 @@ class Corpus(object):
     @property
     def n_test(self):
         return len(self._x) - self.n_train
+
+    def _set_temp_filters(self):
+        if self._temp_x_words_counter is None:
+            self._temp_x_words_counter = self._x_words_counter.copy()
+            self._temp_y_words_counter = self._y_words_counter.copy()
+
+            self._temp_x_sentences_counter = self._x_sentences_counter.copy()
+            self._temp_y_sentences_counter = self._y_sentences_counter.copy()
 
     def _preprocess(self, value: str, remove_punctuation=True, lower_case=True):
         cleaned_data = []
@@ -130,13 +144,13 @@ class Corpus(object):
         x = self._preprocess(x)
         y = self._preprocess(y)
         for i in x.split():
-            self._x_words_counter.subtract(i)
+            self._temp_x_words_counter.subtract([i])
 
         for i in y.split():
-            self._y_words_counter.subtract(i)
+            self._temp_y_words_counter.subtract([i])
 
-        self._x_sentences_counter.subtract(x)
-        self._y_sentences_counter.subtract(y)
+        self._temp_x_sentences_counter.subtract([x])
+        self._temp_y_sentences_counter.subtract([y])
 
     def source_words_freq(self, freq: int = None, max_items: int = -1, order='most_common'):
         return self._freq_by_counter(self._x_words_counter, max_items=max_items, max_freq=freq, order=order)
@@ -214,6 +228,9 @@ class Corpus(object):
 
     def split_data(self, test_max_size: int = None, source_vocab_size: int = None, target_vocab_size: int = None,
                    take_paralel_data=True, shuffle=True):
+
+        self._set_temp_filters()
+
         train = []
         test = []
         test_max_size = test_max_size if test_max_size is not None and isinstance(test_max_size, (int, float)) else len(
@@ -235,6 +252,7 @@ class Corpus(object):
             train.append([x, y])
         if take_paralel_data is False:
             return (*get_cols(train), *get_cols(test))
+
         return train, test
 
     def split_data_and_save(self, save_on_dir: str, test_max_size: int = None, source_vocab_size: int = None,
