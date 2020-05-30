@@ -31,6 +31,7 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
 from cereja import filetools
 from cereja import path as cj_path
 from cereja.cj_types import Number
+from cereja.datatools import Corpus
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.unicode import Unicode
 from cereja.utils import CjTest
@@ -208,6 +209,26 @@ class UnicodeToolTestCase(unittest.TestCase):
                         )
 
         test_.check_all()
+
+
+class CorpusTestCase:
+    src_data = [
+        "quem casa quer casa",
+        'quem sabe',
+        "quem",
+        "quer",
+        "tem gosto de café"
+    ]
+    trg_data = [
+        "who wants home",
+        "who knows",
+        "who",
+        "would you like",
+        "it tastes like coffee"
+    ]
+
+    def test_sanity(self):
+        pass
 
 
 class ProgressTestCase:
