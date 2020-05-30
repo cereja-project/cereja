@@ -209,6 +209,20 @@ class Corpus(object):
         self._n_train = self.n_train
         self._valid_parallel_data(self.source.data, self.target.data)
 
+    def __iter__(self):
+        return zip(self.source, self.target)
+
+    def __len__(self):
+        return len(self.source)
+
+    def __repr__(self):
+        return f'Corpus(examples: {len(self)} - source_vocab_size: {self.source.vocab_size} - target_vocab_size:{self.target.vocab_size})'
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self.source.data[item], self.target.data[item]
+        return list(zip(self.source.data[item], self.target.data[item]))
+
     @property
     def source_language(self):
         """
