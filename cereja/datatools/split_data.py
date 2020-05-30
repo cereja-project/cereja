@@ -21,15 +21,31 @@ SOFTWARE.
 """
 import collections
 import os
-from abc import ABCMeta, abstractmethod
-from typing import List, Sequence, Any
+from abc import ABCMeta, abstractmethod, ABC
+from typing import List, Any
 
-from cereja.arraytools import get_cols, is_sequence, get_shape
+from cereja.arraytools import get_cols
+from cereja.conf import _BasicConfig
 from cereja.filetools import File
 import random
 import csv
 import json
 from cereja.path import listdir, normalize_path
+
+
+class LanguageConfig(_BasicConfig):
+    name = 'UNK_LANG'
+    stop_words = ()
+    punctuation = '!?,.'
+    to_lower = True
+    remove_punctuation = True
+    remove_stop_words = True
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def _before(self, new_config: dict):
+        super()._before(new_config)
 
 
 class BaseData(metaclass=ABCMeta):
@@ -47,22 +63,27 @@ class BaseData(metaclass=ABCMeta):
 
 
 class LanguageData(BaseData):
-    __punctuation = '!,?.'
-    __stop_words = ()
 
-    def __init__(self, data, stop_words: List[str] = None, punctuation: str = None, remove_punctuation=True,
-                 remove_stop_words=True, lower_case=True):
-        self._stop_words = stop_words if stop_words is not None else self.__stop_words
-        self._punctuation = punctuation if punctuation is not None else self.__punctuation
-        self._remove_punctuation = remove_punctuation
-        self._remove_stop_words = remove_stop_words
-        self._lower_case = lower_case
+    def __init__(self, data, **kwargs):
+
+        self.config = LanguageConfig(hook=self.re_build, **kwargs)
 
         self._phrases_freq = None
         self._words_freq = None
         self.__recovery_phrase_freq = None
         self.__recovery_word_freq = None
         super().__init__(data=data)
+        self._build = True
+
+    def re_build(self):
+        if hasattr(self, '_build'):
+            data = self._data.copy()
+            self._data.clear()
+            self._phrases_freq = None
+            self._words_freq = None
+            self.__recovery_phrase_freq = None
+            self.__recovery_word_freq = None
+            self._prepare_data(data)
 
     def reset_freq(self):
         self._phrases_freq = self.__recovery_phrase_freq.copy()
@@ -88,12 +109,8 @@ class LanguageData(BaseData):
         return iter(self._data)
 
     @property
-    def stop_words(self):
-        return self._stop_words
-
-    @property
     def punctuation(self):
-        return self._punctuation
+        return self.config.punctuation
 
     @property
     def words_freq(self) -> collections.Counter:
@@ -117,14 +134,14 @@ class LanguageData(BaseData):
     def _preprocess(self, value: str):
         if not isinstance(value, str):
             return value
-        value = value if not self._lower_case else value.lower()
+        value = value if not self.config.to_lower else value.lower()
         cleaned_data = []
         for w in value.split():
-            if self._remove_punctuation:
+            if self.config.remove_punctuation:
                 w = w.strip(self.punctuation)
             w = " '".join(w.split("'"))
-            if self._remove_stop_words:
-                if w in self._stop_words:
+            if self.config.remove_stop_words:
+                if w in self.config.stop_words:
                     continue
             cleaned_data.append(w)
         cleaned_data = ' '.join(cleaned_data)
@@ -185,14 +202,63 @@ class LanguageData(BaseData):
 
 
 class Corpus(object):
-    def __init__(self, source_data, target_data, source_language: str = "X", target_language: str = "Y"):
-        self.source = LanguageData(source_data)
-        self.target = LanguageData(target_data)
-        self.source_language = source_language
-        self.target_language = target_language
+    def __init__(self, source_data, target_data, source_name=None, target_name=None, **kwargs):
+        self.source = LanguageData(source_data, name=source_name, **kwargs)
+        self.target = LanguageData(target_data, name=target_name, **kwargs)
         self._percent_train = 0.8
         self._n_train = self.n_train
-        self._valid_paralel_data(self.source.data, self.target.data)
+        self._valid_parallel_data(self.source.data, self.target.data)
+
+    @property
+    def source_language(self):
+        """
+        Only read. The setter function is `Corpus.source.config.set_config(name="new name")`
+        """
+        return self.source.config.name
+
+    @property
+    def target_language(self):
+        """
+        Only read. The setter function is `Corpus.target.config.set_config(name="new name")`
+        """
+        return self.target.config.name
+
+    @property
+    def config(self):
+        """
+        Only read. The setter function is `Corpus.<source or target>.config.set_config`
+        """
+        return {'source': self.source.config.get(), 'target': self.source.config.get()}
+
+    def set_config(self, **kwargs):
+        """
+        you can use `Corpus.config` which returns a dictionary with the current configuration.
+        And then just use the this method `Corpus.set_config` by sending the changed dictionary.
+
+        :param kwargs: dictionary like this:
+                    {
+                     'source': {'name': 'SOURCE_NAME',
+                                'punctuation': '',
+                                'remove_punctuation': False,
+                                'remove_stop_words': False,
+                                'stop_words': (),
+                                'to_lower': False
+                                },
+                     'target': {'name':'TARGET_NAME',
+                                'punctuation': '',
+                                'remove_punctuation': False,
+                                'remove_stop_words': False,
+                                'stop_words': (),
+                                'to_lower': False
+                                }
+                    }
+        """
+        source_config = kwargs.get('source')
+        target_config = kwargs.get('target')
+        if source_config:
+            self.source.config.set_config(**source_config)
+        if target_config:
+            self.target.config.set_config(**target_config)
 
     @staticmethod
     def is_parallel(data):
@@ -210,10 +276,10 @@ class Corpus(object):
         return get_cols(data)
 
     @classmethod
-    def load_from_parallel_data(cls, data, source_language: str = "X", target_language: str = "Y"):
+    def load_from_parallel_data(cls, data, source_name: str = None, target_name: str = None, **kwargs):
         if cls.is_parallel(data):
             source_data, target_data = cls.distinct_from_parallel(data)
-            return cls(source_data, target_data, source_language=source_language, target_language=target_language)
+            return cls(source_data, target_data, source_name=source_name, target_name=target_name, **kwargs)
         raise ValueError("isn't valid parallel data")
 
     @property
@@ -238,7 +304,7 @@ class Corpus(object):
             return True
         return False
 
-    def _valid_paralel_data(self, x, y):
+    def _valid_parallel_data(self, x, y):
         assert len(x) == len(y), f"Size of {self.source_language} ({len(x)}) != {self.target_language} ({len(y)})"
 
     def _update_filters(self, x, y):
@@ -303,8 +369,8 @@ class Corpus(object):
         return cls(src_data, trg_data, source_language=src, target_language=trg)
 
     @classmethod
-    def load_corpus_from_csv(cls, path_: str, src_col_name: str, trg_col_name: str, source_language="X",
-                             target_language="Y"):
+    def load_corpus_from_csv(cls, path_: str, src_col_name: str, trg_col_name: str, source_name=None,
+                             target_name=None):
 
         csv_read = csv.DictReader(File.read(path_).lines)
         src_data = []
@@ -315,7 +381,7 @@ class Corpus(object):
                     raise ValueError(f"Not found col <{col_name}> in {list(i.keys())}")
             src_data.append(i[src_col_name])
             trg_data.append(i[trg_col_name])
-        return cls(src_data, trg_data, source_language=source_language, target_language=target_language)
+        return cls(src_data, trg_data, source_name=source_name, target_name=target_name)
 
     def split_data(self, test_max_size: int = None, source_vocab_size: int = None, target_vocab_size: int = None,
                    shuffle=True, take_parallel_data=True, take_corpus_instances=False):
