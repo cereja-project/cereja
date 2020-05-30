@@ -28,7 +28,8 @@ from cereja.arraytools import get_cols, is_sequence, get_shape
 from cereja.filetools import File
 import random
 import csv
-from cereja.path import listdir
+import json
+from cereja.path import listdir, normalize_path
 
 
 class BaseData(metaclass=ABCMeta):
@@ -49,9 +50,14 @@ class LanguageData(BaseData):
     __punctuation = '!,?.'
     __stop_words = ()
 
-    def __init__(self, data, stop_words: List[str] = None, punctuation: str = None):
+    def __init__(self, data, stop_words: List[str] = None, punctuation: str = None, remove_punctuation=True,
+                 remove_stop_words=True, lower_case=True):
         self._stop_words = stop_words if stop_words is not None else self.__stop_words
         self._punctuation = punctuation if punctuation is not None else self.__punctuation
+        self._remove_punctuation = remove_punctuation
+        self._remove_stop_words = remove_stop_words
+        self._lower_case = lower_case
+
         self._phrases_freq = None
         self._words_freq = None
         self.__recovery_phrase_freq = None
@@ -63,6 +69,25 @@ class LanguageData(BaseData):
         self._words_freq = self.__recovery_word_freq.copy()
 
     @property
+    def vocab_size(self):
+        return len(self._words_freq)
+
+    def __contains__(self, item):
+        if item in self.words_freq:
+            return True
+        if item in self.phrases_freq:
+            return True
+
+    def __repr__(self):
+        return f'LanguageData(examples: {len(self)} - vocab_size: {self.vocab_size})'
+
+    def __len__(self):
+        return len(self._data)
+
+    def __iter__(self):
+        return iter(self._data)
+
+    @property
     def stop_words(self):
         return self._stop_words
 
@@ -71,11 +96,11 @@ class LanguageData(BaseData):
         return self._punctuation
 
     @property
-    def words_freq(self):
+    def words_freq(self) -> collections.Counter:
         return self._words_freq
 
     @property
-    def phrases_freq(self):
+    def phrases_freq(self) -> collections.Counter:
         return self._phrases_freq
 
     @property
@@ -89,28 +114,40 @@ class LanguageData(BaseData):
     def word_freq(self, word: str):
         return self._words_freq.get(self._preprocess(word))
 
-    def _preprocess(self, value: str, remove_punctuation=True, remove_stop_words=True, lower_case=True):
+    def _preprocess(self, value: str):
         if not isinstance(value, str):
             return value
-        value = value if not lower_case else value.lower()
+        value = value if not self._lower_case else value.lower()
         cleaned_data = []
         for w in value.split():
-            if remove_punctuation:
+            if self._remove_punctuation:
                 w = w.strip(self.punctuation)
             w = " '".join(w.split("'"))
-            if remove_stop_words:
+            if self._remove_stop_words:
                 if w in self._stop_words:
                     continue
             cleaned_data.append(w)
         cleaned_data = ' '.join(cleaned_data)
         return cleaned_data
 
-    def _prepare_data(self, data, save_preprocess=False):
+    def save_freq(self, save_on: str, prefix='freq', ext: str = 'json'):
+        ext = ext.strip('.')  # normalize
+        save_on = normalize_path(save_on)
+
+        path_words = os.path.join(save_on, f'{prefix}_words.{ext}')
+        with open(path_words, 'w+', encoding='utf-8') as fp:
+            json.dump(self.sample_words_freq(), fp, indent=True)
+
+        path_phrases = os.path.join(save_on, f'{prefix}_phrases.{ext}')
+        with open(path_phrases, 'w+', encoding='utf-8') as fp:
+            json.dump(self.sample_phrases_freq(), fp, indent=True)
+
+    def _prepare_data(self, data, save_preprocessed=False):
         words = []
         phrases = []
         for phrase in data:
             prep_phrase = self._preprocess(phrase)
-            if save_preprocess:
+            if save_preprocessed:
                 self._data.append(prep_phrase)
             else:
                 self._data.append(phrase)
@@ -281,7 +318,7 @@ class Corpus(object):
         return cls(src_data, trg_data, source_language=source_language, target_language=target_language)
 
     def split_data(self, test_max_size: int = None, source_vocab_size: int = None, target_vocab_size: int = None,
-                   take_parallel_data=True, shuffle=True, **kwargs):
+                   shuffle=True, take_parallel_data=True, take_corpus_instances=False):
 
         self.source.reset_freq()
         self.target.reset_freq()
@@ -311,7 +348,7 @@ class Corpus(object):
 
         if take_parallel_data is False:
             return (*get_cols(train), *get_cols(test))
-        if kwargs.get('take_corpus_instances'):
+        if take_corpus_instances is True:
             train = self.load_from_parallel_data(train, self.source_language, self.target_language)
             test = self.load_from_parallel_data(test, self.source_language, self.target_language)
             return train, test
@@ -321,7 +358,8 @@ class Corpus(object):
                             target_vocab_size: int = None, shuffle=True, ext='align', **kwargs):
         x_train, y_train, x_test, y_test = self.split_data(test_max_size=test_max_size,
                                                            source_vocab_size=source_vocab_size,
-                                                           target_vocab_size=target_vocab_size, take_parallel_data=False,
+                                                           target_vocab_size=target_vocab_size,
+                                                           take_parallel_data=False,
                                                            shuffle=shuffle)
 
         for prefix, x, y in (('train', x_train, y_train), ('test', x_test, y_test)):
