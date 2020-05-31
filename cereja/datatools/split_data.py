@@ -21,6 +21,7 @@ SOFTWARE.
 """
 import collections
 import os
+import warnings
 from abc import ABCMeta, abstractmethod
 from typing import Any
 
@@ -350,6 +351,27 @@ class Corpus(object):
                     continue
             yield [x, y]
 
+    def save(self, save_on_dir: str, take_split: bool = True, test_max_size: int = None, source_vocab_size: int = None,
+             target_vocab_size: int = None, shuffle=True, prefix=None, ext='align', **kwargs):
+
+        if take_split:
+            x_train, y_train, x_test, y_test = self.split_data(test_max_size=test_max_size,
+                                                               source_vocab_size=source_vocab_size,
+                                                               target_vocab_size=target_vocab_size,
+                                                               take_parallel_data=False,
+                                                               shuffle=shuffle)
+            train_prefix, test_prefix = (f'{prefix}_train', f'{prefix}_test') if prefix is not None else (
+                'train', 'test')
+            data_to_save = ((train_prefix, x_train, y_train), (test_prefix, x_test, y_test))
+        else:
+            data_to_save = ((prefix, self.source.data, self.target.data),)
+
+        for prefix, x, y in data_to_save:
+            save_on = os.path.join(save_on_dir, f'{prefix}_{self.source_language}.{ext.strip(".")}')
+            File(save_on, x).save(**kwargs)
+            save_on = os.path.join(save_on_dir, f'{prefix}_{self.target_language}.{ext.strip(".")}')
+            File(save_on, y).save(**kwargs)
+
     @classmethod
     def load_corpus_from_dir(cls, path_: str, src: str, trg: str, ext='align', name_not_contains_: tuple = ()):
         files_ = File.load_files(path_=path_, ext=ext, contains_in_name=[src, trg],
@@ -419,16 +441,8 @@ class Corpus(object):
             return train, test
         return train, test
 
-    def split_data_and_save(self, save_on_dir: str, test_max_size: int = None, source_vocab_size: int = None,
-                            target_vocab_size: int = None, shuffle=True, ext='align', **kwargs):
-        x_train, y_train, x_test, y_test = self.split_data(test_max_size=test_max_size,
-                                                           source_vocab_size=source_vocab_size,
-                                                           target_vocab_size=target_vocab_size,
-                                                           take_parallel_data=False,
-                                                           shuffle=shuffle)
-
-        for prefix, x, y in (('train', x_train, y_train), ('test', x_test, y_test)):
-            save_on = os.path.join(save_on_dir, f'{prefix}_{self.source_language}.{ext.strip(".")}')
-            File(save_on, x).save(**kwargs)
-            save_on = os.path.join(save_on_dir, f'{prefix}_{self.target_language}.{ext.strip(".")}')
-            File(save_on, y).save(**kwargs)
+    def split_data_and_save(self, **kwargs):
+        alternative = f"You can use <Corpus.save>"
+        warnings.warn(f"This function has been deprecated and will be removed in future versions. "
+                      f"{alternative}", DeprecationWarning, 2)
+        self.save(**kwargs)
