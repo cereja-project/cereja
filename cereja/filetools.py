@@ -30,7 +30,7 @@ from cereja.arraytools import is_sequence, is_iterable
 from cereja.display import Progress
 import logging
 
-from cereja.path import normalize_path
+from cereja.path import normalize_path, listdir
 from cereja.utils import invert_dict
 import copy
 
@@ -275,6 +275,28 @@ class FileBase(metaclass=ABCMeta):
     @classmethod
     def replace_file_sep(cls, new, save: bool = True):
         raise NotImplementedError
+
+    @classmethod
+    def load_files(cls, path_, ext, contains_in_name: List, not_contains_in_name=(), take_empty=True):
+        if os.path.isdir(path_):
+            path_ = [i for i in listdir(path_)]
+        if not isinstance(path_, list):
+            path_ = [path_]
+        loaded = []
+        for p in path_:
+            if not os.path.exists(p):
+                continue
+            file_ = cls.read(p)
+            if take_empty is True and file_.is_empty:
+                continue
+            if not (file_.ext == f'.{ext.strip(".")}'):
+                continue
+            if not any(map(file_.file_name_without_ext.__contains__, contains_in_name)):
+                continue
+            if any(map(file_.file_name_without_ext.__contains__, not_contains_in_name)):
+                continue
+            loaded.append(file_)
+        return loaded
 
     @classmethod
     def walk(cls, root_dir: str) -> Iterator[Tuple[str, int, list]]:
