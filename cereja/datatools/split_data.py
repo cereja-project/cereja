@@ -21,8 +21,8 @@ SOFTWARE.
 """
 import collections
 import os
-from abc import ABCMeta, abstractmethod, ABC
-from typing import List, Any
+from abc import ABCMeta, abstractmethod
+from typing import Any
 
 from cereja.arraytools import get_cols
 from cereja.conf import _BasicConfig
@@ -30,7 +30,7 @@ from cereja.filetools import File
 import random
 import csv
 import json
-from cereja.path import listdir, normalize_path
+from cereja.path import normalize_path
 
 
 class LanguageConfig(_BasicConfig):
@@ -351,24 +351,9 @@ class Corpus(object):
             yield [x, y]
 
     @classmethod
-    def _filter_and_load_files(cls, path_, contains_in_path_: List):
-        if os.path.isdir(path_):
-            path_ = [i for i in listdir(path_)]
-        if not isinstance(path_, list):
-            path_ = [path_]
-        loaded = []
-        for p in path_:
-            for verify in contains_in_path_:
-                if verify not in p:
-                    continue
-            if not os.path.exists(p):
-                continue
-            loaded.append(File.read(p))
-        return loaded
-
-    @classmethod
-    def load_corpus_from_dir(cls, path_: str, src: str, trg: str, ext='align'):
-        files_ = cls._filter_and_load_files(path_=path_, contains_in_path_=[src, trg, ext])
+    def load_corpus_from_dir(cls, path_: str, src: str, trg: str, ext='align', name_not_contains_: tuple = ()):
+        files_ = File.load_files(path_=path_, ext=ext, contains_in_name=[src, trg],
+                                 not_contains_in_name=name_not_contains_)
         src_data = []
         trg_data = []
         for file in files_:
