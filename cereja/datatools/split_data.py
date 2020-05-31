@@ -43,7 +43,14 @@ class LanguageConfig(_BasicConfig):
     remove_stop_words = True
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        name = kwargs.pop('name') if kwargs.get('name') is not None else self.name
+        stop_words = kwargs.pop('stop_words') if kwargs.get('stop_words') is not None else self.stop_words
+        punctuation = kwargs.pop('punctuation') if kwargs.get('punctuation') is not None else self.punctuation
+        if not isinstance(stop_words, (tuple, list)):
+            raise TypeError("Stop words must be in a list or tuple")
+        if not isinstance(punctuation, str):
+            raise TypeError("a string is expected for punctuation")
+        super().__init__(name=name, stop_words=stop_words, punctuation=punctuation, **kwargs)
 
     def _before(self, new_config: dict):
         super()._before(new_config)
@@ -387,7 +394,7 @@ class Corpus(object):
                 src_data += file.lines
             if trg in file.file_name_without_ext:
                 trg_data += file.lines
-        return cls(src_data, trg_data, source_language=src, target_language=trg)
+        return cls(src_data, trg_data, source_name=src, target_name=trg)
 
     @classmethod
     def load_corpus_from_csv(cls, path_: str, src_col_name: str, trg_col_name: str, source_name=None,
