@@ -412,13 +412,17 @@ class Corpus(object):
         return cls(src_data, trg_data, source_name=source_name, target_name=target_name)
 
     def split_data(self, test_max_size: int = None, source_vocab_size: int = None, target_vocab_size: int = None,
-                   shuffle=True, take_parallel_data=True, take_corpus_instances=False):
+                   shuffle=True, take_parallel_data=True, take_corpus_instances=False, legacy_test=None):
 
         self.source.reset_freq()
         self.target.reset_freq()
-
         train = []
         test = []
+
+        if legacy_test is not None:
+            test = Corpus(*self.distinct_from_parallel(legacy_test), source_name=self.source_language,
+                          target_name=self.target_language)
+
         test_max_size = test_max_size if test_max_size is not None and isinstance(test_max_size, (int, float)) else len(
                 self.source.data) - self.n_train
         if source_vocab_size is not None or target_vocab_size is not None:
@@ -434,12 +438,16 @@ class Corpus(object):
             # remove blank line
             if x == '' or y == '':
                 continue
-            if self._can_go_test(x, y) and len(test) < test_max_size:
+            if legacy_test is not None:
+                # remove sentence from train.
+                if self.source.preprocess(x) in test.source.phrases_freq:
+                    continue
+            if (self._can_go_test(x, y) and len(test) < test_max_size) and legacy_test is not None:
                 test.append([x, y])
                 self._update_filters(x, y)
                 continue
             train.append([x, y])
-
+            
         if take_parallel_data is False:
             return (*get_cols(train), *get_cols(test))
         if take_corpus_instances is True:
