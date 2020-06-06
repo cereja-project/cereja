@@ -413,7 +413,18 @@ class Corpus(object):
 
     def split_data(self, test_max_size: int = None, source_vocab_size: int = None, target_vocab_size: int = None,
                    shuffle=True, take_parallel_data=True, take_corpus_instances=False, legacy_test=None):
+        """
+        Guarantees test data without data identical to training and only with vocabulary that exists in training
 
+
+        :param test_max_size: int = max examples on test data
+        :param source_vocab_size: int = restrict most common vocab
+        :param target_vocab_size: int = restrict most common vocab
+        :param shuffle: bool = randomize
+        :param take_parallel_data: bool = zipped data if true else return (x_train, y_train, x_test, y_test)
+        :param take_corpus_instances: bool = return new instances for train data and test data
+        :param legacy_test: List[Tuple[str,str]] = parallel data
+        """
         self.source.reset_freq()
         self.target.reset_freq()
         train = []
