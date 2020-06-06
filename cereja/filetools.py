@@ -480,10 +480,20 @@ class CsvFile(File):
 
     @property
     def rows(self):
+        """
+        generator for each row
+        :return: only row without cols
+        """
         for row in self.lines:
             yield row
 
     def add_row(self, data: List[Any], fill_with=None):
+        """
+        Add row is similar to list.append
+
+        :param data: expected row with n elements equal to k cols, if not it will be fill with `fill_with` value.
+        :param fill_with: Any value.
+        """
         self.insert(-1, data, fill_with=fill_with)
 
     def normalize_data(self, data: Any, fill_with=None, **kwargs) -> Union[List[str], Any]:
@@ -509,6 +519,13 @@ class CsvFile(File):
 
     @property
     def data(self):
+        """
+        generator for each row
+
+        format -> {col_name: value, col_name2: value, ...}
+
+        :return: rows with column. Is a dict type
+        """
         for row in self.lines:
             yield dict(zip(self._fieldnames, row))
 
@@ -548,7 +565,7 @@ class CsvFile(File):
             if isinstance(col, tuple):
                 raise ValueError("Isn't Possible.")
             assert col <= self.n_cols - 1, ValueError(
-                f"Invalid Column. Choice available index {list(range(self.n_cols))}")
+                    f"Invalid Column. Choice available index {list(range(self.n_cols))}")
             return get_cols(self.lines)[col][lines]
         return super().__getitem__(item)
 
