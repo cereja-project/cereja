@@ -359,9 +359,17 @@ class FileBase(metaclass=ABCMeta):
         return f'{self.__str__()} {self.size(unit="KB")} KB'
 
     def __getitem__(self, item) -> str:
+        if self.ext == '.json':
+            try:
+                return self.data[item]
+            except KeyError:
+                raise KeyError(f"{item} not found.")
+
         return self._lines[item]
 
     def __setitem__(self, key, value):
+        if self.ext == '.json':
+            raise NotImplementedError("assignment for .json data has not implemented.")
         if isinstance(key, Tuple):
             raise ValueError("invalid assignment.")
         self.insert(key, value)
