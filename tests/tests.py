@@ -170,7 +170,7 @@ class FileToolsTestCase(unittest.TestCase):
 
     def get_file(self):
         content_file = [1, 2, 3]
-        file = filetools.File(os.path.dirname(__file__), content_file)
+        file = filetools.File(f"{os.path.dirname(__file__)}.txt", content_file)
         return file
 
     def test_insertion_content(self):
