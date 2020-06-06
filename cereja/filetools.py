@@ -88,7 +88,7 @@ class FileBase(metaclass=ABCMeta):
         self.__path = normalize_path(path_)
         if not content_file:
             content_file = {} if self.ext == '.json' else []
-        assert self.ext != '', ValueError('You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.)')
+        assert self.ext != '', ValueError('You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.).')
         if self.ext == '.json' or isinstance(content_file, dict):
             assert self.ext == '.json', f"Detected {type(content_file)} data. Extension != .json"
             try:
