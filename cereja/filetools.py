@@ -85,11 +85,12 @@ class FileBase(metaclass=ABCMeta):
     _ignore_dir = [".git"]
 
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
-        if isinstance(content_file, dict):
-            content_file = json.dumps(content_file, indent=4)
         if content_file is None:
             content_file = []
         self.__path = normalize_path(path_)
+        if isinstance(content_file, dict):
+            assert self.ext == '.json', f"Detected {type(content_file)} data. Extension != .json"
+            content_file = json.dumps(content_file, indent=4)
         self._lines = self.normalize_data(content_file)
         if not self.is_empty:
             line_sep_ = self.parse_new_line_sep(content_file[0]) or self._default_new_line_sep
