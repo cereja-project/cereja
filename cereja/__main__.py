@@ -32,6 +32,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Cereja Tools.')
     parser.add_argument('--version', action='version', version=get_version_pep440_compliant())
     parser.add_argument('--crlf_to_lf')
+    parser.add_argument('--lf_to_crlf')
     args = parser.parse_args()
     if args.crlf_to_lf:
         crlf_to_lf(args.crlf_to_lf)

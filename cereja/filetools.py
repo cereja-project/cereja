@@ -20,7 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
+import json
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
@@ -30,7 +30,7 @@ from cereja.arraytools import is_sequence, is_iterable
 from cereja.display import Progress
 import logging
 
-from cereja.path import normalize_path
+from cereja.path import normalize_path, listdir
 from cereja.utils import invert_dict
 import copy
 
@@ -85,10 +85,24 @@ class FileBase(metaclass=ABCMeta):
     _ignore_dir = [".git"]
 
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
-        if content_file is None:
-            content_file = []
         self.__path = normalize_path(path_)
-        self._lines = self.normalize_data(content_file)
+        if not content_file:
+            content_file = {} if self.ext == '.json' else []
+        assert self.ext != '', ValueError('You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.).')
+        if self.ext == '.json' or isinstance(content_file, dict):
+            assert self.ext == '.json', f"Detected {type(content_file)} data. Extension != .json"
+            try:
+                content_file = self._json_content(data=content_file)
+                self._lines = self.normalize_data(content_file)
+                setattr(self, 'items', lambda: self.data.items())
+                setattr(self, 'keys', lambda: self.data.keys())
+                setattr(self, 'values', lambda: self.data.values())
+                self.is_json = True
+            except Exception as err:
+                raise ValueError(f"data incompatible with file extension is .json")
+        else:
+            self.is_json = False
+            self._lines = self.normalize_data(content_file)
         if not self.is_empty:
             line_sep_ = self.parse_new_line_sep(content_file[0]) or self._default_new_line_sep
             self.set_new_line_sep(line_sep_)
@@ -98,6 +112,18 @@ class FileBase(metaclass=ABCMeta):
         self._max_history_length = 50
         self._change_history = []
         self._set_change('_lines', self.lines.copy())
+
+    def _json_content(self, data):
+        try:
+            if isinstance(data, dict):
+                return json.dumps(data)
+            elif isinstance(data, str):
+                json.loads(data)
+                return data
+            else:
+                raise Exception
+        except Exception as err:
+            raise ValueError("Invalid .json data")
 
     @classmethod
     def normalize_unix_line_sep(cls, content: str) -> str:
@@ -121,6 +147,12 @@ class FileBase(metaclass=ABCMeta):
             self._change_history.pop(0)
         self._change_history.append((key, value))
         self._current_change = len(self._change_history)
+
+    @property
+    def data(self) -> Union[List[str], dict]:
+        if self.is_json:
+            return json.loads(self.string)
+        return self.lines
 
     def _select_change(self, index):
         try:
@@ -277,6 +309,28 @@ class FileBase(metaclass=ABCMeta):
         raise NotImplementedError
 
     @classmethod
+    def load_files(cls, path_, ext, contains_in_name: List, not_contains_in_name=(), take_empty=True):
+        if os.path.isdir(path_):
+            path_ = [i for i in listdir(path_)]
+        if not isinstance(path_, list):
+            path_ = [path_]
+        loaded = []
+        for p in path_:
+            if not os.path.exists(p):
+                continue
+            file_ = cls.read(p)
+            if take_empty is True and file_.is_empty:
+                continue
+            if not (file_.ext == f'.{ext.strip(".")}'):
+                continue
+            if not any(map(file_.file_name_without_ext.__contains__, contains_in_name)):
+                continue
+            if any(map(file_.file_name_without_ext.__contains__, not_contains_in_name)):
+                continue
+            loaded.append(file_)
+        return loaded
+
+    @classmethod
     def walk(cls, root_dir: str) -> Iterator[Tuple[str, int, list]]:
         """
         It works in a similar way to os.walk. With the difference that the File instance returns.
@@ -306,13 +360,24 @@ class FileBase(metaclass=ABCMeta):
             self._lines.insert(line, data)
         self._set_change('_lines', self._lines.copy())
 
-    def remove(self, line: int):
-        self._lines.pop(line)
-        self._set_change('_lines', self._lines.copy())
+    def remove(self, line: Union[int, str]):
+        if self.is_json:
+            if line in self.data:
+                data = self.data
+                data.pop(line)
+                self._lines = self.normalize_data(self._json_content(data))
+            else:
+                raise ValueError(f'{line} not found.')
+        else:
+            self._lines.pop(line)
+            self._set_change('_lines', self._lines.copy())
 
     def _save(self, encoding='utf-8', **kwargs):
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
-            fp.write(self.string)
+            if self.is_json:
+                json.dump(self.data, fp, indent=4, **kwargs)
+            else:
+                fp.write(self.string)
 
     @abstractmethod
     def save(self, path_: Union[str, None]):
@@ -325,16 +390,31 @@ class FileBase(metaclass=ABCMeta):
         return f'{self.__str__()} {self.size(unit="KB")} KB'
 
     def __getitem__(self, item) -> str:
+        if self.is_json:
+            try:
+                return self.data[item]
+            except KeyError:
+                raise KeyError(f"{item} not found.")
+
         return self._lines[item]
 
     def __setitem__(self, key, value):
-        if isinstance(key, Tuple):
-            raise ValueError("invalid assignment.")
-        self.insert(key, value)
+        if self.is_json:
+            data = self.data
+            data[key] = value
+            self._lines = self.normalize_data(self._json_content(data))
+        else:
+            if isinstance(key, Tuple):
+                raise ValueError("invalid assignment.")
+            self.insert(key, value)
 
     def __iter__(self):
-        for i in self._lines:
-            yield i
+        if self.is_json:
+            for i in self.data:
+                yield i
+        else:
+            for i in self._lines:
+                yield i
 
     def __len__(self):
         return len(self._lines)
