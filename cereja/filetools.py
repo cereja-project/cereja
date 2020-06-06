@@ -535,6 +535,9 @@ class CsvFile(File):
                 data.append(row.values())
         return cls(path_, fieldnames=fields, data=data)
 
+    def to_dict(self):
+        return dict(zip(self.cols, get_cols(self.lines)))
+
     def __getitem__(self, item):
         if isinstance(item, str):
             if item not in self.cols:
