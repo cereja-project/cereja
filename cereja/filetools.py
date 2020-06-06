@@ -88,7 +88,8 @@ class FileBase(metaclass=ABCMeta):
         self.__path = normalize_path(path_)
         if not content_file:
             content_file = {} if self.ext == '.json' else []
-        assert self.ext != '', ValueError('You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.).')
+        assert self.ext != '', ValueError(
+            'You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.).')
         if self.ext == '.json' or isinstance(content_file, dict):
             assert self.ext == '.json', f"Detected {type(content_file)} data. Extension != .json"
             try:
@@ -309,7 +310,7 @@ class FileBase(metaclass=ABCMeta):
         raise NotImplementedError
 
     @classmethod
-    def load_files(cls, path_, ext, contains_in_name: List, not_contains_in_name=(), take_empty=True):
+    def load_files(cls, path_, ext, contains_in_name: List = (), not_contains_in_name=(), take_empty=True):
         if os.path.isdir(path_):
             path_ = [i for i in listdir(path_)]
         if not isinstance(path_, list):
@@ -319,14 +320,18 @@ class FileBase(metaclass=ABCMeta):
             if not os.path.exists(p):
                 continue
             file_ = cls.read(p)
+            if file_ is None:
+                continue
             if take_empty is True and file_.is_empty:
                 continue
             if not (file_.ext == f'.{ext.strip(".")}'):
                 continue
-            if not any(map(file_.file_name_without_ext.__contains__, contains_in_name)):
-                continue
-            if any(map(file_.file_name_without_ext.__contains__, not_contains_in_name)):
-                continue
+            if contains_in_name:
+                if not any(map(file_.file_name_without_ext.__contains__, contains_in_name)):
+                    continue
+            if not_contains_in_name:
+                if any(map(file_.file_name_without_ext.__contains__, not_contains_in_name)):
+                    continue
             loaded.append(file_)
         return loaded
 
