@@ -85,6 +85,8 @@ class FileBase(metaclass=ABCMeta):
     _ignore_dir = [".git"]
 
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
+        if isinstance(content_file, dict):
+            content_file = json.dumps(content_file, indent=4)
         if content_file is None:
             content_file = []
         self.__path = normalize_path(path_)
