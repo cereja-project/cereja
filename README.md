@@ -118,7 +118,40 @@ print(file.data) # {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 
 file.save()
 ```
 
-##### Reading Files
+##### File Manipulation Example - .csv File 
+```python
+import cereja as cj
+
+file = cj.CsvFile('test.csv', fieldnames=['col1','col2','col3']) # ram only, not yet saved
+print(file) # CsvFile<test.csv> 0.012 KB
+file.add_row([1,2,3])
+print(file.lines) # [[1, 2, 3]]
+file.add_row([1,2], fill_with=0)
+print(file.lines) # [[1, 2, 3]] # [[1, 2, 3], [1, 2, 0]]
+
+# convert to dict
+file.to_dict() # {'col1': [1, 1], 'col2': [2, 2], 'col3': [3, 0]}
+
+# or get generation row by row with col
+print(list(file.data)) # [{'col1': 1, 'col2': 2, 'col3': 3}, {'col1': 1, 'col2': 2, 'col3': 0}]
+
+# Iterable
+for row in file:
+    pass
+
+# indexing col values
+print(file['col1']) # [1, 1]
+# or use index and get a row
+print(file[0]) # [1, 2, 3]
+
+# Save Data
+file.save()
+
+# Reading
+file = cj.CsvFile.read('test.csv') # have a fun! lol
+dir(file) # see all methods and attr
+```
+##### Reading Other Files
 ```python
 import cereja as cj
 
