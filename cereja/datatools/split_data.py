@@ -442,7 +442,7 @@ class Corpus(object):
                 # remove sentence from train.
                 if self.source.preprocess(x) in test.source.phrases_freq:
                     continue
-            if (self._can_go_test(x, y) and len(test) < test_max_size) and legacy_test is not None:
+            if (self._can_go_test(x, y) and len(test) < test_max_size) and legacy_test is None:
                 test.append([x, y])
                 self._update_filters(x, y)
                 continue
