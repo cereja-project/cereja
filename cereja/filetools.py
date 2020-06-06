@@ -26,13 +26,14 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from typing import Union, List, Iterator, Tuple, Sequence, Any
 
-from cereja.arraytools import is_sequence, is_iterable
+from cereja.arraytools import is_sequence, is_iterable, get_cols
 from cereja.display import Progress
 import logging
 
 from cereja.path import normalize_path, listdir
 from cereja.utils import invert_dict
 import copy
+import csv
 
 logger = logging.Logger(__name__)
 
@@ -89,7 +90,7 @@ class FileBase(metaclass=ABCMeta):
         if not content_file:
             content_file = {} if self.ext == '.json' else []
         assert self.ext != '', ValueError(
-            'You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.).')
+                'You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.).')
         if self.ext == '.json' or isinstance(content_file, dict):
             assert self.ext == '.json', f"Detected {type(content_file)} data. Extension != .json"
             try:
@@ -175,7 +176,7 @@ class FileBase(metaclass=ABCMeta):
             self._select_change(+1)
 
     @classmethod
-    def normalize_data(cls, data: Any) -> Union[List[str], Any]:
+    def normalize_data(cls, data: Any, *args, **kwargs) -> Union[List[str], Any]:
         if not data:
             return data
         if is_iterable(data) or isinstance(data, int):
@@ -191,7 +192,7 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def lines(self) -> List[str]:
-        return self._lines
+        return self._lines.copy()
 
     @property
     def string(self) -> str:
@@ -215,9 +216,11 @@ class FileBase(metaclass=ABCMeta):
             for ln in cls._new_line_sep_map:
                 if ln in line:
                     return ln
-
-        if line in cls._str_new_line_sep_map:
-            return cls._str_new_line_sep_map[line]
+        try:
+            if line in cls._str_new_line_sep_map:
+                return cls._str_new_line_sep_map[line]
+        except TypeError:
+            return None
         return None
 
     @property
@@ -356,12 +359,18 @@ class FileBase(metaclass=ABCMeta):
                             logger.error(f'Error reading the file {file_name}: {err}')
             yield os.path.basename(dir_name), len(files_), files_
 
-    def insert(self, line: int, data: Union[Sequence, str, int]):
-        data = self.normalize_data(data)
+    def insert(self, line: int, data: Union[Sequence, str, int], **kwargs):
+        data = self.normalize_data(data, **kwargs)
         if is_sequence(data):
+            if line == -1:
+                self._lines += list(data)
+                return
             for pos, i in enumerate(data, line):
                 self._lines.insert(pos, i)
         if isinstance(data, str):
+            if line == -1:
+                self._lines.append(data)
+                return
             self._lines.insert(line, data)
         self._set_change('_lines', self._lines.copy())
 
@@ -449,6 +458,96 @@ class File(FileBase):
         except UnicodeDecodeError:
             logger.error(f'Not possibility convert {self.file_name}')
         return self
+
+
+class CsvFile(File):
+
+    def __init__(self, path_: str, fieldnames: List[str], data=None):
+        self._fieldnames = list(fieldnames)
+        super().__init__(path_, data)
+
+    @property
+    def n_cols(self):
+        return len(self._fieldnames)
+
+    @property
+    def cols(self):
+        return self._fieldnames
+
+    @property
+    def string(self) -> str:
+        return f"{self.new_line_sep}".join([','.join([str(i) for i in row]) for row in [self._fieldnames] + self.lines])
+
+    @property
+    def rows(self):
+        for row in self.lines:
+            yield row
+
+    def add_row(self, data: List[Any], fill_with=None):
+        self.insert(-1, data, fill_with=fill_with)
+
+    def normalize_data(self, data: Any, fill_with=None, **kwargs) -> Union[List[str], Any]:
+        n_cols = len(self._fieldnames)
+        normalized_data = []
+        if is_sequence(data):
+            for row in data:
+                if not is_sequence(row):
+                    assert len(data) <= n_cols, f'number of lines ({len(data)}) > number of cols {n_cols}'
+                    data += [fill_with] * (n_cols - len(data))
+                    normalized_data.append(data)
+                    break
+                assert len(row) <= n_cols, f'number of lines ({len(row)}) > number of cols {n_cols}'
+                row = list(row)
+                row += [fill_with] * (n_cols - len(row))
+                normalized_data.append(row)
+        else:
+            assert not isinstance(data, dict), TypeError("dict data isn't valid.")
+            data = [data]
+            data += [fill_with] * (n_cols - len(data))
+            normalized_data.append(data)
+        return normalized_data
+
+    @property
+    def data(self):
+        for row in self.lines:
+            yield dict(zip(self._fieldnames, row))
+
+    def _save(self, encoding='utf-8', **kwargs):
+        with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=self._fieldnames)
+            writer.writeheader()
+            writer.writerows(self.data)
+
+    @classmethod
+    def read(cls, path_: str, encoding='utf-8', **kwargs):
+        path_ = normalize_path(path_)
+        file_name = os.path.basename(path_)
+        ext = os.path.splitext(file_name)[-1]
+        if ext != '.csv':
+            raise ValueError("isn't .csv file.")
+        with open(path_, encoding=encoding, newline='') as fp:
+            reader = csv.DictReader(fp)
+            fields = None
+            data = []
+            for row in reader:
+                if fields is None:
+                    fields = row.keys()
+                data.append(row.values())
+        return cls(path_, fieldnames=fields, data=data)
+
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            if item not in self.cols:
+                raise ValueError(f'Column name <{item}> not in {self.cols}')
+            return get_cols(self.lines)[self.cols.index(item)]
+        if isinstance(item, tuple):
+            lines, col = item
+            if isinstance(col, tuple):
+                raise ValueError("Isn't Possible.")
+            assert col <= self.n_cols - 1, ValueError(
+                f"Invalid Column. Choice available index {list(range(self.n_cols))}")
+            return get_cols(self.lines)[col][lines]
+        return super().__getitem__(item)
 
 
 class _FilePython(File):
