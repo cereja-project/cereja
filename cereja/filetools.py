@@ -20,7 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
+import json
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
@@ -121,6 +121,12 @@ class FileBase(metaclass=ABCMeta):
             self._change_history.pop(0)
         self._change_history.append((key, value))
         self._current_change = len(self._change_history)
+
+    @property
+    def data(self):
+        if self.ext == '.json':
+            return json.loads(self.string)
+        return self.lines
 
     def _select_change(self, index):
         try:
@@ -334,7 +340,10 @@ class FileBase(metaclass=ABCMeta):
 
     def _save(self, encoding='utf-8', **kwargs):
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
-            fp.write(self.string)
+            if self.ext == '.json':
+                json.dump(self.data, fp, indent=4, **kwargs)
+            else:
+                fp.write(self.string)
 
     @abstractmethod
     def save(self, path_: Union[str, None]):
