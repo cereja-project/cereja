@@ -89,8 +89,10 @@ class FileBase(metaclass=ABCMeta):
             content_file = []
         self.__path = normalize_path(path_)
         if isinstance(content_file, dict):
-            assert self.ext == '.json', f"Detected {type(content_file)} data. Extension != .json"
-            content_file = json.dumps(content_file, indent=4)
+            content_file = self._json_content(data=content_file)
+            setattr(self, 'items', lambda: self.data.items())
+            setattr(self, 'keys', lambda: self.data.keys())
+            setattr(self, 'values', lambda: self.data.values())
         self._lines = self.normalize_data(content_file)
         if not self.is_empty:
             line_sep_ = self.parse_new_line_sep(content_file[0]) or self._default_new_line_sep
@@ -101,6 +103,10 @@ class FileBase(metaclass=ABCMeta):
         self._max_history_length = 50
         self._change_history = []
         self._set_change('_lines', self.lines.copy())
+
+    def _json_content(self, data):
+        assert self.ext == '.json', f"Detected {type(data)} data. Extension != .json"
+        return json.dumps(data, indent=4)
 
     @classmethod
     def normalize_unix_line_sep(cls, content: str) -> str:
@@ -126,7 +132,7 @@ class FileBase(metaclass=ABCMeta):
         self._current_change = len(self._change_history)
 
     @property
-    def data(self):
+    def data(self) -> Union[List[str], dict]:
         if self.ext == '.json':
             return json.loads(self.string)
         return self.lines
@@ -337,9 +343,14 @@ class FileBase(metaclass=ABCMeta):
             self._lines.insert(line, data)
         self._set_change('_lines', self._lines.copy())
 
-    def remove(self, line: int):
-        self._lines.pop(line)
-        self._set_change('_lines', self._lines.copy())
+    def remove(self, line: Union[int, str]):
+        if self.ext == '.json' and isinstance(line, str):
+            data = self.data
+            data.pop(line)
+            self._lines = self.normalize_data(self._json_content(data))
+        else:
+            self._lines.pop(line)
+            self._set_change('_lines', self._lines.copy())
 
     def _save(self, encoding='utf-8', **kwargs):
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
@@ -369,14 +380,21 @@ class FileBase(metaclass=ABCMeta):
 
     def __setitem__(self, key, value):
         if self.ext == '.json':
-            raise NotImplementedError("assignment for .json data has not implemented.")
-        if isinstance(key, Tuple):
-            raise ValueError("invalid assignment.")
-        self.insert(key, value)
+            data = self.data
+            data[key] = value
+            self._lines = self.normalize_data(self._json_content(data))
+        else:
+            if isinstance(key, Tuple):
+                raise ValueError("invalid assignment.")
+            self.insert(key, value)
 
     def __iter__(self):
-        for i in self._lines:
-            yield i
+        if self.ext == '.json':
+            for i in self.data:
+                yield i
+        else:
+            for i in self._lines:
+                yield i
 
     def __len__(self):
         return len(self._lines)
