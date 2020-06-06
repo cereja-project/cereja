@@ -129,13 +129,16 @@ file.save(exist_ok=True) # or change path file.save(on_new_path='new_path.ext', 
 ```
 
 #### Corpus
+Great training and test separator.
+
+##### Create from list data
 ```python
 import cereja as cj
 
 X = ['how are you?', 'my name is Joab', 'I like coffee', 'how are you joab?', 'how', 'we are the world']
 Y = ['como você está?', 'meu nome é Joab', 'Eu gosto de café', 'Como você está joab?', 'como', 'Nós somos o mundo']
 
-corpus = cj.datatools.Corpus(source_data=X, target_data=Y, source_name='en', target_name='pt')
+corpus = cj.Corpus(source_data=X, target_data=Y, source_name='en', target_name='pt')
 print(corpus) # Corpus(examples: 6 - source_vocab_size: 13 - target_vocab_size:15)
 print(corpus.source) # LanguageData(examples: 6 - vocab_size: 13)
 print(corpus.target) # LanguageData(examples: 6 - vocab_size: 15)
@@ -155,6 +158,13 @@ corpus.target.words_freq
 # split_data function guarantees test data without data identical to training
 # and only with vocabulary that exists in training
 train, test = corpus.split_data() # default percent of training is 80%
+```
+##### Read from .csv
+```python
+import cereja as cj
+
+corpus = cj.Corpus.load_corpus_from_csv('path_to_file.csv', src_col_name='x_data', trg_col_name='y_data', source_name='en', target_name='pt')
+# now you have a Corpus instance, have fun! (:
 ```
 #### Progress
 
