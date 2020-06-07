@@ -34,6 +34,7 @@ from cereja.path import normalize_path, listdir
 from cereja.utils import invert_dict
 import copy
 import csv
+from datetime import datetime
 
 logger = logging.Logger(__name__)
 
@@ -84,9 +85,16 @@ class FileBase(metaclass=ABCMeta):
     _default_new_line_sep = DEFAULT_NEW_LINE_SEP
     _dont_read = [".pyc"]
     _ignore_dir = [".git"]
+    _allowed_ext = ()
 
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
+        self._last_update = None
         self.__path = normalize_path(path_)
+        if os.path.exists(self.path):
+            self._last_update = self.last_update
+        if self._allowed_ext:
+            assert self.ext in self._allowed_ext, ValueError(
+                    f'type of file {self.ext} not allowed. Only allowed {self._allowed_ext}')
         if not content_file:
             content_file = {} if self.ext == '.json' else []
         assert self.ext != '', ValueError(
@@ -360,6 +368,8 @@ class FileBase(metaclass=ABCMeta):
             yield os.path.basename(dir_name), len(files_), files_
 
     def insert(self, line: int, data: Union[Sequence, str, int], **kwargs):
+        if self.ext == '.json':
+            raise NotImplementedError('Not implemented for .json data.')
         data = self.normalize_data(data, **kwargs)
         if is_sequence(data):
             if line == -1:
@@ -386,12 +396,22 @@ class FileBase(metaclass=ABCMeta):
             self._lines.pop(line)
             self._set_change('_lines', self._lines.copy())
 
-    def _save(self, encoding='utf-8', **kwargs):
+    @property
+    def last_update(self):
+        return datetime.fromtimestamp(os.stat(self.path).st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+
+    def _save(self, encoding='utf-8', exist_ok=False, override=False, **kwargs):
+        if self._last_update is not None and override is False:
+            if self._last_update != self.last_update:
+                raise AssertionError(f"File change detected (last change {self.last_update}), if you want to overwrite set override = True")
+        assert exist_ok or not os.path.exists(self.path), FileExistsError(
+                "File exists. If you want override, please send 'exist_ok=True'")
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
             if self.is_json:
                 json.dump(self.data, fp, indent=4, **kwargs)
             else:
                 fp.write(self.string)
+        self._last_update = self.last_update
 
     @abstractmethod
     def save(self, path_: Union[str, None]):
@@ -442,9 +462,7 @@ class File(FileBase):
     def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', exist_ok=False, **kwargs):
         if on_new_path is not None:
             self.set_path(on_new_path)
-        assert exist_ok or not os.path.exists(self.path), FileExistsError(
-                "File exists. If you want override, please send 'exist_ok=True'")
-        self._save(encoding, **kwargs)
+        self._save(encoding=encoding, exist_ok=exist_ok, **kwargs)
         return self
 
     def replace_file_sep(self, new, save: bool = True):
@@ -461,6 +479,7 @@ class File(FileBase):
 
 
 class CsvFile(File):
+    _allowed_ext = ('.csv',)
 
     def __init__(self, path_: str, fieldnames: List[str], data=None):
         self._fieldnames = list(fieldnames)
