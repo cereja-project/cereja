@@ -86,6 +86,7 @@ class FileBase(metaclass=ABCMeta):
     _dont_read = [".pyc"]
     _ignore_dir = [".git"]
     _allowed_ext = ()
+    _date_format = "%Y-%m-%d %H:%M:%S"
 
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
         self._last_update = None
@@ -398,11 +399,15 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def updated_at(self):
-        return datetime.fromtimestamp(os.stat(self.path).st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+        return datetime.fromtimestamp(os.stat(self.path).st_mtime).strftime(self._date_format)
 
     @property
     def created_at(self):
-        return datetime.fromtimestamp(os.stat(self.path).st_ctime).strftime('%Y-%m-%d %H:%M:%S')
+        return datetime.fromtimestamp(os.stat(self.path).st_ctime).strftime(self._date_format)
+
+    @property
+    def last_acess(self):
+        return datetime.fromtimestamp(os.stat(self.path).st_atime).strftime(self._date_format)
 
     def _save(self, encoding='utf-8', exist_ok=False, override=False, **kwargs):
         if self._last_update is not None and override is False:
@@ -455,7 +460,7 @@ class FileBase(metaclass=ABCMeta):
                 yield i
 
     def __len__(self):
-        return len(self._lines)
+        return self.__sizeof__()
 
 
 class File(FileBase):
