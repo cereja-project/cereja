@@ -47,14 +47,6 @@ See some of the Cereja tools
 
 Filetools has several functions, have the converters for end of line (CRLF, LF and CR), you can convert CRLF to LF or CR and vice versa
 
-##### Convert between CRLF, LF and CR
-
-```shell script
-python3 -m pip install cereja
-
-python3 -m cereja --crlf_to_lf "/dir_or_file_path"
-```
-
 ##### Generic File Manipulation Example - most files
 ```python
 import cereja as cj
@@ -159,6 +151,14 @@ file = cj.File.read('path_to_file.ext')
 # now you have a file instance, have fun!
 # you can insert lines, remove and save \0/
 file.save(exist_ok=True) # or change path file.save(on_new_path='new_path.ext', exist_ok=True)
+```
+
+##### Convert between CRLF, LF and CR
+
+```shell script
+python3 -m pip install cereja
+
+python3 -m cereja --crlf_to_lf "/dir_or_file_path"
 ```
 
 #### Corpus
