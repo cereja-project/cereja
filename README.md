@@ -53,7 +53,7 @@ import cereja as cj
 
 data = ['first line', 'second line', 'third line']
 file = cj.File('test.txt', data) # ram only, not yet saved
-print(file) # File<test.txt> 0.031 KB
+print(file) # File<test.txt>
 print(file.data) # ['first line', 'second line', 'third line']
 
 # iterable
@@ -86,7 +86,7 @@ import cereja as cj
 
 data = {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
 file = cj.File('test.json', data) # ram only, not yet saved
-print(file) # File<test.json> 0.05 KB
+print(file) # File<test.json>
 print(file.data) # {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
 
 # Iterable
@@ -115,11 +115,11 @@ file.save()
 import cereja as cj
 
 file = cj.CsvFile('test.csv', fieldnames=['col1','col2','col3']) # ram only, not yet saved
-print(file) # CsvFile<test.csv> 0.012 KB
+print(file) # CsvFile<test.csv>
 file.add_row([1,2,3])
 print(file.lines) # [[1, 2, 3]]
 file.add_row([1,2], fill_with=0)
-print(file.lines) # [[1, 2, 3]] # [[1, 2, 3], [1, 2, 0]]
+print(file.lines) # [[1, 2, 3], [1, 2, 0]]
 
 # convert to dict
 file.to_dict() # {'col1': [1, 1], 'col2': [2, 2], 'col3': [3, 0]}

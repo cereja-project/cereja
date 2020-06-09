@@ -152,18 +152,18 @@ class FileToolsTestCase(unittest.TestCase):
     def test_file_obj(self):
         content_file = [1, 2, 3]
         file = filetools.File('cereja/teste.py', content_file)
-        normalized_data = f'{filetools.LF}'.join(filetools.File.normalize_data(content_file))
+        normalized_data = f'{filetools.LF}'.join(filetools.FileBase.normalize_data(content_file))
         expected_values = ["LF", "teste.py", 'cereja', False, normalized_data, len(content_file), 0.006]
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CRLF", save=False)
-        normalized_data = f'{filetools.CRLF}'.join(filetools.File.normalize_data(content_file))
+        normalized_data = f'{filetools.CRLF}'.join(filetools.FileBase.normalize_data(content_file))
         expected_values[0] = "CRLF"
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CR", save=False)
-        normalized_data = f'{filetools.CR}'.join(filetools.File.normalize_data(content_file))
+        normalized_data = f'{filetools.CR}'.join(filetools.FileBase.normalize_data(content_file))
         expected_values[0] = "CR"
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
@@ -191,6 +191,17 @@ class FileToolsTestCase(unittest.TestCase):
         file.insert(0, [1])
         file.undo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
+
+    def test_json_file(self):
+        data = [(1, 2), ('four', 4), ('six', 6)]
+        expected = {'1': 2, 'four': 4, 'six': 6}
+
+        # Normalize test
+        self.assertDictEqual(filetools.JsonFile.normalize_data(data), expected)
+        self.assertDictEqual(filetools.JsonFile.normalize_data(expected.items()), expected)
+        self.assertDictEqual(filetools.JsonFile.normalize_data(1), {'1': None})
+        self.assertDictEqual(filetools.JsonFile.normalize_data(()), {})
+        self.assertDictEqual(filetools.JsonFile.normalize_data((1, 2, 3)), {'1': None, '2': None, '3': None})
 
 
 class UnicodeToolTestCase(unittest.TestCase):

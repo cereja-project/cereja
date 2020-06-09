@@ -23,10 +23,10 @@ SOFTWARE.
 import json
 import os
 import warnings
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from typing import Union, List, Iterator, Tuple, Sequence, Any
 
-from cereja.arraytools import is_sequence, is_iterable, get_cols
+from cereja.arraytools import is_sequence, is_iterable, get_cols, flatten
 from cereja.display import Progress
 import logging
 
@@ -34,6 +34,7 @@ from cereja.path import normalize_path, listdir
 from cereja.utils import invert_dict
 import copy
 import csv
+from datetime import datetime
 
 logger = logging.Logger(__name__)
 
@@ -84,54 +85,31 @@ class FileBase(metaclass=ABCMeta):
     _default_new_line_sep = DEFAULT_NEW_LINE_SEP
     _dont_read = [".pyc"]
     _ignore_dir = [".git"]
+    _allowed_ext = ()
+    _date_format = "%Y-%m-%d %H:%M:%S"
 
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
+        self._last_update = None
         self.__path = normalize_path(path_)
+        if os.path.exists(self.path):
+            self._last_update = self.updated_at
+        if self._allowed_ext:
+            assert self.ext in self._allowed_ext, ValueError(
+                    f'type of file {self.ext} not allowed. Only allowed {self._allowed_ext}')
         if not content_file:
-            content_file = {} if self.ext == '.json' else []
+            content_file = []
         assert self.ext != '', ValueError(
                 'You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.).')
-        if self.ext == '.json' or isinstance(content_file, dict):
-            assert self.ext == '.json', f"Detected {type(content_file)} data. Extension != .json"
-            try:
-                content_file = self._json_content(data=content_file)
-                self._lines = self.normalize_data(content_file)
-                setattr(self, 'items', lambda: self.data.items())
-                setattr(self, 'keys', lambda: self.data.keys())
-                setattr(self, 'values', lambda: self.data.values())
-                self.is_json = True
-            except Exception as err:
-                raise ValueError(f"data incompatible with file extension is .json")
-        else:
-            self.is_json = False
-            self._lines = self.normalize_data(content_file)
+        self._lines = self.normalize_data(content_file)
         if not self.is_empty:
-            line_sep_ = self.parse_new_line_sep(content_file[0]) or self._default_new_line_sep
+            line_sep_ = self._default_new_line_sep
             self.set_new_line_sep(line_sep_)
         else:
             self._new_line_sep = self._default_new_line_sep
         self._current_change = 0
         self._max_history_length = 50
         self._change_history = []
-        self._set_change('_lines', self.lines.copy())
-
-    def _json_content(self, data):
-        try:
-            if isinstance(data, dict):
-                return json.dumps(data)
-            elif isinstance(data, str):
-                json.loads(data)
-                return data
-            else:
-                raise Exception
-        except Exception as err:
-            raise ValueError("Invalid .json data")
-
-    @classmethod
-    def normalize_unix_line_sep(cls, content: str) -> str:
-        return content.replace(cls._str_new_line_sep_map['CRLF'],
-                               cls._default_new_line_sep).replace(cls._str_new_line_sep_map['CR'],
-                                                                  cls._default_new_line_sep)
+        self._set_change('_lines', self._lines.copy())
 
     def __setattr__(self, key, value):
         object.__setattr__(self, key, value)
@@ -139,9 +117,29 @@ class FileBase(metaclass=ABCMeta):
                 '_current_change', '_max_history_length', '_change_history'):
             self._set_change(key, object.__getattribute__(self, key))  # append last_value of attr
 
-    @property
-    def history(self):
-        return self._change_history
+    def __sizeof__(self):
+        return self.string.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
+
+    def __str__(self):
+        return f'{self.__class__.__name__}<{self.file_name}>'
+
+    def __repr__(self):
+        return f'{self.__str__()} {self.size(unit="KB")} KB'
+
+    def __getitem__(self, item) -> str:
+        return self._lines[item]
+
+    def __setitem__(self, key, value):
+        if isinstance(key, Tuple):
+            raise ValueError("invalid assignment.")
+        self.insert(key, value)
+
+    def __iter__(self):
+        for i in self._lines:
+            yield i
+
+    def __len__(self):
+        return self.__sizeof__()
 
     def _set_change(self, key, value):
         self._change_history = self._change_history[:self._current_change + 1]
@@ -149,12 +147,6 @@ class FileBase(metaclass=ABCMeta):
             self._change_history.pop(0)
         self._change_history.append((key, value))
         self._current_change = len(self._change_history)
-
-    @property
-    def data(self) -> Union[List[str], dict]:
-        if self.is_json:
-            return json.loads(self.string)
-        return self.lines
 
     def _select_change(self, index):
         try:
@@ -166,29 +158,24 @@ class FileBase(metaclass=ABCMeta):
         except IndexError:
             logger.info("It's not possible")
 
-    def undo(self):
-        if self._current_change > 0:
-            index = -2 if self._current_change == len(self._change_history) else -1
-            self._select_change(index)
+    def _save(self, encoding='utf-8', exist_ok=False, override=False, **kwargs):
+        if self._last_update is not None and override is False:
+            if self._last_update != self.updated_at:
+                raise AssertionError(
+                        f"File change detected (last change {self.updated_at}), if you want to overwrite set override = True")
+        assert exist_ok or not os.path.exists(self.path), FileExistsError(
+                "File exists. If you want override, please send 'exist_ok=True'")
+        with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
+            fp.write(self.string)
+        self._last_update = self.updated_at
 
-    def redo(self):
-        if self._current_change < len(self._change_history):
-            self._select_change(+1)
+    @property
+    def history(self):
+        return self._change_history
 
-    @classmethod
-    def normalize_data(cls, data: Any, *args, **kwargs) -> Union[List[str], Any]:
-        if not data:
-            return data
-        if is_iterable(data) or isinstance(data, int):
-            if is_sequence(data) and not isinstance(data, int):
-                data = [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]
-            elif isinstance(data, str):
-                data = data.splitlines()
-            elif isinstance(data, int):
-                data = str(data)
-            return data
-        else:
-            raise ValueError(f"{data} Invalid value. Send other ")
+    @property
+    def data(self) -> Union[List[str], dict]:
+        return self.lines
 
     @property
     def lines(self) -> List[str]:
@@ -209,33 +196,6 @@ class FileBase(metaclass=ABCMeta):
         warnings.warn(f"This property will be deprecated in future versions. "
                       "you can use property `File.lines`", DeprecationWarning, 2)
         return self._lines
-
-    @classmethod
-    def parse_new_line_sep(cls, line: str) -> Union[str, None]:
-        if is_iterable(line):
-            for ln in cls._new_line_sep_map:
-                if ln in line:
-                    return ln
-        try:
-            if line in cls._str_new_line_sep_map:
-                return cls._str_new_line_sep_map[line]
-        except TypeError:
-            return None
-        return None
-
-    @property
-    def new_line_sep(self) -> str:
-        return self._new_line_sep
-
-    def set_new_line_sep(self, new_line_: str):
-        self._new_line_sep = self.parse_new_line_sep(new_line_) or self._default_new_line_sep
-
-    @property
-    def new_line_sep_repr(self):
-        return self._new_line_sep_map[self._new_line_sep]
-
-    def set_path(self, path_):
-        self.__path = normalize_path(path_)
 
     @property
     def path(self):
@@ -273,23 +233,59 @@ class FileBase(metaclass=ABCMeta):
     def ext(self):
         return os.path.splitext(self.file_name)[-1]
 
-    def size(self, unit: str = "KB"):
-        """
-        returns the size that the file occupies on the disk.
+    @property
+    def updated_at(self):
+        return datetime.fromtimestamp(os.stat(self.path).st_mtime).strftime(self._date_format)
 
-        :param unit: choose anyone in ('B', 'KB', 'MB', 'GB', 'TB')
+    @property
+    def created_at(self):
+        return datetime.fromtimestamp(os.stat(self.path).st_ctime).strftime(self._date_format)
 
-        """
-        assert isinstance(unit, str), f"expected {str.__name__} not {type(unit).__name__}."
+    @property
+    def last_acess(self):
+        return datetime.fromtimestamp(os.stat(self.path).st_atime).strftime(self._date_format)
 
-        unit = unit.upper()
+    @property
+    def new_line_sep(self) -> str:
+        return self._new_line_sep
 
-        assert unit in self.__size_map, f"{repr(unit)} is'nt valid. Choose anyone in {tuple(self.__size_map)}"
+    @property
+    def new_line_sep_repr(self):
+        return self._new_line_sep_map[self._new_line_sep]
 
-        return self.__sizeof__() / self.__size_map[unit]
+    @classmethod
+    def normalize_unix_line_sep(cls, content: str) -> str:
+        return content.replace(cls._str_new_line_sep_map['CRLF'],
+                               cls._default_new_line_sep).replace(cls._str_new_line_sep_map['CR'],
+                                                                  cls._default_new_line_sep)
 
-    def __sizeof__(self):
-        return self.string.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
+    @classmethod
+    def normalize_data(cls, data: Any, *args, **kwargs) -> Union[List[str], Any]:
+        if not data:
+            return data
+        if is_iterable(data) or isinstance(data, int):
+            if is_sequence(data) and not isinstance(data, int):
+                data = [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]
+            elif isinstance(data, str):
+                data = data.splitlines()
+            elif isinstance(data, int):
+                data = str(data)
+            return data
+        else:
+            raise ValueError(f"{data} Invalid value. Send other ")
+
+    @classmethod
+    def parse_new_line_sep(cls, line: str) -> Union[str, None]:
+        if is_iterable(line):
+            for ln in cls._new_line_sep_map:
+                if ln in line:
+                    return ln
+        try:
+            if line in cls._str_new_line_sep_map:
+                return cls._str_new_line_sep_map[line]
+        except TypeError:
+            return None
+        return None
 
     @classmethod
     def read(cls, path_: str, encoding='utf-8', **kwargs):
@@ -307,10 +303,6 @@ class FileBase(metaclass=ABCMeta):
             return
 
         return cls(path_, content)
-
-    @classmethod
-    def replace_file_sep(cls, new, save: bool = True):
-        raise NotImplementedError
 
     @classmethod
     def load_files(cls, path_, ext, contains_in_name: List = (), not_contains_in_name=(), take_empty=True):
@@ -359,6 +351,36 @@ class FileBase(metaclass=ABCMeta):
                             logger.error(f'Error reading the file {file_name}: {err}')
             yield os.path.basename(dir_name), len(files_), files_
 
+    def set_new_line_sep(self, new_line_: str):
+        self._new_line_sep = self.parse_new_line_sep(new_line_) or self._default_new_line_sep
+
+    def undo(self):
+        if self._current_change > 0:
+            index = -2 if self._current_change == len(self._change_history) else -1
+            self._select_change(index)
+
+    def redo(self):
+        if self._current_change < len(self._change_history):
+            self._select_change(+1)
+
+    def set_path(self, path_):
+        self.__path = normalize_path(path_)
+
+    def size(self, unit: str = "KB"):
+        """
+        returns the size that the file occupies on the disk.
+
+        :param unit: choose anyone in ('B', 'KB', 'MB', 'GB', 'TB')
+
+        """
+        assert isinstance(unit, str), f"expected {str.__name__} not {type(unit).__name__}."
+
+        unit = unit.upper()
+
+        assert unit in self.__size_map, f"{repr(unit)} is'nt valid. Choose anyone in {tuple(self.__size_map)}"
+
+        return self.__sizeof__() / self.__size_map[unit]
+
     def insert(self, line: int, data: Union[Sequence, str, int], **kwargs):
         data = self.normalize_data(data, **kwargs)
         if is_sequence(data):
@@ -375,76 +397,13 @@ class FileBase(metaclass=ABCMeta):
         self._set_change('_lines', self._lines.copy())
 
     def remove(self, line: Union[int, str]):
-        if self.is_json:
-            if line in self.data:
-                data = self.data
-                data.pop(line)
-                self._lines = self.normalize_data(self._json_content(data))
-            else:
-                raise ValueError(f'{line} not found.')
-        else:
-            self._lines.pop(line)
-            self._set_change('_lines', self._lines.copy())
-
-    def _save(self, encoding='utf-8', **kwargs):
-        with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
-            if self.is_json:
-                json.dump(self.data, fp, indent=4, **kwargs)
-            else:
-                fp.write(self.string)
-
-    @abstractmethod
-    def save(self, path_: Union[str, None]):
-        raise NotImplementedError
-
-    def __str__(self):
-        return f'{self.__class__.__name__}<{self.file_name}>'
-
-    def __repr__(self):
-        return f'{self.__str__()} {self.size(unit="KB")} KB'
-
-    def __getitem__(self, item) -> str:
-        if self.is_json:
-            try:
-                return self.data[item]
-            except KeyError:
-                raise KeyError(f"{item} not found.")
-
-        return self._lines[item]
-
-    def __setitem__(self, key, value):
-        if self.is_json:
-            data = self.data
-            data[key] = value
-            self._lines = self.normalize_data(self._json_content(data))
-        else:
-            if isinstance(key, Tuple):
-                raise ValueError("invalid assignment.")
-            self.insert(key, value)
-
-    def __iter__(self):
-        if self.is_json:
-            for i in self.data:
-                yield i
-        else:
-            for i in self._lines:
-                yield i
-
-    def __len__(self):
-        return len(self._lines)
-
-
-class File(FileBase):
-    """
-    High-level API for creating and manipulating files
-    """
+        self._lines.pop(line)
+        self._set_change('_lines', self._lines.copy())
 
     def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', exist_ok=False, **kwargs):
         if on_new_path is not None:
             self.set_path(on_new_path)
-        assert exist_ok or not os.path.exists(self.path), FileExistsError(
-                "File exists. If you want override, please send 'exist_ok=True'")
-        self._save(encoding, **kwargs)
+        self._save(encoding=encoding, exist_ok=exist_ok, **kwargs)
         return self
 
     def replace_file_sep(self, new, save: bool = True):
@@ -454,15 +413,18 @@ class File(FileBase):
         try:
             self.set_new_line_sep(new)
             if save is True:
-                self._save()
+                self._save(exist_ok=True)
         except UnicodeDecodeError:
             logger.error(f'Not possibility convert {self.file_name}')
         return self
 
 
-class CsvFile(File):
+class CsvFile(FileBase):
+    _allowed_ext = ('.csv',)
 
     def __init__(self, path_: str, fieldnames: List[str], data=None):
+        if not fieldnames:
+            raise ValueError('fieldnames is <None> please specify columns')
         self._fieldnames = list(fieldnames)
         super().__init__(path_, data)
 
@@ -570,7 +532,154 @@ class CsvFile(File):
         return super().__getitem__(item)
 
 
-class _FilePython(File):
+class JsonFile(FileBase):
+    _allowed_ext = ('.json',)
+
+    def __init__(self, path_: str, data: dict = None):
+        setattr(self, 'items', lambda: self.data.items())
+        setattr(self, 'keys', lambda: self.data.keys())
+        setattr(self, 'values', lambda: self.data.values())
+        super().__init__(path_=path_, content_file=data)
+
+    def __getitem__(self, item):
+        try:
+            return self.data[item]
+        except KeyError:
+            raise KeyError(f"{item} not found.")
+
+    @classmethod
+    def parse(cls, data) -> dict:
+        if isinstance(data, str):
+            return json.loads(data)
+        elif isinstance(data, dict):
+            return json.loads(json.dumps(data))
+        raise cls.normalize_data(data)
+
+    def __setitem__(self, key, value):
+        data = self.data
+        data[key] = value
+        self._lines = self.normalize_data(data)
+
+    def __iter__(self):
+        for i in self.data:
+            yield i
+
+    @property
+    def string(self) -> str:
+        return json.dumps(self.data, indent=4)
+
+    @staticmethod
+    def _parse_key_value(data: Tuple[Any, Any], take_tuple=False) -> Union[dict, Any]:
+        if isinstance(data, dict):
+            return data
+        try:
+            key, value = data
+            return (key, value) if take_tuple is True else {key: value}
+        except Exception as err:
+            if is_sequence(data):
+                if len(data) > 2:
+                    raise ValueError(f"Invalid data {data}.")
+                if len(data) == 1:
+                    return (data[0], None) if take_tuple is True else {data[0]: None}
+            if isinstance(data, (str, int, float, complex)):
+                return (data, None) if take_tuple is True else {data: None}
+            logger.error(
+                    f"Internal Error: Intern function '_parse_key_value' error {err}. Please report this issue on "
+                    f"github https://github.com/jlsneto/cereja")
+            return data
+
+    @staticmethod
+    def is_valid(data: dict):
+        try:
+            json.dumps(data)
+            return True
+        except:
+            return False
+
+    @classmethod
+    def normalize_data(cls, data: Any, *args, **kwargs) -> dict:
+        if data is None:
+            return {}
+        if isinstance(data, (dict, set)):
+            return cls.parse(data)
+        if is_sequence(data):
+            if len(data) == 2:
+                if len(flatten(data)) == 2:
+                    return cls.parse(cls._parse_key_value(data))
+            normalized_data = {}
+            for item in data:
+                k, v = cls._parse_key_value(item, take_tuple=True)
+                assert k not in normalized_data, ValueError(f'Data contains duplicate keys <{k}>')
+                normalized_data[k] = v
+            return cls.parse(normalized_data)
+        return cls.parse({data: None})
+
+    def remove(self, key):
+        if key in self.data:
+            data = self.data
+            data.pop(key)
+            self._lines = data
+        else:
+            raise ValueError(f'{key} not found.')
+
+    def insert(self, key, value, **kwargs):
+        key, value = self._parse_key_value((key, value), take_tuple=True)
+        assert key not in self.data and str(key) not in self.data, ValueError(f'Data contains duplicate keys <{key}>')
+        data = self.data
+        data[key] = value
+        if not self.is_valid(data):
+            raise ValueError('Invalid JSON data.')
+        self._lines = data
+
+    @classmethod
+    def read(cls, path_: str, encoding='utf-8', **kwargs):
+        path_ = normalize_path(path_)
+        file_name = os.path.basename(path_)
+        ext = os.path.splitext(file_name)[-1]
+        assert ext == '.json', "isn't .json file."
+        with open(path_, encoding=encoding, **kwargs) as fp:
+            data = json.load(fp)
+        return cls(path_, data=data)
+
+
+class __File:
+    """
+    High-level API for creating and manipulating files
+    """
+
+    def __call__(self, path_: str, content_file=None, **kwargs) -> FileBase:
+        path_, file_name, ext = self.__get_path_info(path_)
+        if os.path.exists(path_):
+            if content_file or kwargs:
+                raise FileExistsError(
+                        'The file already exists, please use the <File.read> function or change the file path')
+        if content_file is None:
+            content_file = kwargs.get('data')
+        if ext == '.csv':
+            return CsvFile(path_, data=content_file, **kwargs)
+        elif ext == '.json':
+            return JsonFile(path_, data=content_file)
+        return FileBase(path_=path_, content_file=content_file)
+
+    def __get_path_info(self, path_):
+        path_ = normalize_path(path_)
+        file_name = os.path.basename(path_)
+        ext = os.path.splitext(file_name)[-1]
+        return path_, file_name, ext
+
+    def read(self, path_: str, **kwargs):
+        path_, file_name, ext = self.__get_path_info(path_)
+        if ext == '.json':
+            return JsonFile.read(path_, **kwargs)
+        if ext == '.csv':
+            return CsvFile.read(path_, **kwargs)
+        return FileBase.read(path_, **kwargs)
+
+
+File = __File()
+
+
+class _FilePython(FileBase):
     def insert_license(self):
         pass
 
