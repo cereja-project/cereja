@@ -35,6 +35,7 @@ from cereja.utils import invert_dict
 import copy
 import csv
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.Logger(__name__)
 
@@ -69,6 +70,112 @@ _NEW_LINE_SEP_MAP = {
 _STR_NEW_LINE_SEP_MAP = invert_dict(_NEW_LINE_SEP_MAP)
 
 
+class PathInfo(object):
+
+    def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
+        if initial == '.' or initial == './':
+            initial = normalize_path('.')
+        self.__path = Path(initial, *pathsegments)
+        self.__parent = self.__path.parent.as_posix()
+        self._parent_name = self.__path.cwd().name
+        self._verify()
+
+    def __value_err(self, details=''):
+        if details:
+            details = f'details {details}'
+        raise ValueError(f"Path <{self.path}> isn't valid. {details}")
+
+    def __value_warn(self, details):
+        logger.warning(f"Path warning. {details}")
+
+    def _verify(self):
+        part = self.__path
+        for i in range(len(self.__path.parts)):
+            part_split = part.name.split('.')
+            if part_split[-1] == '.':
+                self.__value_warn(f'It is not common to use dot <{part.name}> in the end of name.')
+                break
+            if (part.suffix or part_split[-1] == '.') and i > 0:
+                self.__value_warn(f'It is not common to use dot in the middle or end of directory name <{part.name}>')
+                break
+            if len(part_split) > 2:
+                self.__value_warn(f"<{part.name}> has more dot than usual.")
+            part = part.parent
+
+    @property
+    def name(self):
+        return self.__path.name
+
+    @property
+    def exists(self):
+        return self.__path.exists()
+
+    @property
+    def path(self):
+        return self.__path.as_posix()
+
+    @property
+    def stem(self):
+        return self.__path.stem
+
+    @property
+    def suffix(self):
+        return self.__path.suffix
+
+    @property
+    def root(self):
+        return self.__path.anchor
+
+    @property
+    def parent(self):
+        """
+        :return: Parent PathInfo object
+        """
+        return self.__class__(self.__parent)
+
+    @property
+    def parent_name(self):
+        return self._parent_name
+
+    @property
+    def uri(self):
+        return self.__path.as_uri()
+
+    @property
+    def is_dir(self):
+        return self.__path.is_dir()
+
+    @property
+    def is_file(self):
+        return self.__path.is_file()
+
+    @property
+    def is_link(self):
+        return self.__path.is_symlink()
+
+    @property
+    def is_hidden(self):
+        """
+        In Unix-like operating systems, any file or folder that starts with a dot character
+        (for example, /home/user/. config), commonly called a dot file or dotfile,is to be
+        treated as hidden – that is, the ls command does not display them unless the -a
+        flag ( ls -a ) is used.
+
+        Return True if the name starts with dot or path contains one of the special names reserved
+        by the system, if any.
+
+        :return: bool
+        """
+        return self.name.startswith('.') or self.__path.is_reserved()
+
+    @property
+    def parts(self):
+        return self.__path.parts
+
+    def join(self, *args):
+        return self.__class__(self.__path.joinpath(*args).as_posix())
+
+
 class FileBase(metaclass=ABCMeta):
     """
     High-level API for creating and manipulating files
@@ -90,7 +197,7 @@ class FileBase(metaclass=ABCMeta):
 
     def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
         self._last_update = None
-        self.__path = normalize_path(path_)
+        self.__path = PathInfo(normalize_path(path_))
         if os.path.exists(self.path):
             self._last_update = self.updated_at
         if self._allowed_ext:
@@ -193,15 +300,15 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def path(self):
-        return self.__path
+        return self.__path.path
 
     @property
     def file_name(self):
-        return os.path.basename(self.__path)
+        return self.__path.name
 
     @property
     def file_name_without_ext(self):
-        return os.path.splitext(self.file_name)[0]
+        return self.__path.stem
 
     @property
     def n_lines(self):
@@ -213,19 +320,19 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def dir_name(self):
-        return os.path.basename(self.dir_path)
+        return self.__path.parent.name
 
     @property
     def dir_path(self):
-        return os.path.dirname(self.__path)
+        return self.__path.parent.path
 
     @property
     def is_link(self):
-        return os.path.islink(self.__path)
+        return self.__path.is_link
 
     @property
     def ext(self):
-        return os.path.splitext(self.file_name)[-1]
+        return self.__path.suffix
 
     @property
     def updated_at(self):
