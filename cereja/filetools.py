@@ -287,16 +287,37 @@ class FileBase(metaclass=ABCMeta):
             return None
         return None
 
-    @classmethod
-    def read(cls, path_: str, encoding='utf-8', **kwargs):
+    @staticmethod
+    def file_path_info(path_: str):
+        """
+        :return: absolute_path, file_name, ext
+        """
         path_ = normalize_path(path_)
         file_name = os.path.basename(path_)
         ext = os.path.splitext(file_name)[-1]
+        return path_, file_name, ext
+
+    @classmethod
+    def read(cls, path_: str, **kwargs):
+        """
+        Read and create new file object.
+
+        :param path_: File Path
+        :param kwargs:
+                encoding: utf-8 is default
+                mode: r+ is default
+                newline: '' is default
+        :return: File object
+        """
+        path_, file_name, ext = cls.file_path_info(path_)
+        encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
+        mode = kwargs.pop('mode') if 'mode' in kwargs else 'r+'
+        newline = kwargs.pop('newline') if 'newline' in kwargs else ''
         if ext in cls._dont_read:
             logger.warning(f"I can't read this file. See class attribute <{cls.__name__}._dont_read>")
             return
         try:
-            with open(path_, mode='r+', encoding=encoding, newline='', **kwargs) as fp:
+            with open(path_, mode=mode, encoding=encoding, newline=newline, **kwargs) as fp:
                 content = fp.read()
         except PermissionError as err:
             logger.error(err)
@@ -422,10 +443,12 @@ class FileBase(metaclass=ABCMeta):
 class CsvFile(FileBase):
     _allowed_ext = ('.csv',)
 
-    def __init__(self, path_: str, fieldnames: List[str], data=None):
+    def __init__(self, path_: str, fieldnames: Union[Tuple, tuple, list], data=None):
         if not fieldnames:
             raise ValueError('fieldnames is <None> please specify columns')
-        self._fieldnames = list(fieldnames)
+
+        assert isinstance(fieldnames, (tuple, list)), ValueError(f"for fieldnames is expected {tuple} or {list}")
+        self._fieldnames = tuple(fieldnames)
         super().__init__(path_, data)
 
     @property
@@ -510,7 +533,7 @@ class CsvFile(FileBase):
             data = []
             for row in reader:
                 if fields is None:
-                    fields = row.keys()
+                    fields = tuple(row.keys())
                 data.append(row.values())
         return cls(path_, fieldnames=fields, data=data)
 
@@ -632,7 +655,8 @@ class JsonFile(FileBase):
         self._lines = data
 
     @classmethod
-    def read(cls, path_: str, encoding='utf-8', **kwargs):
+    def read(cls, path_: str, **kwargs):
+        encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
         path_ = normalize_path(path_)
         file_name = os.path.basename(path_)
         ext = os.path.splitext(file_name)[-1]
@@ -642,41 +666,63 @@ class JsonFile(FileBase):
         return cls(path_, data=data)
 
 
-class __File:
+class File(FileBase):
     """
     High-level API for creating and manipulating files
+
+    Identify and create the object based on the extension
     """
 
-    def __call__(self, path_: str, content_file=None, **kwargs) -> FileBase:
-        path_, file_name, ext = self.__get_path_info(path_)
+    __classes_by_ext = {
+        '.json': JsonFile,
+        '.csv':  CsvFile
+    }
+
+    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile]:
+        """
+        Create instance based
+
+        :param path_: File path
+        :param kwargs:
+            content_file: file content depends on the type of file
+            data: file content depends on the type of file
+            fieldnames: only .csv data.
+        """
+        path_, file_name, ext = cls.file_path_info(path_)
+        if not args:
+            if 'content_file' in kwargs and 'data' in kwargs:
+                raise ValueError("Cannot send content_file and data")
+            content_file = kwargs.get('content_file') or kwargs.get('data')
+        else:
+            content_file = args[0]
+
         if os.path.exists(path_):
-            if content_file or kwargs:
-                raise FileExistsError(
-                        'The file already exists, please use the <File.read> function or change the file path')
-        if content_file is None:
-            content_file = kwargs.get('data')
+            logger.warning(
+                    f'You are creating a new file, but file path {path_} already exists. \nIf you want to read or '
+                    f'write the content of file use <File.read>')
+
         if ext == '.csv':
-            return CsvFile(path_, data=content_file, **kwargs)
+            fieldnames = kwargs.get('fieldnames')
+            return CsvFile(path_, fieldnames=fieldnames, data=content_file)
         elif ext == '.json':
             return JsonFile(path_, data=content_file)
         return FileBase(path_=path_, content_file=content_file)
 
-    def __get_path_info(self, path_):
-        path_ = normalize_path(path_)
-        file_name = os.path.basename(path_)
-        ext = os.path.splitext(file_name)[-1]
-        return path_, file_name, ext
+    @classmethod
+    def read(cls, path_: str, **kwargs):
+        """
+        Read and create instance based on extension.
 
-    def read(self, path_: str, **kwargs):
-        path_, file_name, ext = self.__get_path_info(path_)
-        if ext == '.json':
-            return JsonFile.read(path_, **kwargs)
-        if ext == '.csv':
-            return CsvFile.read(path_, **kwargs)
-        return FileBase.read(path_, **kwargs)
-
-
-File = __File()
+        :param path_: File path
+        :param kwargs:
+        :return:
+        """
+        encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
+        mode = kwargs.pop('mode') if 'mode' in kwargs else 'r+'
+        newline = kwargs.pop('newline') if 'newline' in kwargs else ''
+        path_, file_name, ext = cls.file_path_info(path_)
+        return cls.__classes_by_ext.get(ext, FileBase).read(path_=path_, mode=mode, encoding=encoding, newline=newline,
+                                                            **kwargs)
 
 
 class _FilePython(FileBase):
