@@ -158,13 +158,7 @@ class FileBase(metaclass=ABCMeta):
         except IndexError:
             logger.info("It's not possible")
 
-    def _save(self, encoding='utf-8', exist_ok=False, override=False, **kwargs):
-        if self._last_update is not None and override is False:
-            if self._last_update != self.updated_at:
-                raise AssertionError(
-                        f"File change detected (last change {self.updated_at}), if you want to overwrite set override = True")
-        assert exist_ok or not os.path.exists(self.path), FileExistsError(
-                "File exists. If you want override, please send 'exist_ok=True'")
+    def _save(self, encoding='utf-8', **kwargs):
         with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
             fp.write(self.string)
         self._last_update = self.updated_at
@@ -421,10 +415,17 @@ class FileBase(metaclass=ABCMeta):
         self._lines.pop(line)
         self._set_change('_lines', self._lines.copy())
 
-    def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', exist_ok=False, **kwargs):
+    def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', exist_ok=False, overwrite=False,
+             **kwargs):
+        if self._last_update is not None and overwrite is False:
+            if self._last_update != self.updated_at:
+                raise AssertionError(f"File change detected (last change {self.updated_at}), if you want to overwrite "
+                                     f"set overwrite=True")
+        assert exist_ok or not os.path.exists(self.path), FileExistsError(
+                "File exists. If you want override, please send 'exist_ok=True'")
         if on_new_path is not None:
             self.set_path(on_new_path)
-        self._save(encoding=encoding, exist_ok=exist_ok, **kwargs)
+        self._save(encoding=encoding, **kwargs)
         return self
 
     def replace_file_sep(self, new, save: bool = True):
@@ -677,6 +678,9 @@ class File(FileBase):
         '.json': JsonFile,
         '.csv':  CsvFile
     }
+
+    def __init__(self, path_, *args, **kwargs):
+        super().__init__(path_)
 
     def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile]:
         """
