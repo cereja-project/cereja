@@ -53,7 +53,7 @@ import cereja as cj
 
 data = ['first line', 'second line', 'third line']
 file = cj.File('test.txt', data) # ram only, not yet saved
-print(file) # File<test.txt>
+print(file) # FileBase<test.txt>
 print(file.data) # ['first line', 'second line', 'third line']
 
 # iterable
@@ -72,10 +72,10 @@ print(file.data) # ['other line2', 'other line', 'first line', 'second line', 't
 file[0] = 'other line'
 
 # Data Recovery
-file.undo() # You selected amendment 1
-print(file.data) # ['other line', 'first line', 'second line', 'third line']
-file.redo() # You selected amendment 2
+file.undo() # You selected amendment 3
 print(file.data) # ['other line2', 'other line', 'first line', 'second line', 'third line']
+file.redo() # You selected amendment 4
+print(file.data) # ['other line', 'other line2', 'other line', 'first line', 'second line', 'third line']
 
 # Save Data
 file.save()
@@ -86,7 +86,7 @@ import cereja as cj
 
 data = {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
 file = cj.File('test.json', data) # ram only, not yet saved
-print(file) # File<test.json>
+print(file) # JsonFile<test.json>
 print(file.data) # {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
 
 # Iterable
@@ -114,7 +114,7 @@ file.save()
 ```python
 import cereja as cj
 
-file = cj.CsvFile('test.csv', fieldnames=['col1','col2','col3']) # ram only, not yet saved
+file = cj.File('test.csv', fieldnames=['col1','col2','col3']) # ram only, not yet saved
 print(file) # CsvFile<test.csv>
 file.add_row([1,2,3])
 print(file.lines) # [[1, 2, 3]]

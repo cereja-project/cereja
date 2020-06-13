@@ -299,6 +299,7 @@ class FileBase(metaclass=ABCMeta):
         :return: File object
         """
         path_ = Path(path_)
+        assert path_.exists, FileNotFoundError('No such file', path_)
         encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
         mode = kwargs.pop('mode') if 'mode' in kwargs else 'r+'
         newline = kwargs.pop('newline') if 'newline' in kwargs else ''
@@ -411,6 +412,9 @@ class FileBase(metaclass=ABCMeta):
         self._lines.pop(line)
         self._set_change('_lines', self._lines.copy())
 
+    def delete(self):
+        raise NotImplementedError
+
     def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', exist_ok=False, overwrite=False,
              **kwargs):
         if self._last_update is not None and overwrite is False:
@@ -498,7 +502,7 @@ class CsvFile(FileBase):
                 if not is_sequence(row):
                     assert len(data) <= n_cols, f'number of lines ({len(data)}) > number of cols {n_cols}'
                     data += [fill_with] * (n_cols - len(data))
-                    normalized_data.append(self._ast([data]))
+                    normalized_data.append(self._ast(data))
                     break
                 assert len(row) <= n_cols, f'number of lines ({len(row)}) > number of cols {n_cols}'
                 row = list(row)
@@ -532,6 +536,7 @@ class CsvFile(FileBase):
     @classmethod
     def read(cls, path_: str, encoding='utf-8', **kwargs):
         path_ = Path(path_)
+        assert path_.exists, FileNotFoundError('No such file', path_)
         if path_.suffix != '.csv':
             raise ValueError("isn't .csv file.")
         with open(path_.path, encoding=encoding, newline='') as fp:
@@ -671,6 +676,7 @@ class JsonFile(FileBase):
     def read(cls, path_: Union[str, Path], **kwargs):
         encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
         path_ = Path(path_)
+        assert path_.exists, FileNotFoundError('No such file', path_)
         assert path_.suffix == '.json', "isn't .json file."
         with open(path_, encoding=encoding, **kwargs) as fp:
             data = json.load(fp)
@@ -735,6 +741,7 @@ class File(FileBase):
         mode = kwargs.pop('mode') if 'mode' in kwargs else 'r+'
         newline = kwargs.pop('newline') if 'newline' in kwargs else ''
         path_ = Path(path_)
+        assert path_.exists, FileNotFoundError('No such file', path_)
         return cls.__classes_by_ext.get(path_.suffix, FileBase).read(path_=path_, mode=mode, encoding=encoding,
                                                                      newline=newline,
                                                                      **kwargs)

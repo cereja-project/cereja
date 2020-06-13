@@ -265,6 +265,52 @@ class Path(os.PathLike):
     def join(self, *args):
         return self.__class__(self.__path.joinpath(*args).as_posix())
 
+    def _shutil(self, command: str, **kwargs):
+        if not self.exists:
+            logger.error(f'Not Found <{self.uri}>')
+            return
+        if command == 'rm':
+            rm_tree = kwargs.get('rm_tree')
+            if self.is_file:
+                os.remove(self.path)
+                logger.info(f"<{self}> has been removed")
+            else:
+                if rm_tree is True:
+                    shutil.rmtree(str(self))
+                    logger.info(f"<{self}> has been removed")
+                else:
+                    try:
+                        os.rmdir(str(self))
+                    except OSError as err:
+                        logger.error(f'{err}.\n Use rm_tree=True to DELETE {self.uri}.')
+        elif command == 'mv':
+            to = kwargs.get('to')
+            shutil.move(str(self), str(to))
+            return to
+        elif command == 'cp':
+            to = kwargs.get('to')
+            if self.is_dir:
+                shutil.copytree(str(self), str(to))
+            elif self.is_file:
+                shutil.copy(str(self), str(to))
+            return to
+
+    def rm(self, rm_tree=False):
+        """
+        [!] Use caution when using this command. Only use if you are sure of what you are doing.
+
+        If it is a directory you can DELETE the entire tree, for that flag `rm_tree=True`
+        """
+        return self._shutil('rm', rm_tree=rm_tree)
+
+    def mv(self, to):
+        to = self.__class__(to)
+        return self._shutil('mv', to=to)
+
+    def cp(self, to):
+        to = self.__class__(to)
+        return self._shutil('cp', to=to)
+
 
 def normalize_path(path_: str) -> Path:
     return Path(path_)
