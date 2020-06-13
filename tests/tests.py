@@ -29,12 +29,12 @@ import logging
 from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
     is_sequence, array_gen, get_shape
 from cereja import filetools
-from cereja import path as cj_path
 from cereja.cj_types import Number
-from cereja.datatools import Corpus
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
+from cereja.path import Path
 from cereja.unicode import Unicode
 from cereja.utils import CjTest
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +168,77 @@ class FileToolsTestCase(unittest.TestCase):
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
 
+    def test_base_sanity(self):
+        data = ['first line', 'second line', 'third line']
+        file = filetools.File('test.txt', data)
+        self.assertTrue(str(file) == "FileBase<test.txt>")
+        self.assertEqual(file.data, ['first line', 'second line', 'third line'])
+        for line in file:
+            pass
+
+        self.assertEqual(file[0], 'first line')
+        self.assertEqual(file[:3], ['first line', 'second line', 'third line'])
+
+        # Insert Data
+        file.insert(0, 'other line')
+        file.insert(0, 'other line2')
+        self.assertEqual(file.data, ['other line2', 'other line', 'first line', 'second line', 'third line'])
+        # it is allowed to use index assignment
+        file[0] = 'other line'
+
+        # Data Recovery
+        file.undo()  # You selected amendment 3
+        self.assertEqual(file.data, ['other line2', 'other line', 'first line', 'second line', 'third line'])
+        file.redo()  # You selected amendment 4
+        self.assertEqual(file.data,
+                         ['other line', 'other line2', 'other line', 'first line', 'second line', 'third line'])
+
+    def test_json_sanity(self):
+        data = {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
+        file = filetools.File('test.json', data)
+        self.assertEqual(str(file), 'JsonFile<test.json>')
+        self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3'})
+
+        # Iterable
+        for key, value in file.items():
+            pass
+
+        self.assertEqual(file['key'], 'value')
+
+        # Insert Data
+        file['key4'] = 'value4'
+        self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 'value4'})
+
+        # Data Recovery
+        file.undo()  # You selected amendment 1
+        self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3'})
+        file.redo()  # You selected amendment 2
+        self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 'value4'})
+
+    def test_csv_sanity(self):
+        file = filetools.File('test.csv', fieldnames=['col1', 'col2', 'col3'])  # ram only, not yet saved
+        self.assertEqual(str(file), "CsvFile<test.csv>")
+        file.add_row([1, 2, 3])
+        self.assertEqual(file.lines, [[1, 2, 3]])
+        file.add_row([1, 2], fill_with=0)
+        self.assertEqual(file.lines, [[1, 2, 3], [1, 2, 0]])
+
+        # convert to dict
+        self.assertEqual(file.to_dict(), {'col1': [1, 1], 'col2': [2, 2], 'col3': [3, 0]})
+
+        # or get generation row by row with col
+        self.assertEqual(list(file.data), [{'col1': 1, 'col2': 2, 'col3': 3}, {'col1': 1, 'col2': 2, 'col3': 0}])
+
+        # Iterable
+        for row in file:
+            pass
+
+        # indexing col values
+        self.assertEqual(file['col1'], [1, 1])
+        # or use index and get a row
+        self.assertEqual(file[0], [1, 2, 3])
+        self.assertEqual(file.flatten(), [1, 2, 3, 1, 2, 0])
+
     def get_file(self):
         content_file = [1, 2, 3]
         file = filetools.File(f"{os.path.dirname(__file__)}.txt", content_file)
@@ -202,6 +273,19 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertDictEqual(filetools.JsonFile.normalize_data(1), {'1': None})
         self.assertDictEqual(filetools.JsonFile.normalize_data(()), {})
         self.assertDictEqual(filetools.JsonFile.normalize_data((1, 2, 3)), {'1': None, '2': None, '3': None})
+
+
+class PathTest(unittest.TestCase):
+    def test_sanity(self):
+        p_test = 'cereja/test/sanity'
+        p = Path(p_test)
+        self.assertTrue(p.name, 'sanity')
+        self.assertTrue(p.parent.name, 'test')
+        self.assertTrue(p == p_test)
+        self.assertTrue('sanity' in p)
+        p = p + ['con', 'cat']
+        p_test = Path('cereja/test/sanity').join('con', 'cat')
+        self.assertTrue(p == p_test)
 
 
 class UnicodeToolTestCase(unittest.TestCase):

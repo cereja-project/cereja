@@ -26,8 +26,9 @@ import os
 import random
 import shutil
 import time
-from typing import List
+from typing import List, Union
 from cereja.arraytools import group_items_in_batches
+from pathlib import Path as Path_
 
 logger = logging.getLogger(__name__)
 
@@ -127,41 +128,192 @@ def get_base_dir(__file__: str) -> str:
     return os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
 
 
-def listdir(path: str, only_relative_path: bool = False) -> List[str]:
-    """
-    Extension of the listdir function of module os.
-
-    The difference is that by default it returns the absolute path, but you can still only request the relative path by
-    setting only_relative_path to True.
-
-    """
-    return [os.path.join(path, p) if not only_relative_path else p for p in os.listdir(path)]
-
-
 def _norm_path(path_: str):
     return os.path.normpath(path_) if os.path.isabs(path_) else os.path.abspath(path_)
 
 
-def normalize_file_path(path_: str) -> str:
-    path_ = _norm_path(path_)
-    if not os.path.isfile(path_):
-        raise ValueError(f"{path_} Is'nt File")
-    return path_
+class Path(os.PathLike):
+
+    def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
+        self.__path = Path_(_norm_path(initial), *pathsegments)
+        self.__parent = self.__path.parent.as_posix()
+        self._parent_name = self.__path.cwd().name
+        self._verify()
+
+    def __fspath__(self):
+        return str(self.__path)
+
+    def __repr__(self):
+        return f'<Path object {self.path}>'
+
+    def __str__(self):
+        return self.path
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            other = self.__class__(other)
+        return self.path == other.path
+
+    def __len__(self):
+        return len(self.parts)
+
+    def __contains__(self, item):
+        return item in self.path
+
+    def __add__(self, other):
+        return self.join(*other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __getitem__(self, item):
+        if item < 0:
+            raise ValueError(f'index < 0 is not possible.')
+        if isinstance(item, int):
+            item = slice(item + 1)
+        return self.__class__('/'.join(self.parts[item]))
+
+    def __value_err(self, details=''):
+        if details:
+            details = f'details {details}'
+        raise ValueError(f"Path <{self.path}> isn't valid. {details}")
+
+    def _verify(self):
+        part = self.__path
+        for i in range(len(self.__path.parts)):
+            part_split = part.name.split('.')
+            if part_split[-1] == '.':
+                logger.warning(f'It is not common to use dot <{part.name}> in the end of name.')
+                break
+            if (part.suffix or part_split[-1] == '.') and i > 0:
+                logger.warning(f'It is not common to use dot in the middle or end of directory name <{part.name}>')
+                break
+            if len(part_split) > 2:
+                logger.warning(f"<{part.name}> has more dot than usual.")
+            part = part.parent
+
+    @property
+    def name(self):
+        return self.__path.name
+
+    @property
+    def exists(self):
+        return self.__path.exists()
+
+    @property
+    def path(self):
+        return self.__path.as_posix()
+
+    @property
+    def stem(self):
+        return self.__path.stem
+
+    @property
+    def suffix(self):
+        return self.__path.suffix
+
+    @property
+    def root(self):
+        return self.__path.anchor
+
+    @property
+    def parent(self):
+        """
+        :return: Parent PathInfo object
+        """
+        return self.__class__(self.__parent)
+
+    @property
+    def parent_name(self):
+        return self._parent_name
+
+    @property
+    def uri(self):
+        return self.__path.as_uri()
+
+    @property
+    def is_dir(self):
+        return self.__path.is_dir()
+
+    @property
+    def is_file(self):
+        return self.__path.is_file()
+
+    @property
+    def is_link(self):
+        return self.__path.is_symlink()
+
+    @property
+    def is_hidden(self):
+        """
+        In Unix-like operating systems, any file or folder that starts with a dot character
+        (for example, /home/user/.config), commonly called a dot file or dotfile,is to be
+        treated as hidden – that is, the ls command does not display them unless the -a
+        flag ( ls -a ) is used.
+
+        Return True if the name starts with dot or path contains one of the special names reserved
+        by the system, if any.
+
+        :return: bool
+        """
+        return self.name.startswith('.') or self.__path.is_reserved()
+
+    @property
+    def parts(self):
+        return self.__path.parts
+
+    def join(self, *args):
+        return self.__class__(self.__path.joinpath(*args).as_posix())
+
+    def _shutil(self, command: str, **kwargs):
+        if not self.exists:
+            logger.error(f'Not Found <{self.uri}>')
+            return
+        if command == 'rm':
+            rm_tree = kwargs.get('rm_tree')
+            if self.is_file:
+                os.remove(self.path)
+                logger.info(f"<{self}> has been removed")
+            else:
+                if rm_tree is True:
+                    shutil.rmtree(str(self))
+                    logger.info(f"<{self}> has been removed")
+                else:
+                    try:
+                        os.rmdir(str(self))
+                    except OSError as err:
+                        logger.error(f'{err}.\n Use rm_tree=True to DELETE {self.uri}.')
+        elif command == 'mv':
+            to = kwargs.get('to')
+            shutil.move(str(self), str(to))
+            return to
+        elif command == 'cp':
+            to = kwargs.get('to')
+            if self.is_dir:
+                shutil.copytree(str(self), str(to))
+            elif self.is_file:
+                shutil.copy(str(self), str(to))
+            return to
+
+    def rm(self, rm_tree=False):
+        """
+        [!] Use caution when using this command. Only use if you are sure of what you are doing.
+
+        If it is a directory you can DELETE the entire tree, for that flag `rm_tree=True`
+        """
+        return self._shutil('rm', rm_tree=rm_tree)
+
+    def mv(self, to):
+        to = self.__class__(to)
+        return self._shutil('mv', to=to)
+
+    def cp(self, to):
+        to = self.__class__(to)
+        return self._shutil('cp', to=to)
 
 
-def normalize_dir_path(path_: str) -> str:
-    path_ = _norm_path(path_)
-    if not os.path.isdir(path_):
-        raise ValueError(f"{path_} Is'nt Dir")
-    return path_
-
-
-def normalize_path(path_: str, is_file: bool = None, is_dir: bool = None) -> str:
-    if is_file is True:
-        return normalize_file_path(path_)
-    elif is_dir is True:
-        return normalize_dir_path(path_)
-    return _norm_path(path_)
+def normalize_path(path_: str) -> Path:
+    return Path(path_)
 
 
 def clean_dir(path_: str):
@@ -172,6 +324,21 @@ def clean_dir(path_: str):
     for p in content:
         shutil.rmtree(p)
     logger.info(f"{len(content)} files were removed")
+
+
+def listdir(path_: Union[str, Path], only_relative_path: bool = False) -> List[str]:
+    """
+    Extension of the listdir function of module os.
+
+    The difference is that by default it returns the absolute path, but you can still only request the relative path by
+    setting only_relative_path to True.
+
+    """
+    if not isinstance(path_, Path):
+        path_ = Path(path_)
+
+    assert path_.is_dir, f"{path_} isn't dir."
+    return [path_.join(p) if not only_relative_path else p for p in os.listdir(str(path_))]
 
 
 if __name__ == '__main__':
