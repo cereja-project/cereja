@@ -31,7 +31,7 @@ from cereja.filetools import File
 import random
 import csv
 import json
-from cereja.path import normalize_path
+from cereja.path import Path
 
 
 class LanguageConfig(_BasicConfig):
@@ -157,13 +157,13 @@ class LanguageData(BaseData):
 
     def save_freq(self, save_on: str, prefix='freq', ext: str = 'json'):
         ext = ext.strip('.')  # normalize
-        save_on = normalize_path(save_on)
+        save_on = Path(save_on)
 
-        path_words = os.path.join(save_on, f'{prefix}_words.{ext}')
+        path_words = save_on.join(f'{prefix}_words.{ext}')
         with open(path_words, 'w+', encoding='utf-8') as fp:
             json.dump(self.sample_words_freq(), fp, indent=True)
 
-        path_phrases = os.path.join(save_on, f'{prefix}_phrases.{ext}')
+        path_phrases = save_on.join(f'{prefix}_phrases.{ext}')
         with open(path_phrases, 'w+', encoding='utf-8') as fp:
             json.dump(self.sample_phrases_freq(), fp, indent=True)
 
@@ -360,7 +360,7 @@ class Corpus(object):
 
     def save(self, save_on_dir: str, take_split: bool = True, test_max_size: int = None, source_vocab_size: int = None,
              target_vocab_size: int = None, shuffle=True, prefix=None, ext='align', **kwargs):
-
+        save_on_dir = Path(save_on_dir)
         if take_split:
             x_train, y_train, x_test, y_test = self.split_data(test_max_size=test_max_size,
                                                                source_vocab_size=source_vocab_size,
@@ -374,10 +374,10 @@ class Corpus(object):
             data_to_save = ((prefix, self.source.data, self.target.data),)
 
         for prefix, x, y in data_to_save:
-            save_on = os.path.join(save_on_dir, f'{prefix}_{self.source_language}.{ext.strip(".")}')
-            File(save_on, x).save(**kwargs)
-            save_on = os.path.join(save_on_dir, f'{prefix}_{self.target_language}.{ext.strip(".")}')
-            File(save_on, y).save(**kwargs)
+            save_on = save_on_dir.join(f'{prefix}_{self.source_language}.{ext.strip(".")}')
+            File(save_on, content_file=x).save(**kwargs)
+            save_on = save_on_dir.join(f'{prefix}_{self.target_language}.{ext.strip(".")}')
+            File(save_on, content_file=y).save(**kwargs)
 
     @classmethod
     def load_corpus_from_dir(cls, path_: str, src: str, trg: str, ext='align', name_not_contains_: tuple = ()):

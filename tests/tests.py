@@ -29,10 +29,9 @@ import logging
 from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
     is_sequence, array_gen, get_shape
 from cereja import filetools
-from cereja import path as cj_path
 from cereja.cj_types import Number
-from cereja.datatools import Corpus
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
+from cereja.path import Path
 from cereja.unicode import Unicode
 from cereja.utils import CjTest
 
@@ -202,6 +201,19 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertDictEqual(filetools.JsonFile.normalize_data(1), {'1': None})
         self.assertDictEqual(filetools.JsonFile.normalize_data(()), {})
         self.assertDictEqual(filetools.JsonFile.normalize_data((1, 2, 3)), {'1': None, '2': None, '3': None})
+
+
+class PathTest(unittest.TestCase):
+    def test_sanity(self):
+        p_test = 'cereja/test/sanity'
+        p = Path(p_test)
+        self.assertTrue(p.name, 'sanity')
+        self.assertTrue(p.parent.name, 'test')
+        self.assertTrue(p == p_test)
+        self.assertTrue('sanity' in p)
+        p = p + ['con', 'cat']
+        p_test = Path('cereja/test/sanity').join('con', 'cat')
+        self.assertTrue(p == p_test)
 
 
 class UnicodeToolTestCase(unittest.TestCase):

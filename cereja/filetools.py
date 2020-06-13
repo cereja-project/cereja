@@ -20,22 +20,22 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import ast
 import json
 import os
 import warnings
 from abc import ABCMeta
 from typing import Union, List, Iterator, Tuple, Sequence, Any
 
-from cereja.arraytools import is_sequence, is_iterable, get_cols, flatten
+from cereja.arraytools import is_sequence, is_iterable, get_cols, flatten, get_shape
 from cereja.display import Progress
 import logging
 
-from cereja.path import normalize_path, listdir
+from cereja.path import normalize_path, listdir, Path
 from cereja.utils import invert_dict
 import copy
 import csv
 from datetime import datetime
-from pathlib import Path
 
 logger = logging.Logger(__name__)
 
@@ -70,112 +70,6 @@ _NEW_LINE_SEP_MAP = {
 _STR_NEW_LINE_SEP_MAP = invert_dict(_NEW_LINE_SEP_MAP)
 
 
-class PathInfo(object):
-
-    def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
-        if initial == '.' or initial == './':
-            initial = normalize_path('.')
-        self.__path = Path(initial, *pathsegments)
-        self.__parent = self.__path.parent.as_posix()
-        self._parent_name = self.__path.cwd().name
-        self._verify()
-
-    def __value_err(self, details=''):
-        if details:
-            details = f'details {details}'
-        raise ValueError(f"Path <{self.path}> isn't valid. {details}")
-
-    def __value_warn(self, details):
-        logger.warning(f"Path warning. {details}")
-
-    def _verify(self):
-        part = self.__path
-        for i in range(len(self.__path.parts)):
-            part_split = part.name.split('.')
-            if part_split[-1] == '.':
-                self.__value_warn(f'It is not common to use dot <{part.name}> in the end of name.')
-                break
-            if (part.suffix or part_split[-1] == '.') and i > 0:
-                self.__value_warn(f'It is not common to use dot in the middle or end of directory name <{part.name}>')
-                break
-            if len(part_split) > 2:
-                self.__value_warn(f"<{part.name}> has more dot than usual.")
-            part = part.parent
-
-    @property
-    def name(self):
-        return self.__path.name
-
-    @property
-    def exists(self):
-        return self.__path.exists()
-
-    @property
-    def path(self):
-        return self.__path.as_posix()
-
-    @property
-    def stem(self):
-        return self.__path.stem
-
-    @property
-    def suffix(self):
-        return self.__path.suffix
-
-    @property
-    def root(self):
-        return self.__path.anchor
-
-    @property
-    def parent(self):
-        """
-        :return: Parent PathInfo object
-        """
-        return self.__class__(self.__parent)
-
-    @property
-    def parent_name(self):
-        return self._parent_name
-
-    @property
-    def uri(self):
-        return self.__path.as_uri()
-
-    @property
-    def is_dir(self):
-        return self.__path.is_dir()
-
-    @property
-    def is_file(self):
-        return self.__path.is_file()
-
-    @property
-    def is_link(self):
-        return self.__path.is_symlink()
-
-    @property
-    def is_hidden(self):
-        """
-        In Unix-like operating systems, any file or folder that starts with a dot character
-        (for example, /home/user/. config), commonly called a dot file or dotfile,is to be
-        treated as hidden – that is, the ls command does not display them unless the -a
-        flag ( ls -a ) is used.
-
-        Return True if the name starts with dot or path contains one of the special names reserved
-        by the system, if any.
-
-        :return: bool
-        """
-        return self.name.startswith('.') or self.__path.is_reserved()
-
-    @property
-    def parts(self):
-        return self.__path.parts
-
-    def join(self, *args):
-        return self.__class__(self.__path.joinpath(*args).as_posix())
-
-
 class FileBase(metaclass=ABCMeta):
     """
     High-level API for creating and manipulating files
@@ -195,10 +89,14 @@ class FileBase(metaclass=ABCMeta):
     _allowed_ext = ()
     _date_format = "%Y-%m-%d %H:%M:%S"
 
-    def __init__(self, path_: str, content_file: Union[Sequence, str, Any] = None):
+    def __init__(self, path_: Union[str, Path], content_file: Union[Sequence, str, Any] = None):
         self._last_update = None
-        self.__path = PathInfo(normalize_path(path_))
-        if os.path.exists(self.path):
+        if isinstance(path_, Path):
+            self.__path = path_
+        else:
+            self.__path = Path(normalize_path(path_))
+        if self.__path.exists:
+            assert not self.__path.is_dir, f'Path is a directory. Change your path. {self.__path}'
             self._last_update = self.updated_at
         if self._allowed_ext:
             assert self.ext in self._allowed_ext, ValueError(
@@ -231,7 +129,7 @@ class FileBase(metaclass=ABCMeta):
         return f'{self.__class__.__name__}<{self.file_name}>'
 
     def __repr__(self):
-        return f'{self.__str__()} {self.size(unit="KB")} KB'
+        return f'{self.__str__()}'
 
     def __getitem__(self, item) -> str:
         return self._lines[item]
@@ -300,7 +198,7 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def path(self):
-        return self.__path.path
+        return self.__path
 
     @property
     def file_name(self):
@@ -336,15 +234,15 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def updated_at(self):
-        return datetime.fromtimestamp(os.stat(self.path).st_mtime).strftime(self._date_format)
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_mtime).strftime(self._date_format)
 
     @property
     def created_at(self):
-        return datetime.fromtimestamp(os.stat(self.path).st_ctime).strftime(self._date_format)
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_ctime).strftime(self._date_format)
 
     @property
-    def last_acess(self):
-        return datetime.fromtimestamp(os.stat(self.path).st_atime).strftime(self._date_format)
+    def last_access(self):
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_atime).strftime(self._date_format)
 
     @property
     def new_line_sep(self) -> str:
@@ -388,18 +286,8 @@ class FileBase(metaclass=ABCMeta):
             return None
         return None
 
-    @staticmethod
-    def file_path_info(path_: str):
-        """
-        :return: absolute_path, file_name, ext
-        """
-        path_ = normalize_path(path_)
-        file_name = os.path.basename(path_)
-        ext = os.path.splitext(file_name)[-1]
-        return path_, file_name, ext
-
     @classmethod
-    def read(cls, path_: str, **kwargs):
+    def read(cls, path_: Union[str, Path], **kwargs):
         """
         Read and create new file object.
 
@@ -410,11 +298,11 @@ class FileBase(metaclass=ABCMeta):
                 newline: '' is default
         :return: File object
         """
-        path_, file_name, ext = cls.file_path_info(path_)
+        path_ = Path(path_)
         encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
         mode = kwargs.pop('mode') if 'mode' in kwargs else 'r+'
         newline = kwargs.pop('newline') if 'newline' in kwargs else ''
-        if ext in cls._dont_read:
+        if path_.suffix in cls._dont_read:
             logger.warning(f"I can't read this file. See class attribute <{cls.__name__}._dont_read>")
             return
         try:
@@ -428,13 +316,14 @@ class FileBase(metaclass=ABCMeta):
 
     @classmethod
     def load_files(cls, path_, ext, contains_in_name: List = (), not_contains_in_name=(), take_empty=True):
-        if os.path.isdir(path_):
+        path_ = Path(path_)
+        if path_.is_dir:
             path_ = [i for i in listdir(path_)]
         if not isinstance(path_, list):
             path_ = [path_]
         loaded = []
         for p in path_:
-            if not os.path.exists(p):
+            if not p.exists:
                 continue
             file_ = cls.read(p)
             if file_ is None:
@@ -486,7 +375,7 @@ class FileBase(metaclass=ABCMeta):
             self._select_change(+1)
 
     def set_path(self, path_):
-        self.__path = normalize_path(path_)
+        self.__path = Path(path_)
 
     def size(self, unit: str = "KB"):
         """
@@ -528,7 +417,7 @@ class FileBase(metaclass=ABCMeta):
             if self._last_update != self.updated_at:
                 raise AssertionError(f"File change detected (last change {self.updated_at}), if you want to overwrite "
                                      f"set overwrite=True")
-        assert exist_ok or not os.path.exists(self.path), FileExistsError(
+        assert exist_ok or not self.path.exists, FileExistsError(
                 "File exists. If you want override, please send 'exist_ok=True'")
         if on_new_path is not None:
             self.set_path(on_new_path)
@@ -551,7 +440,7 @@ class FileBase(metaclass=ABCMeta):
 class CsvFile(FileBase):
     _allowed_ext = ('.csv',)
 
-    def __init__(self, path_: str, fieldnames: Union[Tuple, tuple, list], data=None):
+    def __init__(self, path_: Union[str, Path], fieldnames: Union[Tuple, tuple, list], data=None):
         if not fieldnames:
             raise ValueError('fieldnames is <None> please specify columns')
 
@@ -589,6 +478,18 @@ class CsvFile(FileBase):
         """
         self.insert(-1, data, fill_with=fill_with)
 
+    def _ast(self, row):
+        vals = []
+        for val in row:
+            if isinstance(val, str):
+                try:
+                    val_parsed = ast.literal_eval(val)
+                    val = val_parsed if isinstance(val_parsed, (int, float, complex)) else val
+                except:
+                    pass
+            vals.append(val)
+        return vals
+
     def normalize_data(self, data: Any, fill_with=None, **kwargs) -> Union[List[str], Any]:
         n_cols = len(self._fieldnames)
         normalized_data = []
@@ -597,17 +498,17 @@ class CsvFile(FileBase):
                 if not is_sequence(row):
                     assert len(data) <= n_cols, f'number of lines ({len(data)}) > number of cols {n_cols}'
                     data += [fill_with] * (n_cols - len(data))
-                    normalized_data.append(data)
+                    normalized_data.append(self._ast([data]))
                     break
                 assert len(row) <= n_cols, f'number of lines ({len(row)}) > number of cols {n_cols}'
                 row = list(row)
                 row += [fill_with] * (n_cols - len(row))
-                normalized_data.append(row)
+                normalized_data.append(self._ast(row))
         else:
             assert not isinstance(data, dict), TypeError("dict data isn't valid.")
             data = [data]
             data += [fill_with] * (n_cols - len(data))
-            normalized_data.append(data)
+            normalized_data.append(self._ast([data]))
         return normalized_data
 
     @property
@@ -630,12 +531,10 @@ class CsvFile(FileBase):
 
     @classmethod
     def read(cls, path_: str, encoding='utf-8', **kwargs):
-        path_ = normalize_path(path_)
-        file_name = os.path.basename(path_)
-        ext = os.path.splitext(file_name)[-1]
-        if ext != '.csv':
+        path_ = Path(path_)
+        if path_.suffix != '.csv':
             raise ValueError("isn't .csv file.")
-        with open(path_, encoding=encoding, newline='') as fp:
+        with open(path_.path, encoding=encoding, newline='') as fp:
             reader = csv.DictReader(fp)
             fields = None
             data = []
@@ -647,6 +546,12 @@ class CsvFile(FileBase):
 
     def to_dict(self):
         return dict(zip(self.cols, get_cols(self.lines)))
+
+    def flatten(self):
+        return flatten(self.lines)
+
+    def shape(self):
+        return get_shape(self.lines)
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -666,7 +571,7 @@ class CsvFile(FileBase):
 class JsonFile(FileBase):
     _allowed_ext = ('.json',)
 
-    def __init__(self, path_: str, data: dict = None):
+    def __init__(self, path_: Union[str, Path], data: dict = None):
         setattr(self, 'items', lambda: self.data.items())
         setattr(self, 'keys', lambda: self.data.keys())
         setattr(self, 'values', lambda: self.data.values())
@@ -763,12 +668,10 @@ class JsonFile(FileBase):
         self._lines = data
 
     @classmethod
-    def read(cls, path_: str, **kwargs):
+    def read(cls, path_: Union[str, Path], **kwargs):
         encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
-        path_ = normalize_path(path_)
-        file_name = os.path.basename(path_)
-        ext = os.path.splitext(file_name)[-1]
-        assert ext == '.json', "isn't .json file."
+        path_ = Path(path_)
+        assert path_.suffix == '.json', "isn't .json file."
         with open(path_, encoding=encoding, **kwargs) as fp:
             data = json.load(fp)
         return cls(path_, data=data)
@@ -799,7 +702,7 @@ class File(FileBase):
             data: file content depends on the type of file
             fieldnames: only .csv data.
         """
-        path_, file_name, ext = cls.file_path_info(path_)
+        path_ = Path(path_)
         if not args:
             if 'content_file' in kwargs and 'data' in kwargs:
                 raise ValueError("Cannot send content_file and data")
@@ -807,15 +710,15 @@ class File(FileBase):
         else:
             content_file = args[0]
 
-        if os.path.exists(path_):
+        if path_.exists:
             logger.warning(
-                    f'You are creating a new file, but file path {path_} already exists. \nIf you want to read or '
+                    f'You are creating a new file, but file path {str(path_)} already exists. \nIf you want to read or '
                     f'write the content of file use <File.read>')
 
-        if ext == '.csv':
+        if path_.suffix == '.csv':
             fieldnames = kwargs.get('fieldnames')
             return CsvFile(path_, fieldnames=fieldnames, data=content_file)
-        elif ext == '.json':
+        elif path_.suffix == '.json':
             return JsonFile(path_, data=content_file)
         return FileBase(path_=path_, content_file=content_file)
 
@@ -831,9 +734,10 @@ class File(FileBase):
         encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
         mode = kwargs.pop('mode') if 'mode' in kwargs else 'r+'
         newline = kwargs.pop('newline') if 'newline' in kwargs else ''
-        path_, file_name, ext = cls.file_path_info(path_)
-        return cls.__classes_by_ext.get(ext, FileBase).read(path_=path_, mode=mode, encoding=encoding, newline=newline,
-                                                            **kwargs)
+        path_ = Path(path_)
+        return cls.__classes_by_ext.get(path_.suffix, FileBase).read(path_=path_, mode=mode, encoding=encoding,
+                                                                     newline=newline,
+                                                                     **kwargs)
 
 
 class _FilePython(FileBase):
