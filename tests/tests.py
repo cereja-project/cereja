@@ -30,6 +30,7 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
     is_sequence, array_gen, get_shape
 from cereja import filetools
 from cereja.cj_types import Number
+from cereja.datatools import Corpus
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.path import Path
 from cereja.unicode import Unicode
@@ -306,24 +307,30 @@ class UnicodeToolTestCase(unittest.TestCase):
         test_.check_all()
 
 
-class CorpusTestCase:
-    src_data = [
-        "quem casa quer casa",
-        'quem sabe',
-        "quem",
-        "quer",
-        "tem gosto de café"
-    ]
-    trg_data = [
-        "who wants home",
-        "who knows",
-        "who",
-        "would you like",
-        "it tastes like coffee"
-    ]
-
+class CorpusTestCase(unittest.TestCase):
     def test_sanity(self):
-        pass
+        source = ['how are you?', 'my name is Joab', 'I like coffee', 'how are you joab?', 'how', 'we are the world']
+        target = ['como você está?', 'meu nome é Joab', 'Eu gosto de café', 'Como você está joab?', 'como',
+                  'Nós somos o mundo']
+
+        corpus = Corpus(source_data=source, target_data=target, source_name='en', target_name='pt')
+        self.assertEqual(str(corpus), 'Corpus(examples: 6 - source_vocab_size: 13 - target_vocab_size:15)')
+        self.assertEqual(str(corpus.source), 'LanguageData(examples: 6 - vocab_size: 13)')
+        self.assertEqual(str(corpus.target), 'LanguageData(examples: 6 - vocab_size: 15)')
+
+        self.assertDictEqual(dict(corpus.source.phrases_freq.items()),
+                             {'how are you': 1, 'my name is joab': 1, 'i like coffee': 1, 'how are you joab': 1,
+                              'how':         1, 'we are the world': 1})
+
+        self.assertDictEqual(dict(corpus.source.words_freq.items()),
+                             {'how':  3, 'are': 3, 'you': 2, 'joab': 2, 'my': 1, 'name': 1, 'is': 1, 'i': 1,
+                              'like': 1, 'coffee': 1, 'we': 1, 'the': 1, 'world': 1})
+        self.assertDictEqual(dict(corpus.target.phrases_freq.items()),
+                             {'como você está':      1, 'meu nome é joab': 1, 'eu gosto de café': 1,
+                              'como você está joab': 1, 'como': 1, 'nós somos o mundo': 1})
+        self.assertDictEqual(dict(corpus.target.words_freq.items()),
+                             {'como':  3, 'você': 2, 'está': 2, 'joab': 2, 'meu': 1, 'nome': 1, 'é': 1, 'eu': 1,
+                              'gosto': 1, 'de': 1, 'café': 1, 'nós': 1, 'somos': 1, 'o': 1, 'mundo': 1})
 
 
 class ProgressTestCase:
