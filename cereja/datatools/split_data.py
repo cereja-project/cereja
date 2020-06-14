@@ -380,23 +380,6 @@ class Corpus(object):
             File(save_on, content_file=y).save(**kwargs)
 
     @classmethod
-    def load_corpus_from_dir(cls, path_: str, src: str, trg: str, ext='align', name_not_contains_: tuple = ()):
-        files_ = File.load_files(path_=path_, ext=ext, contains_in_name=[src, trg],
-                                 not_contains_in_name=name_not_contains_)
-        src_data = []
-        trg_data = []
-        for file in files_:
-            if file is None:
-                continue
-            if ext not in file.ext:
-                continue
-            if src in file.file_name_without_ext:
-                src_data += file.lines
-            if trg in file.file_name_without_ext:
-                trg_data += file.lines
-        return cls(src_data, trg_data, source_name=src, target_name=trg)
-
-    @classmethod
     def load_corpus_from_csv(cls, path_: str, src_col_name: str, trg_col_name: str, source_name=None,
                              target_name=None):
 
