@@ -273,10 +273,10 @@ def flatten(sequence: Sequence[Any], depth: Optional[int] = -1, **kwargs) -> Uni
     jump = len(sequence)
     while i < len(sequence):
         element = sequence[i]
-        if isinstance(element, list) and (depth == -1 or depth > deep):
+        if isinstance(element, (list, tuple)) and (depth == -1 or depth > deep):
             jump = len(element)
             deep += 1
-            sequence = element + sequence[i + 1:]
+            sequence = list(element) + list(sequence[i + 1:])
             i = 0
         else:
             flattened.append(element)
@@ -665,11 +665,3 @@ class Freq:
 
     def items(self):
         return self.freq.items()
-
-
-if __name__ == "__main__":
-    a = Matrix(
-            [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-             1.0,
-             1.0, 1.0, 1.0, 1.0])
-    a[0]
