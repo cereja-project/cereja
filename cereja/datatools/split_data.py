@@ -22,7 +22,7 @@ SOFTWARE.
 import collections
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Any
+from typing import Any, AnyStr, Union, Sequence
 
 from cereja.arraytools import get_cols
 from cereja.conf import _BasicConfig
@@ -33,9 +33,9 @@ import json
 from cereja.path import Path
 
 
-def separate(text: str, sep=('!', '?', '.'), between_char=False):
+def separate(text: AnyStr, sep: Union[str, Sequence[str]] = ('!', '?', '.'), between_char=False) -> str:
     """
-    creating a space between an element in sep values
+    Creating a space between an element in sep values
     e.g:
 
     >>> separate('how are you?', sep='?')
@@ -47,11 +47,12 @@ def separate(text: str, sep=('!', '?', '.'), between_char=False):
     :param sep: values that will be separated. Accepted types (str, list and tuple)
     :param between_char: if True the sep values that's on between chars it will be separated.
                          eg. "it's" -> "it ' s"
-    :return:
+    :return: processed text
     """
     if isinstance(sep, str):
         sep = (sep,)
-    assert isinstance(sep, (tuple, list)), f"{type(sep)} is not acceptable. Is valid type (str, list and tuple)"
+    assert isinstance(sep, (tuple, list)), f"{type(sep)} is not acceptable. Only (str, list and tuple) types"
+    assert isinstance(text, str), f"{type(text)} is not acceptable. Only str type."
     new_text = []
     for word in text.split():
         for i in sep:

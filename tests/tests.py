@@ -31,6 +31,7 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
 from cereja import filetools
 from cereja.cj_types import Number
 from cereja.datatools import Corpus
+from cereja.datatools.split_data import separate
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.path import Path
 from cereja.unicode import Unicode
@@ -331,6 +332,13 @@ class CorpusTestCase(unittest.TestCase):
         self.assertDictEqual(dict(corpus.target.words_freq.items()),
                              {'como':  3, 'você': 2, 'está': 2, 'joab': 2, 'meu': 1, 'nome': 1, 'é': 1, 'eu': 1,
                               'gosto': 1, 'de': 1, 'café': 1, 'nós': 1, 'somos': 1, 'o': 1, 'mundo': 1})
+
+
+class DataToolsFunctionsTestCase(unittest.TestCase):
+    def test_sanity(self):
+        self.assertEqual(separate('how are you?', sep='?'), 'how are you ?')
+        self.assertEqual(separate('how are you,man?', sep=('?', ','), between_char=True), 'how are you , man ?')
+        self.assertEqual(separate('how are! you?'), 'how are ! you ?')
 
 
 class ProgressTestCase:
