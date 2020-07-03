@@ -20,7 +20,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import collections
-import os
 import warnings
 from abc import ABCMeta, abstractmethod
 from typing import Any
@@ -32,6 +31,34 @@ import random
 import csv
 import json
 from cereja.path import Path
+
+
+def separate(text: str, sep=('!', '?', '.'), between_char=False):
+    """
+    creating a space between an element in sep values
+    e.g:
+
+    >>> separate('how are you?', sep='?')
+    'how are you ?'
+    >>> separate('how are you,man?', sep=('?',','), between_char=True)
+    'how are you , man ?'
+
+    :param text: Any text
+    :param sep: values that will be separated. Accepted types (str, list and tuple)
+    :param between_char: if True the sep values that's on between chars it will be separated.
+                         eg. "it's" -> "it ' s"
+    :return:
+    """
+    if isinstance(sep, str):
+        sep = (sep,)
+    assert isinstance(sep, (tuple, list)), f"{type(sep)} is not acceptable. Is valid type (str, list and tuple)"
+    new_text = []
+    for word in text.split():
+        for i in sep:
+            if (word.startswith(i) or word.endswith(i)) or between_char is True:
+                word = f' {i} '.join(word.split(i)).strip()
+        new_text.append(word)
+    return ' '.join(new_text)
 
 
 class LanguageConfig(_BasicConfig):
@@ -441,7 +468,7 @@ class Corpus(object):
                 self._update_filters(x, y)
                 continue
             train.append([x, y])
-            
+
         if take_parallel_data is False:
             return (*get_cols(train), *get_cols(test))
         if take_corpus_instances is True:
