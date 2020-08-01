@@ -428,8 +428,7 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
 
 
 def get_cols(sequence: Sequence):
-    lines, cols = get_shape(sequence)
-    return [[sequence[i][j] for i in range(lines)] for j in range(cols)]
+    return list(zip(*sequence))
 
 
 def dotproduct(vec1, vec2):

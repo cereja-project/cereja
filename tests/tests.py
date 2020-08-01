@@ -218,7 +218,7 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 'value4'})
 
     def test_csv_sanity(self):
-        file = filetools.File('test.csv', fieldnames=['col1', 'col2', 'col3'])  # ram only, not yet saved
+        file = filetools.CsvFile('test.csv', fieldnames=['col1', 'col2', 'col3'])  # ram only, not yet saved
         self.assertEqual(str(file), "CsvFile<test.csv>")
         file.add_row([1, 2, 3])
         self.assertEqual(file.lines, [[1, 2, 3]])
@@ -226,7 +226,7 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertEqual(file.lines, [[1, 2, 3], [1, 2, 0]])
 
         # convert to dict
-        self.assertEqual(file.to_dict(), {'col1': [1, 1], 'col2': [2, 2], 'col3': [3, 0]})
+        self.assertEqual(file.to_dict(), {'col1': (1, 1), 'col2': (2, 2), 'col3': (3, 0)})
 
         # or get generation row by row with col
         self.assertEqual(list(file.data), [{'col1': 1, 'col2': 2, 'col3': 3}, {'col1': 1, 'col2': 2, 'col3': 0}])
@@ -236,7 +236,7 @@ class FileToolsTestCase(unittest.TestCase):
             pass
 
         # indexing col values
-        self.assertEqual(file['col1'], [1, 1])
+        self.assertEqual(file['col1'], (1, 1))
         # or use index and get a row
         self.assertEqual(file[0], [1, 2, 3])
         self.assertEqual(file.flatten(), [1, 2, 3, 1, 2, 0])

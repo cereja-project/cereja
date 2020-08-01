@@ -32,7 +32,7 @@ from pathlib import Path as Path_
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir', 'normalize_path']
+__all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir', 'normalize_path', 'Path']
 
 
 def mkdir(path_dir: str):
