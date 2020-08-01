@@ -58,7 +58,7 @@ def separate(text: AnyStr, sep: Union[str, Sequence[str]] = ('!', '?', '.'), bet
         for i in sep:
             if (word.startswith(i) or word.endswith(i)) or between_char is True:
                 word = f' {i} '.join(word.split(i)).strip()
-        new_text.append(word)
+        new_text += word.split()
     return ' '.join(new_text)
 
 
