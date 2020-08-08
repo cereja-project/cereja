@@ -31,12 +31,11 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
 from cereja import filetools
 from cereja.cj_types import Number
 from cereja.datatools import Corpus
-from cereja.datatools.split_data import separate
+from cereja.datatools.pln import separate
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.path import Path
 from cereja.unicode import Unicode
 from cereja.utils import CjTest
-import tempfile
 
 logger = logging.getLogger(__name__)
 
