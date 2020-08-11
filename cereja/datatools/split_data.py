@@ -19,194 +19,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import collections
-import os
 import warnings
-from abc import ABCMeta, abstractmethod
-from typing import Any
-
 from cereja.arraytools import get_cols
-from cereja.conf import _BasicConfig
+from cereja.datatools.pln import LanguageData
 from cereja.filetools import File
 import random
 import csv
-import json
 from cereja.path import Path
-
-
-class LanguageConfig(_BasicConfig):
-    name = 'UNK_LANG'
-    stop_words = ()
-    punctuation = '!?,.'
-    to_lower = True
-    remove_punctuation = True
-    remove_stop_words = True
-
-    def __init__(self, **kwargs):
-        name = kwargs.pop('name') if kwargs.get('name') is not None else self.name
-        stop_words = kwargs.pop('stop_words') if kwargs.get('stop_words') is not None else self.stop_words
-        punctuation = kwargs.pop('punctuation') if kwargs.get('punctuation') is not None else self.punctuation
-        if not isinstance(stop_words, (tuple, list)):
-            raise TypeError("Stop words must be in a list or tuple")
-        if not isinstance(punctuation, str):
-            raise TypeError("a string is expected for punctuation")
-        super().__init__(name=name, stop_words=stop_words, punctuation=punctuation, **kwargs)
-
-    def _before(self, new_config: dict):
-        super()._before(new_config)
-
-
-class BaseData(metaclass=ABCMeta):
-    def __init__(self, data: Any):
-        self._data = []
-        self._prepare_data(data)
-
-    @property
-    def data(self):
-        return self._data
-
-    @abstractmethod
-    def _prepare_data(self, data: Any) -> Any:
-        pass
-
-
-class LanguageData(BaseData):
-
-    def __init__(self, data, **kwargs):
-
-        self.config = LanguageConfig(hook=self.re_build, **kwargs)
-
-        self._phrases_freq = None
-        self._words_freq = None
-        self.__recovery_phrase_freq = None
-        self.__recovery_word_freq = None
-        super().__init__(data=data)
-        self._build = True
-
-    def re_build(self):
-        if hasattr(self, '_build'):
-            data = self._data.copy()
-            self._data.clear()
-            self._phrases_freq = None
-            self._words_freq = None
-            self.__recovery_phrase_freq = None
-            self.__recovery_word_freq = None
-            self._prepare_data(data)
-
-    def reset_freq(self):
-        self._phrases_freq = self.__recovery_phrase_freq.copy()
-        self._words_freq = self.__recovery_word_freq.copy()
-
-    @property
-    def vocab_size(self):
-        return len(self._words_freq)
-
-    def __contains__(self, item):
-        if item in self.words_freq:
-            return True
-        if item in self.phrases_freq:
-            return True
-
-    def __repr__(self):
-        return f'LanguageData(examples: {len(self)} - vocab_size: {self.vocab_size})'
-
-    def __len__(self):
-        return len(self._data)
-
-    def __iter__(self):
-        return iter(self._data)
-
-    @property
-    def punctuation(self):
-        return self.config.punctuation
-
-    @property
-    def words_freq(self) -> collections.Counter:
-        return self._words_freq
-
-    @property
-    def phrases_freq(self) -> collections.Counter:
-        return self._phrases_freq
-
-    @property
-    def data_prep(self):
-        for phrase in self.data:
-            yield self._preprocess(phrase)
-
-    def preprocess(self, value: str):
-        return self._preprocess(value)
-
-    def word_freq(self, word: str):
-        return self._words_freq.get(self._preprocess(word))
-
-    def _preprocess(self, value: str):
-        if not isinstance(value, str):
-            return value
-        value = value if not self.config.to_lower else value.lower()
-        cleaned_data = []
-        for w in value.split():
-            if self.config.remove_punctuation:
-                w = w.strip(self.punctuation)
-            w = " '".join(w.split("'"))
-            if self.config.remove_stop_words:
-                if w in self.config.stop_words:
-                    continue
-            cleaned_data.append(w)
-        cleaned_data = ' '.join(cleaned_data)
-        return cleaned_data
-
-    def save_freq(self, save_on: str, prefix='freq', ext: str = 'json'):
-        ext = ext.strip('.')  # normalize
-        save_on = Path(save_on)
-
-        path_words = save_on.join(f'{prefix}_words.{ext}')
-        with open(path_words, 'w+', encoding='utf-8') as fp:
-            json.dump(self.sample_words_freq(), fp, indent=True)
-
-        path_phrases = save_on.join(f'{prefix}_phrases.{ext}')
-        with open(path_phrases, 'w+', encoding='utf-8') as fp:
-            json.dump(self.sample_phrases_freq(), fp, indent=True)
-
-    def _prepare_data(self, data, save_preprocessed=False):
-        words = []
-        phrases = []
-        for phrase in data:
-            prep_phrase = self._preprocess(phrase)
-            if save_preprocessed:
-                self._data.append(prep_phrase)
-            else:
-                self._data.append(phrase)
-
-            phrases.append(prep_phrase)
-
-            words += prep_phrase.split() if isinstance(prep_phrase, str) else [prep_phrase]
-
-        self._words_freq = collections.Counter(words)
-        self.__recovery_word_freq = self._words_freq.copy()
-
-        self._phrases_freq = collections.Counter(phrases)
-        self.__recovery_phrase_freq = self._phrases_freq.copy()
-
-    @staticmethod
-    def _freq_by_counter(counter, max_freq, max_items, order='most_common'):
-        assert order in ('most_common', 'least_common'), ValueError(
-                f"Order {order} not in ('most_common', 'least_common')")
-        assert isinstance(max_items, int), TypeError(f"max_items {type(max_items)} != {int}")
-        max_items = len(counter) if max_items == -1 else max_items
-        if order == 'least_common':
-            query = counter.most_common()[:-max_items - 1:-1]
-        else:
-            query = counter.most_common(max_items)
-        if max_freq is not None:
-            assert isinstance(max_freq, int), TypeError(f"freq {type(max_freq)} != {int}")
-            query = list(filter(lambda item: item[1] <= max_freq, query))
-        return dict(query)
-
-    def sample_words_freq(self, freq: int = None, max_items: int = -1, order='most_common'):
-        return self._freq_by_counter(self._words_freq, max_items=max_items, max_freq=freq, order=order)
-
-    def sample_phrases_freq(self, freq: int = None, max_items: int = -1, order='most_common'):
-        return self._freq_by_counter(self._phrases_freq, max_items=max_items, max_freq=freq, order=order)
 
 
 class Corpus(object):
@@ -441,7 +260,7 @@ class Corpus(object):
                 self._update_filters(x, y)
                 continue
             train.append([x, y])
-            
+
         if take_parallel_data is False:
             return (*get_cols(train), *get_cols(test))
         if take_corpus_instances is True:

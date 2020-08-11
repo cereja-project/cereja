@@ -8,7 +8,7 @@
 [![Get start on Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jlsneto/cereja/blob/master/docs/cereja_example.ipynb)
 
 <div align="center">
- <img src="https://i.ibb.co/dp8rZ3F/cereja-logo.png">
+ <img src="https://i.ibb.co/Fw8SSfd/cereja-logo.png" height="300" width="300" alt="CEREJA">
 </div>
 
 *Cereja is a bundle of useful functions that I don't want to rewrite.*

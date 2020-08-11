@@ -92,7 +92,7 @@ class _BasicConfig(metaclass=ABCMeta):
 # Used to add the functions of each module at the root
 cj_modules_dotted_path = ['cereja.arraytools', 'cereja.conf', 'cereja.decorators', 'cereja.path',
                           'cereja.utils', 'cereja.concurrently', 'cereja.display', 'cereja.filetools', 'cereja.unicode',
-                          'cereja.datatools.split_data']
+                          'cereja.datatools.split_data', 'cereja.datatools.pln', 'cereja.datatools.data']
 
 console_logger = logging.StreamHandler(sys.stdout)
 logging.basicConfig(handlers=(console_logger,), level=logging.WARN)

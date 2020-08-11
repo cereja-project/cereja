@@ -21,7 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import itertools
 import operator
 import random
 import statistics
@@ -224,23 +223,6 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     return v[0]
 
 
-def _flatten(sequence: list, max_recursion: int = -1):
-    logger.warning(f"[!] {_flatten.__name__} still under development")
-    if not isinstance(max_recursion, int):
-        raise TypeError(f"Type {type(max_recursion)} is not valid for max_recursion. Please send integer.")
-
-    if not is_sequence(sequence):
-        # Need improve
-        if max_recursion < 0:
-            raise ValueError(f"Value {sequence} is'nt valid. Send Sequence.")
-        return sequence
-
-    if is_sequence(sequence) and max_recursion:
-        return sum(map(_flatten, *(sequence, max_recursion - 1)), [])
-
-    return [sequence]
-
-
 def flatten(sequence: Sequence[Any], depth: Optional[int] = -1, **kwargs) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
@@ -260,6 +242,7 @@ def flatten(sequence: Sequence[Any], depth: Optional[int] = -1, **kwargs) -> Uni
     >>> flatten(sequence, depth=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
+    assert is_sequence(sequence), f"Invalid value {sequence}"
     legacy_arg = kwargs.get('max_recursion')
     if legacy_arg is not None:
         depth = legacy_arg
@@ -273,10 +256,10 @@ def flatten(sequence: Sequence[Any], depth: Optional[int] = -1, **kwargs) -> Uni
     jump = len(sequence)
     while i < len(sequence):
         element = sequence[i]
-        if isinstance(element, list) and (depth == -1 or depth > deep):
+        if isinstance(element, (list, tuple)) and (depth == -1 or depth > deep):
             jump = len(element)
             deep += 1
-            sequence = element + sequence[i + 1:]
+            sequence = list(element) + list(sequence[i + 1:])
             i = 0
         else:
             flattened.append(element)
@@ -428,8 +411,7 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
 
 
 def get_cols(sequence: Sequence):
-    lines, cols = get_shape(sequence)
-    return [[sequence[i][j] for i in range(lines)] for j in range(cols)]
+    return list(zip(*sequence))
 
 
 def dotproduct(vec1, vec2):
@@ -546,11 +528,9 @@ class Matrix(object):
         return object.__getattribute__(self, 'values')
 
     def _get_cols(self):
-        obj = self.to_list()
-        shape = self.shape
-        if len(shape) <= 1:
-            return [obj]
-        return list(map(list, itertools.zip_longest(*obj)))
+        if len(self.shape) > 1:
+            return get_cols(self.to_list())
+        return self.to_list()
 
     def dot(self, b):
         b = Matrix(b)
@@ -562,7 +542,7 @@ class Matrix(object):
         return Matrix([dotproduct(line, col) for col in b.cols for line in self])
 
     def flatten(self):
-        return Matrix(flatten(self))
+        return Matrix(flatten(self.to_list()))
 
     def mean(self):
         flattened = self.flatten()
@@ -578,98 +558,3 @@ class Matrix(object):
     def argmax(self):
         flattened = self.flatten()
         return flattened.to_list().index(max(flattened))
-
-
-class ConvertDictError(Exception): pass
-
-
-class Freq:
-    """
-    [!] It's still under development [!]
-
-    >>> freq = Freq([1,2,3,3,4,5,6,7,6,7,12,31,123,5,3])
-    {3: 3, 5: 2, 6: 2, 7: 2, 1: 1, 2: 1, 4: 1, 12: 1, 31: 1, 123: 1}
-
-    >>> freq.add_item(3)
-    {3: 4, 5: 3, 6: 2, 7: 2, 1: 1, 2: 1, 4: 1, 12: 1, 31: 1, 123: 1}
-
-    >>> freq.most_freq(4)
-    {3: 3, 5: 2, 6: 2, 7: 2}
-
-    >>> freq.least_freq(1)
-    {123: 1}
-
-    >>> freq_str = Freq('My car is red I like red color'.split())
-    {'red': 2, 'My': 1, 'car': 1, 'is': 1, 'I': 1, 'like': 1, 'color': 1}
-    """
-
-    def __init__(self, data: list):
-
-        logger.warning("[!] class still under development")
-
-        if not is_iterable(data):
-            raise ValueError("The data you entered is not valid! Please give me iterable data.")
-
-        self.data = data
-        self.freq = self._freq(len(self.data))
-
-    def __len__(self):
-        return len(self.data)
-
-    def __repr__(self):
-        return self.freq.__repr__()
-
-    def _freq(self, max_items: int = None):
-        try:
-            max_items = max_items or len(self.data)
-            values = {item: self.data.count(item) for item in self.data}
-            max_items = len(self.data) if max_items > len(self.data) else max_items
-            freq = {item: values[item] for i, item in enumerate(sorted(values, key=values.get, reverse=True)) if
-                    i < max_items}
-        except Exception as err:
-            raise ConvertDictError("Cannot convert data to dictionary")
-        return freq
-
-    def _verify_query(self, **kwargs):
-        max_items = kwargs.get('max_items')
-        if max_items:
-            if not isinstance(max_items, int):
-                raise TypeError(f"Value {max_items} isn't valid. Please give me integer.")
-
-            assert max_items < len(
-                    self), "Not possible, because the maximum value taked is greater than the number of items."
-
-    def _get_dict_from_keys(self, keys: list):
-        return {item: self.freq[item] for item in keys}
-
-    def item(self, item):
-        return self.freq[item]
-
-    def most_freq(self, max_items: int):
-        self._verify_query(max_items=max_items)
-        most = list(self.freq)[:max_items]
-        return self._get_dict_from_keys(most)
-
-    def least_freq(self, max_items: int):
-        self._verify_query(max_items=max_items)
-        less = list(self.freq)[-max_items:]
-        return self._get_dict_from_keys(less)
-
-    def add_item(self, item):
-        self.data.append(item)
-        self.freq = self._freq()
-
-    def remove_item(self, item):
-        self.data.remove(item)
-        self.freq = self._freq()
-
-    def items(self):
-        return self.freq.items()
-
-
-if __name__ == "__main__":
-    a = Matrix(
-            [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-             1.0,
-             1.0, 1.0, 1.0, 1.0])
-    a[0]

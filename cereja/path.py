@@ -32,7 +32,7 @@ from pathlib import Path as Path_
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir', 'normalize_path']
+__all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir', 'normalize_path', 'Path']
 
 
 def mkdir(path_dir: str):
@@ -183,13 +183,13 @@ class Path(os.PathLike):
         for i in range(len(self.__path.parts)):
             part_split = part.name.split('.')
             if part_split[-1] == '.':
-                logger.warning(f'It is not common to use dot <{part.name}> in the end of name.')
+                logger.info(f'It is not common to use dot <{part.name}> in the end of name.')
                 break
             if (part.suffix or part_split[-1] == '.') and i > 0:
-                logger.warning(f'It is not common to use dot in the middle or end of directory name <{part.name}>')
+                logger.info(f'It is not common to use dot in the middle or end of directory name <{part.name}>')
                 break
             if len(part_split) > 2:
-                logger.warning(f"<{part.name}> has more dot than usual.")
+                logger.info(f"<{part.name}> has more dot than usual.")
             part = part.parent
 
     @property
