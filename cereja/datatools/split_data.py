@@ -202,7 +202,7 @@ class Corpus(object):
     def load_corpus_from_csv(cls, path_: str, src_col_name: str, trg_col_name: str, source_name=None,
                              target_name=None):
 
-        csv_read = csv.DictReader(File.read(path_).lines)
+        csv_read = csv.DictReader(File.load(path_).lines)
         src_data = []
         trg_data = []
         for i in csv_read:

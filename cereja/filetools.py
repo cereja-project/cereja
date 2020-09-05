@@ -287,7 +287,7 @@ class FileBase(metaclass=ABCMeta):
         return None
 
     @classmethod
-    def read(cls, path_: Union[str, Path], **kwargs):
+    def load(cls, path_: Union[str, Path], **kwargs):
         """
         Read and create new file object.
 
@@ -326,7 +326,7 @@ class FileBase(metaclass=ABCMeta):
         for p in path_:
             if not p.exists:
                 continue
-            file_ = cls.read(p)
+            file_ = cls.load(p)
             if file_ is None:
                 continue
             if take_empty is True and file_.is_empty:
@@ -356,7 +356,7 @@ class FileBase(metaclass=ABCMeta):
                     file_path = os.path.join(dir_name, file_name)
                     if not os.path.islink(file_path):
                         try:
-                            file_obj = cls.read(file_path)
+                            file_obj = cls.load(file_path)
                             if file_obj is not None:
                                 files_.append(file_obj)
                         except Exception as err:
@@ -413,7 +413,7 @@ class FileBase(metaclass=ABCMeta):
         self._set_change('_lines', self._lines.copy())
 
     def delete(self):
-        raise NotImplementedError
+        raise self.__path.rm()
 
     def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', exist_ok=False, overwrite=False,
              **kwargs):
@@ -544,7 +544,7 @@ class CsvFile(FileBase):
     def read(cls, path_: str, has_col=True, encoding='utf-8', **kwargs):
         warnings.warn(f"This function will be deprecated in future versions. "
                       "you can use `CsvFile.load`", DeprecationWarning, 2)
-        return cls.load(path_,has_col, encoding, **kwargs)
+        return cls.load(path_, has_col, encoding, **kwargs)
 
     @classmethod
     def load(cls, path_: str, has_col=True, encoding='utf-8', **kwargs):
@@ -559,6 +559,7 @@ class CsvFile(FileBase):
                 fields = next(reader)
             data = list(reader)
         return cls(path_, fieldnames=fields, data=data)
+
     def to_dict(self):
         return dict(zip(self.cols, get_cols(self.lines)))
 
@@ -683,7 +684,7 @@ class JsonFile(FileBase):
         self._lines = data
 
     @classmethod
-    def read(cls, path_: Union[str, Path], **kwargs):
+    def load(cls, path_: Union[str, Path], **kwargs):
         encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
         path_ = Path(path_)
         assert path_.exists, FileNotFoundError('No such file', path_)
@@ -740,6 +741,12 @@ class File(FileBase):
 
     @classmethod
     def read(cls, path_: str, **kwargs):
+        warnings.warn(f"This function will be deprecated in future versions. "
+                      "you can use property `File.load`", DeprecationWarning, 2)
+        return cls.load(path_, **kwargs)
+
+    @classmethod
+    def load(cls, path_: str, **kwargs):
         """
         Read and create instance based on extension.
 
@@ -752,7 +759,7 @@ class File(FileBase):
         newline = kwargs.pop('newline') if 'newline' in kwargs else ''
         path_ = Path(path_)
         assert path_.exists, FileNotFoundError('No such file', path_)
-        return cls.__classes_by_ext.get(path_.suffix, FileBase).read(path_=path_, mode=mode, encoding=encoding,
+        return cls.__classes_by_ext.get(path_.suffix, FileBase).load(path_=path_, mode=mode, encoding=encoding,
                                                                      newline=newline,
                                                                      **kwargs)
 
@@ -786,7 +793,7 @@ def convert_new_line_sep(path_: str, line_sep: str, ext_in: list = None):
         _walk_dirs_and_replace(path_, LF, ext_in)
     else:
         with Progress(f"Converting {os.path.basename(path_)}") as prog:
-            File.read(path_).replace_file_sep(line_sep)
+            File.load(path_).replace_file_sep(line_sep)
 
 
 def crlf_to_lf(path_: str, ext_in: list = None):
@@ -817,10 +824,6 @@ def to_cr(path_: str):
 
 def to_crlf(path_: str):
     convert_new_line_sep(path_, CRLF)
-
-
-def _auto_ident_py(path: str):
-    pass
 
 
 if __name__ == '__main__':

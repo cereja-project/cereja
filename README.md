@@ -140,14 +140,14 @@ print(file[0]) # [1, 2, 3]
 file.save()
 
 # Reading
-file = cj.CsvFile.read('test.csv') # have a fun! lol
+file = cj.CsvFile.load('test.csv') # have a fun! lol
 dir(file) # see all methods and attr
 ```
 ##### Reading Other Files
 ```python
 import cereja as cj
 
-file = cj.File.read('path_to_file.ext')
+file = cj.File.load('path_to_file.ext')
 # now you have a file instance, have fun!
 # you can insert lines, remove and save \0/
 file.save(exist_ok=True) # or change path file.save(on_new_path='new_path.ext', exist_ok=True)
