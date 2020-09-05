@@ -559,7 +559,6 @@ class CsvFile(FileBase):
                 fields = next(reader)
             data = list(reader)
         return cls(path_, fieldnames=fields, data=data)
-
     def to_dict(self):
         return dict(zip(self.cols, get_cols(self.lines)))
 
