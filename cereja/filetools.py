@@ -444,12 +444,10 @@ class FileBase(metaclass=ABCMeta):
 class CsvFile(FileBase):
     _allowed_ext = ('.csv',)
 
-    def __init__(self, path_: Union[str, Path], fieldnames: Union[Tuple, tuple, list], data=None):
-        if not fieldnames:
-            raise ValueError('fieldnames is <None> please specify columns')
-
-        assert isinstance(fieldnames, (tuple, list)), ValueError(f"for fieldnames is expected {tuple} or {list}")
-        self._fieldnames = tuple(fieldnames)
+    def __init__(self, path_: Union[str, Path], fieldnames: Union[Tuple, tuple, list] = (), data=None):
+        self._fieldnames = fieldnames if fieldnames is not None else ()
+        assert isinstance(self._fieldnames, (tuple, list)), ValueError(
+                f"for fieldnames is expected {tuple} or {list}")
         super().__init__(path_, data)
 
     @property
@@ -494,25 +492,34 @@ class CsvFile(FileBase):
             vals.append(val)
         return vals
 
-    def normalize_data(self, data: Any, fill_with=None, **kwargs) -> Union[List[str], Any]:
-        n_cols = len(self._fieldnames)
+    def normalize_data(self, data: Any, fill_with=None, literal_eval=True, **kwargs) -> Union[List[str], Any]:
         normalized_data = []
         if is_sequence(data):
             for row in data:
                 if not is_sequence(row):
-                    assert len(data) <= n_cols, f'number of lines ({len(data)}) > number of cols {n_cols}'
-                    data += [fill_with] * (n_cols - len(data))
-                    normalized_data.append(self._ast(data))
+                    if not self._fieldnames:
+                        self._fieldnames = (None,)
+                    assert len(data) <= len(
+                            self._fieldnames), f'number of lines ({len(data)}) > number of cols {len(self._fieldnames)}'
+                    data += [fill_with] * abs((len(self._fieldnames) - len(data)))
+                    normalized_data.append(self._ast(data) if literal_eval else data)
                     break
-                assert len(row) <= n_cols, f'number of lines ({len(row)}) > number of cols {n_cols}'
+                if not self._fieldnames:
+                    self._fieldnames = (None,) * len(row)
+                assert len(row) <= len(
+                        self._fieldnames), f'number of lines ({len(row)}) > number of cols {len(self._fieldnames)}'
                 row = list(row)
-                row += [fill_with] * (n_cols - len(row))
-                normalized_data.append(self._ast(row))
+                row += [fill_with] * abs((len(self._fieldnames) - len(row)))
+                normalized_data.append(self._ast(row) if literal_eval else row)
         else:
             assert not isinstance(data, dict), TypeError("dict data isn't valid.")
             data = [data]
-            data += [fill_with] * (n_cols - len(data))
-            normalized_data.append(self._ast([data]))
+            if not self._fieldnames:
+                self._fieldnames = (None,)
+            data += [fill_with] * (len(self._fieldnames) - len(data))
+            normalized_data.append(self._ast(data) if literal_eval else data)
+        self._fieldnames = tuple(value if value is not None else f'unamed_col_{i}' for i, value in
+                                 enumerate(self._fieldnames))
         return normalized_data
 
     @property
@@ -534,21 +541,24 @@ class CsvFile(FileBase):
             writer.writerows(self.data)
 
     @classmethod
-    def read(cls, path_: str, encoding='utf-8', **kwargs):
+    def read(cls, path_: str, has_col=True, encoding='utf-8', **kwargs):
+        warnings.warn(f"This function will be deprecated in future versions. "
+                      "you can use `CsvFile.load`", DeprecationWarning, 2)
+        return cls.load(path_,has_col, encoding, **kwargs)
+
+    @classmethod
+    def load(cls, path_: str, has_col=True, encoding='utf-8', **kwargs):
         path_ = Path(path_)
         assert path_.exists, FileNotFoundError('No such file', path_)
         if path_.suffix != '.csv':
             raise ValueError("isn't .csv file.")
         with open(path_.path, encoding=encoding, newline='') as fp:
-            reader = csv.DictReader(fp)
+            reader = csv.reader(fp)
             fields = None
-            data = []
-            for row in reader:
-                if fields is None:
-                    fields = tuple(row.keys())
-                data.append(row.values())
+            if has_col:
+                fields = next(reader)
+            data = list(reader)
         return cls(path_, fieldnames=fields, data=data)
-
     def to_dict(self):
         return dict(zip(self.cols, get_cols(self.lines)))
 
