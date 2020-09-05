@@ -229,7 +229,7 @@ class LanguageDetector:
 
     def load(self, filepath: str):
         self._is_model = True
-        self.__language_data = File.read(filepath)
+        self.__language_data = File.load(filepath)
         return self
 
     def add(self, language: str, data_: List[str]):
@@ -277,5 +277,5 @@ class LanguageDetector:
 
 
 if __name__ == '__main__':
-    freq = Freq(JsonFile.read("C:/Users/handtalk/Downloads/lang_predict.json").data['por'])
+    freq = Freq(JsonFile.load("C:/Users/handtalk/Downloads/lang_predict.json").data['por'])
     freq.to_json('teste.json', exist_ok=True)
