@@ -326,7 +326,7 @@ class FileBase(metaclass=ABCMeta):
         loaded = []
         for p in path_:
             if recursive and p.is_dir:
-                loaded.extend(cls.load_files(p))
+                loaded.extend(cls.load_files(p, ext))
                 continue
             if not p.exists or p.is_dir:
                 continue
