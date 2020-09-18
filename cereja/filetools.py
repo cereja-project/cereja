@@ -316,7 +316,7 @@ class FileBase(metaclass=ABCMeta):
         return cls(path_, content)
 
     @classmethod
-    def load_files(cls, path_, ext, contains_in_name: List = (), not_contains_in_name=(), take_empty=True):
+    def load_files(cls, path_, ext, contains_in_name: List = (), not_contains_in_name=(), take_empty=True, recursive=False):
         path_ = Path(path_)
         if path_.is_dir:
             path_ = [i for i in listdir(path_)]
@@ -324,7 +324,10 @@ class FileBase(metaclass=ABCMeta):
             path_ = [path_]
         loaded = []
         for p in path_:
-            if not p.exists:
+            if recursive and p.is_dir:
+                loaded.extend(cls.load_files(p))
+                continue
+            if not p.exists or p.is_dir:
                 continue
             file_ = cls.load(p)
             if file_ is None:
