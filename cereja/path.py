@@ -26,6 +26,7 @@ import os
 import random
 import shutil
 import time
+import warnings
 from typing import List, Union
 from cereja.arraytools import group_items_in_batches
 from pathlib import Path as Path_
@@ -311,6 +312,45 @@ class Path(os.PathLike):
         to = self.__class__(to)
         return self._shutil('cp', to=to)
 
+    @classmethod
+    def list_dir(cls, path_: Union[str, 'Path']) -> List['Path']:
+        """
+        Extension of the listdir function of module os.
+
+        The difference is that by default it returns the absolute path, but you can still only request the relative path by
+        setting only_relative_path to True.
+
+        """
+        if not isinstance(path_, Path):
+            path_ = cls(path_)
+
+        assert path_.is_dir, f"{path_} isn't dir."
+        return [path_.join(p) for p in os.listdir(str(path_))]
+
+    @classmethod
+    def list_files(cls, dir_path: Union[str, 'Path'], ext: str = None, contains_in_name: List = (),
+                   not_contains_in_name=(),
+                   recursive=False) -> List['Path']:
+        files = []
+        for p in cls.list_dir(dir_path):
+            if p.is_dir and recursive:
+                files.extend(
+                        cls.list_files(p, contains_in_name=contains_in_name, not_contains_in_name=not_contains_in_name,
+                                       recursive=recursive))
+                continue
+            if p.is_dir:
+                continue
+            if not (p.suffix == f'.{ext.strip(".")}'):
+                continue
+            if not_contains_in_name:
+                if any(map(p.stem.__contains__, not_contains_in_name)):
+                    continue
+            if contains_in_name:
+                if not any(map(p.stem.__contains__, contains_in_name)):
+                    continue
+            files.append(p)
+        return files
+
 
 def normalize_path(path_: str) -> Path:
     return Path(path_)
@@ -334,6 +374,8 @@ def listdir(path_: Union[str, Path], only_relative_path: bool = False) -> List[s
     setting only_relative_path to True.
 
     """
+    warnings.warn(f"This function will be deprecated in future versions. "
+                  f"Path.list_dir", DeprecationWarning, 2)
     if not isinstance(path_, Path):
         path_ = Path(path_)
 
