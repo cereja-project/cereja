@@ -36,7 +36,7 @@ from cereja.utils import invert_dict
 import copy
 import csv
 from datetime import datetime
-from base64 import b64encode, b64decode
+from base64 import b64encode
 
 logger = logging.Logger(__name__)
 
