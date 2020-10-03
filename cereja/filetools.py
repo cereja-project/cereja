@@ -36,6 +36,7 @@ from cereja.utils import invert_dict
 import copy
 import csv
 from datetime import datetime
+from base64 import b64encode
 
 logger = logging.Logger(__name__)
 
@@ -103,8 +104,6 @@ class FileBase(metaclass=ABCMeta):
                     f'type of file {self.ext} not allowed. Only allowed {self._allowed_ext}')
         if not content_file:
             content_file = []
-        assert self.ext != '', ValueError(
-                'You need to inform the file extension on path e.g (.json, .txt, .xyz, etc.).')
         self._lines = self.normalize_data(content_file)
         if not self.is_empty:
             line_sep_ = self._default_new_line_sep
@@ -195,6 +194,10 @@ class FileBase(metaclass=ABCMeta):
         warnings.warn(f"This property will be deprecated in future versions. "
                       "you can use property `File.lines`", DeprecationWarning, 2)
         return self._lines
+
+    @property
+    def base64(self):
+        return b64encode(self.string.encode())
 
     @property
     def path(self):
@@ -609,7 +612,7 @@ class JsonFile(FileBase):
             return json.loads(data)
         elif isinstance(data, dict):
             return json.loads(json.dumps(data))
-        raise cls.normalize_data(data)
+        return super().normalize_data(data)
 
     def __setitem__(self, key, value):
         data = self.data
