@@ -81,15 +81,15 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
     return None
 
 
-def percent(from_: Number, to: Number) -> Number:
+def percent(from_: Number, to: Number, ndigits=2) -> Number:
     to = to or 1
-    return round((from_ / to) * 100, 2)
+    return round((from_ / to) * 100, ndigits)
 
 
-def estimate(from_: Number, to: Number, based: Number) -> Number:
+def estimate(from_: Number, to: Number, based: Number, ndigits=2) -> Number:
     if from_ > 0:
         based = based or 1
-        return round((based / from_) * to - based, 2)
+        return round((based / from_) * to - based, ndigits)
     return float('NaN')
 
 
