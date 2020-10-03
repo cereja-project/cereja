@@ -612,7 +612,7 @@ class JsonFile(FileBase):
             return json.loads(data)
         elif isinstance(data, dict):
             return json.loads(json.dumps(data))
-        raise cls.normalize_data(data)
+        return super().normalize_data(data)
 
     def __setitem__(self, key, value):
         data = self.data
