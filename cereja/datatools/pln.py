@@ -167,6 +167,10 @@ class LanguageData(BaseData):
     def word_freq(self, word: str):
         return self._words_freq.get(self._preprocess(word))
 
+    @property
+    def words(self):
+        return set(self._words_freq)
+
     def _preprocess(self, value: str):
         if not isinstance(value, str):
             return value
