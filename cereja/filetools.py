@@ -310,6 +310,8 @@ class FileBase(metaclass=ABCMeta):
             logger.warning(f"I can't read this file. See class attribute <{cls.__name__}._dont_read>")
             return
         try:
+            encoding = None if 'b' in mode else encoding
+            newline = None if 'b' in mode else newline
             with open(path_, mode=mode, encoding=encoding, newline=newline, **kwargs) as fp:
                 content = fp.read()
         except PermissionError as err:
