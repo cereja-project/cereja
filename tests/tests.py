@@ -31,7 +31,7 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
 from cereja import filetools
 from cereja.cj_types import Number
 from cereja.datatools import Corpus
-from cereja.datatools.pln import separate
+from cereja.datatools.pln import separate, LanguageData
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.path import Path
 from cereja.unicode import Unicode
@@ -398,6 +398,13 @@ class ProgressTestCase:
 
             for i in p(range(1, 500)):
                 time.sleep(1 / i)
+
+
+class LanguageDataTestCase(unittest.TestCase):
+    def test_sanity(self):
+        data = LanguageData(['how are you?', 'I like it', 'cereja', 'cherry'])
+        self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja', 'cherry']), 1)
+        self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja']), 0.875)
 
 
 if __name__ == '__main__':

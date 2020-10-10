@@ -20,9 +20,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import itertools
+from typing import List, Dict, Union, Sequence, AnyStr, Any, Iterable
 
-from typing import List, Dict, Union, Sequence, AnyStr, Any
-
+from cereja.cj_types import Number
 from cereja.datatools.data import Freq
 from cereja.filetools import File, JsonFile
 from cereja.conf import _BasicConfig
@@ -186,6 +187,24 @@ class LanguageData(BaseData):
             cleaned_data.append(w)
         cleaned_data = ' '.join(cleaned_data)
         return cleaned_data
+
+    def synergy(self, value: Union[Iterable[str], str]) -> Number:
+        """
+        Returns how important the value sent is in relation to the data set
+        """
+        if value is None:
+            return 0.0
+        if isinstance(value, str):
+            value = [value]
+        try:
+            value = set(itertools.chain(*map(lambda val: self.preprocess(val).split(), value)))
+        except AttributeError:
+            raise ValueError("Inconsistent data format.")
+        result = list(map(self._words_freq.item_prob, value))
+        zeros = result.count(0)
+        if zeros:
+            return sum(result) - (zeros / len(value))
+        return sum(result)
 
     def save_freq(self, save_on: str, prefix='freq', ext: str = 'json', probability=False):
         ext = ext.strip('.')  # normalize
