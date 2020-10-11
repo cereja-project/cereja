@@ -21,9 +21,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import itertools
+import warnings
 from typing import List, Dict, Union, Sequence, AnyStr, Any, Iterable
 
 from cereja.cj_types import Number
+from cereja.datatools import preprocess as _preprocess
 from cereja.datatools.data import Freq
 from cereja.filetools import File, JsonFile
 from cereja.conf import _BasicConfig
@@ -31,36 +33,44 @@ from abc import ABCMeta, abstractmethod
 
 from cereja.path import Path
 
-__all__ = ['separate', 'LanguageConfig', 'LanguageData']
+__all__ = ['LanguageConfig', 'LanguageData', 'Preprocessor']
+
+_LANGUAGE_ISO_639_2 = {
+    'eng': 'English',
+    'por': 'Portuguese'
+}
+_LANGUAGE_ISO_639_1 = {
+    'pt': 'English',
+    'en': 'Portuguese'
+}
+
+
+class Preprocessor:
+    def __init__(self, language: str):
+        if language not in _LANGUAGE_ISO_639_2 and language not in _LANGUAGE_ISO_639_1:
+            raise ValueError("Unknown Language.")
+        self._language = language
+
+    def _preprocess(self, sentence, is_destructive: bool):
+        sentence = _preprocess.remove_extra_chars(sentence)
+        sentence = _preprocess.remove_non_language_elements(sentence)
+        sentence = _preprocess.separate(sentence)
+        if self._language == 'en':
+            sentence = _preprocess.replace_english_contractions(sentence)
+        if is_destructive:
+            sentence = _preprocess.accent_remove(sentence).lower()
+        return sentence
+
+    def preprocess(self, data, is_destructive=True):
+        if isinstance(data, str):
+            return self._preprocess(sentence=data, is_destructive=is_destructive)
+        return map(lambda sentence: self._preprocess(sentence, is_destructive=is_destructive), data)
 
 
 def separate(text: AnyStr, sep: Union[str, Sequence[str]] = ('!', '?', '.'), between_char=False) -> str:
-    """
-    Creating a space between an element in sep values
-    e.g:
-
-    >>> separate('how are you?', sep='?')
-    'how are you ?'
-    >>> separate('how are you,man?', sep=('?',','), between_char=True)
-    'how are you , man ?'
-
-    :param text: Any text
-    :param sep: values that will be separated. Accepted types (str, list and tuple)
-    :param between_char: if True the sep values that's on between chars it will be separated.
-                         eg. "it's" -> "it ' s"
-    :return: processed text
-    """
-    if isinstance(sep, str):
-        sep = (sep,)
-    assert isinstance(sep, (tuple, list)), f"{type(sep)} is not acceptable. Only (str, list and tuple) types"
-    assert isinstance(text, str), f"{type(text)} is not acceptable. Only str type."
-    new_text = []
-    for word in text.split():
-        for i in sep:
-            if (word.startswith(i) or word.endswith(i)) or between_char is True:
-                word = f' {i} '.join(word.split(i)).strip()
-        new_text += word.split()
-    return ' '.join(new_text)
+    warnings.warn(f"This function will be deprecated in future versions. "
+                  f"preprocess.separate", DeprecationWarning, 2)
+    return _preprocess.separate(text=text, sep=sep, between_char=between_char)
 
 
 class LanguageConfig(_BasicConfig):
