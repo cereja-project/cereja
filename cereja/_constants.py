@@ -1,5 +1,6 @@
 from cereja.unicode import Unicode
 import string
+
 ENG_CONTRACTIONS = {
     "ain't":        "am not,are not,is not,has not,have not",
     "aren't":       "are not,am not",
@@ -119,7 +120,7 @@ ENG_CONTRACTIONS = {
     "you're":       "you are",
     "you've":       "you have"
 }
-PUNCTUATION = [',','!', '#', '$', '%', "'", '*', '+', '-', '.', '/', '?', '@', '\\', '^', '_', '~']
+PUNCTUATION = [',', '!', '#', '$', '%', "'", '*', '+', '-', '.', '/', '?', '@', '\\', '^', '_', '~']
 VALID_LANGUAGE_CHAR = {chr(i) for i in range(10000) if 'LETTER' in Unicode(i).name}
 VALID_LANGUAGE_CHAR.update(string.digits)
 VALID_LANGUAGE_CHAR.update(string.punctuation)

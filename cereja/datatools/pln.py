@@ -54,11 +54,11 @@ class Preprocessor:
     def _preprocess(self, sentence, is_destructive: bool):
         sentence = _preprocess.remove_extra_chars(sentence)
         sentence = _preprocess.remove_non_language_elements(sentence)
-        sentence = _preprocess.separate(sentence)
         if self._language == 'en':
             sentence = _preprocess.replace_english_contractions(sentence)
         if is_destructive:
             sentence = _preprocess.accent_remove(sentence).lower()
+        sentence = _preprocess.separate(sentence)
         return sentence
 
     def preprocess(self, data, is_destructive=True):
