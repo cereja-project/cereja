@@ -59,6 +59,7 @@ class LanguageConfig(_BasicConfig):
     is_remove_punctuation = True
     is_remove_stop_words = True
     is_remove_accent = False
+    is_destructive = False
 
     def __init__(self, **kwargs):
         name = kwargs.pop('name') if kwargs.get('name') is not None else self.name
@@ -93,7 +94,7 @@ class Preprocessor:
         if is_destructive or self.config.is_remove_stop_words:
             for w in self.config.stop_words:
                 sentence = sentence.replace(w, '')
-        return sentence
+        return sentence.strip()
 
     def preprocess(self, data, is_destructive=False):
         if isinstance(data, str):

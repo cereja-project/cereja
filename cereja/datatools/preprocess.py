@@ -85,7 +85,7 @@ def remove_extra_chars(sentence: str) -> str:
         'i   like it!!!' --> 'i like it!'
     """
     sentence = re.sub(f"([{_NORMALIZE_VALUES}])+", r'\1', sentence)
-    return re.sub(' \t\n\r\x0b\x0c+', " ", sentence)
+    return re.sub('[\t\n\r\x0b\x0c ]+', " ", sentence).strip()
 
 
 def remove_non_language_elements(sentence: str) -> str:
