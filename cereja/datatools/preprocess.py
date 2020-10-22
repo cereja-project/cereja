@@ -69,3 +69,13 @@ def remove_non_language_elements(sentence: str) -> str:
     for invalid in set(sentence).difference(VALID_LANGUAGE_CHAR):
         sentence = sentence.replace(invalid, '')
     return sentence.strip()
+
+
+def remove_punctuation(sentence: str, punctuation: str = None):
+    """
+    Default Punctuation -> [',', '!', '#', '$', '%', "'", '*', '+', '-', '.', '/', '?', '@', '\\', '^', '_', '~']
+    """
+    punctuation = punctuation or ''.join(PUNCTUATION)
+    for x in punctuation:
+        sentence = sentence.replace(x, '')
+    return sentence.strip()

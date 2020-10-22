@@ -45,28 +45,6 @@ _LANGUAGE_ISO_639_1 = {
 }
 
 
-class Preprocessor:
-    def __init__(self, language: str):
-        if language not in _LANGUAGE_ISO_639_2 and language not in _LANGUAGE_ISO_639_1:
-            raise ValueError("Unknown Language.")
-        self._language = language
-
-    def _preprocess(self, sentence, is_destructive: bool):
-        sentence = _preprocess.remove_extra_chars(sentence)
-        sentence = _preprocess.remove_non_language_elements(sentence)
-        if self._language == 'en':
-            sentence = _preprocess.replace_english_contractions(sentence)
-        if is_destructive:
-            sentence = _preprocess.accent_remove(sentence).lower()
-        sentence = _preprocess.separate(sentence)
-        return sentence
-
-    def preprocess(self, data, is_destructive=True):
-        if isinstance(data, str):
-            return self._preprocess(sentence=data, is_destructive=is_destructive)
-        return map(lambda sentence: self._preprocess(sentence, is_destructive=is_destructive), data)
-
-
 def separate(text: AnyStr, sep: Union[str, Sequence[str]] = ('!', '?', '.'), between_char=False) -> str:
     warnings.warn(f"This function will be deprecated in future versions. "
                   f"preprocess.separate", DeprecationWarning, 2)
@@ -78,8 +56,9 @@ class LanguageConfig(_BasicConfig):
     stop_words = ()
     punctuation = '!?,.'
     to_lower = True
-    remove_punctuation = True
-    remove_stop_words = True
+    is_remove_punctuation = True
+    is_remove_stop_words = True
+    is_remove_accent = False
 
     def __init__(self, **kwargs):
         name = kwargs.pop('name') if kwargs.get('name') is not None else self.name
@@ -93,6 +72,33 @@ class LanguageConfig(_BasicConfig):
 
     def _before(self, new_config: dict):
         super()._before(new_config)
+
+
+class Preprocessor:
+    def __init__(self, **kwargs):
+        self.config = LanguageConfig(**kwargs)
+
+    def _preprocess(self, sentence, is_destructive: bool):
+        if is_destructive or self.config.to_lower:
+            sentence = sentence.lower()
+        sentence = _preprocess.remove_extra_chars(sentence)
+        sentence = _preprocess.remove_non_language_elements(sentence)
+        if self.config.name == 'en':
+            sentence = _preprocess.replace_english_contractions(sentence)
+        if is_destructive or self.config.is_remove_accent:
+            sentence = _preprocess.accent_remove(sentence)
+        sentence = _preprocess.separate(sentence)
+        if is_destructive or self.config.is_remove_punctuation:
+            sentence = _preprocess.remove_punctuation(sentence, self.config.punctuation)
+        if is_destructive or self.config.is_remove_stop_words:
+            for w in self.config.stop_words:
+                sentence = sentence.replace(w, '')
+        return sentence
+
+    def preprocess(self, data, is_destructive=False):
+        if isinstance(data, str):
+            return self._preprocess(sentence=data, is_destructive=is_destructive)
+        return map(lambda sentence: self._preprocess(sentence, is_destructive=is_destructive), data)
 
 
 class BaseData(metaclass=ABCMeta):
@@ -113,7 +119,7 @@ class LanguageData(BaseData):
 
     def __init__(self, data, **kwargs):
 
-        self.config = LanguageConfig(hook=self.re_build, **kwargs)
+        self._preprocessor = Preprocessor(hook=self.re_build, **kwargs)
 
         self._phrases_freq: Freq = ...
         self._words_freq: Freq = ...
@@ -121,6 +127,10 @@ class LanguageData(BaseData):
         self.__recovery_word_freq: Freq = ...
         super().__init__(data=data)
         self._build = True
+
+    @property
+    def config(self):
+        return self._preprocessor.config
 
     def re_build(self):
         if hasattr(self, '_build'):
@@ -170,33 +180,17 @@ class LanguageData(BaseData):
     @property
     def data_prep(self):
         for phrase in self.data:
-            yield self._preprocess(phrase)
-
-    def preprocess(self, value: str):
-        return self._preprocess(value)
+            yield self.preprocess(phrase)
 
     def word_freq(self, word: str):
-        return self._words_freq.get(self._preprocess(word))
+        return self._words_freq.get(self.preprocess(word))
 
     @property
     def words(self):
         return set(self._words_freq)
 
-    def _preprocess(self, value: str):
-        if not isinstance(value, str):
-            return value
-        value = value if not self.config.to_lower else value.lower()
-        cleaned_data = []
-        for w in value.split():
-            if self.config.remove_punctuation:
-                w = w.strip(self.punctuation)
-            w = " '".join(w.split("'"))
-            if self.config.remove_stop_words:
-                if w in self.config.stop_words:
-                    continue
-            cleaned_data.append(w)
-        cleaned_data = ' '.join(cleaned_data)
-        return cleaned_data
+    def preprocess(self, value: str):
+        return self._preprocessor.preprocess(value)
 
     def synergy(self, value: Union[Iterable[str], str]) -> Number:
         """
@@ -230,7 +224,7 @@ class LanguageData(BaseData):
         words = []
         phrases = []
         for phrase in data:
-            prep_phrase = self._preprocess(phrase)
+            prep_phrase = self.preprocess(phrase)
             if save_preprocessed:
                 self._data.append(prep_phrase)
             else:
@@ -307,8 +301,3 @@ class LanguageDetector:
 
     def save(self, filepath: str):
         JsonFile(filepath, data=self.__language_data).save(exist_ok=True)
-
-
-if __name__ == '__main__':
-    freq = Freq(JsonFile.load("C:/Users/handtalk/Downloads/lang_predict.json").data['por'])
-    freq.to_json('teste.json', exist_ok=True)
