@@ -30,8 +30,8 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
     is_sequence, array_gen, get_shape
 from cereja import filetools
 from cereja.cj_types import Number
-from cereja.datatools import Corpus
-from cereja.datatools.pln import separate
+from cereja.datatools import Corpus, preprocess
+from cereja.datatools.pln import LanguageData, Preprocessor
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.path import Path
 from cereja.unicode import Unicode
@@ -335,9 +335,10 @@ class CorpusTestCase(unittest.TestCase):
 
 class DataToolsFunctionsTestCase(unittest.TestCase):
     def test_sanity(self):
-        self.assertEqual(separate('how are you?', sep='?'), 'how are you ?')
-        self.assertEqual(separate('how are you,man?', sep=('?', ','), between_char=True), 'how are you , man ?')
-        self.assertEqual(separate('how are! you?'), 'how are ! you ?')
+        self.assertEqual(preprocess.separate('how are you?', sep='?'), 'how are you ?')
+        self.assertEqual(preprocess.separate('how are you,man?', sep=('?', ','), between_char=True),
+                         'how are you , man ?')
+        self.assertEqual(preprocess.separate('how are! you?'), 'how are ! you ?')
 
 
 class ProgressTestCase:
@@ -398,6 +399,13 @@ class ProgressTestCase:
 
             for i in p(range(1, 500)):
                 time.sleep(1 / i)
+
+
+class LanguageDataTestCase(unittest.TestCase):
+    def test_sanity(self):
+        data = LanguageData(['how are you?', 'I like it', 'cereja', 'cherry'])
+        self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja', 'cherry']), 1)
+        self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja']), 0.875)
 
 
 if __name__ == '__main__':

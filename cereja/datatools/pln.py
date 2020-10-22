@@ -20,9 +20,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import itertools
+import warnings
+from typing import List, Dict, Union, Sequence, AnyStr, Any, Iterable
 
-from typing import List, Dict, Union, Sequence, AnyStr, Any
-
+from cereja.cj_types import Number
+from cereja.datatools import preprocess as _preprocess
 from cereja.datatools.data import Freq
 from cereja.filetools import File, JsonFile
 from cereja.conf import _BasicConfig
@@ -30,36 +33,22 @@ from abc import ABCMeta, abstractmethod
 
 from cereja.path import Path
 
-__all__ = ['separate', 'LanguageConfig', 'LanguageData']
+__all__ = ['LanguageConfig', 'LanguageData', 'Preprocessor']
+
+_LANGUAGE_ISO_639_2 = {
+    'eng': 'English',
+    'por': 'Portuguese'
+}
+_LANGUAGE_ISO_639_1 = {
+    'pt': 'English',
+    'en': 'Portuguese'
+}
 
 
 def separate(text: AnyStr, sep: Union[str, Sequence[str]] = ('!', '?', '.'), between_char=False) -> str:
-    """
-    Creating a space between an element in sep values
-    e.g:
-
-    >>> separate('how are you?', sep='?')
-    'how are you ?'
-    >>> separate('how are you,man?', sep=('?',','), between_char=True)
-    'how are you , man ?'
-
-    :param text: Any text
-    :param sep: values that will be separated. Accepted types (str, list and tuple)
-    :param between_char: if True the sep values that's on between chars it will be separated.
-                         eg. "it's" -> "it ' s"
-    :return: processed text
-    """
-    if isinstance(sep, str):
-        sep = (sep,)
-    assert isinstance(sep, (tuple, list)), f"{type(sep)} is not acceptable. Only (str, list and tuple) types"
-    assert isinstance(text, str), f"{type(text)} is not acceptable. Only str type."
-    new_text = []
-    for word in text.split():
-        for i in sep:
-            if (word.startswith(i) or word.endswith(i)) or between_char is True:
-                word = f' {i} '.join(word.split(i)).strip()
-        new_text += word.split()
-    return ' '.join(new_text)
+    warnings.warn(f"This function will be deprecated in future versions. "
+                  f"preprocess.separate", DeprecationWarning, 2)
+    return _preprocess.separate(text=text, sep=sep, between_char=between_char)
 
 
 class LanguageConfig(_BasicConfig):
@@ -67,8 +56,9 @@ class LanguageConfig(_BasicConfig):
     stop_words = ()
     punctuation = '!?,.'
     to_lower = True
-    remove_punctuation = True
-    remove_stop_words = True
+    is_remove_punctuation = True
+    is_remove_stop_words = True
+    is_remove_accent = False
 
     def __init__(self, **kwargs):
         name = kwargs.pop('name') if kwargs.get('name') is not None else self.name
@@ -82,6 +72,33 @@ class LanguageConfig(_BasicConfig):
 
     def _before(self, new_config: dict):
         super()._before(new_config)
+
+
+class Preprocessor:
+    def __init__(self, **kwargs):
+        self.config = LanguageConfig(**kwargs)
+
+    def _preprocess(self, sentence, is_destructive: bool):
+        if is_destructive or self.config.to_lower:
+            sentence = sentence.lower()
+        sentence = _preprocess.remove_extra_chars(sentence)
+        sentence = _preprocess.remove_non_language_elements(sentence)
+        if self.config.name == 'en':
+            sentence = _preprocess.replace_english_contractions(sentence)
+        if is_destructive or self.config.is_remove_accent:
+            sentence = _preprocess.accent_remove(sentence)
+        sentence = _preprocess.separate(sentence)
+        if is_destructive or self.config.is_remove_punctuation:
+            sentence = _preprocess.remove_punctuation(sentence, self.config.punctuation)
+        if is_destructive or self.config.is_remove_stop_words:
+            for w in self.config.stop_words:
+                sentence = sentence.replace(w, '')
+        return sentence
+
+    def preprocess(self, data, is_destructive=False):
+        if isinstance(data, str):
+            return self._preprocess(sentence=data, is_destructive=is_destructive)
+        return map(lambda sentence: self._preprocess(sentence, is_destructive=is_destructive), data)
 
 
 class BaseData(metaclass=ABCMeta):
@@ -102,7 +119,7 @@ class LanguageData(BaseData):
 
     def __init__(self, data, **kwargs):
 
-        self.config = LanguageConfig(hook=self.re_build, **kwargs)
+        self._preprocessor = Preprocessor(hook=self.re_build, **kwargs)
 
         self._phrases_freq: Freq = ...
         self._words_freq: Freq = ...
@@ -110,6 +127,10 @@ class LanguageData(BaseData):
         self.__recovery_word_freq: Freq = ...
         super().__init__(data=data)
         self._build = True
+
+    @property
+    def config(self):
+        return self._preprocessor.config
 
     def re_build(self):
         if hasattr(self, '_build'):
@@ -159,33 +180,35 @@ class LanguageData(BaseData):
     @property
     def data_prep(self):
         for phrase in self.data:
-            yield self._preprocess(phrase)
-
-    def preprocess(self, value: str):
-        return self._preprocess(value)
+            yield self.preprocess(phrase)
 
     def word_freq(self, word: str):
-        return self._words_freq.get(self._preprocess(word))
+        return self._words_freq.get(self.preprocess(word))
 
     @property
     def words(self):
         return set(self._words_freq)
 
-    def _preprocess(self, value: str):
-        if not isinstance(value, str):
-            return value
-        value = value if not self.config.to_lower else value.lower()
-        cleaned_data = []
-        for w in value.split():
-            if self.config.remove_punctuation:
-                w = w.strip(self.punctuation)
-            w = " '".join(w.split("'"))
-            if self.config.remove_stop_words:
-                if w in self.config.stop_words:
-                    continue
-            cleaned_data.append(w)
-        cleaned_data = ' '.join(cleaned_data)
-        return cleaned_data
+    def preprocess(self, value: str):
+        return self._preprocessor.preprocess(value)
+
+    def synergy(self, value: Union[Iterable[str], str]) -> Number:
+        """
+        Returns how important the value sent is in relation to the data set
+        """
+        if value is None:
+            return 0.0
+        if isinstance(value, str):
+            value = [value]
+        try:
+            value = set(itertools.chain(*map(lambda val: self.preprocess(val).split(), value)))
+        except AttributeError:
+            raise ValueError("Inconsistent data format.")
+        result = list(map(self._words_freq.item_prob, value))
+        zeros = result.count(0)
+        if zeros:
+            return sum(result) - (zeros / len(value))
+        return sum(result)
 
     def save_freq(self, save_on: str, prefix='freq', ext: str = 'json', probability=False):
         ext = ext.strip('.')  # normalize
@@ -201,7 +224,7 @@ class LanguageData(BaseData):
         words = []
         phrases = []
         for phrase in data:
-            prep_phrase = self._preprocess(phrase)
+            prep_phrase = self.preprocess(phrase)
             if save_preprocessed:
                 self._data.append(prep_phrase)
             else:
@@ -278,8 +301,3 @@ class LanguageDetector:
 
     def save(self, filepath: str):
         JsonFile(filepath, data=self.__language_data).save(exist_ok=True)
-
-
-if __name__ == '__main__':
-    freq = Freq(JsonFile.load("C:/Users/handtalk/Downloads/lang_predict.json").data['por'])
-    freq.to_json('teste.json', exist_ok=True)
