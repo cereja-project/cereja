@@ -92,9 +92,8 @@ class Preprocessor:
         if is_destructive or self.config.is_remove_punctuation:
             sentence = _preprocess.remove_punctuation(sentence, self.config.punctuation)
         if is_destructive or self.config.is_remove_stop_words:
-            for w in self.config.stop_words:
-                sentence = sentence.replace(w, '')
-        return sentence.strip()
+            sentence = ' '.join([w for w in sentence.split() if w not in self.config.stop_words])
+        return _preprocess.remove_extra_chars(sentence)
 
     def preprocess(self, data, is_destructive=False):
         if isinstance(data, str):
