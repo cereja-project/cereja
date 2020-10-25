@@ -453,7 +453,7 @@ class TxtFile(FileBase):
     def append(self, data: Union[Sequence, str, int], **kwargs):
         self._insert(-1, data, **kwargs)
 
-    def insert(self, data: Union[Sequence, str, int], line: int = -1, **kwargs):
+    def insert(self, data: Union[Sequence, str, int], line: int = 0, **kwargs):
         super()._insert(line=line, data=data, **kwargs)
 
 
