@@ -31,7 +31,7 @@ from cereja.arraytools import is_sequence, is_iterable, get_cols, flatten, get_s
 from cereja.display import Progress
 import logging
 
-from cereja.path import normalize_path, listdir, Path
+from cereja.path import normalize_path, Path
 from cereja.utils import invert_dict
 import copy
 import csv
@@ -136,7 +136,7 @@ class FileBase(metaclass=ABCMeta):
     def __setitem__(self, key, value):
         if isinstance(key, Tuple):
             raise ValueError("invalid assignment.")
-        self.insert(key, value)
+        self._insert(key, value)
 
     def __iter__(self):
         for i in self._lines:
@@ -323,11 +323,8 @@ class FileBase(metaclass=ABCMeta):
     @classmethod
     def load_files(cls, path_, ext, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
                    recursive=False):
-        path_ = Path(path_)
-        if path_.is_dir:
-            path_ = [i for i in listdir(path_)]
-        if not isinstance(path_, list):
-            path_ = [path_]
+        path_ = Path.list_files(path_, ext=ext, contains_in_name=contains_in_name,
+                                not_contains_in_name=not_contains_in_name, recursive=recursive)
         loaded = []
         for p in path_:
             if recursive and p.is_dir:
@@ -402,7 +399,7 @@ class FileBase(metaclass=ABCMeta):
 
         return self.__sizeof__() / self.__size_map[unit]
 
-    def insert(self, line: int, data: Union[Sequence, str, int], **kwargs):
+    def _insert(self, line: int, data: Union[Sequence, str, int], **kwargs):
         data = self.normalize_data(data, **kwargs)
         if is_sequence(data):
             if line == -1:
@@ -450,6 +447,16 @@ class FileBase(metaclass=ABCMeta):
         return self
 
 
+class TxtFile(FileBase):
+    _allowed_ext = ('.txt',)
+
+    def append(self, data: Union[Sequence, str, int], **kwargs):
+        self._insert(-1, data, **kwargs)
+
+    def insert(self, data: Union[Sequence, str, int], line: int = -1, **kwargs):
+        super()._insert(line=line, data=data, **kwargs)
+
+
 class CsvFile(FileBase):
     _allowed_ext = ('.csv',)
 
@@ -487,9 +494,10 @@ class CsvFile(FileBase):
         :param data: expected row with n elements equal to k cols, if not it will be fill with `fill_with` value.
         :param fill_with: Any value.
         """
-        self.insert(-1, data, fill_with=fill_with)
+        self._insert(-1, data, fill_with=fill_with)
 
-    def _ast(self, row):
+    @classmethod
+    def _ast(cls, row):
         vals = []
         for val in row:
             if isinstance(val, str):
@@ -683,7 +691,7 @@ class JsonFile(FileBase):
         else:
             raise ValueError(f'{key} not found.')
 
-    def insert(self, key, value, **kwargs):
+    def _insert(self, key, value, **kwargs):
         key, value = self._parse_key_value((key, value), take_tuple=True)
         assert key not in self.data and str(key) not in self.data, ValueError(f'Data contains duplicate keys <{key}>')
         data = self.data
@@ -712,11 +720,12 @@ class File(FileBase):
 
     __classes_by_ext = {
         '.json': JsonFile,
-        '.csv':  CsvFile
+        '.csv':  CsvFile,
+        '.txt':  TxtFile
     }
 
     def __init__(self, path_, *args, **kwargs):
-        super().__init__(path_)
+        super().__init__(path_, *args, **kwargs)
 
     def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile]:
         """
@@ -746,6 +755,8 @@ class File(FileBase):
             return CsvFile(path_, fieldnames=fieldnames, data=content_file)
         elif path_.suffix == '.json':
             return JsonFile(path_, data=content_file)
+        elif path_.suffix == '.txt':
+            return TxtFile(path_, content_file=content_file)
         return FileBase(path_=path_, content_file=content_file)
 
     @classmethod
@@ -783,13 +794,13 @@ def _walk_dirs_and_replace(dir_path, new, ext_in: list = None):
     with Progress(f"Looking to {dir_path}") as prog:
         for dir_name, n_files, files_obj in File.walk(dir_path):
             if files_obj:
-                prog.update(1, n_files)
+                prog.show_progress(1, n_files)
                 for i, file_obj in enumerate(files_obj):
                     if file_obj.is_link or (ext_in and file_obj.ext not in ext_in):
                         continue
                     prog.task_name = f"Converting {dir_name} ({file_obj})"
                     file_obj.replace_file_sep(new)
-                    prog.update(i)
+                    prog.update_max_value(i)
 
 
 def convert_new_line_sep(path_: str, line_sep: str, ext_in: list = None):
@@ -801,7 +812,7 @@ def convert_new_line_sep(path_: str, line_sep: str, ext_in: list = None):
     if os.path.isdir(path_):
         _walk_dirs_and_replace(path_, LF, ext_in)
     else:
-        with Progress(f"Converting {os.path.basename(path_)}") as prog:
+        with Progress(f"Converting {os.path.basename(path_)}"):
             File.load(path_).replace_file_sep(line_sep)
 
 
@@ -833,7 +844,3 @@ def to_cr(path_: str):
 
 def to_crlf(path_: str):
     convert_new_line_sep(path_, CRLF)
-
-
-if __name__ == '__main__':
-    pass

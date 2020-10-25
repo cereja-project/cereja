@@ -26,7 +26,7 @@ from . import utils
 from importlib import import_module
 
 
-VERSION = "1.2.5.final.2"
+VERSION = "1.2.6.alpha.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 

@@ -65,8 +65,8 @@ file[0] # 'first line'
 file[:3] # ['first line', 'second line', 'third line']
 
 # Insert Data
-file.insert(0, 'other line')
-file.insert(0, 'other line2')
+file._insert(0, 'other line')
+file._insert(0, 'other line2')
 print(file.data) # ['other line2', 'other line', 'first line', 'second line', 'third line']
 # it is allowed to use index assignment
 file[0] = 'other line'

@@ -172,7 +172,7 @@ class FileToolsTestCase(unittest.TestCase):
     def test_base_sanity(self):
         data = ['first line', 'second line', 'third line']
         file = filetools.File('test.txt', data)
-        self.assertTrue(str(file) == "FileBase<test.txt>")
+        self.assertTrue(str(file) == "TxtFile<test.txt>")
         self.assertEqual(file.data, ['first line', 'second line', 'third line'])
         for line in file:
             pass
@@ -181,8 +181,8 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertEqual(file[:3], ['first line', 'second line', 'third line'])
 
         # Insert Data
-        file.insert(0, 'other line')
-        file.insert(0, 'other line2')
+        file._insert(0, 'other line')
+        file._insert(0, 'other line2')
         self.assertEqual(file.data, ['other line2', 'other line', 'first line', 'second line', 'third line'])
         # it is allowed to use index assignment
         file[0] = 'other line'
@@ -247,20 +247,20 @@ class FileToolsTestCase(unittest.TestCase):
 
     def test_insertion_content(self):
         file = self.get_file()
-        file.insert(3, [4, 5])
+        file._insert(3, [4, 5])
         self.assertEqual(file.lines, ["1", "2", "3", "4", "5"])
 
     def test_prevent_data_loss(self):
         file = self.get_file()
         original_lines = file.lines.copy()
-        file.insert(0, [1, 3, 4, 5])
-        file.insert(0, 2)
+        file._insert(0, [1, 3, 4, 5])
+        file._insert(0, 2)
         file.undo()
         file.undo()
         self.assertEqual(file.lines, original_lines)
         file.redo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
-        file.insert(0, [1])
+        file._insert(0, [1])
         file.undo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
 

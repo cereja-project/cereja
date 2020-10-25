@@ -328,7 +328,7 @@ class Path(os.PathLike):
         return [path_.join(p) for p in os.listdir(str(path_))]
 
     @classmethod
-    def list_files(cls, dir_path: Union[str, 'Path'], ext: str = None, contains_in_name: List = (),
+    def list_files(cls, dir_path: Union[str, 'Path'], ext: str = '', contains_in_name: List = (),
                    not_contains_in_name=(),
                    recursive=False) -> List['Path']:
         files = []
