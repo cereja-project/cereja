@@ -171,7 +171,7 @@ class FileToolsTestCase(unittest.TestCase):
 
     def test_base_sanity(self):
         data = ['first line', 'second line', 'third line']
-        file = filetools.File('test.txt', data)
+        file = filetools.TxtFile('test.txt', data)
         self.assertTrue(str(file) == "TxtFile<test.txt>")
         self.assertEqual(file.data, ['first line', 'second line', 'third line'])
         for line in file:
@@ -181,13 +181,18 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertEqual(file[:3], ['first line', 'second line', 'third line'])
 
         # Insert Data
-        file._insert(0, 'other line')
-        file._insert(0, 'other line2')
+        file.insert('other line')
+        file.insert('other line2')
         self.assertEqual(file.data, ['other line2', 'other line', 'first line', 'second line', 'third line'])
         # it is allowed to use index assignment
         file[0] = 'other line'
 
+        file.append('test')
+        self.assertEqual(file.data,
+                         ['other line', 'other line2', 'other line', 'first line', 'second line', 'third line', 'test'])
+
         # Data Recovery
+        file.undo()  # You selected amendment 4
         file.undo()  # You selected amendment 3
         self.assertEqual(file.data, ['other line2', 'other line', 'first line', 'second line', 'third line'])
         file.redo()  # You selected amendment 4
