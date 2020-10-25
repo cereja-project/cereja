@@ -268,8 +268,7 @@ class Path(os.PathLike):
 
     def _shutil(self, command: str, **kwargs):
         if not self.exists:
-            logger.error(f'Not Found <{self.uri}>')
-            return
+            raise Exception(f'Not Found <{self.uri}>')
         if command == 'rm':
             rm_tree = kwargs.get('rm_tree')
             if self.is_file:
@@ -283,7 +282,7 @@ class Path(os.PathLike):
                     try:
                         os.rmdir(str(self))
                     except OSError as err:
-                        logger.error(f'{err}.\n Use rm_tree=True to DELETE {self.uri}.')
+                        raise Exception(f'{err}.\n Use rm_tree=True to DELETE {self.uri}.')
         elif command == 'mv':
             to = kwargs.get('to')
             shutil.move(str(self), str(to))

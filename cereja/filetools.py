@@ -89,9 +89,12 @@ class FileBase(metaclass=ABCMeta):
     _ignore_dir = [".git"]
     _allowed_ext = ()
     _date_format = "%Y-%m-%d %H:%M:%S"
+    _is_deleted = False
 
-    def __init__(self, path_: Union[str, Path], content_file: Union[Sequence, str, Any] = None):
+    def __init__(self, path_: Union[str, Path], content_file: Union[Sequence, str, Any] = None, **kwargs):
         self._last_update = None
+        self._is_byte = kwargs.get('is_byte', False)
+        self._can_edit = not self._is_byte
         if isinstance(path_, Path):
             self.__path = path_
         else:
@@ -163,8 +166,12 @@ class FileBase(metaclass=ABCMeta):
             logger.info("It's not possible")
 
     def _save(self, encoding='utf-8', **kwargs):
-        with open(self.path, 'w', newline='', encoding=encoding, **kwargs) as fp:
-            fp.write(self.string)
+        encoding = None if self._is_byte else encoding
+        newline = None if self._is_byte else ''
+        mode = 'w+b' if self._is_byte else 'w'
+        content = self._lines[0] if self._is_byte else self.string
+        with open(self.path, mode=mode, newline=newline, encoding=encoding, **kwargs) as fp:
+            fp.write(content)
         self._last_update = self.updated_at
 
     @property
@@ -272,6 +279,8 @@ class FileBase(metaclass=ABCMeta):
                 data = data.splitlines()
             elif isinstance(data, int):
                 data = str(data)
+            elif isinstance(data, bytes):
+                data = [data]
             return data
         else:
             raise ValueError(f"{data} Invalid value. Send other ")
@@ -317,8 +326,13 @@ class FileBase(metaclass=ABCMeta):
         except PermissionError as err:
             logger.error(err)
             return
-
-        return cls(path_, content)
+        except UnicodeDecodeError:
+            encoding = None
+            newline = None
+            mode = 'r+b'
+            with open(path_, mode=mode, encoding=encoding, newline=newline, **kwargs) as fp:
+                content = fp.read()
+        return cls(path_, content, is_byte=True if 'b' in mode else False)
 
     @classmethod
     def load_files(cls, path_, ext, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
@@ -400,6 +414,7 @@ class FileBase(metaclass=ABCMeta):
         return self.__sizeof__() / self.__size_map[unit]
 
     def _insert(self, line: int, data: Union[Sequence, str, int], **kwargs):
+        assert self._can_edit, "can't edit file type."
         data = self.normalize_data(data, **kwargs)
         if is_sequence(data):
             if line == -1:
@@ -419,11 +434,12 @@ class FileBase(metaclass=ABCMeta):
         self._set_change('_lines', self._lines.copy())
 
     def delete(self):
-        raise self.__path.rm()
+        self.__path.rm()
+        self._is_deleted = True
 
     def save(self, on_new_path: Union[os.PathLike, None] = None, encoding='utf-8', exist_ok=False, overwrite=False,
              **kwargs):
-        if self._last_update is not None and overwrite is False:
+        if (self._last_update is not None and overwrite is False) and not self._is_deleted:
             if self._last_update != self.updated_at:
                 raise AssertionError(f"File change detected (last change {self.updated_at}), if you want to overwrite "
                                      f"set overwrite=True")

@@ -53,7 +53,7 @@ def is_sequence(obj: Any) -> bool:
 
     :param obj: Any object for check
     """
-    if isinstance(obj, (str, dict)):
+    if isinstance(obj, (str, dict, bytes)):
         return False
 
     return is_iterable(obj)
