@@ -47,7 +47,7 @@ See some of the Cereja tools
 
 Filetools has several functions, have the converters for end of line (CRLF, LF and CR), you can convert CRLF to LF or CR and vice versa
 
-##### Generic File Manipulation Example - most files
+##### Txt File Manipulation Example - most files
 ```python
 import cereja as cj
 
@@ -65,11 +65,13 @@ file[0] # 'first line'
 file[:3] # ['first line', 'second line', 'third line']
 
 # Insert Data
-file.insert(0, 'other line')
-file.insert(0, 'other line2')
+file.insert('other line')
+file.insert('other line2')
 print(file.data) # ['other line2', 'other line', 'first line', 'second line', 'third line']
 # it is allowed to use index assignment
 file[0] = 'other line'
+# can use file.append
+file.append('end line')
 
 # Data Recovery
 file.undo() # You selected amendment 3
