@@ -334,7 +334,8 @@ class Path(os.PathLike):
         for p in cls.list_dir(dir_path):
             if p.is_dir and recursive:
                 files.extend(
-                        cls.list_files(p, contains_in_name=contains_in_name, not_contains_in_name=not_contains_in_name,
+                        cls.list_files(p, ext=ext, contains_in_name=contains_in_name,
+                                       not_contains_in_name=not_contains_in_name,
                                        recursive=recursive))
                 continue
             if p.is_dir:
