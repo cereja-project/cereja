@@ -27,7 +27,7 @@ import unittest
 import logging
 
 from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
-    is_sequence, array_gen, get_shape
+    is_sequence, array_gen, get_shape, Matrix, prod
 from cereja import filetools
 from cereja.cj_types import Number
 from cereja.datatools import Corpus, preprocess
@@ -134,10 +134,19 @@ class UtilsTestCase(unittest.TestCase):
 
         for seq, expected_shape in zip(sequences, shapes_expecteds):
             shape_received = get_shape(seq)
+            sequence_length = len(flatten(seq))
+            self.assertEqual(sequence_length, prod(shape_received), msg=f"array shape {shape_received} is inconsistent")
             self.assertEqual(shape_received, expected_shape)
 
     def test_randn(self):
         logger.warning("Awaiting tests!")
+
+    def test_matrix(self):
+        a = Matrix([[1, 2, 3], [1, 2, 3]])
+        b = Matrix([[1, 2, 3], [1, 2, 3]])
+        expected = Matrix([[1.0, 1.0, 1.0],
+                           [1.0, 1.0, 1.0]])
+        self.assertTrue((a / b) == expected)
 
 
 class FileToolsTestCase(unittest.TestCase):
