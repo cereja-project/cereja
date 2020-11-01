@@ -19,11 +19,11 @@ Not well structured yet :( ... But you can help me !!!
 
 ## Getting Started DEV
 
-Do not be shy \0/ ... Clone the repository and submit a function or module you made or use some function you liked.
+Don't be shy \0/ ... Clone the repository and submit a function or module you made or use some function you liked.
 
 See [CONTRIBUTING](CONTRIBUTING.md) 💻
 
-### Prerequisites
+### Setup
 
 * [Python 3.6+](https://www.python.org/downloads/ "Download python")
 * [Pip3](https://pip.pypa.io "Download Pip")
@@ -38,14 +38,15 @@ or for all users
 ```
 python3 -m pip install cereja
 ```
-> Note: If you are using Windows, you do not need to use python3, but make sure your python path settings are correct. 
+> Note: If you're using Windows, you don't need use python3, but make sure your python path settings are correct. 
 
 ### Cereja Example usage
+
 See some of the Cereja tools
 
 #### Filetools
 
-Filetools has several functions, have the converters for end of line (CRLF, LF and CR), you can convert CRLF to LF or CR and vice versa
+Filetools has several functions, have the converters for end of line (CRLF, LF and CR), you can convert CRLF to LF or CR, or contrariwise.
 
 ##### Txt File Manipulation Example - most files
 ```python
@@ -96,7 +97,6 @@ for key, value in file.items(): # only .json data, use .items(), .values() and .
     pass
 
 file['key'] # 'value'
-
 
 # Insert Data
 file['key4'] = 'value4'
@@ -249,7 +249,7 @@ for i in progress(range(1, 500)):
  <img src="https://media.giphy.com/media/JnA6EErThhwTdQ5izb/giphy.gif">
 </div>
 
-##### With statement
+##### With Statement
 ```python
 import cereja as cj
 import time
