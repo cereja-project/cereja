@@ -559,6 +559,10 @@ class ProgressBase:
     def _get_state(self, **kwargs):
         return list(map(lambda state: state.display(**kwargs), self._states))
 
+    @property
+    def time_it(self):
+        return time.time() - (self.started_time or time.time())
+
     def _states_view(self, for_value: Number) -> Tuple[str, bool]:
         """
         Return current state and bool
@@ -571,7 +575,7 @@ class ProgressBase:
             "current_value":   for_value,
             "max_value":       self.max_value,
             "current_percent": self.percent_(for_value),
-            "time_it":         time.time() - (self.started_time or time.time()),
+            "time_it":         self.time_it,
             "n_times":         self.n_times
         }
         if for_value >= self.max_value - 1:
