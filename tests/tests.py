@@ -267,16 +267,31 @@ class FileToolsTestCase(unittest.TestCase):
     def test_prevent_data_loss(self):
         file = self.get_file()
         original_lines = file.lines.copy()
-        file._insert(0, [1, 3, 4, 5])
-        file._insert(0, 2)
+        file.insert([1, 3, 4, 5])
+        file.insert(2)
         file.undo()
         file.undo()
         self.assertEqual(file.lines, original_lines)
         file.redo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
-        file._insert(0, [1])
+        file.insert([1])
         file.undo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
+
+        file = filetools.File('test.txt')
+        file.append([1, 2, 4])
+        self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4'])])
+        file.append(10)
+        self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4']), ('_lines', ['1', '2', '4', '10'])])
+        file.append([10])
+        self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4']), ('_lines', ['1', '2', '4', '10']),
+                                        ('_lines', ['1', '2', '4', '10', '10'])])
+        file.insert(10)
+        self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4']), ('_lines', ['1', '2', '4', '10']),
+                                        ('_lines', ['1', '2', '4', '10', '10']),
+                                        ('_lines', ['10', '1', '2', '4', '10', '10'])])
+        file.undo()
+        self.assertEqual(file.data, ['1', '2', '4', '10', '10'])
 
     def test_json_file(self):
         data = [(1, 2), ('four', 4), ('six', 6)]

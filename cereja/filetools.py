@@ -119,10 +119,10 @@ class FileBase(metaclass=ABCMeta):
         self._set_change('_lines', self._lines.copy())
 
     def __setattr__(self, key, value):
-        object.__setattr__(self, key, value)
+        object.__setattr__(self, key, copy.copy(value))
         if hasattr(self, '_change_history') and key not in (
                 '_current_change', '_max_history_length', '_change_history'):
-            self._set_change(key, object.__getattribute__(self, key))  # append last_value of attr
+            self._set_change(key, copy.copy(object.__getattribute__(self, key)))  # append last_value of attr
 
     def __sizeof__(self):
         return self.string.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
@@ -425,8 +425,8 @@ class FileBase(metaclass=ABCMeta):
         if isinstance(data, str):
             if line == -1:
                 self._lines.append(data)
-                return
-            self._lines.insert(line, data)
+            else:
+                self._lines.insert(line, data)
         self._set_change('_lines', self._lines.copy())
 
     def remove(self, line: Union[int, str]):
@@ -743,7 +743,7 @@ class File(FileBase):
     def __init__(self, path_, *args, **kwargs):
         super().__init__(path_, *args, **kwargs)
 
-    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile]:
+    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile, TxtFile]:
         """
         Create instance based
 
