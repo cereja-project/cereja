@@ -327,9 +327,11 @@ class Path(os.PathLike):
         return [path_.join(p) for p in os.listdir(str(path_))]
 
     @classmethod
-    def list_files(cls, dir_path: Union[str, 'Path'], ext: str = '', contains_in_name: List = (),
+    def list_files(cls, dir_path: Union[str, 'Path'], ext: str = None, contains_in_name: List = (),
                    not_contains_in_name=(),
                    recursive=False) -> List['Path']:
+
+        ext = ext or ''
         files = []
         for p in cls.list_dir(dir_path):
             if p.is_dir and recursive:
@@ -340,7 +342,7 @@ class Path(os.PathLike):
                 continue
             if p.is_dir:
                 continue
-            if not (p.suffix == f'.{ext.strip(".")}'):
+            if not (p.suffix == f'.{ext.strip(".")}' or ext == ''):
                 continue
             if not_contains_in_name:
                 if any(map(p.stem.__contains__, not_contains_in_name)):
