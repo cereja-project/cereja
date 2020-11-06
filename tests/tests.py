@@ -27,10 +27,11 @@ import unittest
 import logging
 
 from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
-    is_sequence, array_gen, get_shape
+    is_sequence, array_gen, get_shape, Matrix, prod
 from cereja import filetools
 from cereja.cj_types import Number
 from cereja.datatools import Corpus, preprocess
+from cereja.datatools.data import Freq
 from cereja.datatools.pln import LanguageData, Preprocessor
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.path import Path
@@ -134,10 +135,19 @@ class UtilsTestCase(unittest.TestCase):
 
         for seq, expected_shape in zip(sequences, shapes_expecteds):
             shape_received = get_shape(seq)
+            sequence_length = len(flatten(seq))
+            self.assertEqual(sequence_length, prod(shape_received), msg=f"array shape {shape_received} is inconsistent")
             self.assertEqual(shape_received, expected_shape)
 
     def test_randn(self):
         logger.warning("Awaiting tests!")
+
+    def test_matrix(self):
+        a = Matrix([[1, 2, 3], [1, 2, 3]])
+        b = Matrix([[1, 2, 3], [1, 2, 3]])
+        expected = Matrix([[1.0, 1.0, 1.0],
+                           [1.0, 1.0, 1.0]])
+        self.assertTrue((a / b) == expected)
 
 
 class FileToolsTestCase(unittest.TestCase):
@@ -258,16 +268,31 @@ class FileToolsTestCase(unittest.TestCase):
     def test_prevent_data_loss(self):
         file = self.get_file()
         original_lines = file.lines.copy()
-        file._insert(0, [1, 3, 4, 5])
-        file._insert(0, 2)
+        file.insert([1, 3, 4, 5])
+        file.insert(2)
         file.undo()
         file.undo()
         self.assertEqual(file.lines, original_lines)
         file.redo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
-        file._insert(0, [1])
+        file.insert([1])
         file.undo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
+
+        file = filetools.File('test.txt')
+        file.append([1, 2, 4])
+        self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4'])])
+        file.append(10)
+        self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4']), ('_lines', ['1', '2', '4', '10'])])
+        file.append([10])
+        self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4']), ('_lines', ['1', '2', '4', '10']),
+                                        ('_lines', ['1', '2', '4', '10', '10'])])
+        file.insert(10)
+        self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4']), ('_lines', ['1', '2', '4', '10']),
+                                        ('_lines', ['1', '2', '4', '10', '10']),
+                                        ('_lines', ['10', '1', '2', '4', '10', '10'])])
+        file.undo()
+        self.assertEqual(file.data, ['1', '2', '4', '10', '10'])
 
     def test_json_file(self):
         data = [(1, 2), ('four', 4), ('six', 6)]
@@ -344,6 +369,13 @@ class DataToolsFunctionsTestCase(unittest.TestCase):
         self.assertEqual(preprocess.separate('how are you,man?', sep=('?', ','), between_char=True),
                          'how are you , man ?')
         self.assertEqual(preprocess.separate('how are! you?'), 'how are ! you ?')
+
+        freq = Freq([1, 1, 2, 2, 3, 3, 4, 5, 6, 7, 8, 'hi', 'o', 'a'])
+        self.assertEqual(freq.sample(max_freq=1), {4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 'hi': 1, 'o': 1, 'a': 1})
+        self.assertEqual(freq.sample(freq=2), {1: 2, 3: 2, 2: 2})
+
+        self.assertRaises(AssertionError, freq.sample, freq=1, max_freq=2)
+        self.assertRaises(AssertionError, freq.sample, freq=1, min_freq=2)
 
 
 class ProgressTestCase:

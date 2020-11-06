@@ -49,13 +49,19 @@ class Freq(Counter):
             self._elements_size = sum(self.values())
         return super(Freq, self).__getattribute__(item)
 
-    def sample(self, max_freq: Optional[int] = None, max_items: int = -1, order='most_common'):
+    def sample(self, freq: Optional[int] = None, min_freq: Optional[int] = 1, max_freq: Optional[int] = None,
+               max_items: int = -1,
+               order='most_common'):
         """
+        :param freq: only this
+        :param min_freq: limit sample by frequency
         :param max_freq: limit sample by frequency
         :param max_items: limit sample size
         :param order: choice order in ('most_common', 'least_common')
         :return: sample dictionary
         """
+        assert not all((freq, max_freq or min_freq != 1)), "the <freq> parameter must be used without <max_freq> and " \
+                                                           "<min_freq> "
         assert order in ('most_common', 'least_common'), ValueError(
                 f"Order {order} not in ('most_common', 'least_common')")
         assert isinstance(max_items, int), TypeError(f"max_items {type(max_items)} != {int}")
@@ -64,9 +70,16 @@ class Freq(Counter):
             query = super(Freq, self).most_common()[:-max_items - 1:-1]
         else:
             query = super(Freq, self).most_common(max_items)
-        if max_freq is not None:
+        if freq is not None:
+            assert isinstance(freq, int), TypeError(f"freq {type(freq)} != {int}")
+            return dict(filter(lambda item: item[1] == freq, query))
+        if max_freq is not None or min_freq is not None:
             assert isinstance(max_freq, int), TypeError(f"freq {type(max_freq)} != {int}")
-            query = list(filter(lambda item: item[1] <= max_freq, query))
+            assert isinstance(min_freq, int), TypeError(f"freq {type(min_freq)} != {int}")
+            min_freq = max(1, min_freq)
+            max_freq = max(1, max_freq)
+            assert min_freq <= max_freq, 'min_freq > max_freq'
+            query = filter(lambda item: max_freq >= item[1] >= min_freq, query)
         return dict(query)
 
     def most_common(self, n: Optional[int] = None) -> Dict[Any, int]:

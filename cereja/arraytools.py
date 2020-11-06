@@ -40,6 +40,8 @@ def is_iterable(obj: Any) -> bool:
 
     :param obj: Any object for check
     """
+    if isinstance(obj, (float, int, complex)):
+        return False
     try:
         iter(obj)
     except TypeError:
@@ -53,10 +55,7 @@ def is_sequence(obj: Any) -> bool:
 
     :param obj: Any object for check
     """
-    if isinstance(obj, (str, dict, bytes)):
-        return False
-
-    return is_iterable(obj)
+    return not isinstance(obj, (str, dict, bytes)) and is_iterable(obj)
 
 
 def is_numeric_sequence(obj: Sequence[Number]) -> bool:
@@ -119,7 +118,7 @@ def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, 
     try:
         sequence_len = len(flatten(sequence))
     except Exception as err:
-        logger.info(f"Error when trying to compare shapes. {err}")
+        logger.debug(f"Error when trying to compare shapes. {err}")
         return False
     return prod(expected_shape) == sequence_len
 
@@ -142,7 +141,6 @@ def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
     """
     if is_empty(sequence):
         return None,
-    sequence_length = len(flatten(sequence))
     wkij = []
     while True:
         if is_sequence(sequence) and not is_empty(sequence):
@@ -150,9 +148,6 @@ def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
             sequence = sequence[0]
             continue
         break
-    # is sanity validation
-    if sequence_length != prod(wkij):
-        return wkij[0],
     return tuple(wkij)
 
 
@@ -223,7 +218,7 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     return v[0]
 
 
-def flatten(sequence: Sequence[Any], depth: Optional[int] = -1, **kwargs) -> Union[List[Any], Any]:
+def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1, **kwargs) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
 
@@ -243,9 +238,7 @@ def flatten(sequence: Sequence[Any], depth: Optional[int] = -1, **kwargs) -> Uni
     [1, 2, 3, 2, [3], 4, 6]
     """
     assert is_sequence(sequence), f"Invalid value {sequence}"
-    legacy_arg = kwargs.get('max_recursion')
-    if legacy_arg is not None:
-        depth = legacy_arg
+    depth = kwargs.get('max_recursion') or depth
 
     if not isinstance(depth, int):
         raise TypeError(f"Type {type(depth)} is not valid for max depth. Please send integer.")
@@ -256,7 +249,7 @@ def flatten(sequence: Sequence[Any], depth: Optional[int] = -1, **kwargs) -> Uni
     jump = len(sequence)
     while i < len(sequence):
         element = sequence[i]
-        if isinstance(element, (list, tuple)) and (depth == -1 or depth > deep):
+        if is_sequence(element) and (depth == -1 or depth > deep):
             jump = len(element)
             deep += 1
             sequence = list(element) + list(sequence[i + 1:])
@@ -410,7 +403,7 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
         return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
 
 
-def get_cols(sequence: Sequence):
+def get_cols(sequence: Union[Sequence, 'Matrix']):
     return list(zip(*sequence))
 
 
@@ -439,6 +432,9 @@ class Matrix(object):
 
     def __iter__(self):
         return iter(self.to_list())
+
+    def __eq__(self, other):
+        return flatten(self) == flatten(other)
 
     def __len__(self):
         return len(self.to_list())
@@ -529,7 +525,7 @@ class Matrix(object):
 
     def _get_cols(self):
         if len(self.shape) > 1:
-            return get_cols(self.to_list())
+            return get_cols(self)
         return self.to_list()
 
     def dot(self, b):
@@ -542,7 +538,7 @@ class Matrix(object):
         return Matrix([dotproduct(line, col) for col in b.cols for line in self])
 
     def flatten(self):
-        return Matrix(flatten(self.to_list()))
+        return Matrix(flatten(self))
 
     def mean(self):
         flattened = self.flatten()

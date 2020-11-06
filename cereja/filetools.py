@@ -93,7 +93,7 @@ class FileBase(metaclass=ABCMeta):
 
     def __init__(self, path_: Union[str, Path], content_file: Union[Sequence, str, Any] = None, **kwargs):
         self._last_update = None
-        self._is_byte = kwargs.get('is_byte', False)
+        self._is_byte = kwargs.get('is_byte', False) or isinstance(content_file, bytes)
         self._can_edit = not self._is_byte
         if isinstance(path_, Path):
             self.__path = path_
@@ -119,10 +119,10 @@ class FileBase(metaclass=ABCMeta):
         self._set_change('_lines', self._lines.copy())
 
     def __setattr__(self, key, value):
-        object.__setattr__(self, key, value)
+        object.__setattr__(self, key, copy.copy(value))
         if hasattr(self, '_change_history') and key not in (
                 '_current_change', '_max_history_length', '_change_history'):
-            self._set_change(key, object.__getattribute__(self, key))  # append last_value of attr
+            self._set_change(key, copy.copy(object.__getattribute__(self, key)))  # append last_value of attr
 
     def __sizeof__(self):
         return self.string.__sizeof__() - ''.__sizeof__()  # subtracts the size of the python string object
@@ -188,6 +188,8 @@ class FileBase(metaclass=ABCMeta):
 
     @property
     def string(self) -> str:
+        if self._is_byte:
+            return f'{self._new_line_sep}'.join(map(lambda x: x.decode(), self._lines))
         return f'{self._new_line_sep}'.join(self._lines)
 
     @property
@@ -335,23 +337,27 @@ class FileBase(metaclass=ABCMeta):
         return cls(path_, content, is_byte=True if 'b' in mode else False)
 
     @classmethod
-    def load_files(cls, path_, ext, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
-                   recursive=False):
+    def load_files(cls, path_, ext=None, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
+                   recursive=False, mode='r+'):
+
+        ext = ext or ''
         path_ = Path.list_files(path_, ext=ext, contains_in_name=contains_in_name,
                                 not_contains_in_name=not_contains_in_name, recursive=recursive)
         loaded = []
         for p in path_:
             if recursive and p.is_dir:
-                loaded.extend(cls.load_files(p, ext))
+                loaded.extend(cls.load_files(path_=path_, ext=ext, contains_in_name=contains_in_name,
+                                             not_contains_in_name=not_contains_in_name, take_empty=take_empty,
+                                             mode=mode, recursive=recursive))
                 continue
             if not p.exists or p.is_dir:
                 continue
-            file_ = cls.load(p)
+            file_ = cls.load(p, mode=mode)
             if file_ is None:
                 continue
             if take_empty is True and file_.is_empty:
                 continue
-            if not (file_.ext == f'.{ext.strip(".")}'):
+            if not (file_.ext == f'.{ext.strip(".")}' or ext == ''):
                 continue
             if contains_in_name:
                 if not any(map(file_.file_name_without_ext.__contains__, contains_in_name)):
@@ -425,8 +431,8 @@ class FileBase(metaclass=ABCMeta):
         if isinstance(data, str):
             if line == -1:
                 self._lines.append(data)
-                return
-            self._lines.insert(line, data)
+            else:
+                self._lines.insert(line, data)
         self._set_change('_lines', self._lines.copy())
 
     def remove(self, line: Union[int, str]):
@@ -443,10 +449,11 @@ class FileBase(metaclass=ABCMeta):
             if self._last_update != self.updated_at:
                 raise AssertionError(f"File change detected (last change {self.updated_at}), if you want to overwrite "
                                      f"set overwrite=True")
-        assert exist_ok or not self.path.exists, FileExistsError(
-                "File exists. If you want override, please send 'exist_ok=True'")
         if on_new_path is not None:
             self.set_path(on_new_path)
+        assert exist_ok or not self.path.exists, FileExistsError(
+                "File exists. If you want override, please send 'exist_ok=True'")
+
         self._save(encoding=encoding, **kwargs)
         return self
 
@@ -743,7 +750,7 @@ class File(FileBase):
     def __init__(self, path_, *args, **kwargs):
         super().__init__(path_, *args, **kwargs)
 
-    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile]:
+    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile, TxtFile]:
         """
         Create instance based
 
