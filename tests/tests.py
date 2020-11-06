@@ -31,6 +31,7 @@ from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplic
 from cereja import filetools
 from cereja.cj_types import Number
 from cereja.datatools import Corpus, preprocess
+from cereja.datatools.data import Freq
 from cereja.datatools.pln import LanguageData, Preprocessor
 from cereja.display import State, Progress, StateBar, StatePercent, StateTime
 from cereja.path import Path
@@ -368,6 +369,13 @@ class DataToolsFunctionsTestCase(unittest.TestCase):
         self.assertEqual(preprocess.separate('how are you,man?', sep=('?', ','), between_char=True),
                          'how are you , man ?')
         self.assertEqual(preprocess.separate('how are! you?'), 'how are ! you ?')
+
+        freq = Freq([1, 1, 2, 2, 3, 3, 4, 5, 6, 7, 8, 'hi', 'o', 'a'])
+        self.assertEqual(freq.sample(max_freq=1), {4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 'hi': 1, 'o': 1, 'a': 1})
+        self.assertEqual(freq.sample(freq=2), {1: 2, 3: 2, 2: 2})
+
+        self.assertRaises(AssertionError, freq.sample, freq=1, max_freq=2)
+        self.assertRaises(AssertionError, freq.sample, freq=1, min_freq=2)
 
 
 class ProgressTestCase:
