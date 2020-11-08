@@ -23,7 +23,6 @@ SOFTWARE.
 
 import datetime
 import functools
-import gc
 import os
 import time
 from importlib import import_module
@@ -42,31 +41,6 @@ from logging import config
 from cereja.cj_types import PEP440, Number, ClassType, FunctionType
 
 logger = logging.getLogger(__name__)
-
-
-def camel_to_snake(value: str):
-    snaked_ = []
-    for i, char in enumerate(value):
-        if not i == 0 and char.isupper():
-            char = f'_{char}'
-        snaked_.append(char)
-    return ''.join(snaked_).lower()
-
-
-def get_implements(klass: type):
-    classes = klass.__subclasses__()
-    collected_classes = []
-    for k in classes:
-        k_classes = k.__subclasses__()
-        if k_classes:
-            collected_classes += get_implements(k)
-        if not k.__name__.startswith('_'):
-            collected_classes.append(k)
-    return collected_classes
-
-
-def get_instances_of(klass: type):
-    return filter(lambda x: isinstance(x, klass), gc.get_objects())
 
 
 def invert_dict(dict_: Dict[Any, Any]) -> dict:
