@@ -55,12 +55,13 @@ _SYS_EXCEPT_HOOK_ORIGINAL = sys.excepthook
 def _die_threads(*args, **kwargs):
     for i in get_instances_of(Progress):
         i.hook_error()
-    _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
+    if kwargs.get('is_jupyter') is None:
+        _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
 
 
 def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
     shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
-    _die_threads()
+    _die_threads(is_jupyter=True)
 
 
 try:
@@ -783,7 +784,7 @@ class ProgressBase:
         if not self._with_context:
             self.start()
         for n, obj in enumerate(self.sequence):
-            self._update_value(n+1)
+            self._update_value(n + 1)
             yield obj
         if not self._with_context:
             self.stop()
