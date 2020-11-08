@@ -1,17 +1,13 @@
 """
-
 Copyright (c) 2019 The Cereja Project
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,6 +19,7 @@ SOFTWARE.
 
 import datetime
 import functools
+import gc
 import os
 import time
 from importlib import import_module
@@ -41,6 +38,31 @@ from logging import config
 from cereja.cj_types import PEP440, Number, ClassType, FunctionType
 
 logger = logging.getLogger(__name__)
+
+
+def camel_to_snake(value: str):
+    snaked_ = []
+    for i, char in enumerate(value):
+        if not i == 0 and char.isupper():
+            char = f'_{char}'
+        snaked_.append(char)
+    return ''.join(snaked_).lower()
+
+
+def get_implements(klass: type):
+    classes = klass.__subclasses__()
+    collected_classes = []
+    for k in classes:
+        k_classes = k.__subclasses__()
+        if k_classes:
+            collected_classes += get_implements(k)
+        if not k.__name__.startswith('_'):
+            collected_classes.append(k)
+    return collected_classes
+
+
+def get_instances_of(klass: type):
+    return filter(lambda x: isinstance(x, klass), gc.get_objects())
 
 
 def invert_dict(dict_: Dict[Any, Any]) -> dict:
@@ -121,14 +143,11 @@ def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
 def module_references(instance: types.ModuleType, **kwargs) -> dict:
     """
     dict of all functions and classes defined in the module.
-
     To also list the variables it is necessary to define explicitly with the special variable on your module
     _include
-
     **kwargs:
     _include -> to includes any definition and variables
     _exclude -> to exclude any definition
-
     :param instance:
     :return: List[str]
     """
@@ -163,7 +182,6 @@ def install_if_not(lib_name: str):
 def set_log_level(level: Union[int, str]):
     """
     Default log level is INFO
-
     CRITICAL = 50
     FATAL = CRITICAL
     ERROR = 40
@@ -186,10 +204,8 @@ def logger_level():
 def get_version(version: Union[str, PEP440] = None) -> PEP440:
     """
     Dotted version of the string type is expected
-
     e.g:
     '1.0.3.a.3' # Pep440 see https://www.python.org/dev/peps/pep-0440/
-
     :param version: Dotted version of the string
     """
     if version is None:
@@ -229,10 +245,8 @@ def latest_git():
 def get_version_pep440_compliant(version: str = None) -> str:
     """
     Dotted version of the string type is expected
-
     e.g:
     '1.0.3.a.3' # Pep440 see https://www.python.org/dev/peps/pep-0440/
-
     :param version: Dotted version of the string
     """
     version_mapping = {'alpha': 'a', 'beta': 'b', 'rc': 'rc'}
@@ -263,7 +277,6 @@ def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: boo
     >>> b = ['anything_a', 'anything_b']
     >>> combine_with_all(a, b)
     [(1, 'anything_a'), (1, 'anything_b'), (2, 'anything_a'), (2, 'anything_b'), (3, 'anything_a'), (3, 'anything_b')]
-
     >>> combine_with_all(a, b, n_a_combinations=2)
     [((1, 2), 'anything_a'), ((1, 2), 'anything_b'),
     ((1, 3), 'anything_a'), ((1, 3), 'anything_b'),
@@ -282,7 +295,6 @@ def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: boo
 
 class CjTest(object):
     """
-
     """
     __prefix_attr_err = "Attr Check Error {attr_}."
 
