@@ -615,7 +615,7 @@ class ProgressBase:
             "time_it":         self.time_it,
             "n_times":         self.n_times
         }
-        if for_value >= self.max_value + 1:
+        if for_value >= self.max_value:
             return ' - '.join(self._get_done_state(**kwargs)), True
 
         return ' - '.join(self._get_state(**kwargs)), False
@@ -783,7 +783,7 @@ class ProgressBase:
         if not self._with_context:
             self.start()
         for n, obj in enumerate(self.sequence):
-            self._update_value(n)
+            self._update_value(n+1)
             yield obj
         if not self._with_context:
             self.stop()
