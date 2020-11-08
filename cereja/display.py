@@ -468,7 +468,7 @@ class __StateBar(State):
         l_delimiter, r_delimiter = self.left_right_delimiter
         prop_max_size = int(proportional(current_percent, self.size))
         blanks = self.blank * (self.size - prop_max_size - 1)
-        body = console.template_format(f"{{green}}{self.default_char * prop_max_size}{{endgreen}}{self.arrow}")
+        body = console.template_format(f"{{green}}{self.default_char * prop_max_size}{self.arrow}{{endgreen}}")
         return f"{l_delimiter}{body}{blanks}{r_delimiter}"
 
     def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
