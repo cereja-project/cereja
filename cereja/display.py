@@ -36,7 +36,7 @@ from cereja.conf import NON_BMP_SUPPORTED
 from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
 from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill, time_format
+from cereja.utils import percent, estimate, proportional, fill, time_format, get_instances_of
 
 __all__ = ['Progress', "StateBase"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
@@ -48,6 +48,20 @@ try:
     _LOGIN_NAME = os.getlogin()
 except OSError:
     _LOGIN_NAME = "Cereja"
+
+
+def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
+    shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
+    for i in get_instances_of(Progress):
+        i.hook_error()
+
+
+try:
+    # noinspection PyUnresolvedReferences
+    get_ipython().set_custom_exc((BaseException,), __custom_exc)
+    JUPYTER = True
+except NameError:
+    JUPYTER = False
 
 
 class __Stdout:
