@@ -49,10 +49,13 @@ try:
 except OSError:
     _LOGIN_NAME = "Cereja"
 
+_SYS_EXCEPT_HOOK_ORIGINAL = sys.excepthook
+
 
 def _die_threads(*args, **kwargs):
     for i in get_instances_of(Progress):
         i.hook_error()
+    _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
 
 
 def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
