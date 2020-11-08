@@ -189,7 +189,7 @@ class ConsoleBase(metaclass=ABC):
     __CL_DEFAULT = '\033[37m'
     CL_BLACK = '\033[30m'
     CL_RED = '\033[31m'
-    CL_GREEN = '\033[32m'
+    CL_GREEN = '\033[38;5;34m'
     CL_YELLOW = '\033[33m'
     CL_BLUE = '\033[34m'
     CL_MAGENTA = '\033[35m'
@@ -401,6 +401,9 @@ class State(metaclass=ABCMeta):
              n_times: int) -> str:
         pass
 
+    def error(self, *args, **kwargs) -> str:
+        return self.display(*args, **kwargs)
+
 
 class __StateLoading(State):
     """
@@ -413,6 +416,7 @@ class __StateLoading(State):
     default_char: Single string you can send a unicode :)
             Value that will be added or replaced simulating animation.
     """
+
     sequence = (".", ".", ".")
     left_right_delimiter = "[]"
     default_char = "."
@@ -450,19 +454,28 @@ class __StateBar(State):
     left_right_delimiter = "[]"
     arrow = ">"
     default_char = "="
+    blank = " "
     size = 30
+
+    def __init__(self):
+        if NON_BMP_SUPPORTED:
+            self.arrow = ''
+            self.default_char = "▰"
+            self.blank = "▱"
 
     def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> AnyStr:
         l_delimiter, r_delimiter = self.left_right_delimiter
         prop_max_size = int(proportional(current_percent, self.size))
-        blanks = '  ' * (self.size - prop_max_size - 1)
-        return f"{l_delimiter}{'=' * prop_max_size}{self.arrow}{blanks}{r_delimiter}"
+        blanks = self.blank * (self.size - prop_max_size - 1)
+        body = console.template_format(f"{{green}}{self.default_char * prop_max_size}{{endgreen}}{self.arrow}")
+        return f"{l_delimiter}{body}{blanks}{r_delimiter}"
 
     def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
              n_times: int) -> str:
         l_delimiter, r_delimiter = self.left_right_delimiter
-        return f"{l_delimiter}{self.default_char * self.size}{r_delimiter}"
+        body = console.template_format(f"{{green}}{self.default_char * self.size}{{endgreen}}")
+        return f"{l_delimiter}{body}{r_delimiter}"
 
 
 class __StatePercent(State):
@@ -599,7 +612,7 @@ class ProgressBase:
             "time_it":         self.time_it,
             "n_times":         self.n_times
         }
-        if for_value >= self.max_value - 1:
+        if for_value >= self.max_value:
             return ' - '.join(self._get_done_state(**kwargs)), True
 
         return ' - '.join(self._get_state(**kwargs)), False
@@ -766,7 +779,7 @@ class ProgressBase:
     def __next__(self):
         if not self._with_context:
             self.start()
-        for n, obj in enumerate(self.sequence, start=1):
+        for n, obj in enumerate(self.sequence):
             self._update_value(n + 1)
             yield obj
         if not self._with_context:
@@ -775,7 +788,7 @@ class ProgressBase:
         self.sequence = ()
 
     def __iter__(self):
-        return next(self)
+        return self.__next__()
 
     def __setitem__(self, key, value):
         value = self._valid_states(value)[0]
@@ -828,10 +841,9 @@ class Progress(ProgressBase):
 
         self.set_name(name)
 
-    @staticmethod
-    def prog(sequence: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> 'Progress':
-        prog_ = Progress(task_name=task_name, style=style)
-        return prog_(sequence)
+    @classmethod
+    def prog(cls, sequence: Sequence[Any], style: str = "bar", task_name: str = "Cereja Progress") -> 'ProgressBase':
+        return cls(task_name=task_name, style=style)(sequence)
 
     def update(self, current_value: Number, max_value=None):
         """
