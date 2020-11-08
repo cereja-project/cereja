@@ -50,10 +50,14 @@ except OSError:
     _LOGIN_NAME = "Cereja"
 
 
-def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
-    shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
+def _die_threads(*args, **kwargs):
     for i in get_instances_of(Progress):
         i.hook_error()
+
+
+def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
+    shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
+    _die_threads()
 
 
 try:
@@ -62,6 +66,7 @@ try:
     JUPYTER = True
 except NameError:
     JUPYTER = False
+    sys.excepthook = _die_threads
 
 
 class __Stdout:
@@ -160,12 +165,14 @@ class __Stdout:
     def disable(self):
         if self.use_th_console:
             while self._has_user_msg():
+                # fixme: terrible
                 pass
             else:
                 msg = self.console.parse(f"Cereja's console {{red}}out!{{endred}}{{default}}")
                 self.cj_msg(f'\n{msg}')
                 self.use_th_console = False
                 self.th_console.join()
+                self.persisting = False
         sys.stdout = self.__stdout_original
         sys.stderr = self.__stderr_original
 
