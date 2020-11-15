@@ -861,13 +861,13 @@ def _die_threads(*args, **kwargs):
         i.hook_error()
     if kwargs.get('is_jupyter') is None:
         _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
-        # noinspection PyUnresolvedReferences
-        get_ipython().restore_sys_module_state()
 
 
 def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
     shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
     _die_threads(is_jupyter=True)
+    # noinspection PyUnresolvedReferences
+    get_ipython().restore_sys_module_state()
 
 
 try:
