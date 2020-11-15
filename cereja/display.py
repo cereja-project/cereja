@@ -867,6 +867,7 @@ def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
     shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
     _die_threads(is_jupyter=True)
     # noinspection PyUnresolvedReferences
+    # noqa: F821
     get_ipython().restore_sys_module_state()
 
 
