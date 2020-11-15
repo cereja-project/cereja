@@ -52,6 +52,14 @@ except OSError:
 
 _SYS_EXCEPT_HOOK_ORIGINAL = sys.excepthook
 
+try:
+    # noinspection PyUnresolvedReferences
+    IP = get_ipython()
+    JUPYTER = True
+except NameError:
+    JUPYTER = False
+    IP = None
+
 
 class __Stdout:
     __stdout_original = sys.stdout
@@ -161,7 +169,7 @@ class __Stdout:
 
     @classmethod
     def restore_sys_module_state(cls):
-        if isinstance(cls.__stdout_original, io.TextIOWrapper):
+        if not isinstance(cls.__stdout_original, io.StringIO):
             sys.stdout = cls.__stdout_original
             sys.stderr = cls.__stderr_original
 
@@ -862,18 +870,18 @@ def _die_threads(*args, **kwargs):
     if kwargs.get('is_jupyter') is None:
         _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
 
+    if IP:
+        IP.restore_sys_module_state()
+
 
 def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
     shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
     _die_threads(is_jupyter=True)
 
 
-try:
-    # noinspection PyUnresolvedReferences
-    get_ipython().set_custom_exc(tuple(get_implements(Exception)), __custom_exc)
-    JUPYTER = True
-except NameError:
-    JUPYTER = False
+if IP:
+    IP.set_custom_exc(tuple(get_implements(Exception)), __custom_exc)
+else:
     sys.excepthook = _die_threads
 
 if __name__ == "__main__":
