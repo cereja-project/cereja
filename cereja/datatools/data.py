@@ -102,6 +102,61 @@ class Freq(Counter):
         JsonFile(path_=path_, data=content).save(**kwargs)
 
 
+class ConnectValues(dict):
+    def __init__(self, name: str = None):
+        super().__init__()
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def all(self):
+        for connection in self._get_connections():
+            yield connection, set(self._get_connections(connection))
+
+    def _get_connections(self, value=None):
+        if value is not None:
+            connections_ = filter(lambda x: value in x, self)
+        else:
+            connections_ = self
+        for k in connections_:
+            for v in k:
+                yield v
+
+    def connect(self, a, b, confidence=0.0):
+        self.update({tuple(sorted((a, b))): confidence})
+
+    def get(self, a):
+        return set(self._get_connections(a))
+
+    def confidence(self, a, b):
+        return self[(tuple(sorted((a, b))))]
+
+    def clusters(self):
+        segment_matches = {}
+        # I create a map containing all matches (value) of a given segment (including itself)
+        for k, v in self.all:
+            segment_matches[k] = v
+        # cluster identifier
+        cluster = 0
+        clusters = {}
+        while segment_matches:
+            temp_matches = iter(list(segment_matches.items()))
+            # remove and store all matches from this segment (set A)
+            segment_id, _ = next(temp_matches)
+            clusters[cluster] = segment_matches.pop(segment_id)
+            while clusters[cluster].intersection(segment_matches):
+                # If there is an intersection between set A and set B
+                # it is understood that A is equal to B
+                for k in clusters[cluster].intersection(segment_matches):
+                    # for each item that is in A and B at the same time I add A and remove it from B
+                    clusters[cluster].update(segment_matches.pop(k))
+            cluster += 1
+        return clusters
+
+
 class Tokenizer:
     _n_unks = 10
     __unks = dict({f'{{{i}}}': i for i in range(_n_unks)})

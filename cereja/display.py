@@ -36,7 +36,8 @@ from cereja.conf import NON_BMP_SUPPORTED
 from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
 from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill, time_format, get_instances_of
+from cereja.utils import percent, estimate, proportional, fill, time_format, get_instances_of, get_implements, \
+    import_string
 
 __all__ = ['Progress', "StateBase"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
@@ -50,27 +51,6 @@ except OSError:
     _LOGIN_NAME = "Cereja"
 
 _SYS_EXCEPT_HOOK_ORIGINAL = sys.excepthook
-
-
-def _die_threads(*args, **kwargs):
-    for i in get_instances_of(Progress):
-        i.hook_error()
-    if kwargs.get('is_jupyter') is None:
-        _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
-
-
-def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
-    shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
-    _die_threads(is_jupyter=True)
-
-
-try:
-    # noinspection PyUnresolvedReferences
-    get_ipython().set_custom_exc((BaseException,), __custom_exc)
-    JUPYTER = True
-except NameError:
-    JUPYTER = False
-    sys.excepthook = _die_threads
 
 
 class __Stdout:
@@ -177,8 +157,13 @@ class __Stdout:
                 self.use_th_console = False
                 self.th_console.join()
                 self.persisting = False
-        sys.stdout = self.__stdout_original
-        sys.stderr = self.__stderr_original
+        self.restore_sys_module_state()
+
+    @classmethod
+    def restore_sys_module_state(cls):
+        if isinstance(cls.__stdout_original, io.TextIOWrapper):
+            sys.stdout = cls.__stdout_original
+            sys.stderr = cls.__stderr_original
 
 
 _Stdout = __Stdout()
@@ -869,6 +854,27 @@ class Progress(ProgressBase):
         elif self.th_root.is_alive():
             self.stop()
 
+
+def _die_threads(*args, **kwargs):
+    prog = import_string('cereja.display.Progress')
+    for i in get_instances_of(prog):
+        i.hook_error()
+    if kwargs.get('is_jupyter') is None:
+        _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
+
+
+def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
+    shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
+    _die_threads(is_jupyter=True)
+
+
+try:
+    # noinspection PyUnresolvedReferences
+    get_ipython().set_custom_exc(tuple(get_implements(Exception)), __custom_exc)
+    JUPYTER = True
+except NameError:
+    JUPYTER = False
+    sys.excepthook = _die_threads
 
 if __name__ == "__main__":
     pass
