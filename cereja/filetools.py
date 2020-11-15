@@ -274,18 +274,13 @@ class FileBase(metaclass=ABCMeta):
     def normalize_data(cls, data: Any, *args, **kwargs) -> Union[List[str], Any]:
         if not data:
             return data
-        if is_iterable(data) or isinstance(data, int):
-            if is_sequence(data) and not isinstance(data, int):
-                data = [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]
-            elif isinstance(data, str):
-                data = data.splitlines()
-            elif isinstance(data, int):
-                data = str(data)
-            elif isinstance(data, bytes):
-                data = [data]
-            return data
-        else:
-            raise ValueError(f"{data} Invalid value. Send other ")
+        if isinstance(data, str):
+            data = data.splitlines()
+        elif isinstance(data, (int, bytes)):
+            data = [data]
+        if is_iterable(data):
+            return [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]
+        raise ValueError(f"{data} Invalid value. Send other ")
 
     @classmethod
     def parse_new_line_sep(cls, line: str) -> Union[str, None]:
