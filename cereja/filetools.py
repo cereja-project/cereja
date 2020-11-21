@@ -274,9 +274,11 @@ class FileBase(metaclass=ABCMeta):
     def normalize_data(cls, data: Any, *args, **kwargs) -> Union[List[str], Any]:
         if not data:
             return data
+        if isinstance(data, bytes):
+            return [data]
         if isinstance(data, str):
             data = data.splitlines()
-        elif isinstance(data, (int, bytes)):
+        elif isinstance(data, int):
             data = [data]
         if is_iterable(data):
             return [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]
