@@ -192,7 +192,7 @@ class _ConsoleBase(metaclass=ABC):
     __CL_DEFAULT = '\033[37m'
     CL_BLACK = '\033[30m'
     CL_RED = '\033[31m'
-    CL_GREEN = '\033[38;5;34m'
+    CL_GREEN = '\033[38;5;2m'
     CL_YELLOW = '\033[33m'
     CL_BLUE = '\033[34m'
     CL_MAGENTA = '\033[35m'
@@ -574,7 +574,6 @@ class ProgressBase:
 
     def hook_error(self, *args, **kwargs):
         self._err = True
-        print("PASSEI")
         if not self._with_context:
             self.stop()
 
