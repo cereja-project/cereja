@@ -36,10 +36,9 @@ from cereja.conf import NON_BMP_SUPPORTED
 from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
 from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill, time_format, get_instances_of, get_implements, \
-    import_string
+from cereja.utils import percent, estimate, proportional, fill, time_format, get_instances_of, import_string
 
-__all__ = ['Progress', "StateBase"]
+__all__ = ['Progress', "StateBase", "console"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
             "ProgressLoadingSequence", "State"]
 
@@ -60,26 +59,36 @@ except NameError:
     JUPYTER = False
     IP = None
 
+_STDOUT_ORIGINAL_COPY = sys.stdout
+_STDERR_ORIGINAL_COPY = sys.stderr
 
-class __Stdout:
-    __stdout_original = sys.stdout
-    __stderr_original = sys.stderr
+
+class _Stdout:
     __user_msg = []
+    _stdout_original = _STDOUT_ORIGINAL_COPY
+    _stderr_original = _STDERR_ORIGINAL_COPY
 
-    def __init__(self):
+    def __init__(self, console_):
         self.persisting = False
         self.th_console = None
         self.last_console_msg = ""
         self.use_th_console = False
         self.__stdout_buffer = io.StringIO()
         self.__stderr_buffer = io.StringIO()
-        self.hook_err = None
-
-    def __call__(self, console_, hook_err=None):
         self.console = console_
-        if hook_err is not None:
-            self.hook_err = hook_err
-        return self
+
+    @classmethod
+    def die_threads(cls, *args, **kwargs):
+        prog = import_string('cereja.display.Progress')
+        for i in get_instances_of(prog):
+            i.hook_error()
+        if kwargs.get('is_jupyter') is None:
+            _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
+
+    @classmethod
+    def custom_exc(cls, shell, etype, evalue, tb, tb_offset=None):
+        shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
+        cls.die_threads(is_jupyter=True)
 
     def set_message(self, msg):
         self.__user_msg = msg
@@ -113,18 +122,16 @@ class __Stdout:
                 self._write(msg_err)
                 self.__stderr_buffer.seek(0)
                 self.__stderr_buffer.truncate()
-                if self.hook_err is not None:
-                    self.hook_err()
             time.sleep(0.1)
 
     def _write(self, msg: str):
         try:
-            self.__stdout_original.write(msg)
-            self.__stdout_original.flush()
+            self._stdout_original.write(msg)
+            self._stdout_original.flush()
         except UnicodeError:
             msg = self.console.translate_non_bmp(msg)
-            self.__stdout_original.write(msg)
-            self.__stdout_original.flush()
+            self._stdout_original.write(msg)
+            self._stdout_original.flush()
 
     def cj_msg(self, msg: str, line_sep=None, replace_last=False):
         self.last_console_msg = msg
@@ -135,15 +142,14 @@ class __Stdout:
             self._write(line_sep)
 
     def __del__(self):
-        sys.stdout = self.__stdout_original
-        sys.stderr = self.__stderr_original
+        self.restore_sys_module_state()
 
     def write_error(self, msg, **ars):
         msg = self.console.format(msg, color="red")
         self.__stdout_buffer.write(msg)
 
     def flush(self):
-        self.__stdout_original.flush()
+        self._stdout_original.flush()
 
     def persist(self):
         if not self.persisting:
@@ -167,17 +173,16 @@ class __Stdout:
                 self.persisting = False
         self.restore_sys_module_state()
 
-    @classmethod
-    def restore_sys_module_state(cls):
-        if not isinstance(cls.__stdout_original, io.StringIO):
-            sys.stdout = cls.__stdout_original
-            sys.stderr = cls.__stderr_original
+    def restore_sys_module_state(self):
+        if JUPYTER:
+            IP.restore_sys_module_state()
+            return
+        if not isinstance(self._stdout_original, io.StringIO):
+            sys.stdout = _STDOUT_ORIGINAL_COPY
+            sys.stderr = _STDERR_ORIGINAL_COPY
 
 
-_Stdout = __Stdout()
-
-
-class ConsoleBase(metaclass=ABC):
+class _ConsoleBase(metaclass=ABC):
     NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xfffd)
     DONE_UNICODE = "\U00002705"
     ERROR_UNICODE = "\U0000274C"
@@ -186,7 +191,7 @@ class ConsoleBase(metaclass=ABC):
     __CL_DEFAULT = '\033[37m'
     CL_BLACK = '\033[30m'
     CL_RED = '\033[31m'
-    CL_GREEN = '\033[38;5;34m'
+    CL_GREEN = '\033[38;5;2m'
     CL_YELLOW = '\033[33m'
     CL_BLUE = '\033[34m'
     CL_MAGENTA = '\033[35m'
@@ -217,11 +222,11 @@ class ConsoleBase(metaclass=ABC):
 
     SPACE_BLOCKS = {""}
 
-    def __init__(self, title: str = __login_name, color_text: str = "default", hook_error=None):
+    def __init__(self, title: str = __login_name, color_text: str = "default"):
         self.__name = title
         self.__color_map = self._color_map  # get copy
         self.text_color = color_text
-        self.__stdout = _Stdout(self, hook_error)
+        self.__stdout = _Stdout(self)
 
     @property
     def non_bmp_supported(self):
@@ -513,7 +518,7 @@ StatePercent = __StatePercent()
 StateTime = __StateTime()
 StateLoading = __StateLoading()
 StateAwaiting = __StateAwaiting()
-console = ConsoleBase()
+console = _ConsoleBase()
 
 
 class ProgressBase:
@@ -530,14 +535,14 @@ class ProgressBase:
 
     }
 
-    def __init__(self, console_: ConsoleBase, max_value: int = 100, states=None):
+    def __init__(self, max_value: int = 100, states=None):
         self.n_times = 0
         self.__name = self.set_name("Cereja Progress Tool")
         self.__task_count = 0
         self.started = False
         self._awaiting_update = True
         self._show = False
-        self.console = console_
+        self.console = console
         self.started_time = None
         self._states = self.default_states
         self.add_state(states)
@@ -828,7 +833,7 @@ class Progress(ProgressBase):
         if task_name:
             name = task_name
 
-        super().__init__(ConsoleBase(name, hook_error=self.hook_error), states=states)
+        super().__init__(states=states)
 
         if max_value:
             self.max_value = max_value
@@ -863,26 +868,9 @@ class Progress(ProgressBase):
             self.stop()
 
 
-def _die_threads(*args, **kwargs):
-    prog = import_string('cereja.display.Progress')
-    for i in get_instances_of(prog):
-        i.hook_error()
-    if kwargs.get('is_jupyter') is None:
-        _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
-
-    if IP:
-        IP.restore_sys_module_state()
-
-
-def __custom_exc(shell, etype, evalue, tb, tb_offset=None):
-    shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
-    _die_threads(is_jupyter=True)
-
-
 if IP:
-    IP.set_custom_exc(tuple(get_implements(Exception)), __custom_exc)
+    IP.set_custom_exc((Exception, GeneratorExit, SystemExit, KeyboardInterrupt), _Stdout.custom_exc)
 else:
-    sys.excepthook = _die_threads
-
+    sys.excepthook = _Stdout.die_threads
 if __name__ == "__main__":
     pass

@@ -20,6 +20,8 @@ import sys
 from typing import Union, AnyStr
 import unicodedata
 
+__all__ = ['Unicode']
+
 
 class Unicode(object):
     """
@@ -61,10 +63,10 @@ class Unicode(object):
 
     def __repr__(self):
         return f"{self.__class__.__name__}{self._value, self.name}"
-    
+
     def __str__(self):
         return self.value
-    
+
     def __add__(self, other):
         if isinstance(other, int):
             other = self.parse(other)

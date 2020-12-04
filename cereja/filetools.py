@@ -38,6 +38,7 @@ import csv
 from datetime import datetime
 from base64 import b64encode
 
+__all__ = ['TxtFile', "CsvFile", "JsonFile", "File"]
 logger = logging.Logger(__name__)
 
 _exclude = ["_auto_ident_py", "FileBase", "_walk_dirs_and_replace"]
@@ -274,9 +275,11 @@ class FileBase(metaclass=ABCMeta):
     def normalize_data(cls, data: Any, *args, **kwargs) -> Union[List[str], Any]:
         if not data:
             return data
+        if isinstance(data, bytes):
+            return [data]
         if isinstance(data, str):
             data = data.splitlines()
-        elif isinstance(data, (int, bytes)):
+        elif isinstance(data, int):
             data = [data]
         if is_iterable(data):
             return [str(line).replace(CRLF, '').replace(CR, '').replace(LF, '') for line in data]

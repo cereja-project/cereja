@@ -28,7 +28,7 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, Sequence, List, Tuple, Dict
+from typing import Any, Union, List, Tuple, Dict
 import logging
 import itertools
 from copy import copy
@@ -461,3 +461,24 @@ if __name__ == '__main__':
             my_test._attr_b == "Joab"
     )
     my_test.check_all()
+
+
+def memory_of_this(obj):
+    return sys.getsizeof(obj)
+
+
+def memory_usage(n_most=10):
+    return sorted(map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()), key=lambda x: x[1], reverse=True)[
+           :n_most]
+
+
+def run_on_terminal(cmd: str):
+    try:
+        subprocess.run(
+                cmd,
+                shell=True, stdout=subprocess.PIPE).check_returncode()
+    except subprocess.CalledProcessError as err:
+        err_output = err.output.decode()
+        raise Exception(f"{err}:{err_output}")
+    except Exception as err:
+        raise Exception(err)
