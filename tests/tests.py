@@ -33,7 +33,7 @@ from cereja.cj_types import Number
 from cereja.datatools import Corpus, preprocess
 from cereja.datatools.data import Freq
 from cereja.datatools.pln import LanguageData, Preprocessor
-from cereja.display import State, Progress, StateBar, StatePercent, StateTime
+from cereja.display import State, Progress
 from cereja.path import Path
 from cereja.unicode import Unicode
 from cereja.utils import CjTest
@@ -401,7 +401,6 @@ class ProgressTestCase:
                 progress_test._awaiting_update == True,
                 progress_test._show == False,
                 progress_test.started_time == None,
-                progress_test.states == StateBar, StatePercent, StateTime, state,
                 progress_test._err == False,
                 progress_test._was_done == False,
                 progress_test._with_context == False

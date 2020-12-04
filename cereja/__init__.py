@@ -33,10 +33,12 @@ from cereja.decorators import *
 from cereja.concurrently import *
 from cereja.datatools import *
 
-VERSION = "1.2.9.final.0"
+VERSION = "1.2.9.final.1"
 
 __version__ = get_version_pep440_compliant(VERSION)
-if conf.NON_BMP_SUPPORTED is None:
+
+NON_BMP_SUPPORTED = None
+if NON_BMP_SUPPORTED is None:
     # This is important, as there may be an exception if the terminal does not support unicode bmp
     try:
         unicode_ = f"\033[31m\U0001F352\033[30m"
