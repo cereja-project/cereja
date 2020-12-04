@@ -96,5 +96,3 @@ cj_modules_dotted_path = ['cereja.arraytools', 'cereja.conf', 'cereja.decorators
 
 console_logger = logging.StreamHandler(sys.stdout)
 logging.basicConfig(handlers=(console_logger,), level=logging.WARNING)
-
-NON_BMP_SUPPORTED = None

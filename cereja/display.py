@@ -32,13 +32,12 @@ from typing import List
 from abc import ABCMeta, abstractmethod
 from typing import Sequence, Any, Union, AnyStr
 
-from cereja.conf import NON_BMP_SUPPORTED
 from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
 from cereja.unicode import Unicode
 from cereja.utils import percent, estimate, proportional, fill, time_format, get_instances_of, import_string
 
-__all__ = ['Progress', "StateBase", "console"]
+__all__ = ['Progress', "State", "console"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
             "ProgressLoadingSequence", "State"]
 
@@ -166,11 +165,10 @@ class _Stdout:
                 # fixme: terrible
                 pass
             else:
-                msg = self.console.parse(f"Cereja's console {{red}}out!{{endred}}{{default}}")
-                self.cj_msg(f'\n{msg}')
                 self.use_th_console = False
                 self.th_console.join()
                 self.persisting = False
+                self.console.set_prefix(_LOGIN_NAME)
         self.restore_sys_module_state()
 
     def restore_sys_module_state(self):
@@ -199,7 +197,6 @@ class _ConsoleBase(metaclass=ABC):
     CL_WHITE = '\033[37m'
     CL_UNDERLINE = '\033[4m'
     __line_sep_list = ['\r\n', '\n', '\r']
-    __non_bmp_supported = NON_BMP_SUPPORTED
     __os_line_sep = os.linesep
 
     __login_name = _LOGIN_NAME
@@ -230,7 +227,8 @@ class _ConsoleBase(metaclass=ABC):
 
     @property
     def non_bmp_supported(self):
-        return self.__non_bmp_supported
+        from cereja import NON_BMP_SUPPORTED
+        return NON_BMP_SUPPORTED
 
     @property
     def prefix_name(self):
@@ -375,6 +373,9 @@ class _ConsoleBase(metaclass=ABC):
         self.__stdout.disable()
 
 
+console = _ConsoleBase()
+
+
 class State(metaclass=ABCMeta):
     size = 10
 
@@ -407,7 +408,7 @@ class State(metaclass=ABCMeta):
         return self.display(*args, **kwargs)
 
 
-class __StateLoading(State):
+class _StateLoading(State):
     """
     lef_right_delimiter: str = String of length 2 e.g: '[]'
             Are the delimiters of the default_char
@@ -438,7 +439,7 @@ class __StateLoading(State):
         return f"{l_delimiter}{self.default_char * self.size}{r_delimiter}"
 
 
-class __StateAwaiting(__StateLoading):
+class _StateAwaiting(_StateLoading):
 
     def _clean(self, result):
         return result.strip(self.left_right_delimiter)
@@ -452,7 +453,7 @@ class __StateAwaiting(__StateLoading):
         return f"Awaiting{result} Done!"
 
 
-class __StateBar(State):
+class _StateBar(State):
     left_right_delimiter = "[]"
     arrow = ">"
     default_char = "="
@@ -460,7 +461,7 @@ class __StateBar(State):
     size = 30
 
     def __init__(self):
-        if NON_BMP_SUPPORTED:
+        if console.non_bmp_supported:
             self.arrow = ''
             self.default_char = "▰"
             self.blank = "▱"
@@ -480,7 +481,7 @@ class __StateBar(State):
         return f"{l_delimiter}{body}{r_delimiter}"
 
 
-class __StatePercent(State):
+class _StatePercent(State):
     size = 8
 
     def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
@@ -494,7 +495,7 @@ class __StatePercent(State):
         return f"{100:.2f}%"
 
 
-class __StateTime(State):
+class _StateTime(State):
     __clock = Unicode("\U0001F55C")
     __max_sequence = 12
     size = 11
@@ -512,30 +513,20 @@ class __StateTime(State):
         return f"{self.__clock} {time_format(time_it)} total"
 
 
-StateBase = State
-StateBar = __StateBar()
-StatePercent = __StatePercent()
-StateTime = __StateTime()
-StateLoading = __StateLoading()
-StateAwaiting = __StateAwaiting()
-console = _ConsoleBase()
-
-
 class ProgressBase:
-    default_states = (StateBar, StatePercent, StateTime,)
-
-    __awaiting_state = StateAwaiting
+    __awaiting_state = _StateAwaiting()
     __done_unicode = Unicode("\U00002705")
     __err_unicode = Unicode("\U0000274C")
     __key_map = {
-        "loading": StateLoading,
-        "time":    StateTime,
-        "percent": StatePercent,
-        "bar":     StateBar
+        "loading": _StateLoading,
+        "time":    _StateTime,
+        "percent": _StatePercent,
+        "bar":     _StateBar
 
     }
 
     def __init__(self, max_value: int = 100, states=None):
+        self._builded = False
         self.n_times = 0
         self.__name = self.set_name("Cereja Progress Tool")
         self.__task_count = 0
@@ -544,7 +535,7 @@ class ProgressBase:
         self._show = False
         self.console = console
         self.started_time = None
-        self._states = self.default_states
+        self._states = ()
         self.add_state(states)
         self.max_value = max_value
         self._current_value = 0
@@ -552,6 +543,7 @@ class ProgressBase:
         self._with_context = False
         self._was_done = False
         self._err = False
+        self._builded = True
 
     @property
     def name(self):
@@ -649,7 +641,8 @@ class ProgressBase:
                 for idx, new_state in enumerate(filtered):
                     states.insert(index_ + idx, new_state)
                 self._states = tuple(states)
-            self.console.log(f"Added new states! {filtered}")
+            if self._builded:
+                self.console.log(f"Added new states! {filtered}")
 
     @property
     def states(self):
@@ -819,7 +812,7 @@ class ProgressBase:
 
 
 class Progress(ProgressBase):
-    def __init__(self, name="Progress Tool", max_value=100, states=None, **kwargs):
+    def __init__(self, name="Progress Tool", max_value=100, states=(_StateBar, _StatePercent, _StateTime), **kwargs):
         """
         Percentage calculation is based on max_value (default is 100) and current_value:
         percent = (current_value / max_value) * 100
@@ -839,7 +832,7 @@ class Progress(ProgressBase):
             self.max_value = max_value
 
         if style == "loading":
-            self[0] = StateLoading
+            self[0] = _StateLoading()
 
         self.set_name(name)
 
