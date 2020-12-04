@@ -38,6 +38,7 @@ import csv
 from datetime import datetime
 from base64 import b64encode
 
+__all__ = ['TxtFile', "CsvFile", "JsonFile", "File"]
 logger = logging.Logger(__name__)
 
 _exclude = ["_auto_ident_py", "FileBase", "_walk_dirs_and_replace"]

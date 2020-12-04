@@ -31,7 +31,7 @@ import warnings
 from cereja import utils
 
 
-__all__ = ['time_exec']
+__all__ = ['depreciation', 'synchronized', 'time_exec']
 
 from cereja.cj_types import PEP440
 

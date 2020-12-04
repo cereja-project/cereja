@@ -31,6 +31,10 @@ import copy
 from cereja.cj_types import Number, Shape
 import logging
 
+__all__ = ['Matrix', 'array_gen', 'array_randn', 'div', 'dot', 'dotproduct', 'flatten', 'get_cols', 'get_shape',
+           'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'is_iterable', 'is_numeric_sequence',
+           'is_sequence',
+           'prod', 'rand_n', 'rand_uniform', 'remove_duplicate_items', 'reshape', 'shape_is_ok', 'sub', 'theta_angle']
 logger = logging.getLogger(__name__)
 
 

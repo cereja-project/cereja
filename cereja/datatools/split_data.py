@@ -27,6 +27,8 @@ import random
 import csv
 from cereja.path import Path
 
+__all__ = ['Corpus']
+
 
 class Corpus(object):
     def __init__(self, source_data, target_data, source_name=None, target_name=None, **kwargs):

@@ -20,17 +20,31 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
+import sys
+from cereja import conf
 from cereja.utils import get_version_pep440_compliant
 from . import utils
-from importlib import import_module
+from cereja.display import *
+from cereja.filetools import *
+from cereja.arraytools import *
+from cereja.path import *
+from cereja.unicode import *
+from cereja.decorators import *
+from cereja.concurrently import *
+from cereja.datatools import *
 
-
-VERSION = "1.2.8.final.2"
+VERSION = "1.2.9.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
-
-cj_modules_dotted_path = utils.import_string('cereja.conf.cj_modules_dotted_path')
-
-for dot_module in cj_modules_dotted_path:
-    globals().update(utils.module_references(import_module(dot_module)))
+if conf.NON_BMP_SUPPORTED is None:
+    # This is important, as there may be an exception if the terminal does not support unicode bmp
+    try:
+        unicode_ = f"\033[31m\U0001F352\033[30m"
+        sys.stdout.write(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\n")
+        NON_BMP_SUPPORTED = True
+    except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
+        NON_BMP_SUPPORTED = False
+# cj_modules_dotted_path = utils.import_string('cereja.conf.cj_modules_dotted_path')
+#
+# for dot_module in cj_modules_dotted_path:
+#     globals().update(utils.module_references(import_module(dot_module)))

@@ -36,10 +36,9 @@ from cereja.conf import NON_BMP_SUPPORTED
 from cereja.arraytools import is_iterable
 from cereja.cj_types import Number
 from cereja.unicode import Unicode
-from cereja.utils import percent, estimate, proportional, fill, time_format, get_instances_of, get_implements, \
-    import_string
+from cereja.utils import percent, estimate, proportional, fill, time_format, get_instances_of, import_string
 
-__all__ = ['Progress', "StateBase"]
+__all__ = ['Progress', "StateBase", "console"]
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
             "ProgressLoadingSequence", "State"]
 

@@ -33,7 +33,8 @@ from pathlib import Path as Path_
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['mkdir', 'group_path_from_dir', 'file_name', 'listdir', 'normalize_path', 'Path']
+__all__ = ['Path', 'change_date_from_path', 'clean_dir', 'file_name', 'get_base_dir', 'group_path_from_dir', 'listdir',
+           'mkdir', 'normalize_path']
 
 
 def mkdir(path_dir: str):

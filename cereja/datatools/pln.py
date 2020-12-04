@@ -33,7 +33,7 @@ from abc import ABCMeta, abstractmethod
 
 from cereja.path import Path
 
-__all__ = ['LanguageConfig', 'LanguageData', 'Preprocessor']
+__all__ = ['LanguageData', 'Preprocessor', 'LanguageDetector']
 
 _LANGUAGE_ISO_639_2 = {
     'eng': 'English',

@@ -98,11 +98,3 @@ console_logger = logging.StreamHandler(sys.stdout)
 logging.basicConfig(handlers=(console_logger,), level=logging.WARNING)
 
 NON_BMP_SUPPORTED = None
-if NON_BMP_SUPPORTED is None:
-    # This is important, as there may be an exception if the terminal does not support unicode bmp
-    try:
-        unicode_ = f"\033[31m\U0001F352\033[30m"
-        sys.stdout.write(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\n")
-        NON_BMP_SUPPORTED = True
-    except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
-        NON_BMP_SUPPORTED = False

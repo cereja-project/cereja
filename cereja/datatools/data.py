@@ -29,9 +29,8 @@ from cereja.arraytools import is_iterable, is_sequence, get_shape
 from cereja.filetools import JsonFile
 from cereja.utils import invert_dict
 
+__all__ = ['ConnectValues', 'Freq', 'Tokenizer']
 logger = logging.Logger(__name__)
-
-__all__ = ["Freq", 'Tokenizer']
 
 
 class Freq(Counter):
