@@ -440,29 +440,6 @@ class CjTest(object):
             self.check_attr(attr_)
 
 
-if __name__ == '__main__':
-    class A:
-        def __init__(self, attr_a, attr_b):
-            self._attr_a = attr_a
-            self._attr_b = attr_b
-
-        def set_attr_a(self, value):
-            self._attr_a = value
-
-        def set_attr_b(self, value):
-            self._attr_b = value
-
-
-    my_instance = A("Cereja Tests", "Is Easy")
-    my_test = CjTest(my_instance)
-    my_instance.set_attr_a("Cereja")
-    my_test.add_check(
-            my_test._attr_a == 'Cereja',
-            my_test._attr_b == "Joab"
-    )
-    my_test.check_all()
-
-
 def memory_of_this(obj):
     return sys.getsizeof(obj)
 
@@ -482,3 +459,22 @@ def run_on_terminal(cmd: str):
         raise Exception(f"{err}:{err_output}")
     except Exception as err:
         raise Exception(err)
+
+
+class DateTime(datetime.datetime):
+    @classmethod
+    def _validate(cls, value) -> Union[int, float]:
+        assert isinstance(value, (int, float)), f"{value} is not valid."
+        return value
+
+    @classmethod
+    def into_timestamp(cls, days=0, min_=0, sec=0):
+        days = 3600 * 24 * days if cls._validate(days) else days
+        min_ = 3600 * 60 * min_ if cls._validate(min_) else min_
+        return days + min_ + cls._validate(sec)
+
+    def add(self, days=0, min_=0, sec=0):
+        return self.fromtimestamp(self.timestamp() + self.into_timestamp(days, min_, sec))
+
+    def sub(self, days=0, min_=0, sec=0):
+        return self.fromtimestamp(abs(self.timestamp() - self.into_timestamp(days, min_, sec)))

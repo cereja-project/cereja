@@ -22,7 +22,7 @@ SOFTWARE.
 """
 import sys
 from cereja import conf
-from cereja.utils import get_version_pep440_compliant
+from cereja.utils import get_version_pep440_compliant, DateTime
 from . import utils
 from cereja.display import *
 from cereja.filetools import *
@@ -33,7 +33,7 @@ from cereja.decorators import *
 from cereja.concurrently import *
 from cereja.datatools import *
 
-VERSION = "1.2.9.final.1"
+VERSION = "1.3.0.alpha.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
