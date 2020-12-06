@@ -721,6 +721,9 @@ class JsonFile(FileBase):
             raise ValueError('Invalid JSON data.')
         self._lines = data
 
+    def get(self, _key):
+        return self.data.get(_key)
+
     @classmethod
     def load(cls, path_: Union[str, Path], **kwargs):
         encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
