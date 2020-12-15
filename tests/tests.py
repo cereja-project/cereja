@@ -26,8 +26,10 @@ import time
 import unittest
 import logging
 
-from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
-    is_sequence, array_gen, get_shape, Matrix, prod
+from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplicate_items, flatten, \
+    is_sequence, array_gen, get_shape, Matrix
+from cereja.arraytools import prod
+from cereja.mathtools import theta_angle
 from cereja import filetools
 from cereja.cj_types import Number
 from cereja.datatools import Corpus, preprocess

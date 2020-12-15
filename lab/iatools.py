@@ -23,6 +23,7 @@ SOFTWARE.
 
 import random
 
+import cereja.mathtools
 from cereja.arraytools import array_gen, Matrix, array_randn
 
 
@@ -70,9 +71,9 @@ class Policy(object):
         if direction is None:
             return self.weights.dot(input_)
         elif direction == 'posittive':
-            return (self.weights + hp.noise * delta).dot(input_)
+            return cereja.mathtools.dot(input_)
         else:
-            return (self.weights - hp.noise * delta).dot(input_)
+            return cereja.mathtools.dot(input_)
 
     def sample_deltas(self):
         return [Matrix(array_randn(self.weights.shape)) for _ in range(hp.n_directions)]

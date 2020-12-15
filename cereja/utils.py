@@ -33,14 +33,13 @@ import logging
 import itertools
 from copy import copy
 # Needed init configs
-from logging import config
 
-from cereja.cj_types import PEP440, Number, ClassType, FunctionType
+from cereja.cj_types import PEP440, ClassType, FunctionType
 
-__all__ = ['CjTest', 'DateTime', 'camel_to_snake', 'combine_with_all', 'estimate', 'fill', 'get_attr_if_exists',
-           'get_implements', 'get_instances_of', 'get_version', 'get_version_pep440_compliant', 'imc', 'import_string',
+__all__ = ['CjTest', 'DateTime', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
+           'get_implements', 'get_instances_of', 'get_version', 'get_version_pep440_compliant', 'import_string',
            'install_if_not', 'invert_dict', 'latest_git', 'logger_level', 'memory_of_this', 'memory_usage',
-           'module_references', 'percent', 'proportional', 'run_on_terminal', 'set_log_level', 'time_format']
+           'module_references', 'run_on_terminal', 'set_log_level', 'time_format']
 logger = logging.getLogger(__name__)
 
 
@@ -105,18 +104,6 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
     if hasattr(obj, attr):
         return getattr(obj, attr)
     return None
-
-
-def percent(from_: Number, to: Number, ndigits=2) -> Number:
-    to = to or 1
-    return round((from_ / to) * 100, ndigits)
-
-
-def estimate(from_: Number, to: Number, based: Number, ndigits=2) -> Number:
-    if from_ > 0:
-        based = based or 1
-        return round((based / from_) * to - based, ndigits)
-    return float('NaN')
 
 
 def time_format(seconds: float, format_='%H:%M:%S') -> Union[str, float]:
@@ -269,10 +256,6 @@ def get_version_pep440_compliant(version: str = None) -> str:
         sub = f'-{version[4]}'
 
     return f"{root_version}{sub}"
-
-
-def proportional(value, pro_of_val: int):
-    return (pro_of_val / 100) * value
 
 
 def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: bool = False) -> List[Tuple[Any, ...]]:
@@ -442,24 +425,6 @@ class CjTest(object):
     def check_all(self):
         for attr_ in self._checks:
             self.check_attr(attr_)
-
-
-def imc(weight: float, height: float) -> Tuple[float, str]:
-    _imc = weight / (height ** 2)
-    _imc = _imc if _imc > 0.1 else _imc * 10000  # convert if send in meters.
-    if _imc < 18.5:
-        grade = 'Underweight'
-    elif 18.5 <= _imc <= 24.9:
-        grade = 'Normal weight'
-    elif 25 <= _imc <= 29.9:
-        grade = 'Overweight'
-    elif 30 <= _imc <= 34.9:
-        grade = 'Obesity grade 1'
-    elif 35 <= _imc <= 39.9:
-        grade = 'Obesity grade 2'
-    else:
-        grade = 'Obesity grade 3'
-    return _imc, grade
 
 
 def memory_of_this(obj):

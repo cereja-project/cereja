@@ -27,7 +27,7 @@ import warnings
 from abc import ABCMeta
 from typing import Union, List, Iterator, Tuple, Sequence, Any
 
-from cereja.arraytools import is_sequence, is_iterable, get_cols, flatten, get_shape
+from cereja.arraytools._array import is_sequence, is_iterable, get_cols, flatten, get_shape
 from cereja.display import Progress
 import logging
 
