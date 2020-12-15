@@ -440,6 +440,23 @@ class CjTest(object):
             self.check_attr(attr_)
 
 
+def imc(weight: float, height: float) -> Tuple[float, str]:
+    _imc = weight / (height ** 2)
+    if _imc < 18.5:
+        grade = 'Underweight'
+    elif 18.5 <= _imc <= 24.9:
+        grade = 'Normal weight'
+    elif 25 <= _imc <= 29.9:
+        grade = 'Overweight'
+    elif 30 <= _imc <= 34.9:
+        grade = 'Obesity grade 1'
+    elif 35 <= _imc <= 39.9:
+        grade = 'Obesity grade 2'
+    else:
+        grade = 'Obesity grade 3'
+    return _imc, grade
+
+
 def memory_of_this(obj):
     return sys.getsizeof(obj)
 
