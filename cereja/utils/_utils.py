@@ -1,13 +1,16 @@
 """
 Copyright (c) 2019 The Cereja Project
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -16,7 +19,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 import gc
 import time
 from importlib import import_module
@@ -382,3 +384,12 @@ class CjTest(object):
             self.check_attr(attr_)
 
 
+def _add_license(base_dir, ext='.py'):
+    from cereja.file import File
+    from cereja.config import BASE_DIR
+    licence_file = File.load(BASE_DIR)
+    for file in File.load_files(base_dir, ext=ext, recursive=True):
+        if 'Copyright (c) 2019 The Cereja Project' in file.string:
+            continue
+        file.insert('"""\n' + licence_file.string + '\n"""')
+        file.save(exist_ok=True)

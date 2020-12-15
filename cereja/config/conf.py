@@ -24,14 +24,17 @@ SOFTWARE.
 import sys
 import logging
 from abc import abstractmethod, ABCMeta
+import os
 
-__all__ = ['_BasicConfig']
+__all__ = ['BasicConfig', 'BASE_DIR']
 
 # using by utils.module_references
 _exclude = ["console_logger", "cj_modules_dotted_path"]
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-class _BasicConfig(metaclass=ABCMeta):
+
+class BasicConfig(metaclass=ABCMeta):
     def __init__(self, hook=None, **kwargs):
         self._fields = ()
         self._listen = hook

@@ -28,7 +28,7 @@ from cereja.config.cj_types import Number
 from cereja.mltools import preprocess as _preprocess
 from cereja.mltools.data import Freq
 from cereja.file.core import JsonFile, File
-from cereja.config.conf import _BasicConfig
+from cereja.config.conf import BasicConfig
 from abc import ABCMeta, abstractmethod
 
 from cereja.system.path import Path
@@ -51,7 +51,7 @@ def separate(text: AnyStr, sep: Union[str, Sequence[str]] = ('!', '?', '.'), bet
     return _preprocess.separate(text=text, sep=sep, between_char=between_char)
 
 
-class LanguageConfig(_BasicConfig):
+class LanguageConfig(BasicConfig):
     name = 'UNK_LANG'
     stop_words = ()
     punctuation = '!?,.'

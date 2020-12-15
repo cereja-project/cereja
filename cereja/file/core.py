@@ -735,6 +735,11 @@ class JsonFile(FileBase):
         return cls(path_, data=data)
 
 
+class PyFile(TxtFile):
+    _allowed_ext = ('.py',)
+    pass
+
+
 class File(FileBase):
     """
     High-level API for creating and manipulating files
@@ -745,13 +750,14 @@ class File(FileBase):
     __classes_by_ext = {
         '.json': JsonFile,
         '.csv':  CsvFile,
-        '.txt':  TxtFile
+        '.txt':  TxtFile,
+        '.py':   PyFile
     }
 
     def __init__(self, path_, *args, **kwargs):
         super().__init__(path_, *args, **kwargs)
 
-    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile, TxtFile]:
+    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile, TxtFile, 'PyFile']:
         """
         Create instance based
 
@@ -790,7 +796,7 @@ class File(FileBase):
         return cls.load(path_, **kwargs)
 
     @classmethod
-    def load(cls, path_: str, **kwargs):
+    def load(cls, path_: str, **kwargs) -> Union['TxtFile', 'CsvFile', 'JsonFile', 'FileBase', 'PyFile']:
         """
         Read and create instance based on extension.
 
@@ -806,11 +812,6 @@ class File(FileBase):
         return cls.__classes_by_ext.get(path_.suffix, FileBase).load(path_=path_, mode=mode, encoding=encoding,
                                                                      newline=newline,
                                                                      **kwargs)
-
-
-class _FilePython(FileBase):
-    def insert_license(self):
-        pass
 
 
 def _walk_dirs_and_replace(dir_path, new, ext_in: list = None):
