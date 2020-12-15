@@ -22,9 +22,11 @@ SOFTWARE.
 """
 
 import argparse
+import os
 import sys
-from cereja import get_version_pep440_compliant
-from cereja.file.core import crlf_to_lf
+from cereja import get_version_pep440_compliant, Path
+from cereja.file.core import crlf_to_lf, File
+from cereja.config import BASE_DIR
 
 if __name__ == "__main__":
     sys.stdout.write("\U0001F352 Cereja Tools\n")
@@ -33,6 +35,16 @@ if __name__ == "__main__":
     parser.add_argument('--version', action='version', version=get_version_pep440_compliant())
     parser.add_argument('--crlf_to_lf')
     parser.add_argument('--lf_to_crlf')
+    parser.add_argument('--startmodule', type=str)
     args = parser.parse_args()
     if args.crlf_to_lf:
         crlf_to_lf(args.crlf_to_lf)
+
+    if args.startmodule:
+        base_dir = Path(BASE_DIR)
+        license_ = '"""\n' + File.load(base_dir.parent.join('LICENSE')).string + '\n"""'
+        new_module_path = base_dir.join(*args.startmodule.split('/'))
+        if new_module_path.parent.exists and new_module_path.parent.is_dir:
+            File(new_module_path, license_).save()
+        else:
+            print(f"{new_module_path} is not valid.")
