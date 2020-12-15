@@ -25,8 +25,8 @@ import secrets
 from collections import Counter
 from typing import Optional, Sequence, Dict, Any, List, Union, Tuple
 
-from cereja.arraytools import is_iterable, is_sequence, get_shape
-from cereja.filetools import JsonFile
+from cereja.array import is_iterable, is_sequence, get_shape
+from cereja.file.core import JsonFile
 from cereja.utils import invert_dict
 
 __all__ = ['ConnectValues', 'Freq', 'Tokenizer']

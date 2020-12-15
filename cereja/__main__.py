@@ -24,7 +24,7 @@ SOFTWARE.
 import argparse
 import sys
 from cereja import get_version_pep440_compliant
-from cereja.filetools import crlf_to_lf
+from cereja.file.core import crlf_to_lf
 
 if __name__ == "__main__":
     sys.stdout.write("\U0001F352 Cereja Tools\n")

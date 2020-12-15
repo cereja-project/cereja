@@ -27,11 +27,11 @@ import warnings
 from abc import ABCMeta
 from typing import Union, List, Iterator, Tuple, Sequence, Any
 
-from cereja.arraytools._array import is_sequence, is_iterable, get_cols, flatten, get_shape
+from cereja.array import is_sequence, is_iterable, get_cols, flatten, get_shape
 from cereja.display import Progress
 import logging
 
-from cereja.path import normalize_path, Path
+from cereja.system.path import normalize_path, Path
 from cereja.utils import invert_dict
 import copy
 import csv

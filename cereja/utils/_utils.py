@@ -17,7 +17,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from datetime import datetime
 import gc
 import time
 from importlib import import_module
@@ -26,19 +25,33 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Dict
+from typing import Any, Union, List, Tuple
 import logging
 import itertools
 from copy import copy
 # Needed init configs
 
-from cereja.cj_types import ClassType, FunctionType
+from cereja.config.cj_types import ClassType, FunctionType
 
-__all__ = ['CjTest', 'DateTime', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
+__all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
-           'install_if_not', 'invert_dict', 'logger_level', 'memory_of_this', 'memory_usage',
-           'module_references', 'run_on_terminal', 'set_log_level', 'time_format']
+           'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format']
 logger = logging.getLogger(__name__)
+
+
+def type_table_of(o: Union[list, tuple, dict]):
+    if isinstance(o, (list, tuple)):
+        type_table = {i: type(i) for i in o}
+    elif isinstance(o, dict):
+        type_table = {}
+        for k, v in o.items():
+            if isinstance(o, dict):
+                v = type_table_of(v)
+            type_table[k] = (v, type(v))
+    else:
+        type_table = {o: type(o)}
+
+    return type_table
 
 
 def camel_to_snake(value: str):
@@ -66,7 +79,7 @@ def get_instances_of(klass: type):
     return filter(lambda x: isinstance(x, klass), gc.get_objects())
 
 
-def invert_dict(dict_: Dict[Any, Any]) -> dict:
+def invert_dict(dict_: Union[dict, set]) -> dict:
     """
     Inverts the key by value
     e.g:
@@ -75,9 +88,19 @@ def invert_dict(dict_: Dict[Any, Any]) -> dict:
     {"b" : "a", "d": "c"}
     :return: dict
     """
+
     if not isinstance(dict_, dict):
         raise TypeError("Send a dict object.")
-    return dict(zip(dict_.values(), dict_.keys()))
+    new_dict = {}
+    for key, value in dict_.items():
+        if isinstance(value, dict):
+            new_dict.update({key: invert_dict(value)})
+            continue
+        if isinstance(value, (tuple, list, set)):
+            new_dict.update({k: key for k in dict_[key]})
+            continue
+        new_dict[value] = key
+    return new_dict
 
 
 def import_string(dotted_path):
@@ -359,53 +382,3 @@ class CjTest(object):
             self.check_attr(attr_)
 
 
-def memory_of_this(obj):
-    return sys.getsizeof(obj)
-
-
-def memory_usage(n_most=10):
-    return sorted(map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()), key=lambda x: x[1], reverse=True)[
-           :n_most]
-
-
-def run_on_terminal(cmd: str):
-    try:
-        subprocess.run(
-                cmd,
-                shell=True, stdout=subprocess.PIPE).check_returncode()
-    except subprocess.CalledProcessError as err:
-        err_output = err.output.decode()
-        raise Exception(f"{err}:{err_output}")
-    except Exception as err:
-        raise Exception(err)
-
-
-class DateTime(datetime):
-    @classmethod
-    def _validate_timestamp(cls, value) -> Union[int, float]:
-        assert isinstance(value, (int, float)), f"{value} is not valid."
-        return value
-
-    @classmethod
-    def _validate_date(cls, other):
-        assert isinstance(other, datetime), f"Send {datetime} obj"
-        return other
-
-    @classmethod
-    def days_from_timestamp(cls, timestamp):
-        return timestamp / (3600 * 24)
-
-    @classmethod
-    def into_timestamp(cls, days=0, min_=0, sec=0):
-        days = 3600 * 24 * days if cls._validate_timestamp(days) else days
-        min_ = 3600 * 60 * min_ if cls._validate_timestamp(min_) else min_
-        return days + min_ + cls._validate_timestamp(sec)
-
-    def add(self, days=0, min_=0, sec=0):
-        return self.fromtimestamp(self.timestamp() + self.into_timestamp(days, min_, sec))
-
-    def sub(self, days=0, min_=0, sec=0):
-        return self.fromtimestamp(abs(self.timestamp() - self.into_timestamp(days, min_, sec)))
-
-    def days_between(self, other):
-        return self.days_from_timestamp(abs(self.timestamp() - self._validate_date(other).timestamp()))

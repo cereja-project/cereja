@@ -20,19 +20,20 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import sys
-from cereja import conf
+from .config import conf
 from cereja.utils import *
 from . import utils
 from cereja.display import *
-from cereja.filetools import *
-from cereja.arraytools import *
-from cereja.path import *
-from cereja.unicode import *
-from cereja import decorators
+from cereja.file import *
+from cereja.array import *
+from cereja.system.path import *
+from cereja.system.unicode import *
+from .utils import decorators
 from cereja.concurrently import *
-from cereja.datatools import *
+from cereja.mltools import *
 from cereja.utils.version import get_version_pep440_compliant
+from cereja import concurrently
+from cereja.system.unicode import *
 
 VERSION = "1.3.0.alpha.0"
 
@@ -43,7 +44,7 @@ if NON_BMP_SUPPORTED is None:
     # This is important, as there may be an exception if the terminal does not support unicode bmp
     try:
         unicode_ = f"\033[31m\U0001F352\033[30m"
-        sys.stdout.write(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\n")
+        print(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\r")
         NON_BMP_SUPPORTED = True
     except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
         NON_BMP_SUPPORTED = False

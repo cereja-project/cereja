@@ -1,7 +1,7 @@
 import math
 from typing import Tuple
 
-from cereja.cj_types import Number
+from cereja.config.cj_types import Number
 
 __all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle']
 

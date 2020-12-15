@@ -24,7 +24,7 @@ SOFTWARE.
 import random
 
 import cereja.mathtools
-from cereja.arraytools import array_gen, Matrix, array_randn
+from cereja.array import array_gen, Matrix, array_randn
 
 
 class HyperParam(object):

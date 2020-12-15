@@ -28,7 +28,7 @@ import shutil
 import time
 import warnings
 from typing import List, Union
-from cereja.arraytools import group_items_in_batches
+from cereja.array import group_items_in_batches
 from pathlib import Path as Path_
 
 logger = logging.getLogger(__name__)

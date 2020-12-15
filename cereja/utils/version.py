@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime
 from typing import Union
 
-from cereja.cj_types import PEP440
+from cereja.config.cj_types import PEP440
 
 __all__ = ['get_version', 'latest_git', 'get_version_pep440_compliant']
 

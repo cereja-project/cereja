@@ -32,9 +32,9 @@ from typing import List
 from abc import ABCMeta, abstractmethod
 from typing import Sequence, Any, Union, AnyStr
 
-from cereja.arraytools._array import is_iterable
-from cereja.cj_types import Number
-from cereja.unicode import Unicode
+from cereja.array import is_iterable
+from cereja.config.cj_types import Number
+from cereja.system.unicode import Unicode
 from cereja.utils import fill, time_format, get_instances_of, import_string
 from cereja.mathtools import proportional, estimate, percent
 

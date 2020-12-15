@@ -27,7 +27,7 @@ import math
 from functools import reduce
 from typing import Any, Sequence, Tuple, Union, List, Optional
 import copy
-from cereja.cj_types import Number, Shape
+from cereja.config.cj_types import Number, Shape
 import logging
 
 __all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_shape',

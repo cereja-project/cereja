@@ -114,6 +114,7 @@ file.save()
 
 ##### File Manipulation Example - .csv File 
 ```python
+import cereja.file.core
 import cereja as cj
 
 file = cj.File('test.csv', fieldnames=['col1','col2','col3']) # ram only, not yet saved
@@ -142,14 +143,15 @@ print(file[0]) # [1, 2, 3]
 file.save()
 
 # Reading
-file = cj.CsvFile.load('test.csv') # have a fun! lol
+file = cereja.file.core.CsvFile.load('test.csv') # have a fun! lol
 dir(file) # see all methods and attr
 ```
 ##### Reading Other Files
 ```python
+import cereja.file.core
 import cereja as cj
 
-file = cj.File.load('path_to_file.ext')
+file = cereja.file.core.File.load('path_to_file.ext')
 # now you have a file instance, have fun!
 # you can insert lines, remove and save \0/
 file.save(exist_ok=True) # or change path file.save(on_new_path='new_path.ext', exist_ok=True)
