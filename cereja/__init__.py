@@ -22,7 +22,7 @@ SOFTWARE.
 """
 import sys
 from cereja import conf
-from cereja.utils import get_version_pep440_compliant, DateTime
+from cereja.utils import *
 from . import utils
 from cereja.display import *
 from cereja.filetools import *
