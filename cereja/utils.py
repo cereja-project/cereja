@@ -446,7 +446,7 @@ class CjTest(object):
 
 def imc(weight: float, height: float) -> Tuple[float, str]:
     _imc = weight / (height ** 2)
-    _imc = _imc if _imc > 0.1 else _imc * 10000 # convert if send in meters.
+    _imc = _imc if _imc > 0.1 else _imc * 10000  # convert if send in meters.
     if _imc < 18.5:
         grade = 'Underweight'
     elif 18.5 <= _imc <= 24.9:
