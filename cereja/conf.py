@@ -25,8 +25,6 @@ import sys
 import logging
 from abc import abstractmethod, ABCMeta
 
-from .utils import get_version_pep440_compliant
-
 __all__ = ['_BasicConfig']
 
 # using by utils.module_references

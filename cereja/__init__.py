@@ -29,9 +29,10 @@ from cereja.filetools import *
 from cereja.arraytools import *
 from cereja.path import *
 from cereja.unicode import *
-from cereja.decorators import *
+from cereja import decorators
 from cereja.concurrently import *
 from cereja.datatools import *
+from cereja.utils.version import get_version_pep440_compliant
 
 VERSION = "1.3.0.alpha.0"
 

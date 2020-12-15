@@ -18,9 +18,7 @@ SOFTWARE.
 """
 
 from datetime import datetime
-import functools
 import gc
-import os
 import time
 from importlib import import_module
 import subprocess
@@ -34,11 +32,11 @@ import itertools
 from copy import copy
 # Needed init configs
 
-from cereja.cj_types import PEP440, ClassType, FunctionType
+from cereja.cj_types import ClassType, FunctionType
 
 __all__ = ['CjTest', 'DateTime', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
-           'get_implements', 'get_instances_of', 'get_version', 'get_version_pep440_compliant', 'import_string',
-           'install_if_not', 'invert_dict', 'latest_git', 'logger_level', 'memory_of_this', 'memory_usage',
+           'get_implements', 'get_instances_of', 'import_string',
+           'install_if_not', 'invert_dict', 'logger_level', 'memory_of_this', 'memory_usage',
            'module_references', 'run_on_terminal', 'set_log_level', 'time_format']
 logger = logging.getLogger(__name__)
 
@@ -190,72 +188,6 @@ def set_log_level(level: Union[int, str]):
 def logger_level():
     import logging
     return logging.getLogger().level
-
-
-def get_version(version: Union[str, PEP440] = None) -> PEP440:
-    """
-    Dotted version of the string type is expected
-    e.g:
-    '1.0.3.a.3' # Pep440 see https://www.python.org/dev/peps/pep-0440/
-    :param version: Dotted version of the string
-    """
-    if version is None:
-        from cereja import VERSION as version
-
-    if isinstance(version, str):
-        version = version.split('.')
-        version_note = version.pop(3)
-        version = list(map(int, version))
-        version.insert(3, version_note)
-
-    assert len(version) == 5, "Version must be size 5"
-
-    assert version[3] in ('alpha', 'beta', 'rc', 'final')
-    return version
-
-
-@functools.lru_cache()
-def latest_git():
-    """
-    Return a numeric identifier of the latest git changeset.
-    """
-    repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    git_log = subprocess.run(
-            ['git', 'log', '--pretty=format:%ct', '--quiet', '-1', 'HEAD'],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            shell=True, cwd=repo_dir, universal_newlines=True,
-    )
-    timestamp = git_log.stdout
-    try:
-        timestamp = datetime.utcfromtimestamp(int(timestamp))
-    except ValueError:
-        return None
-    return timestamp.strftime('%Y%m%d%H%M%S')
-
-
-def get_version_pep440_compliant(version: str = None) -> str:
-    """
-    Dotted version of the string type is expected
-    e.g:
-    '1.0.3.a.3' # Pep440 see https://www.python.org/dev/peps/pep-0440/
-    :param version: Dotted version of the string
-    """
-    version_mapping = {'alpha': 'a', 'beta': 'b', 'rc': 'rc'}
-    version = get_version(version)
-    root_version = '.'.join(map(str, version[:3]))
-
-    sub = ''
-    if version[3] == 'alpha' and version[4] == 0:
-        git = latest_git()
-        if git:
-            sub = f'.dev{git}'
-
-    elif version[3] != 'final':
-        sub = version_mapping[version[3]] + str(version[4])
-    elif version[3] == 'final' and version[4] != 0:
-        sub = f'-{version[4]}'
-
-    return f"{root_version}{sub}"
 
 
 def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: bool = False) -> List[Tuple[Any, ...]]:

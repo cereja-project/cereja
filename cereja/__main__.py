@@ -23,7 +23,7 @@ SOFTWARE.
 
 import argparse
 import sys
-from cereja.utils import get_version_pep440_compliant
+from cereja import get_version_pep440_compliant
 from cereja.filetools import crlf_to_lf
 
 if __name__ == "__main__":
