@@ -58,26 +58,32 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         """
         return f'{mode}+b' if self._is_byte else f'{mode}+'
 
-    def load(self, *args, **kwargs) -> List[str]:
-        mode = kwargs.get('mode', self._get_mode('r'))
+    def load(self, *args, mode=None, **kwargs) -> List[str]:
+        mode = mode or self._get_mode('r')
         assert 'r' in mode, f"{mode} for read isn't valid."
-        with open(self._path, **kwargs) as fp:
+        with open(self._path, mode=mode, **kwargs) as fp:
             return self.parse(fp.read())
 
-    def _save(self, data, **kwargs):
-        mode = kwargs.get('mode', self._get_mode('w'))
-        assert 'w' in mode, f"{mode} for read isn't valid."
-        with open(self._path, **kwargs) as fp:
+    def _save(self, data, mode=None, **kwargs):
+        mode = mode or self._get_mode('w')
+        assert 'w' in mode, f"{mode} for write isn't valid."
+        with open(self._path, mode=mode, **kwargs) as fp:
             fp.write(data)
 
 
 class _GenericFile(_FileIO):
     _is_byte: bool = True
 
-    def save(self, *args, **kwargs):
-        super()._save(self._data)
+    @property
+    def lines(self):
+        if isinstance(self._data, bytes):
+            return self._data.splitlines()
+        return [self._data]
 
-    def parse(self, data: Union[str, bytes]) -> Any:
+    def save(self, *args, **kwargs):
+        super()._save(self._data, **kwargs)
+
+    def parse(self, data: Union[str, bytes]) -> bytes:
         return data
 
 
@@ -88,7 +94,7 @@ class _TxtIO(_FileIO):
         return data.splitlines()
 
     def save(self, *args, **kwargs):
-        pass
+        super()._save('\n'.join(self.data))
 
 
 class _JsonIO(_FileIO):
@@ -98,14 +104,14 @@ class _JsonIO(_FileIO):
         return json.loads(data)
 
     def save(self, *args, **kwargs):
-        pass
+        super()._save(json.dumps(self._data), **kwargs)
 
 
 class _Mp4IO(_FileIO):
     _is_byte: bool = True
 
     def save(self, *args, **kwargs):
-        pass
+        super()._save(self._data)
 
     def parse(self, data: Union[str, bytes]) -> bytes:
         return data
@@ -131,5 +137,5 @@ class FileIO:
 
 
 if __name__ == '__main__':
-    data = FileIO('C:/Users/leite/Downloads/videos_priority.txt')
-    input()
+    data = FileIO('C:/Users/leite/Downloads/OBJECTIVE.mp4')
+    data.save()
