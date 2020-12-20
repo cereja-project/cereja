@@ -1,10 +1,20 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, ABC
 from typing import Any, List, Union
 import json
 from cereja import Path
 
 
 class _IFileIO(metaclass=ABCMeta):
+
+    @property
+    @abstractmethod
+    def data(self) -> Any:
+        pass
+
+    @property
+    @abstractmethod
+    def path(self) -> Path:
+        pass
 
     @abstractmethod
     def load(self, *args, **kwargs) -> Any:
@@ -117,7 +127,7 @@ class _Mp4IO(_FileIO):
         return data
 
 
-class FileIO:
+class FileIO(_IFileIO, ABC):
     # ext: [ext_class, kwargs] *kwargs send to __builtin__ open
     __ext_supported = {'.txt':  [_TxtIO, {}],
                        '.json': [_JsonIO, {}],
@@ -137,5 +147,5 @@ class FileIO:
 
 
 if __name__ == '__main__':
-    data = FileIO('C:/Users/leite/Downloads/OBJECTIVE.mp4')
-    data.save()
+    _data = FileIO('C:/Users/leite/Downloads/OBJECTIVE.mp4')
+    print(dir(_data))
