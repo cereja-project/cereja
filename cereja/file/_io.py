@@ -1,3 +1,4 @@
+import copy
 import logging
 import os
 from abc import ABCMeta, abstractmethod
@@ -64,6 +65,11 @@ class _IFileIO(metaclass=ABCMeta):
 
     @property
     @abstractmethod
+    def history(self):
+        pass
+
+    @property
+    @abstractmethod
     def last_access(self):
         pass
 
@@ -77,6 +83,14 @@ class _IFileIO(metaclass=ABCMeta):
 
     @abstractmethod
     def parse(self, data: Union[str, bytes]) -> Any:
+        pass
+
+    @abstractmethod
+    def undo(self):
+        pass
+
+    @abstractmethod
+    def redo(self):
         pass
 
 
@@ -105,6 +119,9 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         self._creation_mode = creation_mode
         self._path = path_
         self._ext_without_point = self._path.suffix.strip(".").upper()
+        self._current_change = 0
+        self._max_history_length = 50
+        self._change_history = []
         if creation_mode:
             self._data = self.parse(data)
         else:
@@ -120,6 +137,47 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
 
     def __str__(self):
         return f'{self._ext_without_point}<{self._path.name}>'
+
+    def __setattr__(self, key, value):
+        object.__setattr__(self, key, copy.copy(value))
+        if hasattr(self, '_change_history') and key not in (
+                '_current_change', '_max_history_length', '_change_history'):
+            self._set_change(key, copy.copy(object.__getattribute__(self, key)))  # append last_value of attr
+
+    def __getitem__(self, item):
+        try:
+            return self.data[item]
+        except TypeError:
+            raise TypeError(f"'{self.__class__.__name__}' object is not subscriptable")
+
+    def __setitem__(self, key, value):
+        # TODO: save only the index that has been changed
+        try:
+            self._data[key] = value
+            self._set_change('_data', copy.copy(self._data))
+        except TypeError:
+            raise TypeError(f"'{self.__class__.__name__}' object is not subscriptable")
+
+    def _set_change(self, key, value):
+        self._change_history = self._change_history[:self._current_change + 1]
+        if len(self._change_history) >= self._max_history_length:
+            self._change_history.pop(0)
+        self._change_history.append((key, value))
+        self._current_change = len(self._change_history)
+
+    def _select_change(self, index):
+        try:
+
+            key, value = self._change_history[self._current_change + index]
+            object.__setattr__(self, key, copy.copy(value))
+            self._current_change += index
+            logger.warning(f'You selected amendment {self._current_change + 1}')
+        except IndexError:
+            logger.info("It's not possible")
+
+    @property
+    def history(self):
+        return self._change_history
 
     @property
     def updated_at(self):
@@ -147,7 +205,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
 
     @property
     def data(self):
-        return self._data
+        return copy.copy(self._data)
 
     @property
     def path(self):
@@ -208,6 +266,15 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
 
     def set_path(self, path_):
         self._path = Path(path_)
+
+    def undo(self):
+        if self._current_change > 0:
+            index = -2 if self._current_change == len(self._change_history) else -1
+            self._select_change(index)
+
+    def redo(self):
+        if self._current_change < len(self._change_history):
+            self._select_change(+1)
 
 
 class _GenericFile(_FileIO):
@@ -335,5 +402,5 @@ class FileIO:
 
 
 if __name__ == '__main__':
-    files = FileIO.load('./teste.txt')
+    files = FileIO.load('C:/Users/leite/Downloads/tokenizador - Copia.json')
     files.save(exist_ok=True)
