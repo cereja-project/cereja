@@ -16,6 +16,31 @@ class _IFileIO(metaclass=ABCMeta):
     def path(self) -> Path:
         pass
 
+    @property
+    @abstractmethod
+    def name(self):
+        pass
+
+    @property
+    @abstractmethod
+    def ext(self):
+        pass
+
+    @property
+    @abstractmethod
+    def name_without_ext(self):
+        pass
+
+    @property
+    @abstractmethod
+    def dir_name(self):
+        pass
+
+    @property
+    @abstractmethod
+    def dir_path(self):
+        pass
+
     @abstractmethod
     def load(self, *args, **kwargs) -> Any:
         pass
@@ -31,11 +56,17 @@ class _IFileIO(metaclass=ABCMeta):
 
 class _FileIO(_IFileIO, metaclass=ABCMeta):
     _is_byte = None
-    _need_implement = {'_is_byte': """
-    Define the configuration of the keypoints in the class {class_name}:
-    exemplo:
+    _only_read = None
+    _need_implement = {'_is_byte':   """
+    Define the configuration of the file in the class {class_name}:
+    e.g:
     class {class_name}:
         _is_byte: bool = True # or False
+    """,
+                       '_only_read': """Define the configuration of the file in the class {class_name}:
+    e.g:
+    class {class_name}:
+        _only_read: bool = True # or False
     """}
 
     def __init__(self, path_: Path, *args, **kwargs):
@@ -55,12 +86,32 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         return f'{self._ext_without_point}<{self._path.name}>'
 
     @property
+    def name(self):
+        return self._path.name
+
+    @property
+    def ext(self):
+        return self._path.suffix
+
+    @property
+    def name_without_ext(self):
+        return self._path.stem
+
+    @property
     def data(self):
         return self._data
 
     @property
     def path(self):
         return self._path
+
+    @property
+    def dir_name(self):
+        return self._path.parent_name
+
+    @property
+    def dir_path(self):
+        return self._path.parent
 
     def _get_mode(self, mode) -> str:
         """
@@ -75,6 +126,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
             return self.parse(fp.read())
 
     def _save(self, data, mode=None, **kwargs):
+        assert self._only_read is False, f"{self.name} is only read."
         mode = mode or self._get_mode('w')
         assert 'w' in mode, f"{mode} for write isn't valid."
         with open(self._path, mode=mode, **kwargs) as fp:
@@ -83,6 +135,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
 
 class _GenericFile(_FileIO):
     _is_byte: bool = True
+    _only_read = False
 
     @property
     def lines(self):
@@ -99,6 +152,7 @@ class _GenericFile(_FileIO):
 
 class _TxtIO(_FileIO):
     _is_byte: bool = False
+    _only_read = False
 
     def parse(self, data: Union[str, bytes]) -> List[str]:
         return data.splitlines()
@@ -109,6 +163,7 @@ class _TxtIO(_FileIO):
 
 class _JsonIO(_FileIO):
     _is_byte: bool = False
+    _only_read = False
 
     def parse(self, data: Union[str, bytes]) -> dict:
         return json.loads(data)
@@ -119,6 +174,7 @@ class _JsonIO(_FileIO):
 
 class _Mp4IO(_FileIO):
     _is_byte: bool = True
+    _only_read = True
 
     def save(self, *args, **kwargs):
         super()._save(self._data)
@@ -147,5 +203,4 @@ class FileIO(_IFileIO, ABC):
 
 
 if __name__ == '__main__':
-    _data = FileIO('C:/Users/leite/Downloads/OBJECTIVE.mp4')
-    print(dir(_data))
+    pass
