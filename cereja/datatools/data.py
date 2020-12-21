@@ -264,6 +264,12 @@ class Tokenizer:
         return sentence
 
 
+class TfIdf:
+
+    def __init__(self):
+        pass
+
+
 if __name__ == '__main__':
     tokenizer = Tokenizer(data=['i like it', 'my name is Joab', 'hello'])
     sequences = tokenizer.encode(data=['hello my friend, how are you?', 'my name is mário'])
