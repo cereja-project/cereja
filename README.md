@@ -114,6 +114,7 @@ file.save()
 
 ##### File Manipulation Example - .csv File 
 ```python
+import cereja.file.core
 import cereja as cj
 
 file = cj.File('test.csv', fieldnames=['col1','col2','col3']) # ram only, not yet saved
@@ -142,14 +143,15 @@ print(file[0]) # [1, 2, 3]
 file.save()
 
 # Reading
-file = cj.CsvFile.load('test.csv') # have a fun! lol
+file = cereja.file.core.CsvFile.load('test.csv') # have a fun! lol
 dir(file) # see all methods and attr
 ```
 ##### Reading Other Files
 ```python
+import cereja.file.core
 import cereja as cj
 
-file = cj.File.load('path_to_file.ext')
+file = cereja.file.core.File.load('path_to_file.ext')
 # now you have a file instance, have fun!
 # you can insert lines, remove and save \0/
 file.save(exist_ok=True) # or change path file.save(on_new_path='new_path.ext', exist_ok=True)
@@ -266,6 +268,7 @@ with cj.Progress("My Progress") as prog:
 #### Utils
 ```python
 
+import cereja.mathtools
 import cereja as cj
 
 # Arraytools
@@ -277,9 +280,9 @@ cj.is_empty(data) # False
 cj.get_shape(data) # (2, 3)
 
 data = cj.flatten(data) # [1, 2, 3, 3, 3, 3]
-cj.prod(data) # 162
-cj.sub(data) # -13
-cj.div(data) # 0.006172839506172839
+cereja.mathtools.prod(data) # 162
+cereja.mathtools.sub(data) # -13
+cereja.mathtools.div(data) # 0.006172839506172839
 
 cj.rand_n(0.0, 2.0, n=3) # [0.3001196087729699, 0.639679494102923, 1.060200897124107]
 cj.rand_n(1,10) # 5.086403830031244
@@ -287,13 +290,13 @@ cj.array_randn((3, 3, 3)) # [[[0.015077210355770374, 0.014298110484612511, 0.030
 cj.group_items_in_batches(items=[1,2,3,4], items_per_batch=3, fill=0) # [[1, 2, 3], [4, 0, 0]]
 cj.remove_duplicate_items(['hi', 'hi', 'ih']) # ['hi', 'ih'] 
 cj.get_cols([['line1_col1','line1_col2'],['line2_col1','line2_col2']]) # [['line1_col1', 'line2_col1'], ['line1_col2', 'line2_col2']]
-cj.dotproduct([1,2], [1,2]) # 5
+cereja.mathtools.dotproduct([1,2], [1,2]) # 5
 
 
 a = cj.array_gen((3,3), 1) # [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
 b = cj.array_gen((3,3), 1) # [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
-cj.dot(a, b) # [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
-cj.theta_angle((2,2), (0, -2)) # 135.0
+cereja.mathtools.dot(a, b) # [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
+cereja.mathtools.theta_angle((2,2), (0, -2)) # 135.0
 ```
 [See Usage - Jupyter Notebook](./docs/cereja_example.ipynb)
 

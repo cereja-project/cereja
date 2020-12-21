@@ -27,11 +27,11 @@ import warnings
 from abc import ABCMeta
 from typing import Union, List, Iterator, Tuple, Sequence, Any
 
-from cereja.arraytools import is_sequence, is_iterable, get_cols, flatten, get_shape
+from cereja.array import is_sequence, is_iterable, get_cols, flatten, get_shape
 from cereja.display import Progress
 import logging
 
-from cereja.path import normalize_path, Path
+from cereja.system.path import normalize_path, Path
 from cereja.utils import invert_dict
 import copy
 import csv
@@ -721,6 +721,9 @@ class JsonFile(FileBase):
             raise ValueError('Invalid JSON data.')
         self._lines = data
 
+    def get(self, _key):
+        return self.data.get(_key)
+
     @classmethod
     def load(cls, path_: Union[str, Path], **kwargs):
         encoding = kwargs.pop('encoding') if 'encoding' in kwargs else 'utf-8'
@@ -730,6 +733,11 @@ class JsonFile(FileBase):
         with open(path_, encoding=encoding, **kwargs) as fp:
             data = json.load(fp)
         return cls(path_, data=data)
+
+
+class PyFile(TxtFile):
+    _allowed_ext = ('.py',)
+    pass
 
 
 class File(FileBase):
@@ -742,13 +750,14 @@ class File(FileBase):
     __classes_by_ext = {
         '.json': JsonFile,
         '.csv':  CsvFile,
-        '.txt':  TxtFile
+        '.txt':  TxtFile,
+        '.py':   PyFile
     }
 
     def __init__(self, path_, *args, **kwargs):
         super().__init__(path_, *args, **kwargs)
 
-    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile, TxtFile]:
+    def __new__(cls, path_: str, *args, **kwargs) -> Union[FileBase, JsonFile, CsvFile, TxtFile, 'PyFile']:
         """
         Create instance based
 
@@ -787,7 +796,7 @@ class File(FileBase):
         return cls.load(path_, **kwargs)
 
     @classmethod
-    def load(cls, path_: str, **kwargs):
+    def load(cls, path_: str, **kwargs) -> Union['TxtFile', 'CsvFile', 'JsonFile', 'FileBase', 'PyFile']:
         """
         Read and create instance based on extension.
 
@@ -803,11 +812,6 @@ class File(FileBase):
         return cls.__classes_by_ext.get(path_.suffix, FileBase).load(path_=path_, mode=mode, encoding=encoding,
                                                                      newline=newline,
                                                                      **kwargs)
-
-
-class _FilePython(FileBase):
-    def insert_license(self):
-        pass
 
 
 def _walk_dirs_and_replace(dir_path, new, ext_in: list = None):

@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from cereja.unicode import Unicode
+from cereja.system.unicode import Unicode
 import string
 
 ENG_CONTRACTIONS = {

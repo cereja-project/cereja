@@ -20,21 +20,22 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 import operator
 import random
 import statistics
-from functools import reduce
 import math
+from functools import reduce
 from typing import Any, Sequence, Tuple, Union, List, Optional
 import copy
-from cereja.cj_types import Number, Shape
+from cereja.config.cj_types import Number, Shape
 import logging
 
-__all__ = ['Matrix', 'array_gen', 'array_randn', 'div', 'dot', 'dotproduct', 'flatten', 'get_cols', 'get_shape',
+__all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_shape',
            'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'is_iterable', 'is_numeric_sequence',
            'is_sequence',
-           'prod', 'rand_n', 'rand_uniform', 'remove_duplicate_items', 'reshape', 'shape_is_ok', 'sub', 'theta_angle']
+           'rand_n', 'rand_uniform', 'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
+           'sub', 'prod']
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,51 +69,6 @@ def is_numeric_sequence(obj: Sequence[Number]) -> bool:
     except (TypeError, ValueError):
         return False
     return True
-
-
-def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
-    """
-    Calculates and returns theta angle between two vectors
-
-    e.g usage:
-    >>> u = (2,2)
-    >>> v = (0, -2)
-    >>> theta_angle(u, v)
-    135.0
-    """
-    x1, y1 = u
-    x2, y2 = v
-    return math.degrees(math.acos((x1 * x2 + y1 * y2) / (math.sqrt(x1 ** 2 + y1 ** 2) * math.sqrt(x2 ** 2 + y2 ** 2))))
-
-
-def prod(sequence: Sequence[Number]) -> Number:
-    """
-    Calculates the product of the values.
-
-    This function is intended specifically for use with numeric values and may
-    reject non-numeric types.
-
-    :param sequence: Is a sequence of numbers.
-    :return:
-    """
-    if not is_sequence(sequence):
-        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
-
-    return reduce((lambda x, y: x * y), sequence)
-
-
-def sub(sequence: Sequence[Number]) -> Number:
-    if not is_sequence(sequence):
-        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
-
-    return reduce((lambda x, y: x - y), sequence)
-
-
-def div(sequence: Sequence[Number]) -> Number:
-    if not is_sequence(sequence):
-        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
-
-    return reduce((lambda x, y: x / y), sequence)
 
 
 def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, ...]) -> bool:
@@ -181,7 +137,7 @@ def reshape(sequence: Sequence, shape):
     :return:
     """
 
-    pass
+    return NotImplementedError
 
 
 def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> List[Union[float, Any]]:
@@ -409,6 +365,36 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
 
 def get_cols(sequence: Union[Sequence, 'Matrix']):
     return list(zip(*sequence))
+
+
+def prod(sequence: Sequence[Number]) -> Number:
+    """
+    Calculates the product of the values.
+
+    This function is intended specifically for use with numeric values and may
+    reject non-numeric types.
+
+    :param sequence: Is a sequence of numbers.
+    :return:
+    """
+    if not is_sequence(sequence):
+        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+
+    return reduce((lambda x, y: x * y), sequence)
+
+
+def sub(sequence: Sequence[Number]) -> Number:
+    if not is_sequence(sequence):
+        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+
+    return reduce((lambda x, y: x - y), sequence)
+
+
+def div(sequence: Sequence[Number]) -> Number:
+    if not is_sequence(sequence):
+        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+
+    return reduce((lambda x, y: x / y), sequence)
 
 
 def dotproduct(vec1, vec2):

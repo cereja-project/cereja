@@ -20,12 +20,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import warnings
-from cereja.arraytools import get_cols
-from cereja.datatools.pln import LanguageData
-from cereja.filetools import File
+from cereja.array import get_cols
+from cereja.mltools.pln import LanguageData
+from cereja.file.core import File
 import random
 import csv
-from cereja.path import Path
+from cereja.system.path import Path
 
 __all__ = ['Corpus']
 

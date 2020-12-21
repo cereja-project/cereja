@@ -30,10 +30,9 @@ import logging
 import warnings
 from cereja import utils
 
+__all__ = ['depreciation', 'synchronized', 'time_exec', 'sync_to_async', 'async_to_sync']
 
-__all__ = ['depreciation', 'synchronized', 'time_exec']
-
-from cereja.cj_types import PEP440
+from cereja.config.cj_types import PEP440
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +69,8 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
 
 
 # Lowercase is more sensible for most things, and import_string is because Cyclic imports
-sync_to_async = utils.import_string('cereja.concurrently.SyncToAsync')
-async_to_sync = utils.import_string('cereja.concurrently.AsyncToSync')
+sync_to_async = utils.import_string('cereja.concurrently._concurrence.SyncToAsync')
+async_to_sync = utils.import_string('cereja.concurrently._concurrence.SyncToAsync')
 
 
 class BaseDecorator(abc.ABC):
@@ -137,9 +136,9 @@ def depreciation(alternative: str = None):
 
 
 if __name__ == "__main__":
-    @depreciation(alternative="arraytools.rand_n")
+    @depreciation(alternative="array.rand_n")
     def test_deprecated_warn(val):
-        from cereja.arraytools import rand_n as randn
+        from cereja.array import rand_n as randn
         return randn(val, 3)
 
 

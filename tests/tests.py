@@ -26,17 +26,20 @@ import time
 import unittest
 import logging
 
-from cereja.arraytools import group_items_in_batches, is_iterable, remove_duplicate_items, theta_angle, flatten, \
-    is_sequence, array_gen, get_shape, Matrix, prod
-from cereja import filetools
-from cereja.cj_types import Number
-from cereja.datatools import Corpus, preprocess
-from cereja.datatools.data import Freq
-from cereja.datatools.pln import LanguageData, Preprocessor
+import cereja.file.core
+from cereja.array import group_items_in_batches, is_iterable, remove_duplicate_items, flatten, \
+    is_sequence, array_gen, get_shape, Matrix
+from cereja.array import prod
+from cereja.mathtools import theta_angle
+from cereja.config.cj_types import Number
+from cereja.mltools import Corpus, preprocess
+from cereja.mltools.data import Freq
+from cereja.mltools.pln import LanguageData
 from cereja.display import State, Progress
-from cereja.path import Path
-from cereja.unicode import Unicode
+from cereja.system.path import Path
+from cereja.system.unicode import Unicode
 from cereja.utils import CjTest
+from cereja.hashtools import base64_decode, base64_encode, is_base64, md5
 
 logger = logging.getLogger(__name__)
 
@@ -162,26 +165,26 @@ class FileToolsTestCase(unittest.TestCase):
 
     def test_file_obj(self):
         content_file = [1, 2, 3]
-        file = filetools.File('cereja/teste.py', content_file)
-        normalized_data = f'{filetools.LF}'.join(filetools.FileBase.normalize_data(content_file))
+        file = cereja.file.core.File('cereja/teste.py', content_file)
+        normalized_data = f'{cereja.file.core.LF}'.join(cereja.file.core.FileBase.normalize_data(content_file))
         expected_values = ["LF", "teste.py", 'cereja', False, normalized_data, len(content_file), 0.006]
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CRLF", save=False)
-        normalized_data = f'{filetools.CRLF}'.join(filetools.FileBase.normalize_data(content_file))
+        normalized_data = f'{cereja.file.core.CRLF}'.join(cereja.file.core.FileBase.normalize_data(content_file))
         expected_values[0] = "CRLF"
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CR", save=False)
-        normalized_data = f'{filetools.CR}'.join(filetools.FileBase.normalize_data(content_file))
+        normalized_data = f'{cereja.file.core.CR}'.join(cereja.file.core.FileBase.normalize_data(content_file))
         expected_values[0] = "CR"
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
 
     def test_base_sanity(self):
         data = ['first line', 'second line', 'third line']
-        file = filetools.TxtFile('test.txt', data)
+        file = cereja.file.core.TxtFile('test.txt', data)
         self.assertTrue(str(file) == "TxtFile<test.txt>")
         self.assertEqual(file.data, ['first line', 'second line', 'third line'])
         for line in file:
@@ -211,7 +214,7 @@ class FileToolsTestCase(unittest.TestCase):
 
     def test_json_sanity(self):
         data = {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
-        file = filetools.File('test.json', data)
+        file = cereja.file.core.File('test.json', data)
         self.assertEqual(str(file), 'JsonFile<test.json>')
         self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3'})
 
@@ -232,7 +235,7 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 'value4'})
 
     def test_csv_sanity(self):
-        file = filetools.CsvFile('test.csv', fieldnames=['col1', 'col2', 'col3'])  # ram only, not yet saved
+        file = cereja.file.core.CsvFile('test.csv', fieldnames=['col1', 'col2', 'col3'])  # ram only, not yet saved
         self.assertEqual(str(file), "CsvFile<test.csv>")
         file.add_row([1, 2, 3])
         self.assertEqual(file.lines, [[1, 2, 3]])
@@ -257,7 +260,7 @@ class FileToolsTestCase(unittest.TestCase):
 
     def get_file(self):
         content_file = [1, 2, 3]
-        file = filetools.File(f"{os.path.dirname(__file__)}.txt", content_file)
+        file = cereja.file.core.File(f"{os.path.dirname(__file__)}.txt", content_file)
         return file
 
     def test_insertion_content(self):
@@ -279,7 +282,7 @@ class FileToolsTestCase(unittest.TestCase):
         file.undo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
 
-        file = filetools.File('test.txt')
+        file = cereja.file.core.File('test.txt')
         file.append([1, 2, 4])
         self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4'])])
         file.append(10)
@@ -299,11 +302,11 @@ class FileToolsTestCase(unittest.TestCase):
         expected = {'1': 2, 'four': 4, 'six': 6}
 
         # Normalize test
-        self.assertDictEqual(filetools.JsonFile.normalize_data(data), expected)
-        self.assertDictEqual(filetools.JsonFile.normalize_data(expected.items()), expected)
-        self.assertDictEqual(filetools.JsonFile.normalize_data(1), {'1': None})
-        self.assertDictEqual(filetools.JsonFile.normalize_data(()), {})
-        self.assertDictEqual(filetools.JsonFile.normalize_data((1, 2, 3)), {'1': None, '2': None, '3': None})
+        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data(data), expected)
+        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data(expected.items()), expected)
+        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data(1), {'1': None})
+        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data(()), {})
+        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data((1, 2, 3)), {'1': None, '2': None, '3': None})
 
 
 class PathTest(unittest.TestCase):
@@ -442,6 +445,22 @@ class LanguageDataTestCase(unittest.TestCase):
         data = LanguageData(['how are you?', 'I like it', 'cereja', 'cherry'])
         self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja', 'cherry']), 1)
         self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja']), 0.875)
+
+
+class HashToolsTestCase(unittest.TestCase):
+    def test_sanity(self):
+        vals = ([1, 2, '3'],
+                (1, '2', '1'),
+                {'hi': 1, 'hello': 3, 'deep': {'oi'}},
+                1,
+                2,
+                b'a')
+        for val in vals:
+            res = base64_encode(val)
+            self.assertTrue(is_base64(res))
+            self.assertEqual(val, base64_decode(res))
+
+        self.assertEqual('fc4d5dcfe7146d09b7fbad980fb90797', md5('set the alarm clock for seven of the clock .'))
 
 
 if __name__ == '__main__':
