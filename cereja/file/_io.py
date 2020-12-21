@@ -56,6 +56,16 @@ class _IFileIO(metaclass=ABCMeta):
     def updated_at(self):
         pass
 
+    @property
+    @abstractmethod
+    def created_at(self):
+        pass
+
+    @property
+    @abstractmethod
+    def last_access(self):
+        pass
+
     @abstractmethod
     def load(self, *args, **kwargs) -> Any:
         pass
@@ -112,7 +122,15 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
 
     @property
     def updated_at(self):
-        return datetime.fromtimestamp(os.stat(str(self.path)).st_mtime).strftime(self._date_format)
+        return datetime.fromtimestamp(os.stat(str(self._path)).st_mtime).strftime(self._date_format)
+
+    @property
+    def created_at(self):
+        return datetime.fromtimestamp(os.stat(str(self._path)).st_ctime).strftime(self._date_format)
+
+    @property
+    def last_access(self):
+        return datetime.fromtimestamp(os.stat(str(self._path)).st_atime).strftime(self._date_format)
 
     @property
     def name(self):
