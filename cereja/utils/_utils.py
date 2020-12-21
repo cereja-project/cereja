@@ -154,6 +154,15 @@ def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
     return value
 
 
+def class_methods(klass) -> List[str]:
+    methods = []
+    for i in dir(klass):
+        if i.startswith('_') or not callable(getattr(klass, i)):
+            continue
+        methods.append(i)
+    return methods
+
+
 def module_references(instance: types.ModuleType, **kwargs) -> dict:
     """
     dict of all functions and classes defined in the module.
