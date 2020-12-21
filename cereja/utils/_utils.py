@@ -19,6 +19,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import ast
 import gc
 import time
 from importlib import import_module
@@ -37,7 +38,8 @@ from cereja.config.cj_types import ClassType, FunctionType
 
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
-           'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format']
+           'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
+           'literal_eval']
 logger = logging.getLogger(__name__)
 
 
@@ -161,6 +163,15 @@ def class_methods(klass) -> List[str]:
             continue
         methods.append(i)
     return methods
+
+
+def literal_eval(val: str):
+    if isinstance(val, str):
+        try:
+            return ast.literal_eval(val)
+        except:
+            pass
+    return val
 
 
 def module_references(instance: types.ModuleType, **kwargs) -> dict:

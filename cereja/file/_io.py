@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, List, Union, Type
 import json
 from cereja import Path
+from cereja.utils import literal_eval
 
 logger = logging.Logger(__name__)
 
@@ -67,11 +68,11 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def load(self, *args, **kwargs) -> Any:
+    def load(self, mode=None, **kwargs) -> Any:
         pass
 
     @abstractmethod
-    def save(self, *args, **kwargs):
+    def save(self, on_new_path: Union[str, Path] = None, exist_ok=False, overwrite=False, **kwargs):
         pass
 
     @abstractmethod
@@ -170,7 +171,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         """
         return f'{mode}+b' if self._is_byte else f'{mode}+'
 
-    def load(self, *args, mode=None, **kwargs) -> Any:
+    def load(self, mode=None, **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
             logger.warning(f"I can't read this file. See class attribute <{self.__name__}._dont_read>")
             return
@@ -199,6 +200,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         assert 'w' in mode, f"{mode} for write isn't valid."
         with open(self._path, mode=mode, **kwargs) as fp:
             fp.write(data)
+        # TODO: delete file if error
 
     def delete(self):
         self._path.rm()
@@ -231,7 +233,7 @@ class _TxtIO(_FileIO):
 
     def parse(self, data: Union[str, bytes, list, tuple, int, float, complex]) -> List[Union[str, int, float, complex]]:
         if isinstance(data, (str, bytes)):
-            return data.splitlines()
+            return [literal_eval(i) for i in data.splitlines()]
         if isinstance(data, (int, float, complex)):
             return [data]
         elif isinstance(data, (list, tuple)):
@@ -240,7 +242,11 @@ class _TxtIO(_FileIO):
             raise TypeError(f"{type(data)} isn't valid")
 
     def save(self, *args, **kwargs):
-        super()._save('\n'.join(self.data))
+        super()._save(self.string, **kwargs)
+
+    @property
+    def string(self):
+        return '\n'.join((str(i) for i in self.data))
 
 
 class _JsonIO(_FileIO):
@@ -282,7 +288,9 @@ class FileIO:
 
     @classmethod
     def create(cls, path_: Union[Type[Path], str], data: Any) -> _IFileIO:
-        pass
+        path_ = Path(path_)
+        klass, klass_kwargs = cls.__ext_supported.get(path_.suffix, [_GenericFile, {}])
+        return klass(path_=path_, data=data, creation_mode=True)
 
     @classmethod
     def load(cls, path_: Union[str, Path], **kwargs) -> _IFileIO:
@@ -327,6 +335,5 @@ class FileIO:
 
 
 if __name__ == '__main__':
-    files = FileIO.load('C:/Users/leite/Downloads/tokenizador - Copia.json')
-    files.save()
-    input()
+    files = FileIO.load('./teste.txt')
+    files.save(exist_ok=True)
