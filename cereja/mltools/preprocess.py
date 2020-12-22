@@ -22,10 +22,10 @@ SOFTWARE.
 """
 
 import re
-from typing import AnyStr, Sequence, Union
+from typing import AnyStr, Sequence, Union, List
 from unicodedata import normalize as _normalize
 
-from cereja._constants import ENG_CONTRACTIONS, PUNCTUATION, VALID_LANGUAGE_CHAR
+from cereja.config._constants import ENG_CONTRACTIONS, PUNCTUATION, VALID_LANGUAGE_CHAR, LANGUAGES, STOP_WORDS
 
 _NORMALIZE_VALUES = ''.join(PUNCTUATION)
 
@@ -101,4 +101,15 @@ def remove_punctuation(sentence: str, punctuation: str = None):
     punctuation = punctuation or ''.join(PUNCTUATION)
     for x in punctuation:
         sentence = sentence.replace(x, '')
+    return sentence.strip()
+
+
+def remove_stop_words(sentence: str, stop_words: List[str] = None, language: str = 'english'):
+    language = language.lower()
+    if language not in LANGUAGES:
+        print(f'Idioma "{language}" não encontrado. Idiomas disponíveis: {LANGUAGES}')
+
+    stop_words = stop_words if stop_words else STOP_WORDS.get(language, None)
+    sentence = ' '.join([word for word in sentence.split() if word.lower() not in stop_words]) if stop_words \
+               else sentence
     return sentence.strip()

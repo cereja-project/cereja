@@ -1,5 +1,4 @@
 """
-
 Copyright (c) 2019 The Cereja Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,31 +19,28 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
-import argparse
-import os
+import subprocess
 import sys
-from cereja import get_version_pep440_compliant, Path
-from cereja.file.core import crlf_to_lf, File
-from cereja.config import BASE_DIR
 
-if __name__ == "__main__":
-    sys.stdout.write("\U0001F352 Cereja Tools\n")
-    sys.stdout.flush()
-    parser = argparse.ArgumentParser(description='Cereja Tools.')
-    parser.add_argument('--version', action='version', version=get_version_pep440_compliant())
-    parser.add_argument('--crlf_to_lf')
-    parser.add_argument('--lf_to_crlf')
-    parser.add_argument('--startmodule', type=str)
-    args = parser.parse_args()
-    if args.crlf_to_lf:
-        crlf_to_lf(args.crlf_to_lf)
+__all__ = ['memory_of_this', 'memory_usage', 'run_on_terminal']
 
-    if args.startmodule:
-        base_dir = Path(BASE_DIR)
-        license_ = '"""\n' + File.load(base_dir.parent.join('LICENSE')).string + '\n"""'
-        new_module_path = base_dir.join(*args.startmodule.split('/'))
-        if new_module_path.parent.exists and new_module_path.parent.is_dir:
-            File(new_module_path, license_).save()
-        else:
-            print(f"{new_module_path} is not valid.")
+
+def memory_of_this(obj):
+    return sys.getsizeof(obj)
+
+
+def memory_usage(n_most=10):
+    return sorted(map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()), key=lambda x: x[1], reverse=True)[
+           :n_most]
+
+
+def run_on_terminal(cmd: str):
+    try:
+        subprocess.run(
+                cmd,
+                shell=True, stdout=subprocess.PIPE).check_returncode()
+    except subprocess.CalledProcessError as err:
+        err_output = err.output.decode()
+        raise Exception(f"{err}:{err_output}")
+    except Exception as err:
+        raise Exception(err)

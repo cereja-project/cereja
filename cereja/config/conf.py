@@ -24,16 +24,17 @@ SOFTWARE.
 import sys
 import logging
 from abc import abstractmethod, ABCMeta
+import os
 
-from .utils import get_version_pep440_compliant
-
-__all__ = ['_BasicConfig']
+__all__ = ['BasicConfig', 'BASE_DIR']
 
 # using by utils.module_references
 _exclude = ["console_logger", "cj_modules_dotted_path"]
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-class _BasicConfig(metaclass=ABCMeta):
+
+class BasicConfig(metaclass=ABCMeta):
     def __init__(self, hook=None, **kwargs):
         self._fields = ()
         self._listen = hook
@@ -90,7 +91,7 @@ class _BasicConfig(metaclass=ABCMeta):
 
 
 # Used to add the functions of each module at the root
-cj_modules_dotted_path = ['cereja.arraytools', 'cereja.conf', 'cereja.decorators', 'cereja.path',
+cj_modules_dotted_path = ['cereja.array', 'cereja.conf', 'cereja.decorators', 'cereja.path',
                           'cereja.utils', 'cereja.concurrently', 'cereja.display', 'cereja.filetools', 'cereja.unicode',
                           'cereja.datatools.split_data', 'cereja.datatools.pln', 'cereja.datatools.data']
 

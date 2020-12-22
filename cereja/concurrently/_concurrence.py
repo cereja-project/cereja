@@ -26,18 +26,19 @@ import functools
 import os
 import threading
 import time
+from collections import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 import logging
 from typing import Sequence, Any
 
-from cereja.cj_types import FunctionType
-from cereja.arraytools import is_sequence
-from cereja.decorators import time_exec
+from cereja.config.cj_types import FunctionType
+from cereja.array import is_sequence
+from cereja.utils.decorators import time_exec
 
 __all__ = ['TaskList']
 logger = logging.getLogger(__name__)
 
-_exclude = ['AsyncToSync', 'SyncToAsync']
+_exclude = ['AsyncToSync', 'SyncToAsync', 'TaskList']
 
 try:
     import contextvars  # Python 3.7+ only.
@@ -247,8 +248,8 @@ class TaskList:
     """
 
     def __init__(self, func: FunctionType, sequence: Sequence[Any]):
-        if not isinstance(func, FunctionType):
-            raise TypeError(f"{func} is not a function.")
+        if not isinstance(func, Callable):
+            raise TypeError(f"{func} is not callable.")
 
         if not is_sequence(sequence):
             raise TypeError(f"sequence is not valid.")

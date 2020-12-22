@@ -1,13 +1,16 @@
 """
 Copyright (c) 2019 The Cereja Project
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
+
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -16,11 +19,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
-import datetime
-import functools
 import gc
-import os
 import time
 from importlib import import_module
 import subprocess
@@ -28,16 +27,33 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Dict
+from typing import Any, Union, List, Tuple
 import logging
 import itertools
 from copy import copy
 # Needed init configs
-from logging import config
 
-from cereja.cj_types import PEP440, Number, ClassType, FunctionType
+from cereja.config.cj_types import ClassType, FunctionType
 
+__all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
+           'get_implements', 'get_instances_of', 'import_string',
+           'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format']
 logger = logging.getLogger(__name__)
+
+
+def type_table_of(o: Union[list, tuple, dict]):
+    if isinstance(o, (list, tuple)):
+        type_table = {i: type(i) for i in o}
+    elif isinstance(o, dict):
+        type_table = {}
+        for k, v in o.items():
+            if isinstance(o, dict):
+                v = type_table_of(v)
+            type_table[k] = (v, type(v))
+    else:
+        type_table = {o: type(o)}
+
+    return type_table
 
 
 def camel_to_snake(value: str):
@@ -65,7 +81,7 @@ def get_instances_of(klass: type):
     return filter(lambda x: isinstance(x, klass), gc.get_objects())
 
 
-def invert_dict(dict_: Dict[Any, Any]) -> dict:
+def invert_dict(dict_: Union[dict, set]) -> dict:
     """
     Inverts the key by value
     e.g:
@@ -74,9 +90,19 @@ def invert_dict(dict_: Dict[Any, Any]) -> dict:
     {"b" : "a", "d": "c"}
     :return: dict
     """
+
     if not isinstance(dict_, dict):
         raise TypeError("Send a dict object.")
-    return dict(zip(dict_.values(), dict_.keys()))
+    new_dict = {}
+    for key, value in dict_.items():
+        if isinstance(value, dict):
+            new_dict.update({key: invert_dict(value)})
+            continue
+        if isinstance(value, (tuple, list, set)):
+            new_dict.update({k: key for k in dict_[key]})
+            continue
+        new_dict[value] = key
+    return new_dict
 
 
 def import_string(dotted_path):
@@ -101,18 +127,6 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
     if hasattr(obj, attr):
         return getattr(obj, attr)
     return None
-
-
-def percent(from_: Number, to: Number, ndigits=2) -> Number:
-    to = to or 1
-    return round((from_ / to) * 100, ndigits)
-
-
-def estimate(from_: Number, to: Number, based: Number, ndigits=2) -> Number:
-    if from_ > 0:
-        based = based or 1
-        return round((based / from_) * to - based, ndigits)
-    return float('NaN')
 
 
 def time_format(seconds: float, format_='%H:%M:%S') -> Union[str, float]:
@@ -199,76 +213,6 @@ def set_log_level(level: Union[int, str]):
 def logger_level():
     import logging
     return logging.getLogger().level
-
-
-def get_version(version: Union[str, PEP440] = None) -> PEP440:
-    """
-    Dotted version of the string type is expected
-    e.g:
-    '1.0.3.a.3' # Pep440 see https://www.python.org/dev/peps/pep-0440/
-    :param version: Dotted version of the string
-    """
-    if version is None:
-        from cereja import VERSION as version
-
-    if isinstance(version, str):
-        version = version.split('.')
-        version_note = version.pop(3)
-        version = list(map(int, version))
-        version.insert(3, version_note)
-
-    assert len(version) == 5, "Version must be size 5"
-
-    assert version[3] in ('alpha', 'beta', 'rc', 'final')
-    return version
-
-
-@functools.lru_cache()
-def latest_git():
-    """
-    Return a numeric identifier of the latest git changeset.
-    """
-    repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    git_log = subprocess.run(
-            ['git', 'log', '--pretty=format:%ct', '--quiet', '-1', 'HEAD'],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            shell=True, cwd=repo_dir, universal_newlines=True,
-    )
-    timestamp = git_log.stdout
-    try:
-        timestamp = datetime.datetime.utcfromtimestamp(int(timestamp))
-    except ValueError:
-        return None
-    return timestamp.strftime('%Y%m%d%H%M%S')
-
-
-def get_version_pep440_compliant(version: str = None) -> str:
-    """
-    Dotted version of the string type is expected
-    e.g:
-    '1.0.3.a.3' # Pep440 see https://www.python.org/dev/peps/pep-0440/
-    :param version: Dotted version of the string
-    """
-    version_mapping = {'alpha': 'a', 'beta': 'b', 'rc': 'rc'}
-    version = get_version(version)
-    root_version = '.'.join(map(str, version[:3]))
-
-    sub = ''
-    if version[3] == 'alpha' and version[4] == 0:
-        git = latest_git()
-        if git:
-            sub = f'.dev{git}'
-
-    elif version[3] != 'final':
-        sub = version_mapping[version[3]] + str(version[4])
-    elif version[3] == 'final' and version[4] != 0:
-        sub = f'-{version[4]}'
-
-    return f"{root_version}{sub}"
-
-
-def proportional(value, pro_of_val: int):
-    return (pro_of_val / 100) * value
 
 
 def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: bool = False) -> List[Tuple[Any, ...]]:
@@ -440,45 +384,12 @@ class CjTest(object):
             self.check_attr(attr_)
 
 
-if __name__ == '__main__':
-    class A:
-        def __init__(self, attr_a, attr_b):
-            self._attr_a = attr_a
-            self._attr_b = attr_b
-
-        def set_attr_a(self, value):
-            self._attr_a = value
-
-        def set_attr_b(self, value):
-            self._attr_b = value
-
-
-    my_instance = A("Cereja Tests", "Is Easy")
-    my_test = CjTest(my_instance)
-    my_instance.set_attr_a("Cereja")
-    my_test.add_check(
-            my_test._attr_a == 'Cereja',
-            my_test._attr_b == "Joab"
-    )
-    my_test.check_all()
-
-
-def memory_of_this(obj):
-    return sys.getsizeof(obj)
-
-
-def memory_usage(n_most=10):
-    return sorted(map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()), key=lambda x: x[1], reverse=True)[
-           :n_most]
-
-
-def run_on_terminal(cmd: str):
-    try:
-        subprocess.run(
-                cmd,
-                shell=True, stdout=subprocess.PIPE).check_returncode()
-    except subprocess.CalledProcessError as err:
-        err_output = err.output.decode()
-        raise Exception(f"{err}:{err_output}")
-    except Exception as err:
-        raise Exception(err)
+def _add_license(base_dir, ext='.py'):
+    from cereja.file import File
+    from cereja.config import BASE_DIR
+    licence_file = File.load(BASE_DIR)
+    for file in File.load_files(base_dir, ext=ext, recursive=True):
+        if 'Copyright (c) 2019 The Cereja Project' in file.string:
+            continue
+        file.insert('"""\n' + licence_file.string + '\n"""')
+        file.save(exist_ok=True)
