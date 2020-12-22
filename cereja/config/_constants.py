@@ -145,8 +145,9 @@ ENG_CONTRACTIONS = {
 }
 PUNCTUATION = [',', '!', '#', '$', '%', "'", '*', '+', '-', '.', '/', '?', '@', '\\', '^', '_', '~']
 STOP_WORDS = {
-    'english': {'is', 'are', 'am', 'at', 'a', 'an', 'of', 'the'}
+    'english': ['is', 'are', 'am', 'at', 'a', 'an', 'of', 'the']
 }
+LANGUAGES = {'english'}
 VALID_LANGUAGE_CHAR = {chr(i) for i in range(10000) if 'LETTER' in Unicode(i).name}
 VALID_LANGUAGE_CHAR.update(string.digits)
 VALID_LANGUAGE_CHAR.update(string.punctuation)
