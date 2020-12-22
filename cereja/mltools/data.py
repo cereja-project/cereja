@@ -26,10 +26,10 @@ import math
 from collections import Counter
 from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
-from cereja.array import is_iterable, is_sequence, get_shape
+from cereja.array import is_iterable, is_sequence
 from cereja.file.core import JsonFile
 from cereja.utils import invert_dict
-from cereja.mltools.preprocess import remove_extra_chars, remove_punctuation, remove_stop_words, \
+from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
 
 __all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf']
@@ -175,7 +175,7 @@ class Tokenizer:
     def language_data(cls, data):
         # because circular import
         # TODO: fix me
-        from cereja.datatools.pln import LanguageData
+        from cereja.mltools.pln import LanguageData
         return LanguageData(data)
 
     @property
@@ -309,7 +309,7 @@ class TfIdf:
             num_of_words[w] += 1
         return num_of_words
 
-    def _compute_idf(self, sentences: List[str]) -> Dict[str, int]:
+    def _compute_idf(self, sentences: List[str]) -> Dict[str, Union[int, float]]:
         n = len(sentences)
         print('Computing idf...')
         idf_dict = dict.fromkeys(self.corpus_bow, 0.0)
@@ -339,8 +339,8 @@ class TfIdf:
             tf_dict[word] = count / float(bow_count) if float(bow_count) else 0
         return tf_dict
 
-    def sentence_tf_idf(self, sentence: str, language: str = 'english', \
-                        use_filter: bool = True) -> Union[Dict[str, float], Set[Tuple[str, float]]]:
+    def sentence_tf_idf(self, sentence: str, language: str = 'english', use_filter: bool = True) -> \
+            Union[Dict[str, float], Set[Tuple[str, float]]]:
         tf_idf = {}
         sentence = self._clean_sentence(sentence, language=language)
         sentence_bow = self.sentence_bag_of_words(sentence)
@@ -353,13 +353,3 @@ class TfIdf:
 
     def inverse_data_frequency_order(self, reverse=False):
         return sorted([(w, idf) for w, idf in self.idf.items()], key=lambda x: x[1], reverse=reverse)
-
-
-if __name__ == '__main__':
-    tokenizer = Tokenizer(data=['i like it', 'my name is Joab', 'hello'])
-    sequences = tokenizer.encode(data=['hello my friend, how are you?', 'my name is mário'])
-    decoded = []
-    for encoded_sequence, hash_ in sequences:
-        decoded.append(tokenizer.replace_unks(' '.join(tokenizer.decode(encoded_sequence)), hash_))
-
-    print(decoded)
