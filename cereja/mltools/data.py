@@ -32,7 +32,7 @@ from cereja.utils import invert_dict
 from cereja.mltools.preprocess import remove_extra_chars, remove_punctuation, remove_stop_words, \
     replace_english_contractions
 
-__all__ = ['ConnectValues', 'Freq', 'Tokenizer']
+__all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf']
 logger = logging.Logger(__name__)
 
 
