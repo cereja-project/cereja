@@ -189,7 +189,7 @@ class LanguageData(BaseData):
     def words(self):
         return set(self._words_freq)
 
-    def preprocess(self, value: str):
+    def preprocess(self, value: Union[str, List[str]]):
         return self._preprocessor.preprocess(value)
 
     def synergy(self, value: Union[Iterable[str], str]) -> Number:
