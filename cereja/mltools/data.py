@@ -32,7 +32,7 @@ from cereja.utils import invert_dict
 from cereja.mltools.preprocess import remove_extra_chars, remove_punctuation, remove_stop_words, \
     replace_english_contractions
 
-__all__ = ['ConnectValues', 'Freq', 'Tokenizer']
+__all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf']
 logger = logging.Logger(__name__)
 
 
@@ -339,7 +339,7 @@ class TfIdf:
             tf_dict[word] = count / float(bow_count) if float(bow_count) else 0
         return tf_dict
 
-    def sentence_tf_idf(self, sentence: str, language: str = 'english', \
+    def sentence_tf_idf(self, sentence: str, language: str = 'english',\
                         use_filter: bool = True) -> Union[Dict[str, float], Set[Tuple[str, float]]]:
         tf_idf = {}
         sentence = self._clean_sentence(sentence, language=language)
