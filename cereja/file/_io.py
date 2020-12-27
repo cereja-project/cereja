@@ -1,11 +1,13 @@
+import ast
 import copy
+import csv
 import logging
 import os
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from typing import Any, List, Union, Type
 import json
-from cereja import Path
+from cereja import Path, get_cols, flatten, get_shape, is_sequence
 from cereja.utils import literal_eval
 
 logger = logging.Logger(__name__)
@@ -343,11 +345,78 @@ class _Mp4IO(_FileIO):
         return data
 
 
+class _CsvIO(_FileIO):
+    _is_byte: bool = False
+    _only_read = False
+    _fieldnames = ()
+
+    def _replace(self, value):
+        return value.replace('[', '').replace(']', '').replace(' ', '').replace("'",
+                                                                                '').replace(
+                '"', '')
+
+    def save(self, **kwargs):
+        fields = self._replace(str(list(self._fieldnames))) + '\n'
+        super()._save(
+                fields + '\n'.join((self._replace(str(i)) for i in self.data)),
+                **kwargs)
+
+    @property
+    def cols(self):
+        return self._fieldnames
+
+    @property
+    def n_cols(self):
+        return len(self._fieldnames)
+
+    @classmethod
+    def _ast(cls, row):
+        vals = []
+        for val in row:
+            if isinstance(val, str):
+                try:
+                    val_parsed = ast.literal_eval(val)
+                    val = val_parsed if isinstance(val_parsed, (int, float, complex)) else val
+                except:
+                    pass
+            vals.append(val)
+        return vals
+
+    def parse(self, data: Union[str, bytes]) -> Any:
+        data = data.splitlines()
+        self._fieldnames = data.pop(0).split(',')
+        return list(map(lambda r: self._ast(r.split(',')), data))
+
+    def to_dict(self):
+        return dict(zip(self.cols, get_cols(self.data)))
+
+    def flatten(self):
+        return flatten(self._data)
+
+    def shape(self):
+        return get_shape(self._data)
+
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            if item not in self.cols:
+                raise ValueError(f'Column name <{item}> not in {self.cols}')
+            return get_cols(self.data)[self.cols.index(item)]
+        if isinstance(item, tuple):
+            lines, col = item
+            if isinstance(col, tuple):
+                raise ValueError("Isn't Possible.")
+            assert col <= self.n_cols - 1, ValueError(
+                    f"Invalid Column. Choice available index {list(range(self.n_cols))}")
+            return get_cols(self.data)[col][lines]
+        return super().__getitem__(item)
+
+
 class FileIO:
     # ext: [ext_class, kwargs] *kwargs send to __builtin__ open
     __ext_supported = {'.txt':  (_TxtIO, {}),
                        '.json': (_JsonIO, {}),
                        '.mp4':  (_Mp4IO, {}),
+                       '.csv':  (_CsvIO, {})
                        }
 
     def __new__(cls, path_, **kwargs):
@@ -402,5 +471,5 @@ class FileIO:
 
 
 if __name__ == '__main__':
-    files = FileIO.load('C:/Users/leite/Downloads/tokenizador - Copia.json')
+    files = FileIO.load('C:/Users/leite/Downloads/LZvTCUd3YgDhQprErnQV_0.61.csv')
     files.save(exist_ok=True)
