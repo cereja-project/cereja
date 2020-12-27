@@ -35,7 +35,7 @@ from cereja.utils.version import get_version_pep440_compliant
 from cereja import concurrently
 from cereja.system.unicode import *
 
-VERSION = "1.3.0.beta.0"
+VERSION = "1.3.0.rc.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
