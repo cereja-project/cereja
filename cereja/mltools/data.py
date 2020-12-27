@@ -22,14 +22,17 @@ SOFTWARE.
 """
 import logging
 import secrets
+import math
 from collections import Counter
-from typing import Optional, Sequence, Dict, Any, List, Union, Tuple
+from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
-from cereja.array import is_iterable, is_sequence, get_shape
+from cereja.array import is_iterable, is_sequence
 from cereja.file.core import JsonFile
 from cereja.utils import invert_dict
+from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
+    replace_english_contractions
 
-__all__ = ['ConnectValues', 'Freq', 'Tokenizer']
+__all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf']
 logger = logging.Logger(__name__)
 
 
@@ -172,7 +175,7 @@ class Tokenizer:
     def language_data(cls, data):
         # because circular import
         # TODO: fix me
-        from cereja.datatools.pln import LanguageData
+        from cereja.mltools.pln import LanguageData
         return LanguageData(data)
 
     @property
@@ -264,11 +267,89 @@ class Tokenizer:
         return sentence
 
 
-if __name__ == '__main__':
-    tokenizer = Tokenizer(data=['i like it', 'my name is Joab', 'hello'])
-    sequences = tokenizer.encode(data=['hello my friend, how are you?', 'my name is mário'])
-    decoded = []
-    for encoded_sequence, hash_ in sequences:
-        decoded.append(tokenizer.replace_unks(' '.join(tokenizer.decode(encoded_sequence)), hash_))
+class TfIdf:
 
-    print(decoded)
+    def __init__(self, sentences: List[str]):
+        self._sentences = self.clean_sentences(sentences)
+        self._corpus_bow = self._corpus_bag_of_words(self.sentences)
+        self._idf = self._compute_idf(self.sentences)
+
+    @property
+    def sentences(self):
+        return self._sentences
+
+    @property
+    def corpus_bow(self):
+        return self._corpus_bow
+
+    @property
+    def idf(self):
+        return self._idf
+
+    @classmethod
+    def sentence_bag_of_words(cls, sentence: str) -> List[str]:
+        return sentence.split()
+
+    @classmethod
+    def _clean_sentence(cls, sentence: str, language: str = 'english') -> str:
+        sentence = replace_english_contractions(sentence) if language == 'english' else sentence
+        sentence = remove_punctuation(sentence)
+        sentence = remove_stop_words(sentence, language=language)
+        return sentence.lower()
+
+    @classmethod
+    def _corpus_bag_of_words(cls, sentences: List[str]):
+        corpus_bow = {word.lower() for sentence in sentences for word in sentence.split()}
+        print(f'{len(corpus_bow)} words on corpus')
+        return corpus_bow
+
+    def _sentence_num_of_words(self, sentence_bow: List[str]) -> Dict[str, int]:
+        num_of_words = dict.fromkeys(self.corpus_bow, 0)
+        for w in sentence_bow:
+            num_of_words[w] += 1
+        return num_of_words
+
+    def _compute_idf(self, sentences: List[str]) -> Dict[str, Union[int, float]]:
+        n = len(sentences)
+        print('Computing idf...')
+        idf_dict = dict.fromkeys(self.corpus_bow, 0.0)
+        for sentence in sentences:
+            num_of_words = self._sentence_num_of_words(self.sentence_bag_of_words(sentence))
+            for word, val in num_of_words.items():
+                if val > 0:
+                    idf_dict[word] += 1
+        for word, val in idf_dict.items():
+            idf_dict[word] = math.log(n / (val + 1))
+        print('idf computed!')
+        return idf_dict
+
+    @classmethod
+    def clean_sentences(cls, sentences: List[str], language: str = 'english') -> List[str]:
+        return [cls._clean_sentence(sentence, language) for sentence in sentences]
+
+    @classmethod
+    def ordered_tf_idf(cls, sentence_tf_idf: Set[Tuple[str, float]], reverse=True):
+        return sorted([word_score for word_score in sentence_tf_idf], key=lambda x: x[1], reverse=reverse)
+
+    @classmethod
+    def sentence_tf(cls, sentence_num_of_words: Dict[str, int], sentence_bag_of_words: List[str]) -> Dict[str, float]:
+        tf_dict = {}
+        bow_count = len(sentence_bag_of_words)
+        for word, count in sentence_num_of_words.items():
+            tf_dict[word] = count / float(bow_count) if float(bow_count) else 0
+        return tf_dict
+
+    def sentence_tf_idf(self, sentence: str, language: str = 'english', use_filter: bool = True) -> \
+            Union[Dict[str, float], Set[Tuple[str, float]]]:
+        tf_idf = {}
+        sentence = self._clean_sentence(sentence, language=language)
+        sentence_bow = self.sentence_bag_of_words(sentence)
+        sentence_now = self._sentence_num_of_words(sentence_bow)
+        sentence_tf = self.sentence_tf(sentence_now, sentence_bow)
+        for word, val in sentence_tf.items():
+            tf_idf[word] = val * self.idf[word]
+        tf_idf = set(filter(lambda x: x[1], tf_idf.items())) if use_filter else tf_idf
+        return tf_idf
+
+    def inverse_data_frequency_order(self, reverse=False):
+        return sorted([(w, idf) for w, idf in self.idf.items()], key=lambda x: x[1], reverse=reverse)
