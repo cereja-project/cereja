@@ -139,7 +139,7 @@ class Path(os.PathLike):
     def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
         self.__path = Path_(_norm_path(initial), *pathsegments)
         self.__parent = self.__path.parent.as_posix()
-        self._parent_name = self.__path.cwd().name
+        self._parent_name = self.__path.parent.name
         self._verify()
 
     def __fspath__(self):
