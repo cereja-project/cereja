@@ -46,6 +46,16 @@ logger = logging.getLogger(__name__)
 
 class UtilsTestCase(unittest.TestCase):
 
+    def setUp(self) -> None:
+        self.shapes = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
+        self.sequences = [
+            [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
+
+            [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
+
+            [[[0.]], [[0.]]]
+        ]
+
     def test_group_items_in_batches(self):
         tests = [([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
                  ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
@@ -104,20 +114,12 @@ class UtilsTestCase(unittest.TestCase):
         self.assertTrue(is_sequence(sequence))
 
         self.assertFalse(is_sequence('hi cereja'))
+        self.assertTrue(is_sequence(dict({'k1': 1, 'k2': 2}).keys()))
 
     def test_array_gen(self):
-        shapes = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
-        sequences_expecteds = [
-            [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
-
-            [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
-
-            [[[0.]], [[0.]]]
-        ]
-
-        for args, expecteds in zip(shapes, sequences_expecteds):
+        for args, expected in zip(self.shapes, self.sequences):
             data = array_gen(args)
-            self.assertEqual(data, expecteds)
+            self.assertEqual(data, expected)
 
         with_kwargs = [({"shape": (2, 1, 1), "v": ['hail', 'pythonics!']}, [[['hail']], [['pythonics!']]])
                        ]
@@ -127,16 +129,7 @@ class UtilsTestCase(unittest.TestCase):
             self.assertEqual(result, expecteds)
 
     def test_get_shape(self):
-        sequences = [
-            [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
-
-            [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
-
-            [[[0.]], [[0.]]]
-        ]
-        shapes_expecteds = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
-
-        for seq, expected_shape in zip(sequences, shapes_expecteds):
+        for expected_shape, seq in zip(self.shapes, self.sequences):
             shape_received = get_shape(seq)
             sequence_length = len(flatten(seq))
             self.assertEqual(sequence_length, prod(shape_received), msg=f"array shape {shape_received} is inconsistent")

@@ -73,7 +73,7 @@ sync_to_async = utils.import_string('cereja.concurrently._concurrence.SyncToAsyn
 async_to_sync = utils.import_string('cereja.concurrently._concurrence.SyncToAsync')
 
 
-class BaseDecorator(abc.ABC):
+class Decorator(abc.ABC):
     def __init__(self):
         self.func = None
 
@@ -96,7 +96,7 @@ class BaseDecorator(abc.ABC):
         return self.func(*args, **kwargs)
 
 
-class __Deprecated(BaseDecorator):
+class __Deprecated(Decorator):
     __warn = "This function will be deprecated in future versions"
     __alternative_template = "You can use {dotted_path}."
 

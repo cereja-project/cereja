@@ -5,10 +5,11 @@ import logging
 import os
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
-from typing import Any, List, Union, Type
+from io import BytesIO
+from typing import Any, List, Union, Type, TextIO, Iterable, Dict, Tuple
 import json
-from cereja import Path, get_cols, flatten, get_shape, is_sequence
-from cereja.utils import literal_eval
+from cereja import Path, get_cols, flatten, get_shape, is_sequence, fill
+from cereja.utils import string_to_literal
 
 logger = logging.Logger(__name__)
 
@@ -84,7 +85,7 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def parse(self, data: Union[str, bytes]) -> Any:
+    def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
         pass
 
     @abstractmethod
@@ -93,6 +94,10 @@ class _IFileIO(metaclass=ABCMeta):
 
     @abstractmethod
     def redo(self):
+        pass
+
+    @abstractmethod
+    def parse(self, data):
         pass
 
 
@@ -236,15 +241,16 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
             logger.warning(f"I can't read this file. See class attribute <{self.__name__}._dont_read>")
             return
         mode = mode or self._get_mode('r')
+        encoding = None if self._is_byte else 'utf-8'
         assert 'r' in mode, f"{mode} for read isn't valid."
         try:
-            with open(self._path.path, mode=mode, **kwargs) as fp:
-                return self.parse(fp.read())
+            with open(self._path.path, mode=mode, encoding=encoding, **kwargs) as fp:
+                return self._parse_fp(fp)
         except PermissionError as err:
             logger.error(err)
             return
         except Exception as err:
-            raise IOError(f"{err}\nError when trying to read the file {self._path}")
+            raise IOError(f"Error when trying to read the file {self._path}\n{err}")
 
     def _save(self, data, on_new_path: Union[str, Path] = None, mode=None, exist_ok=False, overwrite=False, **kwargs):
         if (self._last_update is not None and overwrite is False) and not self._is_deleted:
@@ -285,24 +291,28 @@ class _GenericFile(_FileIO):
 
     @property
     def lines(self):
-        if isinstance(self._data, bytes):
-            return self._data.splitlines()
-        return [self._data]
+        return self._data
 
     def save(self, *args, **kwargs):
         super()._save(self._data, **kwargs)
 
-    def parse(self, data: Union[str, bytes]) -> bytes:
-        return data
+    def _parse_fp(self, fp: BytesIO) -> List[bytes]:
+        return fp.readlines()
+
+    def parse(self, data):
+        return self._data
 
 
 class _TxtIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
 
+    def _parse_fp(self, fp: TextIO) -> List[Union[str, int, float, complex]]:
+        return self.parse(fp.read())
+
     def parse(self, data: Union[str, bytes, list, tuple, int, float, complex]) -> List[Union[str, int, float, complex]]:
         if isinstance(data, (str, bytes)):
-            return [literal_eval(i) for i in data.splitlines()]
+            return [string_to_literal(i) for i in data.splitlines()]
         if isinstance(data, (int, float, complex)):
             return [data]
         elif isinstance(data, (list, tuple)):
@@ -322,16 +332,17 @@ class _JsonIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
 
-    def parse(self, data: Union[str, bytes, dict]) -> dict:
-        if isinstance(data, (bytes, str)):
-            return json.loads(data)
-        elif isinstance(data, dict):
-            return data
-        else:
-            raise TypeError(f"{type(data)} isn't valid.")
+    def _parse_fp(self, fp: TextIO) -> dict:
+        return json.load(fp)
 
     def save(self, *args, **kwargs):
         super()._save(json.dumps(self._data, indent=True), **kwargs)
+
+    def parse(self, data) -> dict:
+        if isinstance(data, dict):
+            return data
+        else:
+            raise TypeError(f"{type(data)} isn't valid.")
 
 
 class _Mp4IO(_FileIO):
@@ -341,51 +352,79 @@ class _Mp4IO(_FileIO):
     def save(self, *args, **kwargs):
         super()._save(self._data)
 
-    def parse(self, data: Union[str, bytes]) -> bytes:
-        return data
+    def _parse_fp(self, fp: BytesIO) -> bytes:
+        return fp.read()
+
+    def parse(self, data):
+        return self._data
 
 
 class _CsvIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
-    _fieldnames = ()
 
-    def _replace(self, value):
-        return value.replace('[', '').replace(']', '').replace(' ', '').replace("'",
-                                                                                '').replace(
-                '"', '')
-
-    def save(self, **kwargs):
-        fields = self._replace(str(list(self._fieldnames))) + '\n'
-        super()._save(
-                fields + '\n'.join((self._replace(str(i)) for i in self.data)),
-                **kwargs)
+    def __init__(self, *args, cols: Union[Tuple[str], List[str]] = (), fill_with=None,
+                 str_to_literal=True, has_col=False, **kwargs):
+        """
+        :param data: expected row or list of rows with `n` elements equal to `k` cols, if not it will be fill with
+        `fill_with` value.
+        :param fill_with: fill empty
+        :param has_col: bool
+        :param literal_values: Convert `str` on literal types e.g `"'1'"` (str) -> `1` (int)
+        """
+        self._cols = cols
+        self._str_to_literal = str_to_literal
+        self._fill_with = fill_with
+        self._n_values = 0
+        self._has_col = has_col
+        super().__init__(*args, **kwargs)
 
     @property
     def cols(self):
-        return self._fieldnames
+        return tuple(value if value is not None else f'unamed_col_{i}' for i, value in
+                     enumerate(self._cols))
 
     @property
     def n_cols(self):
-        return len(self._fieldnames)
+        return len(self.cols)
 
-    @classmethod
-    def _ast(cls, row):
-        vals = []
-        for val in row:
-            if isinstance(val, str):
-                try:
-                    val_parsed = ast.literal_eval(val)
-                    val = val_parsed if isinstance(val_parsed, (int, float, complex)) else val
-                except:
-                    pass
-            vals.append(val)
-        return vals
+    @property
+    def n_values(self):
+        return self._n_values
 
-    def parse(self, data: Union[str, bytes]) -> Any:
-        data = data.splitlines()
-        self._fieldnames = data.pop(0).split(',')
-        return list(map(lambda r: self._ast(r.split(',')), data))
+    def _parse_fp(self, fp: TextIO, **kwargs) -> List[List[Any]]:
+        reader = csv.reader(fp)
+        return self.parse(reader)
+
+    def _normalize_row(self, row, fill_with=None, literal_values=True):
+        if not is_sequence(row):
+            row = [row]
+        if self._cols:
+            row = fill(value=list(row), max_size=len(self.cols), with_=fill_with) if len(self.cols) < len(
+                    row) else row
+        return [string_to_literal(item) if isinstance(item, str) else item for item in row if literal_values]
+
+    def parse(self, data: Union[Iterable[Iterable[Any]], str, int, float, complex]) -> List[List[Any]]:
+        normalized_data = []
+        if isinstance(data, dict):
+            self._cols = tuple(data)
+            data = data.values()
+        if not is_sequence(data):
+            data = [data]
+        for row in data:
+            if not self._cols:
+                # set cols on first iter
+                self._cols = fill(value=list(row), max_size=len(row), with_=self._fill_with)
+                continue
+            row_normalized = self._normalize_row(row, fill_with=self._fill_with, literal_values=self._str_to_literal)
+            self._n_values += len(row_normalized)
+            normalized_data.append(row_normalized)
+        return normalized_data
+
+    def save(self, fp: Union[TextIO, BytesIO], **kwargs):
+        writer = csv.DictWriter(fp, fieldnames=self.cols)
+        writer.writeheader()
+        writer.writerows(self.data)
 
     def to_dict(self):
         return dict(zip(self.cols, get_cols(self.data)))
@@ -471,5 +510,5 @@ class FileIO:
 
 
 if __name__ == '__main__':
-    files = FileIO.load('C:/Users/leite/Downloads/LZvTCUd3YgDhQprErnQV_0.61.csv')
+    files = FileIO.load_files('C:/Users/leite/Downloads/', ext='.csv')
     files.save(exist_ok=True)
