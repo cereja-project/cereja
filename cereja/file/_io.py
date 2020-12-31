@@ -3,6 +3,7 @@ import copy
 import csv
 import logging
 import os
+import tempfile
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from io import BytesIO
@@ -89,6 +90,10 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+        pass
+
+    @abstractmethod
     def undo(self):
         pass
 
@@ -108,6 +113,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
     # need implement
     _is_byte = None
     _only_read = None
+    _newline = True
     _need_implement = {'_is_byte':   """
     Define the configuration of the file in the class {class_name}:
     e.g:
@@ -118,6 +124,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
     e.g:
     class {class_name}:
         _only_read: bool = True # or False
+    
     """}
 
     def __init__(self, path_: Path, data=None, creation_mode=False, **kwargs):
@@ -252,7 +259,8 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         except Exception as err:
             raise IOError(f"Error when trying to read the file {self._path}\n{err}")
 
-    def _save(self, data, on_new_path: Union[str, Path] = None, mode=None, exist_ok=False, overwrite=False, **kwargs):
+    def save(self, on_new_path: Union[str, Path] = None, mode=None, exist_ok=False, overwrite=False, encoding=None,
+             **kwargs):
         if (self._last_update is not None and overwrite is False) and not self._is_deleted:
             if self._last_update != self.updated_at:
                 raise AssertionError(f"File change detected (last change {self.updated_at}), if you want to overwrite "
@@ -264,9 +272,14 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         assert self._only_read is False, f"{self.name} is only read."
         mode = mode or self._get_mode('w')
         assert 'w' in mode, f"{mode} for write isn't valid."
-        with open(self._path, mode=mode, **kwargs) as fp:
-            fp.write(data)
-        # TODO: delete file if error
+        encoding = None if self._is_byte else 'utf-8'
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            tmp_file = Path(tmpdirname).join(self.name)
+            if not self._newline:
+                kwargs.update({'newline': ''})
+            with open(tmp_file, mode=mode, encoding=encoding, **kwargs) as fp:
+                self._save_fp(fp)
+            tmp_file.cp(self.path)
 
     def delete(self):
         self._path.rm()
@@ -293,11 +306,11 @@ class _GenericFile(_FileIO):
     def lines(self):
         return self._data
 
-    def save(self, *args, **kwargs):
-        super()._save(self._data, **kwargs)
-
     def _parse_fp(self, fp: BytesIO) -> List[bytes]:
         return fp.readlines()
+
+    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+        fp.write(self._data)
 
     def parse(self, data):
         return self._data
@@ -320,8 +333,8 @@ class _TxtIO(_FileIO):
         else:
             raise TypeError(f"{type(data)} isn't valid")
 
-    def save(self, *args, **kwargs):
-        super()._save(self.string, **kwargs)
+    def _save_fp(self, fp):
+        fp.write(self.string)
 
     @property
     def string(self):
@@ -335,8 +348,8 @@ class _JsonIO(_FileIO):
     def _parse_fp(self, fp: TextIO) -> dict:
         return json.load(fp)
 
-    def save(self, *args, **kwargs):
-        super()._save(json.dumps(self._data, indent=True), **kwargs)
+    def _save_fp(self, fp):
+        json.dump(self._data, fp, indent=True)
 
     def parse(self, data) -> dict:
         if isinstance(data, dict):
@@ -349,8 +362,8 @@ class _Mp4IO(_FileIO):
     _is_byte: bool = True
     _only_read = True
 
-    def save(self, *args, **kwargs):
-        super()._save(self._data)
+    def _save_fp(self, fp):
+        fp.write(self._data)
 
     def _parse_fp(self, fp: BytesIO) -> bytes:
         return fp.read()
@@ -362,6 +375,7 @@ class _Mp4IO(_FileIO):
 class _CsvIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
+    _newline = False
 
     def __init__(self, *args, cols: Union[Tuple[str], List[str]] = (), fill_with=None,
                  str_to_literal=True, has_col=False, **kwargs):
@@ -392,9 +406,26 @@ class _CsvIO(_FileIO):
     def n_values(self):
         return self._n_values
 
+    @property
+    def rows(self):
+        """
+        generator for each row
+
+        format -> {col_name: value, col_name2: value, ...}
+
+        :return: rows with column. Is a dict type
+        """
+        for row in self.data:
+            yield dict(zip(self.cols, row))
+
     def _parse_fp(self, fp: TextIO, **kwargs) -> List[List[Any]]:
         reader = csv.reader(fp)
         return self.parse(reader)
+
+    def _save_fp(self, fp: TextIO):
+        writer = csv.DictWriter(fp, fieldnames=self.cols)
+        writer.writeheader()
+        writer.writerows(self.rows)
 
     def _normalize_row(self, row, fill_with=None, literal_values=True):
         if not is_sequence(row):
@@ -420,11 +451,6 @@ class _CsvIO(_FileIO):
             self._n_values += len(row_normalized)
             normalized_data.append(row_normalized)
         return normalized_data
-
-    def save(self, fp: Union[TextIO, BytesIO], **kwargs):
-        writer = csv.DictWriter(fp, fieldnames=self.cols)
-        writer.writeheader()
-        writer.writerows(self.data)
 
     def to_dict(self):
         return dict(zip(self.cols, get_cols(self.data)))
@@ -507,8 +533,3 @@ class FileIO:
                     continue
             loaded.append(file_)
         return loaded
-
-
-if __name__ == '__main__':
-    files = FileIO.load_files('C:/Users/leite/Downloads/', ext='.csv')
-    files.save(exist_ok=True)
