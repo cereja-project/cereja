@@ -105,6 +105,9 @@ def remove_punctuation(sentence: str, punctuation: str = None):
 
 
 def remove_stop_words(sentence: str, stop_words: List[str] = None, language: str = 'english'):
+    """
+    Default Stop Words -> ['is', 'are', 'am', 'at', 'a', 'an', 'of', 'the']
+    """
     language = language.lower()
     if language not in LANGUAGES:
         print(f'Idioma "{language}" não encontrado. Idiomas disponíveis: {LANGUAGES}')
