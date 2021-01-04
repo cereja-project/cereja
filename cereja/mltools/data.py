@@ -309,7 +309,7 @@ class TfIdf:
         return corpus_bow
 
     def _sentence_num_of_words(self, sentence_bow: List[str]) -> Dict[str, int]:
-        num_of_words = dict.fromkeys(self.corpus_bow, 0)
+        num_of_words = dict.fromkeys(sentence_bow, 0)
         for w in sentence_bow:
             num_of_words[w] += 1
         return num_of_words
@@ -331,7 +331,7 @@ class TfIdf:
     @classmethod
     def clean_sentences(cls, sentences: List[str], language: str = 'english', punctuation: str = None,\
                         stop_words: List[str] = None) -> List[str]:
-        return [cls._clean_sentence(sentence,
+        return [cls._clean_sentence(sentence.lower(),
                                     language=language,
                                     punctuation=punctuation,
                                     stop_words=stop_words) for sentence in sentences]
@@ -349,10 +349,11 @@ class TfIdf:
             tf_dict[word] = count / float(bow_count) if float(bow_count) else 0
         return tf_dict
 
-    def sentence_tf_idf(self, sentence: str, language: str = 'english',
+    def sentence_tf_idf(self, sentence: str, language: str = 'english', punctuation: str = None,
+                        stop_words: List[str] = None,
                         use_filter: bool = True) -> Union[Dict[str, float], Set[Tuple[str, float]]]:
         tf_idf = {}
-        sentence = self._clean_sentence(sentence, language=language)
+        sentence = self._clean_sentence(sentence, language=language, punctuation=punctuation, stop_words=stop_words)
         sentence_bow = self.sentence_bag_of_words(sentence)
         sentence_now = self._sentence_num_of_words(sentence_bow)
         sentence_tf = self.sentence_tf(sentence_now, sentence_bow)
