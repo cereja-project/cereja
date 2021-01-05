@@ -308,7 +308,8 @@ class TfIdf:
         print(f'{len(corpus_bow)} words on corpus')
         return corpus_bow
 
-    def _sentence_num_of_words(self, sentence_bow: List[str]) -> Dict[str, int]:
+    @classmethod
+    def _sentence_num_of_words(cls, sentence_bow: List[str]) -> Dict[str, int]:
         num_of_words = dict.fromkeys(sentence_bow, 0)
         for w in sentence_bow:
             num_of_words[w] += 1
