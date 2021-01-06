@@ -26,10 +26,10 @@ import math
 from collections import Counter
 from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
-from cereja.array import is_iterable, is_sequence, get_shape
+from cereja.array import is_iterable, is_sequence
 from cereja.file.core import JsonFile
 from cereja.utils import invert_dict
-from cereja.mltools.preprocess import remove_extra_chars, remove_punctuation, remove_stop_words, \
+from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
 
 __all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf']
@@ -175,7 +175,7 @@ class Tokenizer:
     def language_data(cls, data):
         # because circular import
         # TODO: fix me
-        from cereja.datatools.pln import LanguageData
+        from cereja.mltools.pln import LanguageData
         return LanguageData(data)
 
     @property
@@ -375,4 +375,3 @@ if __name__ == '__main__':
         decoded.append(tokenizer.replace_unks(' '.join(tokenizer.decode(encoded_sequence)), hash_))
 
     print(decoded)
-

@@ -1,16 +1,13 @@
 """
 Copyright (c) 2019 The Cereja Project
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,6 +16,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import ast
 import gc
 import time
 from importlib import import_module
@@ -37,7 +35,8 @@ from cereja.config.cj_types import ClassType, FunctionType
 
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
-           'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format']
+           'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
+           'literal_eval']
 logger = logging.getLogger(__name__)
 
 
@@ -152,6 +151,24 @@ def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
     elif isinstance(value, tuple):
         value += tuple(fill_values)
     return value
+
+
+def class_methods(klass) -> List[str]:
+    methods = []
+    for i in dir(klass):
+        if i.startswith('_') or not callable(getattr(klass, i)):
+            continue
+        methods.append(i)
+    return methods
+
+
+def literal_eval(val: str):
+    if isinstance(val, str):
+        try:
+            return ast.literal_eval(val)
+        except:
+            pass
+    return val
 
 
 def module_references(instance: types.ModuleType, **kwargs) -> dict:
