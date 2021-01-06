@@ -269,8 +269,12 @@ class Tokenizer:
 
 class TfIdf:
 
-    def __init__(self, sentences: List[str]):
-        self._sentences = self.clean_sentences(sentences)
+    def __init__(self, sentences: List[str], language: str = 'english', punctuation: str = None,
+                 stop_words: List[str] = None):
+        self._sentences = self.clean_sentences(sentences,
+                                               language=language,
+                                               punctuation=punctuation,
+                                               stop_words=stop_words)
         self._corpus_bow = self._corpus_bag_of_words(self.sentences)
         self._idf = self._compute_idf(self.sentences)
 
@@ -291,10 +295,11 @@ class TfIdf:
         return sentence.split()
 
     @classmethod
-    def _clean_sentence(cls, sentence: str, language: str = 'english') -> str:
+    def _clean_sentence(cls, sentence: str, language: str = 'english', punctuation: str = None,\
+                        stop_words: List[str] = None) -> str:
         sentence = replace_english_contractions(sentence) if language == 'english' else sentence
-        sentence = remove_punctuation(sentence)
-        sentence = remove_stop_words(sentence, language=language)
+        sentence = remove_punctuation(sentence, punctuation=punctuation)
+        sentence = remove_stop_words(sentence, language=language, stop_words=stop_words)
         return sentence.lower()
 
     @classmethod
@@ -303,13 +308,14 @@ class TfIdf:
         print(f'{len(corpus_bow)} words on corpus')
         return corpus_bow
 
-    def _sentence_num_of_words(self, sentence_bow: List[str]) -> Dict[str, int]:
-        num_of_words = dict.fromkeys(self.corpus_bow, 0)
+    @classmethod
+    def _sentence_num_of_words(cls, sentence_bow: List[str]) -> Dict[str, int]:
+        num_of_words = dict.fromkeys(sentence_bow, 0)
         for w in sentence_bow:
             num_of_words[w] += 1
         return num_of_words
 
-    def _compute_idf(self, sentences: List[str]) -> Dict[str, Union[int, float]]:
+    def _compute_idf(self, sentences: List[str]) -> Dict[str, int]:
         n = len(sentences)
         print('Computing idf...')
         idf_dict = dict.fromkeys(self.corpus_bow, 0.0)
@@ -324,25 +330,31 @@ class TfIdf:
         return idf_dict
 
     @classmethod
-    def clean_sentences(cls, sentences: List[str], language: str = 'english') -> List[str]:
-        return [cls._clean_sentence(sentence, language) for sentence in sentences]
+    def clean_sentences(cls, sentences: List[str], language: str = 'english', punctuation: str = None,\
+                        stop_words: List[str] = None) -> List[str]:
+        return [cls._clean_sentence(sentence.lower(),
+                                    language=language,
+                                    punctuation=punctuation,
+                                    stop_words=stop_words) for sentence in sentences]
 
     @classmethod
     def ordered_tf_idf(cls, sentence_tf_idf: Set[Tuple[str, float]], reverse=True):
         return sorted([word_score for word_score in sentence_tf_idf], key=lambda x: x[1], reverse=reverse)
 
     @classmethod
-    def sentence_tf(cls, sentence_num_of_words: Dict[str, int], sentence_bag_of_words: List[str]) -> Dict[str, float]:
+    def sentence_tf(cls, sentence_num_of_words: Dict[str, int],
+                    sentence_bag_of_words: List[str]) -> Dict[str, float]:
         tf_dict = {}
         bow_count = len(sentence_bag_of_words)
         for word, count in sentence_num_of_words.items():
             tf_dict[word] = count / float(bow_count) if float(bow_count) else 0
         return tf_dict
 
-    def sentence_tf_idf(self, sentence: str, language: str = 'english', use_filter: bool = True) -> \
-            Union[Dict[str, float], Set[Tuple[str, float]]]:
+    def sentence_tf_idf(self, sentence: str, language: str = 'english', punctuation: str = None,
+                        stop_words: List[str] = None,
+                        use_filter: bool = True) -> Union[Dict[str, float], Set[Tuple[str, float]]]:
         tf_idf = {}
-        sentence = self._clean_sentence(sentence, language=language)
+        sentence = self._clean_sentence(sentence, language=language, punctuation=punctuation, stop_words=stop_words)
         sentence_bow = self.sentence_bag_of_words(sentence)
         sentence_now = self._sentence_num_of_words(sentence_bow)
         sentence_tf = self.sentence_tf(sentence_now, sentence_bow)
@@ -353,3 +365,13 @@ class TfIdf:
 
     def inverse_data_frequency_order(self, reverse=False):
         return sorted([(w, idf) for w, idf in self.idf.items()], key=lambda x: x[1], reverse=reverse)
+
+
+if __name__ == '__main__':
+    tokenizer = Tokenizer(data=['i like it', 'my name is Joab', 'hello'])
+    sequences = tokenizer.encode(data=['hello my friend, how are you?', 'my name is mário'])
+    decoded = []
+    for encoded_sequence, hash_ in sequences:
+        decoded.append(tokenizer.replace_unks(' '.join(tokenizer.decode(encoded_sequence)), hash_))
+
+    print(decoded)
