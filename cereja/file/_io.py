@@ -10,12 +10,47 @@ from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Dict, Tuple
 import json
 from cereja import Path, get_cols, flatten, get_shape, is_sequence, fill
+from cereja.system import memory_of_this
 from cereja.utils import string_to_literal
 
 logger = logging.Logger(__name__)
 
 
 class _IFileIO(metaclass=ABCMeta):
+    _size_map = {"B":  1.e0,
+                 "KB": 1.e3,
+                 "MB": 1.e6,
+                 "GB": 1.e9,
+                 "TB": 1.e12
+                 }
+    _dont_read = [".pyc"]
+    _ignore_dir = [".git"]
+    _date_format = "%Y-%m-%d %H:%M:%S"
+    # need implement
+    _is_byte = None
+    _only_read = None
+    _newline = True
+    _need_implement = {'_is_byte':   """
+    Define the configuration of the file in the class {class_name}:
+    e.g:
+    class {class_name}:
+        _is_byte: bool = True # or False
+    """,
+                       '_only_read': """Define the configuration of the file in the class {class_name}:
+    e.g:
+    class {class_name}:
+        _only_read: bool = True # or False
+
+    """}
+
+    def __init__(self):
+        self._last_update = None
+        self._length = None
+        self._is_deleted = False
+        self._current_change = 0
+        self._max_history_length = 50
+        self._change_history = []
+        self._data = None
 
     @property
     @abstractmethod
@@ -69,6 +104,11 @@ class _IFileIO(metaclass=ABCMeta):
 
     @property
     @abstractmethod
+    def length(self):
+        pass
+
+    @property
+    @abstractmethod
     def history(self):
         pass
 
@@ -105,37 +145,26 @@ class _IFileIO(metaclass=ABCMeta):
     def parse(self, data):
         pass
 
+    @abstractmethod
+    def add(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def size(self, unit: str = "KB"):
+        pass
+
+    @abstractmethod
+    def delete(self):
+        pass
+
 
 class _FileIO(_IFileIO, metaclass=ABCMeta):
-    _dont_read = [".pyc"]
-    _ignore_dir = [".git"]
-    _date_format = "%Y-%m-%d %H:%M:%S"
-    # need implement
-    _is_byte = None
-    _only_read = None
-    _newline = True
-    _need_implement = {'_is_byte':   """
-    Define the configuration of the file in the class {class_name}:
-    e.g:
-    class {class_name}:
-        _is_byte: bool = True # or False
-    """,
-                       '_only_read': """Define the configuration of the file in the class {class_name}:
-    e.g:
-    class {class_name}:
-        _only_read: bool = True # or False
-    
-    """}
 
     def __init__(self, path_: Path, data=None, creation_mode=False, **kwargs):
-        self._last_update = None
-        self._is_deleted = False
+        super().__init__()
         self._creation_mode = creation_mode
         self._path = path_
         self._ext_without_point = self._path.suffix.strip(".").upper()
-        self._current_change = 0
-        self._max_history_length = 50
-        self._change_history = []
         if creation_mode:
             self._data = self.parse(data)
         else:
@@ -188,6 +217,10 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
             logger.warning(f'You selected amendment {self._current_change + 1}')
         except IndexError:
             logger.info("It's not possible")
+
+    @property
+    def length(self):
+        return len(self._data)
 
     @property
     def history(self):
@@ -243,6 +276,21 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         """
         return f'{mode}+b' if self._is_byte else f'{mode}+'
 
+    def size(self, unit: str = "KB"):
+        """
+        returns the size that the file occupies on the disk.
+
+        :param unit: choose anyone in ('B', 'KB', 'MB', 'GB', 'TB')
+
+        """
+        assert isinstance(unit, str), f"expected {str.__name__} not {type(unit).__name__}."
+
+        unit = unit.upper()
+
+        assert unit in self._size_map, f"{repr(unit)} is'nt valid. Choose anyone in {tuple(self._size_map)}"
+        # subtracts the size of the python object
+        return (memory_of_this(self._data) - self._data.__class__().__sizeof__()) / self._size_map[unit]
+
     def load(self, mode=None, **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
             logger.warning(f"I can't read this file. See class attribute <{self.__name__}._dont_read>")
@@ -297,14 +345,15 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         if self._current_change < len(self._change_history):
             self._select_change(+1)
 
+    def __len__(self):
+        if self._length is None:
+            return len(self._data)
+        return self._length
+
 
 class _GenericFile(_FileIO):
     _is_byte: bool = True
     _only_read = False
-
-    @property
-    def lines(self):
-        return self._data
 
     def _parse_fp(self, fp: BytesIO) -> List[bytes]:
         return fp.readlines()
@@ -313,7 +362,12 @@ class _GenericFile(_FileIO):
         fp.write(self._data)
 
     def parse(self, data):
-        return self._data
+        if isinstance(data, str):
+            data = data.encode()
+        return data
+
+    def add(self, data, **kwargs):
+        self._data[-1] + self.parse(data)
 
 
 class _TxtIO(_FileIO):
@@ -340,10 +394,36 @@ class _TxtIO(_FileIO):
     def string(self):
         return '\n'.join((str(i) for i in self.data))
 
+    @property
+    def lines(self):
+        return self._data
+
+    def _add(self, data: List[Union[str, int, float, complex]], line):
+        if line != -1:
+            for pos, i in enumerate(data, line):
+                self._data.insert(pos, i)
+        else:
+            self._data += data
+        self._set_change('_data', self._data.copy())
+
+    def remove(self, line: Union[int, str]):
+        self._data.pop(line)
+        self._set_change('_data', self._data.copy())
+
+    def add(self, data, line=-1):
+        self._add(self.parse(data), line=line)
+
 
 class _JsonIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
+
+    def __init__(self, path_: Path, **kwargs):
+
+        super().__init__(path_, **kwargs)
+        setattr(self, 'items', lambda: self.data.items())
+        setattr(self, 'keys', lambda: self.data.keys())
+        setattr(self, 'values', lambda: self.data.values())
 
     def _parse_fp(self, fp: TextIO) -> dict:
         return json.load(fp)
@@ -356,6 +436,31 @@ class _JsonIO(_FileIO):
             return data
         else:
             raise TypeError(f"{type(data)} isn't valid.")
+
+    def _add(self, k, v):
+        self._data[k] = v
+
+    def add(self, key, value):
+        self._add(key, value)
+
+    def remove(self, key):
+        self._data.pop(key)
+
+    def get(self, _key):
+        return self._data.get(_key)
+
+    def __getitem__(self, item):
+        try:
+            return self.data[item]
+        except KeyError:
+            raise KeyError(f"{item} not found.")
+
+    def __setitem__(self, key, value):
+        self.add(key, value)
+
+    def __iter__(self):
+        for i in self.data:
+            yield i
 
 
 class _Mp4IO(_FileIO):
@@ -370,6 +475,9 @@ class _Mp4IO(_FileIO):
 
     def parse(self, data):
         return self._data
+
+    def add(self, data, **kwargs):
+        return NotImplementedError("it's not implemented")
 
 
 class _CsvIO(_FileIO):
@@ -461,6 +569,9 @@ class _CsvIO(_FileIO):
     def shape(self):
         return get_shape(self._data)
 
+    def add(self, *args, **kwargs):
+        pass
+
     def __getitem__(self, item):
         if isinstance(item, str):
             if item not in self.cols:
@@ -477,12 +588,11 @@ class _CsvIO(_FileIO):
 
 
 class FileIO:
-    # ext: [ext_class, kwargs] *kwargs send to __builtin__ open
-    __ext_supported = {'.txt':  (_TxtIO, {}),
-                       '.json': (_JsonIO, {}),
-                       '.mp4':  (_Mp4IO, {}),
-                       '.csv':  (_CsvIO, {})
-                       }
+    txt = _TxtIO
+    json = _JsonIO
+    mp4 = _Mp4IO
+    csv = _CsvIO
+    _generic = _GenericFile
 
     def __new__(cls, path_, **kwargs):
         raise Exception(f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']")
@@ -490,17 +600,21 @@ class FileIO:
     @classmethod
     def create(cls, path_: Union[Type[Path], str], data: Any) -> _IFileIO:
         path_ = Path(path_)
-        klass, klass_kwargs = cls.__ext_supported.get(path_.suffix, [_GenericFile, {}])
-        return klass(path_=path_, data=data, creation_mode=True)
+        return cls.lookup(path_.suffix)(path_=path_, data=data, creation_mode=True)
+
+    @classmethod
+    def lookup(cls, ext: str) -> Type[_FileIO]:
+        ext = ext.replace('.', '')
+        if hasattr(cls, ext):
+            return getattr(cls, ext)
+        return cls._generic
 
     @classmethod
     def load(cls, path_: Union[str, Path], **kwargs) -> _IFileIO:
         path_ = Path(path_)
         if not path_.exists:
             raise FileNotFoundError(f"{path_.path} not found.")
-        klass, klass_kwargs = cls.__ext_supported.get(path_.suffix, [_GenericFile, {}])
-        klass_kwargs.update(kwargs)
-        return klass(path_=path_, **klass_kwargs)
+        return cls.lookup(path_.suffix)(path_=path_, **kwargs)
 
     @classmethod
     def load_files(cls, path_, ext=None, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
@@ -533,3 +647,10 @@ class FileIO:
                     continue
             loaded.append(file_)
         return loaded
+
+
+if __name__ == '__main__':
+    content = ['meu nome é joab', 'eu gosto de café']
+    file = FileIO.create('./test.txt', data=content)
+    print(file.save(exist_ok=True))
+    print(file.delete())
