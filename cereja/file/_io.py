@@ -1,4 +1,3 @@
-import ast
 import copy
 import csv
 import logging
@@ -7,13 +6,17 @@ import tempfile
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from io import BytesIO
-from typing import Any, List, Union, Type, TextIO, Iterable, Dict, Tuple
+from typing import Any, List, Union, Type, TextIO, Iterable, Tuple
 import json
-from cereja import Path, get_cols, flatten, get_shape, is_sequence, fill
+from cereja.system import Path
+from cereja.array import get_cols, flatten, get_shape, is_sequence
+from cereja.utils import fill
 from cereja.system import memory_of_this
 from cereja.utils import string_to_literal
 
 logger = logging.Logger(__name__)
+
+__all__ = ['FileIO']
 
 
 class _IFileIO(metaclass=ABCMeta):
@@ -155,6 +158,10 @@ class _IFileIO(metaclass=ABCMeta):
 
     @abstractmethod
     def delete(self):
+        pass
+
+    @abstractmethod
+    def __iter__(self):
         pass
 
 
@@ -350,6 +357,13 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
             return len(self._data)
         return self._length
 
+    def __next__(self):
+        for i in self._data:
+            yield i
+
+    def __iter__(self):
+        return self.__next__()
+
 
 class _GenericFile(_FileIO):
     _is_byte: bool = True
@@ -404,14 +418,15 @@ class _TxtIO(_FileIO):
                 self._data.insert(pos, i)
         else:
             self._data += data
-        self._set_change('_data', self._data.copy())
-
-    def remove(self, line: Union[int, str]):
-        self._data.pop(line)
+            return
         self._set_change('_data', self._data.copy())
 
     def add(self, data, line=-1):
         self._add(self.parse(data), line=line)
+
+    def remove(self, line: Union[int, str]):
+        self._data.pop(line)
+        self._set_change('_data', self._data.copy())
 
 
 class _JsonIO(_FileIO):
@@ -569,8 +584,22 @@ class _CsvIO(_FileIO):
     def shape(self):
         return get_shape(self._data)
 
-    def add(self, *args, **kwargs):
-        pass
+    def _add(self, row: List[Any], index):
+        row = self.parse([row])
+        if index != -1:
+            for pos, i in enumerate(row, index):
+                self._data.insert(pos, i)
+        else:
+            self._data += row
+
+    def add(self, row: List[Any], index=-1):
+        """
+        Add row is similar to list.append
+
+        :param row: expected row with n elements equal to k cols, if not it will be fill with `fill_with` value.
+        :param index: position that will be added
+        """
+        self._add(row=row, index=index)
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -598,9 +627,9 @@ class FileIO:
         raise Exception(f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']")
 
     @classmethod
-    def create(cls, path_: Union[Type[Path], str], data: Any) -> _IFileIO:
+    def create(cls, path_: Union[Type[Path], str], data: Any, **kwargs) -> _FileIO:
         path_ = Path(path_)
-        return cls.lookup(path_.suffix)(path_=path_, data=data, creation_mode=True)
+        return cls.lookup(path_.suffix)(path_=path_, data=data, creation_mode=True, **kwargs)
 
     @classmethod
     def lookup(cls, ext: str) -> Type[_FileIO]:
@@ -610,7 +639,7 @@ class FileIO:
         return cls._generic
 
     @classmethod
-    def load(cls, path_: Union[str, Path], **kwargs) -> _IFileIO:
+    def load(cls, path_: Union[str, Path], **kwargs) -> _FileIO:
         path_ = Path(path_)
         if not path_.exists:
             raise FileNotFoundError(f"{path_.path} not found.")
@@ -647,10 +676,3 @@ class FileIO:
                     continue
             loaded.append(file_)
         return loaded
-
-
-if __name__ == '__main__':
-    content = ['meu nome é joab', 'eu gosto de café']
-    file = FileIO.create('./test.txt', data=content)
-    print(file.save(exist_ok=True))
-    print(file.delete())

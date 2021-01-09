@@ -27,7 +27,7 @@ from typing import List, Dict, Union, Sequence, AnyStr, Any, Iterable
 from cereja.config.cj_types import Number
 from cereja.mltools import preprocess as _preprocess
 from cereja.mltools.data import Freq
-from cereja.file.core import JsonFile, File
+from cereja.file.v1.core import JsonFile, File
 from cereja.config.conf import BasicConfig
 from abc import ABCMeta, abstractmethod
 

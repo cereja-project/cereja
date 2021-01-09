@@ -22,7 +22,7 @@ SOFTWARE.
 import warnings
 from cereja.array import get_cols
 from cereja.mltools.pln import LanguageData
-from cereja.file.core import File
+from cereja.file.v1.core import File
 import random
 import csv
 from cereja.system.path import Path
