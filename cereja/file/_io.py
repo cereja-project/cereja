@@ -4,9 +4,10 @@ import logging
 import os
 import tempfile
 from abc import ABCMeta, abstractmethod
+from collections import ValuesView
 from datetime import datetime
 from io import BytesIO
-from typing import Any, List, Union, Type, TextIO, Iterable, Tuple
+from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
 import json
 from cereja.system import Path
 from cereja.array import get_cols, flatten, get_shape, is_sequence
@@ -16,7 +17,7 @@ from cereja.utils import string_to_literal
 
 logger = logging.Logger(__name__)
 
-__all__ = ['FileIO']
+__all__ = ['FileIO', 'FileType', 'FileJsonType', 'FileTxtType', 'FileCsvType']
 
 
 class _IFileIO(metaclass=ABCMeta):
@@ -33,18 +34,26 @@ class _IFileIO(metaclass=ABCMeta):
     _is_byte = None
     _only_read = None
     _newline = True
-    _need_implement = {'_is_byte':   """
+    _ext_allowed = None
+    _need_implement = {'_is_byte':     """
     Define the configuration of the file in the class {class_name}:
     e.g:
     class {class_name}:
         _is_byte: bool = True # or False
     """,
-                       '_only_read': """Define the configuration of the file in the class {class_name}:
+                       '_only_read':   """Define the configuration of the file in the class {class_name}:
     e.g:
     class {class_name}:
         _only_read: bool = True # or False
 
-    """}
+    """,
+                       '_ext_allowed': """Define the configuration of the file in the class {class_name}:
+                       e.g:
+                       class {class_name}:
+                           _ext_allowed: bool = '.txt' # or ''
+
+                       """
+                       }
 
     def __init__(self):
         self._last_update = None
@@ -164,13 +173,21 @@ class _IFileIO(metaclass=ABCMeta):
     def __iter__(self):
         pass
 
+    @abstractmethod
+    def set_path(self, p: str):
+        pass
+
 
 class _FileIO(_IFileIO, metaclass=ABCMeta):
 
     def __init__(self, path_: Path, data=None, creation_mode=False, **kwargs):
         super().__init__()
+        if not isinstance(path_, Path):
+            path_ = Path(path_)
         self._creation_mode = creation_mode
         self._path = path_
+        if self._ext_allowed:
+            assert self._path.suffix in self._ext_allowed, f'{path_.suffix} != {self._ext_allowed}'
         self._ext_without_point = self._path.suffix.strip(".").upper()
         if creation_mode:
             self._data = self.parse(data)
@@ -368,17 +385,28 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
 class _GenericFile(_FileIO):
     _is_byte: bool = True
     _only_read = False
+    _ext_allowed = ()
 
     def _parse_fp(self, fp: BytesIO) -> List[bytes]:
-        return fp.readlines()
+        fp_lines = fp.readlines()
+        fp_lines = [b''] or fp_lines
+        return fp_lines
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
-        fp.write(self._data)
+        fp.write(b'\n'.join(self._data))
 
-    def parse(self, data):
+    def parse(self, data) -> List[bytes]:
+        if data is None:
+            return [b'']
+        if isinstance(data, bytes):
+            return [data]
+        if isinstance(data, (list, tuple)):
+            data = ' '.join([str(i) for i in data])
+        if isinstance(data, (int, float, complex)):
+            data = str(data)
         if isinstance(data, str):
-            data = data.encode()
-        return data
+            return [data.encode()]
+        raise ValueError(f"{type(data)} isn't valid.")
 
     def add(self, data, **kwargs):
         self._data[-1] + self.parse(data)
@@ -387,6 +415,7 @@ class _GenericFile(_FileIO):
 class _TxtIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
+    _ext_allowed = ('.txt',)
 
     def _parse_fp(self, fp: TextIO) -> List[Union[str, int, float, complex]]:
         return self.parse(fp.read())
@@ -432,19 +461,26 @@ class _TxtIO(_FileIO):
 class _JsonIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
+    _ext_allowed = ('.json',)
 
     def __init__(self, path_: Path, **kwargs):
 
         super().__init__(path_, **kwargs)
-        setattr(self, 'items', lambda: self.data.items())
-        setattr(self, 'keys', lambda: self.data.keys())
-        setattr(self, 'values', lambda: self.data.values())
 
     def _parse_fp(self, fp: TextIO) -> dict:
         return json.load(fp)
 
     def _save_fp(self, fp):
         json.dump(self._data, fp, indent=True)
+
+    def items(self) -> ItemsView:
+        return self._data.items()
+
+    def keys(self) -> KeysView:
+        return self._data.keys()
+
+    def values(self) -> ValuesView:
+        return self._data.values()
 
     def parse(self, data) -> dict:
         if isinstance(data, dict):
@@ -481,6 +517,7 @@ class _JsonIO(_FileIO):
 class _Mp4IO(_FileIO):
     _is_byte: bool = True
     _only_read = True
+    _ext_allowed = ('.mp4',)
 
     def _save_fp(self, fp):
         fp.write(self._data)
@@ -499,6 +536,7 @@ class _CsvIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
     _newline = False
+    _ext_allowed = ('.csv',)
 
     def __init__(self, *args, cols: Union[Tuple[str], List[str]] = (), fill_with=None,
                  str_to_literal=True, has_col=False, **kwargs):
@@ -554,11 +592,12 @@ class _CsvIO(_FileIO):
         if not is_sequence(row):
             row = [row]
         if self._cols:
-            row = fill(value=list(row), max_size=len(self.cols), with_=fill_with) if len(self.cols) < len(
-                    row) else row
+            row = fill(value=list(row), max_size=len(self.cols), with_=fill_with) if len(row) < len(self.cols) else row
         return [string_to_literal(item) if isinstance(item, str) else item for item in row if literal_values]
 
-    def parse(self, data: Union[Iterable[Iterable[Any]], str, int, float, complex]) -> List[List[Any]]:
+    def parse(self, data: Union[Iterable[Iterable[Any]], str, int, float, complex], fill_with=None) -> List[List[Any]]:
+        if fill_with is None:
+            fill_with = self._fill_with
         normalized_data = []
         if isinstance(data, dict):
             self._cols = tuple(data)
@@ -568,9 +607,9 @@ class _CsvIO(_FileIO):
         for row in data:
             if not self._cols:
                 # set cols on first iter
-                self._cols = fill(value=list(row), max_size=len(row), with_=self._fill_with)
+                self._cols = fill(value=list(row), max_size=len(row), with_=fill_with)
                 continue
-            row_normalized = self._normalize_row(row, fill_with=self._fill_with, literal_values=self._str_to_literal)
+            row_normalized = self._normalize_row(row, fill_with=fill_with, literal_values=self._str_to_literal)
             self._n_values += len(row_normalized)
             normalized_data.append(row_normalized)
         return normalized_data
@@ -584,22 +623,23 @@ class _CsvIO(_FileIO):
     def shape(self):
         return get_shape(self._data)
 
-    def _add(self, row: List[Any], index):
-        row = self.parse([row])
+    def _add(self, row: List[Any], index, fill_with=None):
+        row = self.parse([row], fill_with=fill_with)
         if index != -1:
             for pos, i in enumerate(row, index):
                 self._data.insert(pos, i)
         else:
             self._data += row
 
-    def add(self, row: List[Any], index=-1):
+    def add(self, row: List[Any], index=-1, fill_with=None):
         """
         Add row is similar to list.append
 
         :param row: expected row with n elements equal to k cols, if not it will be fill with `fill_with` value.
         :param index: position that will be added
+        :param fill_with: None
         """
-        self._add(row=row, index=index)
+        self._add(row=row, index=index, fill_with=fill_with)
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -676,3 +716,9 @@ class FileIO:
                     continue
             loaded.append(file_)
         return loaded
+
+
+FileType = Type[_GenericFile]
+FileTxtType = Type[_TxtIO]
+FileJsonType = Type[_JsonIO]
+FileCsvType = Type[_CsvIO]
