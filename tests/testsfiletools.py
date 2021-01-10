@@ -3,7 +3,7 @@ import unittest
 from abc import abstractmethod
 
 from cereja.system import Path
-from cereja.file import FileIO, FileType, FileTxtType, FileJsonType, FileCsvType
+from cereja.file import FileIO
 
 
 class FileIOTest(unittest.TestCase):
@@ -32,7 +32,7 @@ class FileIOTest(unittest.TestCase):
 class FileIOTxtTest(FileIOTest):
     data = ['first line', 'second line', 'third line']
 
-    def create(self) -> FileTxtType:
+    def create(self):
         file = FileIO.txt('test.txt', data=self.data, creation_mode=True)
         return file
 
@@ -65,7 +65,7 @@ class FileIOTxtTest(FileIOTest):
 class FileIOJsonTest(FileIOTest):
     data = {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
 
-    def create(self) -> FileJsonType:
+    def create(self):
         return FileIO.json('test.json', data=self.data, creation_mode=True)
 
     def test_commons_operations(self):
@@ -86,7 +86,7 @@ class FileCsvTest(FileIOTest):
     data = [[1, 2, 3]]
     cols = ['col1', 'col2', 'col3']
 
-    def create(self) -> FileCsvType:
+    def create(self):
         return FileIO.csv('test.csv', data=self.data, creation_mode=True, cols=self.cols)
 
     def test_commons_operations(self):

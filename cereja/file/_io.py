@@ -17,7 +17,7 @@ from cereja.utils import string_to_literal
 
 logger = logging.Logger(__name__)
 
-__all__ = ['FileIO', 'FileType', 'FileJsonType', 'FileTxtType', 'FileCsvType']
+__all__ = ['FileIO']
 
 
 class _IFileIO(metaclass=ABCMeta):
@@ -667,12 +667,20 @@ class FileIO:
         raise Exception(f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']")
 
     @classmethod
-    def create(cls, path_: Union[Type[Path], str], data: Any, **kwargs) -> _FileIO:
+    def create(cls, path_: Union[Type[Path], str], data: Any, **kwargs) -> Union[_TxtIO,
+                                                                                 _JsonIO,
+                                                                                 _Mp4IO,
+                                                                                 _CsvIO,
+                                                                                 _GenericFile]:
         path_ = Path(path_)
         return cls.lookup(path_.suffix)(path_=path_, data=data, creation_mode=True, **kwargs)
 
     @classmethod
-    def lookup(cls, ext: str) -> Type[_FileIO]:
+    def lookup(cls, ext: str) -> Type[Union[_TxtIO,
+                                            _JsonIO,
+                                            _Mp4IO,
+                                            _CsvIO,
+                                            _GenericFile]]:
         ext = ext.replace('.', '')
         if hasattr(cls, ext):
             return getattr(cls, ext)
