@@ -22,10 +22,9 @@ SOFTWARE.
 """
 
 import argparse
-import os
 import sys
 from cereja import get_version_pep440_compliant, Path
-from cereja.file.core import crlf_to_lf, File
+from cereja.file.v1.core import crlf_to_lf, File
 from cereja.config import BASE_DIR
 
 if __name__ == "__main__":

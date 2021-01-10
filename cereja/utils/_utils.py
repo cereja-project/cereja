@@ -36,7 +36,7 @@ from cereja.config.cj_types import ClassType, FunctionType
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
-           'literal_eval']
+           'string_to_literal']
 logger = logging.getLogger(__name__)
 
 
@@ -162,7 +162,7 @@ def class_methods(klass) -> List[str]:
     return methods
 
 
-def literal_eval(val: str):
+def string_to_literal(val: str):
     if isinstance(val, str):
         try:
             return ast.literal_eval(val)

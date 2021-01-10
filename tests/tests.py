@@ -26,7 +26,7 @@ import time
 import unittest
 import logging
 
-import cereja.file.core
+import cereja.file.v1.core
 from cereja.array import group_items_in_batches, is_iterable, remove_duplicate_items, flatten, \
     is_sequence, array_gen, get_shape, Matrix
 from cereja.array import prod
@@ -45,6 +45,16 @@ logger = logging.getLogger(__name__)
 
 
 class UtilsTestCase(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.shapes = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
+        self.sequences = [
+            [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
+
+            [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
+
+            [[[0.]], [[0.]]]
+        ]
 
     def test_group_items_in_batches(self):
         tests = [([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
@@ -104,20 +114,12 @@ class UtilsTestCase(unittest.TestCase):
         self.assertTrue(is_sequence(sequence))
 
         self.assertFalse(is_sequence('hi cereja'))
+        self.assertTrue(is_sequence(dict({'k1': 1, 'k2': 2}).keys()))
 
     def test_array_gen(self):
-        shapes = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
-        sequences_expecteds = [
-            [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
-
-            [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
-
-            [[[0.]], [[0.]]]
-        ]
-
-        for args, expecteds in zip(shapes, sequences_expecteds):
+        for args, expected in zip(self.shapes, self.sequences):
             data = array_gen(args)
-            self.assertEqual(data, expecteds)
+            self.assertEqual(data, expected)
 
         with_kwargs = [({"shape": (2, 1, 1), "v": ['hail', 'pythonics!']}, [[['hail']], [['pythonics!']]])
                        ]
@@ -127,16 +129,7 @@ class UtilsTestCase(unittest.TestCase):
             self.assertEqual(result, expecteds)
 
     def test_get_shape(self):
-        sequences = [
-            [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
-
-            [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
-
-            [[[0.]], [[0.]]]
-        ]
-        shapes_expecteds = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
-
-        for seq, expected_shape in zip(sequences, shapes_expecteds):
+        for expected_shape, seq in zip(self.shapes, self.sequences):
             shape_received = get_shape(seq)
             sequence_length = len(flatten(seq))
             self.assertEqual(sequence_length, prod(shape_received), msg=f"array shape {shape_received} is inconsistent")
@@ -165,26 +158,26 @@ class FileToolsTestCase(unittest.TestCase):
 
     def test_file_obj(self):
         content_file = [1, 2, 3]
-        file = cereja.file.core.File('cereja/teste.py', content_file)
-        normalized_data = f'{cereja.file.core.LF}'.join(cereja.file.core.FileBase.normalize_data(content_file))
+        file = cereja.file.v1.core.File('cereja/teste.py', content_file)
+        normalized_data = f'{cereja.file.v1.core.LF}'.join(cereja.file.v1.core.FileBase.normalize_data(content_file))
         expected_values = ["LF", "teste.py", 'cereja', False, normalized_data, len(content_file), 0.006]
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CRLF", save=False)
-        normalized_data = f'{cereja.file.core.CRLF}'.join(cereja.file.core.FileBase.normalize_data(content_file))
+        normalized_data = f'{cereja.file.v1.core.CRLF}'.join(cereja.file.v1.core.FileBase.normalize_data(content_file))
         expected_values[0] = "CRLF"
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
 
         file = file.replace_file_sep("CR", save=False)
-        normalized_data = f'{cereja.file.core.CR}'.join(cereja.file.core.FileBase.normalize_data(content_file))
+        normalized_data = f'{cereja.file.v1.core.CR}'.join(cereja.file.v1.core.FileBase.normalize_data(content_file))
         expected_values[0] = "CR"
         expected_values[4] = normalized_data
         self.battery_tests(file, expected_values)
 
     def test_base_sanity(self):
         data = ['first line', 'second line', 'third line']
-        file = cereja.file.core.TxtFile('test.txt', data)
+        file = cereja.file.v1.core.TxtFile('test.txt', data)
         self.assertTrue(str(file) == "TxtFile<test.txt>")
         self.assertEqual(file.data, ['first line', 'second line', 'third line'])
         for line in file:
@@ -214,7 +207,7 @@ class FileToolsTestCase(unittest.TestCase):
 
     def test_json_sanity(self):
         data = {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
-        file = cereja.file.core.File('test.json', data)
+        file = cereja.file.v1.core.File('test.json', data)
         self.assertEqual(str(file), 'JsonFile<test.json>')
         self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3'})
 
@@ -235,7 +228,7 @@ class FileToolsTestCase(unittest.TestCase):
         self.assertEqual(file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 'value4'})
 
     def test_csv_sanity(self):
-        file = cereja.file.core.CsvFile('test.csv', fieldnames=['col1', 'col2', 'col3'])  # ram only, not yet saved
+        file = cereja.file.v1.core.CsvFile('test.csv', fieldnames=['col1', 'col2', 'col3'])  # ram only, not yet saved
         self.assertEqual(str(file), "CsvFile<test.csv>")
         file.add_row([1, 2, 3])
         self.assertEqual(file.lines, [[1, 2, 3]])
@@ -260,7 +253,7 @@ class FileToolsTestCase(unittest.TestCase):
 
     def get_file(self):
         content_file = [1, 2, 3]
-        file = cereja.file.core.File(f"{os.path.dirname(__file__)}.txt", content_file)
+        file = cereja.file.v1.core.File(f"{os.path.dirname(__file__)}.txt", content_file)
         return file
 
     def test_insertion_content(self):
@@ -282,7 +275,7 @@ class FileToolsTestCase(unittest.TestCase):
         file.undo()
         self.assertEqual(file.lines, ['1', '3', '4', '5'] + original_lines)
 
-        file = cereja.file.core.File('test.txt')
+        file = cereja.file.v1.core.File('test.txt')
         file.append([1, 2, 4])
         self.assertEqual(file.history, [('_lines', []), ('_lines', ['1', '2', '4'])])
         file.append(10)
@@ -302,11 +295,11 @@ class FileToolsTestCase(unittest.TestCase):
         expected = {'1': 2, 'four': 4, 'six': 6}
 
         # Normalize test
-        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data(data), expected)
-        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data(expected.items()), expected)
-        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data(1), {'1': None})
-        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data(()), {})
-        self.assertDictEqual(cereja.file.core.JsonFile.normalize_data((1, 2, 3)), {'1': None, '2': None, '3': None})
+        self.assertDictEqual(cereja.file.v1.core.JsonFile.normalize_data(data), expected)
+        self.assertDictEqual(cereja.file.v1.core.JsonFile.normalize_data(expected.items()), expected)
+        self.assertDictEqual(cereja.file.v1.core.JsonFile.normalize_data(1), {'1': None})
+        self.assertDictEqual(cereja.file.v1.core.JsonFile.normalize_data(()), {})
+        self.assertDictEqual(cereja.file.v1.core.JsonFile.normalize_data((1, 2, 3)), {'1': None, '2': None, '3': None})
 
 
 class PathTest(unittest.TestCase):

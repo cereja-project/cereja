@@ -25,7 +25,7 @@ import random
 import statistics
 import math
 from functools import reduce
-from typing import Any, Sequence, Tuple, Union, List, Optional
+from typing import Any, Sequence, Tuple, Union, List, Optional, Iterable
 import copy
 from cereja.config.cj_types import Number, Shape
 import logging
@@ -45,13 +45,7 @@ def is_iterable(obj: Any) -> bool:
 
     :param obj: Any object for check
     """
-    if isinstance(obj, (float, int, complex)):
-        return False
-    try:
-        iter(obj)
-    except TypeError:
-        return False
-    return True
+    return isinstance(obj, Iterable)
 
 
 def is_sequence(obj: Any) -> bool:

@@ -27,7 +27,7 @@ from collections import Counter
 from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
 from cereja.array import is_iterable, is_sequence
-from cereja.file.core import JsonFile
+from cereja.file.v1.core import JsonFile
 from cereja.utils import invert_dict
 from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions

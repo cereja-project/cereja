@@ -45,124 +45,12 @@ python3 -m pip install cereja
 See some of the Cereja tools
 
 #### Filetools
-
-Filetools has several functions, have the converters for end of line (CRLF, LF and CR), you can convert CRLF to LF or CR, or contrariwise.
-
-##### Txt File Manipulation Example - most files
+Have a fun
 ```python
-import cereja as cj
-
-data = ['first line', 'second line', 'third line']
-file = cj.File('test.txt', data) # ram only, not yet saved
-print(file) # FileBase<test.txt>
-print(file.data) # ['first line', 'second line', 'third line']
-
-# iterable
-for line in file:
-    pass
-
-# indexable
-file[0] # 'first line'
-file[:3] # ['first line', 'second line', 'third line']
-
-# Insert Data
-file.insert('other line')
-file.insert('other line2')
-print(file.data) # ['other line2', 'other line', 'first line', 'second line', 'third line']
-# it is allowed to use index assignment
-file[0] = 'other line'
-# can use file.append
-file.append('end line')
-
-# Data Recovery
-file.undo() # You selected amendment 3
-print(file.data) # ['other line2', 'other line', 'first line', 'second line', 'third line']
-file.redo() # You selected amendment 4
-print(file.data) # ['other line', 'other line2', 'other line', 'first line', 'second line', 'third line']
-
-# Save Data
-file.save()
-```
-##### File Manipulation Example - .json 
-```python
-import cereja as cj
-
-data = {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
-file = cj.File('test.json', data) # ram only, not yet saved
-print(file) # JsonFile<test.json>
-print(file.data) # {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
-
-# Iterable
-for key, value in file.items(): # only .json data, use .items(), .values() and .keys()
-    pass
-
-file['key'] # 'value'
-
-# Insert Data
-file['key4'] = 'value4'
-print(file.data) # {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 'value4'}
-
-# Data Recovery
-file.undo() # You selected amendment 1
-print(file.data) # {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
-file.redo() # You selected amendment 2
-print(file.data) # {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 'value4'}
-
-# Save Data
-file.save()
-```
-
-##### File Manipulation Example - .csv File 
-```python
-import cereja.file.core
-import cereja as cj
-
-file = cj.File('test.csv', fieldnames=['col1','col2','col3']) # ram only, not yet saved
-print(file) # CsvFile<test.csv>
-file.add_row([1,2,3])
-print(file.lines) # [[1, 2, 3]]
-file.add_row([1,2], fill_with=0)
-print(file.lines) # [[1, 2, 3], [1, 2, 0]]
-
-# convert to dict
-file.to_dict() # {'col1': [1, 1], 'col2': [2, 2], 'col3': [3, 0]}
-
-# or get generation row by row with col
-print(list(file.data)) # [{'col1': 1, 'col2': 2, 'col3': 3}, {'col1': 1, 'col2': 2, 'col3': 0}]
-
-# Iterable
-for row in file:
-    pass
-
-# indexing col values
-print(file['col1']) # [1, 1]
-# or use index and get a row
-print(file[0]) # [1, 2, 3]
-
-# Save Data
-file.save()
-
-# Reading
-file = cereja.file.core.CsvFile.load('test.csv') # have a fun! lol
-dir(file) # see all methods and attr
-```
-##### Reading Other Files
-```python
-import cereja.file.core
-import cereja as cj
-
-file = cereja.file.core.File.load('path_to_file.ext')
-# now you have a file instance, have fun!
-# you can insert lines, remove and save \0/
-file.save(exist_ok=True) # or change path file.save(on_new_path='new_path.ext', exist_ok=True)
-```
-
-##### Convert between CRLF, LF and CR
-
-```shell script
-python3 -m pip install cereja
-
-python3 -m cereja --crlf_to_lf "/dir_or_file_path"
+from cereja import FileIO
+# load File
+file = FileIO.load('test.json') # return FileIO.json object (has interface for .txt, .csv, .json and more)
+print(dir(file))
 ```
 
 #### Corpus

@@ -93,6 +93,8 @@ class FileBase(metaclass=ABCMeta):
     _is_deleted = False
 
     def __init__(self, path_: Union[str, Path], content_file: Union[Sequence, str, Any] = None, **kwargs):
+        warnings.warn(f"cereja.file.v1.File will be deprecated in future versions. "
+                      "you can use `cereja.file.FileIO`", DeprecationWarning, 2)
         self._last_update = None
         self._is_byte = kwargs.get('is_byte', False) or isinstance(content_file, bytes)
         self._can_edit = not self._is_byte
