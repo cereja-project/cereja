@@ -79,13 +79,12 @@ class Freq(Counter):
         if freq is not None:
             assert isinstance(freq, int), TypeError(f"freq {type(freq)} != {int}")
             return dict(filter(lambda item: item[1] == freq, query))
-        if max_freq is not None or min_freq is not None:
-            assert isinstance(max_freq, int), TypeError(f"freq {type(max_freq)} != {int}")
-            assert isinstance(min_freq, int), TypeError(f"freq {type(min_freq)} != {int}")
-            min_freq = max(1, min_freq)
-            max_freq = max(1, max_freq)
+
+        if max_freq is not None:
             assert min_freq <= max_freq, 'min_freq > max_freq'
-            query = filter(lambda item: max_freq >= item[1] >= min_freq, query)
+            query = filter(lambda item: item[1] in range(min_freq, max_freq+1), query)
+        else:
+            query = filter(lambda item: item[1] in range(min_freq, item[1]+1), query)
         return dict(query)
 
     def most_common(self, n: Optional[int] = None) -> Dict[Any, int]:
@@ -295,7 +294,7 @@ class TfIdf:
         return sentence.split()
 
     @classmethod
-    def _clean_sentence(cls, sentence: str, language: str = 'english', punctuation: str = None,\
+    def _clean_sentence(cls, sentence: str, language: str = 'english', punctuation: str = None, \
                         stop_words: List[str] = None) -> str:
         sentence = replace_english_contractions(sentence) if language == 'english' else sentence
         sentence = remove_punctuation(sentence, punctuation=punctuation)
@@ -330,7 +329,7 @@ class TfIdf:
         return idf_dict
 
     @classmethod
-    def clean_sentences(cls, sentences: List[str], language: str = 'english', punctuation: str = None,\
+    def clean_sentences(cls, sentences: List[str], language: str = 'english', punctuation: str = None, \
                         stop_words: List[str] = None) -> List[str]:
         return [cls._clean_sentence(sentence.lower(),
                                     language=language,
