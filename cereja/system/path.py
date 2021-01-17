@@ -363,7 +363,7 @@ def clean_dir(path_: str):
     """
     Delete all files on dir
     """
-    content = listdir(path_)
+    content = Path.list_dir(path_)
     for p in content:
         shutil.rmtree(p)
     logger.info(f"{len(content)} files were removed")
