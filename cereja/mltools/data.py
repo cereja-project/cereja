@@ -27,7 +27,7 @@ from collections import Counter
 from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
 from cereja.array import is_iterable, is_sequence
-from cereja.file import JsonFile
+from cereja.file import FileIO
 from cereja.utils import invert_dict
 from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
@@ -100,7 +100,7 @@ class Freq(Counter):
 
     def to_json(self, path_, probability=False, **kwargs):
         content = self.probability if probability else self
-        JsonFile(path_=path_, data=content).save(**kwargs)
+        FileIO.create(path_=path_, data=content).save(**kwargs)
 
 
 class ConnectValues(dict):
@@ -163,13 +163,13 @@ class Tokenizer:
     __unks = dict({f'{{{i}}}': i for i in range(_n_unks)})
     __unks.update(invert_dict(__unks))
 
-    def __init__(self, data: Union[List[str], JsonFile], preprocess_function=None):
+    def __init__(self, data: Union[List[str], dict], preprocess_function=None, load_mode=False):
 
         self._preprocess_function = preprocess_function or (lambda x: x)
-        if isinstance(data, JsonFile):
+        if isinstance(data, dict) and load_mode:
             logger.info("Building from file.")
-            self._uniques = set(data.data.values())
-            self._index_to_item = data.data
+            self._uniques = set(data.values())
+            self._index_to_item = data
         else:
             self._uniques = self.get_uniques(data)
             self._index_to_item = dict(enumerate(self._uniques, self._n_unks))
@@ -259,12 +259,12 @@ class Tokenizer:
         return [self.index_item(index) for index in self.normalize(data)]
 
     def to_json(self, path_: str):
-        JsonFile(path_, self._index_to_item).save(exist_ok=True)
+        FileIO.create(path_, self._index_to_item).save(exist_ok=True)
 
     @classmethod
     def load_from_json(cls, path_: str):
-        data = JsonFile.load(path_)
-        return cls(data)
+        data = FileIO.load(path_)
+        return cls(data.data, load_mode=True)
 
     def replace_unks(self, sentence: str, hash_):
         assert isinstance(sentence, str), 'expected a string.'
