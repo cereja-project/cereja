@@ -168,8 +168,8 @@ class Tokenizer:
         self._preprocess_function = preprocess_function or (lambda x: x)
         if isinstance(data, dict) and load_mode:
             logger.info("Building from file.")
-            self._uniques = set(data.values())
-            self._index_to_item = data
+            self._uniques = set(data.keys())
+            self._index_to_item = invert_dict(data)
         else:
             self._uniques = self.get_uniques(data)
             self._index_to_item = dict(enumerate(self._uniques, self._n_unks))
@@ -259,7 +259,7 @@ class Tokenizer:
         return [self.index_item(index) for index in self.normalize(data)]
 
     def to_json(self, path_: str):
-        FileIO.create(path_, self._index_to_item).save(exist_ok=True)
+        FileIO.create(path_, self._item_to_index).save(exist_ok=True)
 
     @classmethod
     def load_from_json(cls, path_: str):
