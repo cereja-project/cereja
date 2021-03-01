@@ -27,7 +27,7 @@ from collections import Counter
 from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
 from cereja.array import is_iterable, is_sequence
-from cereja.file.v1.core import JsonFile
+from cereja.file import JsonFile
 from cereja.utils import invert_dict
 from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
@@ -82,9 +82,9 @@ class Freq(Counter):
 
         if max_freq is not None:
             assert min_freq <= max_freq, 'min_freq > max_freq'
-            query = filter(lambda item: item[1] in range(min_freq, max_freq+1), query)
+            query = filter(lambda item: item[1] in range(min_freq, max_freq + 1), query)
         else:
-            query = filter(lambda item: item[1] in range(min_freq, item[1]+1), query)
+            query = filter(lambda item: item[1] in range(min_freq, item[1] + 1), query)
         return dict(query)
 
     def most_common(self, n: Optional[int] = None) -> Dict[Any, int]:
@@ -163,19 +163,20 @@ class Tokenizer:
     __unks = dict({f'{{{i}}}': i for i in range(_n_unks)})
     __unks.update(invert_dict(__unks))
 
-    def __init__(self, data: List[str]):
-        self._lang_data = self.language_data(data)
-        self._index_to_word = dict(enumerate(self._lang_data.words, self._n_unks))
-        self._word_to_index = invert_dict(self._index_to_word)
+    def __init__(self, data: Union[List[str], JsonFile], preprocess_function=None):
+
+        self._preprocess_function = preprocess_function or (lambda x: x)
+        if isinstance(data, JsonFile):
+            logger.info("Building from file.")
+            self._uniques = set(data.data.values())
+            self._index_to_item = data.data
+        else:
+            self._uniques = self.get_uniques(data)
+            self._index_to_item = dict(enumerate(self._uniques, self._n_unks))
+        self._item_to_index = invert_dict(self._index_to_item)
         self._temp_unks = dict()
         self._hash = self.new_hash  # default
-
-    @classmethod
-    def language_data(cls, data):
-        # because circular import
-        # TODO: fix me
-        from cereja.mltools.pln import LanguageData
-        return LanguageData(data)
+        self._unk_memory_max = 10000  # prevents memory leak
 
     @property
     def unks(self):
@@ -193,15 +194,10 @@ class Tokenizer:
     def new_hash(self):
         return secrets.token_hex(7)
 
-    def word_index(self, word: str) -> int:
-        return self._word_to_index.get(word)
-
-    def index_word(self, index: int) -> str:
-        return self._index_to_word.get(index, self.unks.get(index))
-
     @classmethod
     def normalize(cls, data) -> List[Any]:
-        data = data or []
+        if data is None:
+            data = []
         if isinstance(data, str):
             return [data]
         elif isinstance(data, (int, float, bytes)):
@@ -209,13 +205,29 @@ class Tokenizer:
         assert is_sequence(data), TypeError(f'this data type is not supported, try sending a {str}, {list} or tuple')
         return data
 
+    def get_uniques(self, values: List[str]) -> set:
+        data = self.normalize(values)
+        result = []
+        for v in data:
+            result += v.split()
+        return set(map(self._preprocess_function, result))
+
+    def item_index(self, word: str) -> int:
+        return self._item_to_index.get(word)
+
+    def index_item(self, index: int) -> str:
+        return self._index_to_item.get(index, self.unks.get(index))
+
     def _encode(self, data: List[str], hash__):
         if hash__ not in self._temp_unks:
+            if len(self._temp_unks) > self._unk_memory_max:
+                self._temp_unks = {}
+                logger.warning("Memory Leak Detected. Cleaned temp UNK's")
             self._temp_unks[hash__] = {}
         n = 0
         result = []
-        for word in self._lang_data.preprocess(data):
-            index = self.word_index(word)
+        for word in map(self._preprocess_function, data):
+            index = self.item_index(word)
             if index is None:
                 unk = f'{{{n % self._n_unks}}}'
                 index = self.unks.get(unk)
@@ -244,10 +256,15 @@ class Tokenizer:
         return result
 
     def decode(self, data: Union[List[int], int]):
-        return [self.index_word(index) for index in self.normalize(data)]
+        return [self.index_item(index) for index in self.normalize(data)]
 
     def to_json(self, path_: str):
-        JsonFile(path_, self._index_to_word).save(exist_ok=True)
+        JsonFile(path_, self._index_to_item).save(exist_ok=True)
+
+    @classmethod
+    def load_from_json(cls, path_: str):
+        data = JsonFile.load(path_)
+        return cls(data)
 
     def replace_unks(self, sentence: str, hash_):
         assert isinstance(sentence, str), 'expected a string.'
@@ -294,7 +311,7 @@ class TfIdf:
         return sentence.split()
 
     @classmethod
-    def _clean_sentence(cls, sentence: str, language: str = 'english', punctuation: str = None, \
+    def _clean_sentence(cls, sentence: str, language: str = 'english', punctuation: str = None,
                         stop_words: List[str] = None) -> str:
         sentence = replace_english_contractions(sentence) if language == 'english' else sentence
         sentence = remove_punctuation(sentence, punctuation=punctuation)
@@ -368,9 +385,12 @@ class TfIdf:
 
 if __name__ == '__main__':
     tokenizer = Tokenizer(data=['i like it', 'my name is Joab', 'hello'])
-    sequences = tokenizer.encode(data=['hello my friend, how are you?', 'my name is mário'])
+    sequences = tokenizer.encode(data=['hello my friend, how are you?', 'my name is joab'])
     decoded = []
+    print(sequences)
     for encoded_sequence, hash_ in sequences:
-        decoded.append(tokenizer.replace_unks(' '.join(tokenizer.decode(encoded_sequence)), hash_))
+        dec = ' '.join(tokenizer.decode(encoded_sequence))
+        print(dec)
+        decoded.append(tokenizer.replace_unks(dec, hash_))
 
     print(decoded)
