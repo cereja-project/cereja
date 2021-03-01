@@ -34,6 +34,7 @@ from cereja.mltools import *
 from cereja.utils.version import get_version_pep440_compliant
 from cereja import concurrently
 from cereja.system.unicode import *
+from cereja.date import *
 
 VERSION = "1.3.2.alpha.0"
 
