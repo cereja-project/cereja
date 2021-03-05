@@ -471,7 +471,7 @@ class _JsonIO(_FileIO):
         return json.load(fp)
 
     def _save_fp(self, fp):
-        json.dump(self._data, fp, indent=True)
+        json.dump(self._data, fp, indent=True, ensure_ascii=False)
 
     def items(self) -> ItemsView:
         return self._data.items()
