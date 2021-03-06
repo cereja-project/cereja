@@ -24,6 +24,7 @@ import itertools
 import warnings
 from typing import List, Dict, Union, Sequence, AnyStr, Any, Iterable
 
+from cereja import FileIO
 from cereja.config.cj_types import Number
 from cereja.mltools import preprocess as _preprocess
 from cereja.mltools.data import Freq
@@ -256,7 +257,7 @@ class LanguageDetector:
 
     def load(self, filepath: str):
         self._is_model = True
-        self.__language_data = File.load(filepath)
+        self.__language_data = FileIO.load(filepath).data
         return self
 
     def add(self, language: str, data_: List[str]):
