@@ -276,7 +276,7 @@ class Tokenizer:
             if not _temp_unks:
                 return sentence
             for (indx, word), unk in _temp_unks.items():  # cannot have an exception
-                sentence = sentence.replace(unk, word)
+                sentence = sentence.replace(unk, word, 1)
                 self._temp_unks[hash_].pop((indx, word))
             self._temp_unks.pop(hash_)
         except KeyError as err:
