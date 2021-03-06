@@ -21,6 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import logging
+import pickle
 import random
 import secrets
 import math
@@ -29,7 +30,7 @@ from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
 from cereja.array import is_iterable, is_sequence
 from cereja.file import FileIO
-from cereja.utils import invert_dict
+from cereja.utils import invert_dict, import_string, string_to_literal
 from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
 from cereja.utils.decorators import thread_safe_generator
@@ -166,20 +167,42 @@ class Tokenizer:
     __unks = dict({f'{{{i}}}': i for i in range(_n_unks)})
     __unks.update(invert_dict(__unks))
 
-    def __init__(self, data: Union[List[str], dict], preprocess_function=None, load_mode=False):
-
-        self._preprocess_function = preprocess_function or (lambda x: x)
+    def __init__(self, data: Union[List[str], dict], preprocess_function=None, load_mode=False, use_unk=True):
+        self._temp_unks = dict()
+        self._hash = self.new_hash  # default
+        self._unk_memory_max = 10000  # prevents memory leak
+        self._use_unk = use_unk
+        self._preprocess_function = preprocess_function
+        self._warning_not_use_unk = False
         if isinstance(data, dict) and load_mode:
             logger.info("Building from file.")
-            self._uniques = set(data.keys())
-            self._index_to_item = invert_dict(data)
+            keys = data.keys()
+            assert '_metadata' in keys and 'data' in keys, 'Invalid content.'
+            for k, v in data['_metadata'].items():
+                if k == '_preprocess_function':
+                    # load function
+                    if v is not None:
+                        v = pickle.loads(string_to_literal(v))
+                setattr(self, k, v)
+            self._uniques = set(data['data'].keys())
+            self._index_to_item = invert_dict(data['data'])
         else:
             self._uniques = self.get_uniques(data)
             self._index_to_item = dict(enumerate(self._uniques, self._n_unks))
         self._item_to_index = invert_dict(self._index_to_item)
-        self._temp_unks = dict()
-        self._hash = self.new_hash  # default
-        self._unk_memory_max = 10000  # prevents memory leak
+
+    @property
+    def preprocess_function(self):
+        return self._preprocess_function or (lambda x: x)
+
+    @property
+    def last_index(self):
+        return self._n_unks + len(self._index_to_item) - 1
+
+    def add_item(self, item):
+        index_ = self.last_index + 1
+        self._index_to_item[index_] = item
+        self._item_to_index[item] = index_
 
     @property
     def unks(self):
@@ -213,7 +236,7 @@ class Tokenizer:
         result = []
         for v in data:
             result += v.split()
-        return set(map(self._preprocess_function, result))
+        return set(map(self.preprocess_function, result))
 
     def item_index(self, word: str) -> int:
         return self._item_to_index.get(word)
@@ -222,16 +245,27 @@ class Tokenizer:
         return self._index_to_item.get(index, self.unks.get(index))
 
     def _encode(self, data: List[str], hash__):
-        if hash__ not in self._temp_unks:
+        if hash__ not in self._temp_unks and self._use_unk:
             if len(self._temp_unks) > self._unk_memory_max:
                 self._temp_unks = {}
                 logger.warning("Memory Leak Detected. Cleaned temp UNK's")
             self._temp_unks[hash__] = {}
         n = 0
         result = []
-        for word in map(self._preprocess_function, data):
+        for word in map(self.preprocess_function, data):
             index = self.item_index(word)
             if index is None:
+                if not self._use_unk:
+                    if not self._warning_not_use_unk:
+                        logger.warning(
+                                "use_unk is False. All unknown item encoded will be added to tokenizer don't forget "
+                                "to save your "
+                                "tokenizer after encoding.")
+                        self._warning_not_use_unk = True
+                    self.add_item(word)
+                    index = self.last_index
+                    result.append(index)
+                    continue
                 unk = f'{{{n % self._n_unks}}}'
                 index = self.unks.get(unk)
                 self._temp_unks[hash__].update({(n, f"{word}"): unk})
@@ -254,6 +288,9 @@ class Tokenizer:
         result = []
         for sentence in self.normalize(data):
             assert isinstance(sentence, str), "send List[str] or str"
+            if not self._use_unk:
+                result.append(self._encode(sentence.split(), None))
+                continue
             __hash = self.new_hash
             result.append((self._encode(sentence.split(), __hash), __hash))
         return result
@@ -262,7 +299,12 @@ class Tokenizer:
         return [self.index_item(index) for index in self.normalize(data)]
 
     def to_json(self, path_: str):
-        FileIO.create(path_, self._item_to_index).save(exist_ok=True)
+        preprocess_function = str(pickle.dumps(self._preprocess_function)) if self._preprocess_function else None
+        use_unk = self._use_unk
+        tokenizer_data = {'_metadata': {'_preprocess_function': preprocess_function, '_use_unk': use_unk},
+                          'data':      self._index_to_item
+                          }
+        FileIO.create(path_, tokenizer_data).save(exist_ok=True)
 
     @classmethod
     def load_from_json(cls, path_: str):
