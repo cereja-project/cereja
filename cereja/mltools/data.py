@@ -184,8 +184,8 @@ class Tokenizer:
                     if v is not None:
                         v = pickle.loads(string_to_literal(v))
                 setattr(self, k, v)
-            self._uniques = set(data['data'].keys())
-            self._index_to_item = invert_dict(data['data'])
+            self._uniques = set(data['data'].values())
+            self._index_to_item = {int(k): v for k, v in data['data'].items()}
         else:
             self._uniques = self.get_uniques(data)
             self._index_to_item = dict(enumerate(self._uniques, self._n_unks))
@@ -273,7 +273,7 @@ class Tokenizer:
             result.append(index)
         return result
 
-    def encode(self, data: Union[str, List[str]]) -> List[Tuple[List[int], str]]:
+    def encode(self, data: Union[str, List[str]]) -> Union[Tuple[List[int], str], List[List[int]]]:
         """
         Encodes values in a sequence of numbers
 
