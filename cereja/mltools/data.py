@@ -299,7 +299,10 @@ class Tokenizer:
         return [self.index_item(index) for index in self.normalize(data)]
 
     def to_json(self, path_: str):
-        preprocess_function = str(pickle.dumps(self._preprocess_function)) if self._preprocess_function else None
+        try:
+            preprocess_function = str(pickle.dumps(self._preprocess_function)) if self._preprocess_function else None
+        except Exception as err:
+            raise Exception(f'Error on preprocess function save: {err}')
         use_unk = self._use_unk
         tokenizer_data = {'_metadata': {'_preprocess_function': preprocess_function, '_use_unk': use_unk},
                           'data':      self._index_to_item
