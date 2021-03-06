@@ -21,6 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import logging
+import random
 import secrets
 import math
 from collections import Counter
@@ -31,8 +32,10 @@ from cereja.file import FileIO
 from cereja.utils import invert_dict
 from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
+from cereja.utils.decorators import thread_safe_generator
 
-__all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf']
+__all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf', 'DataGenerator']
+
 logger = logging.Logger(__name__)
 
 
@@ -381,6 +384,35 @@ class TfIdf:
 
     def inverse_data_frequency_order(self, reverse=False):
         return sorted([(w, idf) for w, idf in self.idf.items()], key=lambda x: x[1], reverse=reverse)
+
+
+class DataGenerator:
+    def __init__(self, data, use_random=False):
+        self._data = data
+        self._use_random = use_random
+
+    @thread_safe_generator
+    def take(self, batch_size=1):
+        """
+        infinite loop on data
+
+        @param batch_size: is a integer
+        @return: batch of data
+        """
+        assert batch_size <= len(self._data), f'batch_size > data length! Send value <= {len(self._data)}'
+        data = iter(self._data)
+        while True:
+            result = []
+            if self._use_random:
+                result += random.sample(self._data, k=batch_size)
+            else:
+                for _ in range(batch_size):
+                    try:
+                        result.append(next(data))
+                    except StopIteration:
+                        data = iter(self._data)
+                        result.append(next(data))
+            yield result
 
 
 if __name__ == '__main__':

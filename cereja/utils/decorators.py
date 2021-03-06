@@ -50,6 +50,26 @@ def synchronized(func):
     return synced_func
 
 
+class _ThreadSafeIterator:
+    def __init__(self, iterator):
+        self.iterator = iterator
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        with self.lock:
+            return next(self.iterator)
+
+
+def thread_safe_generator(func):
+    def gen(*a, **kw):
+        return _ThreadSafeIterator(func(*a, **kw))
+
+    return gen
+
+
 def time_exec(func: Callable[[Any], Any]) -> Callable:
     """
     Decorator used to signal or perform a particular function.
