@@ -377,7 +377,6 @@ class DataToolsFunctionsTestCase(unittest.TestCase):
         self.assertEqual(freq.least_freq(), {123: 1, 31: 1, 12: 1, 4: 1, 2: 1, 1: 1, 7: 2, 6: 2, 5: 2, 3: 3})
 
 
-
 class ProgressTestCase:
     def test_sanity(self):
         progress = Progress("Cereja Progress Test")

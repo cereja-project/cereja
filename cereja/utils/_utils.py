@@ -36,7 +36,7 @@ from cereja.config.cj_types import ClassType, FunctionType
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
-           'string_to_literal']
+           'string_to_literal', 'rescale_values']
 logger = logging.getLogger(__name__)
 
 
@@ -410,3 +410,46 @@ def _add_license(base_dir, ext='.py'):
             continue
         file.insert('"""\n' + licence_file.string + '\n"""')
         file.save(exist_ok=True)
+
+
+def rescale_values(values: List[Any], granularity: int) -> List[Any]:
+    """
+    Resizes a list of values
+    eg.
+        >>> import cereja as cj
+        >>> cj.rescale_values(values=list(range(100)), granularity=10)
+        [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+        >>> cj.rescale_values(values=list(range(5)), granularity=10)
+        [0, 0, 0, 1, 1, 1, 2, 2, 2, 3]
+
+    @param values: Sequence of anything
+    @param granularity: is a integer
+    @return: rescaled list of values.
+    """
+    if len(values) >= granularity:
+        return values[::len(values) // granularity]
+    if len(values) == 0:
+        return []
+    cluster = int(len(values) / granularity)
+    if cluster == 0:
+        multiplier = int(granularity / len(values) + 1)
+        oversampling = []
+
+        for array in values:
+            for i in range(multiplier):
+                oversampling.append(array)
+
+        values = oversampling
+        cluster = 1
+
+    flatten_result = []
+    start_interval = 0
+
+    for i in range(granularity):
+        frames = values[start_interval:start_interval + cluster]
+        flatten_result.append(frames[-1])
+        start_interval += cluster
+
+    assert len(
+            flatten_result) == granularity, f"Error while resizing the list size {len(flatten_result)} != {granularity}"
+    return flatten_result

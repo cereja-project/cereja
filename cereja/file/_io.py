@@ -420,13 +420,13 @@ class _TxtIO(_FileIO):
     def _parse_fp(self, fp: TextIO) -> List[Union[str, int, float, complex]]:
         return self.parse(fp.read())
 
-    def parse(self, data: Union[str, bytes, list, tuple, int, float, complex]) -> List[Union[str, int, float, complex]]:
+    def parse(self, data: Union[str, bytes, list, tuple, int, float, complex]) -> List[str]:
         if isinstance(data, (str, bytes)):
-            return [string_to_literal(i) for i in data.splitlines()]
+            return [i for i in data.splitlines()]
         if isinstance(data, (int, float, complex)):
-            return [data]
+            return [str(data)]
         elif isinstance(data, (list, tuple)):
-            return data
+            return [str(i) for i in data]
         else:
             raise TypeError(f"{type(data)} isn't valid")
 
@@ -471,7 +471,7 @@ class _JsonIO(_FileIO):
         return json.load(fp)
 
     def _save_fp(self, fp):
-        json.dump(self._data, fp, indent=True)
+        json.dump(self._data, fp, indent=True, ensure_ascii=False)
 
     def items(self) -> ItemsView:
         return self._data.items()
