@@ -27,6 +27,7 @@ import random
 import shutil
 import time
 import warnings
+from datetime import datetime
 from typing import List, Union
 from cereja.array import group_items_in_batches
 from pathlib import Path as Path_
@@ -135,6 +136,7 @@ def _norm_path(path_: str):
 
 
 class Path(os.PathLike):
+    _date_format = "%Y-%m-%d %H:%M:%S"
 
     def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
         self.__path = Path_(_norm_path(initial), *pathsegments)
@@ -246,6 +248,18 @@ class Path(os.PathLike):
         return self.__path.is_symlink()
 
     @property
+    def updated_at(self):
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_mtime).strftime(self._date_format)
+
+    @property
+    def created_at(self):
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_ctime).strftime(self._date_format)
+
+    @property
+    def last_access(self):
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_atime).strftime(self._date_format)
+
+    @property
     def is_hidden(self):
         """
         In Unix-like operating systems, any file or folder that starts with a dot character
@@ -311,6 +325,12 @@ class Path(os.PathLike):
     def cp(self, to):
         to = self.__class__(to)
         return self._shutil('cp', to=to)
+
+    def rsplit(self, sep=None, max_split=-1):
+        return self.path.rsplit(sep, max_split)
+
+    def split(self, sep=None, max_split=-1):
+        return self.path.rsplit(sep, max_split)
 
     @classmethod
     def list_dir(cls, path_: Union[str, 'Path']) -> List['Path']:
