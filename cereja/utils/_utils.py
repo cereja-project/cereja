@@ -412,6 +412,16 @@ def _add_license(base_dir, ext='.py'):
         file.save(exist_ok=True)
 
 
+def _compress_list(input_list, size):
+    assert len(input_list) >= size, f'{len(input_list), size}'
+
+    skip = len(input_list) // size
+
+    output = [input_list[i] for i in range(0, len(input_list), skip)]
+
+    return output[:size]
+
+
 def rescale_values(values: List[Any], granularity: int) -> List[Any]:
     """
     Resizes a list of values
@@ -427,7 +437,7 @@ def rescale_values(values: List[Any], granularity: int) -> List[Any]:
     @return: rescaled list of values.
     """
     if len(values) >= granularity:
-        return values[::len(values) // granularity]
+        return _compress_list(values, granularity)
     if len(values) == 0:
         return []
     cluster = int(len(values) / granularity)

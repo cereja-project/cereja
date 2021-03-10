@@ -37,7 +37,7 @@ from cereja.system.unicode import *
 from cereja.date import *
 
 
-VERSION = "1.3.3.alpha.0"
+VERSION = "1.3.3.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
