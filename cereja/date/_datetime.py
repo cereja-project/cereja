@@ -55,7 +55,7 @@ class DateTime(datetime):
     def days_between(self, other):
         return self.days_from_timestamp(abs(self.timestamp() - self._validate_date(other).timestamp()))
 
-    def compare(other):
+    def compare(self, other):
         '''
         compares date time and 
         returns 1 if the instantiated date is greater, 
