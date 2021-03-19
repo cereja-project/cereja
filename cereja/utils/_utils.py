@@ -474,6 +474,6 @@ class Source:
     def source_code(self):
         return self._source_code
 
-    def save(self, path_):
+    def save(self, path_, **kwargs):
         assert Path(path_).suffix == '.py', "Only python source code."
-        FileIO.create(path_, self._source_code).save()
+        FileIO.create(path_, self._source_code).save(**kwargs)
