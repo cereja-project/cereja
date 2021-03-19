@@ -333,7 +333,7 @@ class Path(os.PathLike):
         return self.path.rsplit(sep, max_split)
 
     @classmethod
-    def list_dir(cls, path_: Union[str, 'Path']) -> List['Path']:
+    def list_dir(cls, path_: Union[str, 'Path'], only_name=False) -> List['Path']:
         """
         Extension of the listdir function of module os.
 
@@ -345,7 +345,7 @@ class Path(os.PathLike):
             path_ = cls(path_)
 
         assert path_.is_dir, f"{path_} isn't dir."
-        return [path_.join(p) for p in os.listdir(str(path_))]
+        return [p.stem if only_name else p for p in map(lambda x: path_.join(p), os.listdir(str(path_)))]
 
     @classmethod
     def list_files(cls, dir_path: Union[str, 'Path'], ext: str = None, contains_in_name: List = (),
