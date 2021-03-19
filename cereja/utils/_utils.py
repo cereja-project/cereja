@@ -29,8 +29,9 @@ from typing import Any, Union, List, Tuple
 import logging
 import itertools
 from copy import copy
+import inspect
 # Needed init configs
-
+from cereja import FileIO, Path
 from cereja.config.cj_types import ClassType, FunctionType
 
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
@@ -463,3 +464,16 @@ def rescale_values(values: List[Any], granularity: int) -> List[Any]:
     assert len(
             flatten_result) == granularity, f"Error while resizing the list size {len(flatten_result)} != {granularity}"
     return flatten_result
+
+
+class Source:
+    def __init__(self, reference: Any):
+        self._source_code = inspect.getsource(reference)
+
+    @property
+    def source_code(self):
+        return self._source_code
+
+    def save(self, path_):
+        assert Path(path_).suffix == '.py', "Only python source code."
+        FileIO.create(path_, self._source_code).save()
