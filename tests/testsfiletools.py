@@ -16,6 +16,7 @@ class FileIOTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             self.file.set_path(Path(tempdir).join(self.file.name))
             data_before_save = self.file.data
+            print(self.file.name)
             self.file.save(exist_ok=True)
             file = FileIO.load(self.file.path)
             self.assertTrue(file.path.exists, msg="File don't exist.")
@@ -109,3 +110,13 @@ class FileCsvTest(FileIOTest):
         # or use index and get a row
         self.assertEqual(self.file[0], [1, 2, 3])
         self.assertEqual(self.file.flatten(), [1, 2, 3, 1, 2, 0])
+
+
+class FilePyTest(FileIOTest):
+    data = [[1, 2, 3]]
+
+    def create(self):
+        return FileIO.create('test.pkl', data=self.data)
+
+    def test_commons_operations(self):
+        self.assertEqual(self.file.data, [[1, 2, 3]])

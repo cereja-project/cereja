@@ -2,8 +2,9 @@ import copy
 import csv
 import logging
 import os
+import pickle
 import tempfile
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, ABC
 from collections import ValuesView
 from datetime import datetime
 from io import BytesIO
@@ -56,6 +57,7 @@ class _IFileIO(metaclass=ABCMeta):
                        }
 
     def __init__(self):
+        self._built = False
         self._last_update = None
         self._length = None
         self._is_deleted = False
@@ -126,11 +128,16 @@ class _IFileIO(metaclass=ABCMeta):
 
     @property
     @abstractmethod
+    def exists(self):
+        pass
+
+    @property
+    @abstractmethod
     def last_access(self):
         pass
 
     @abstractmethod
-    def load(self, mode=None, **kwargs) -> Any:
+    def _load(self, mode=None, **kwargs) -> Any:
         pass
 
     @abstractmethod
@@ -158,7 +165,7 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def add(self, *args, **kwargs):
+    def add(self, data, **kwargs):
         pass
 
     @abstractmethod
@@ -178,7 +185,7 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
 
-class _FileIO(_IFileIO, metaclass=ABCMeta):
+class _FileIO(_IFileIO, ABC):
 
     def __init__(self, path_: Path, data=None, creation_mode=False, **kwargs):
         super().__init__()
@@ -189,10 +196,11 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         if self._ext_allowed:
             assert self._path.suffix in self._ext_allowed, f'{path_.suffix} != {self._ext_allowed}'
         self._ext_without_point = self._path.suffix.strip(".").upper()
+        self._built = True  # next setattr will be saved in history to be future recovery
         if creation_mode:
             self._data = self.parse(data)
         else:
-            self._data = self.load(**kwargs)
+            self._data = self._load(**kwargs)
 
     def __init_subclass__(cls, **kwargs):
         for attr in cls._need_implement:
@@ -208,7 +216,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
     def __setattr__(self, key, value):
         object.__setattr__(self, key, copy.copy(value))
         if hasattr(self, '_change_history') and key not in (
-                '_current_change', '_max_history_length', '_change_history'):
+                '_current_change', '_max_history_length', '_change_history', '_built') and self._built is True:
             self._set_change(key, copy.copy(object.__getattribute__(self, key)))  # append last_value of attr
 
     def __getitem__(self, item):
@@ -294,6 +302,14 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
     def is_empty(self):
         return not bool(self._data)
 
+    @property
+    def exists(self):
+        return self.path.exists
+
+    @classmethod
+    def add(cls, *args, **kwargs):
+        raise NotImplementedError("it's not implemented")
+
     def _get_mode(self, mode) -> str:
         """
         if mode is 'r' return 'r+' or 'r+b' else mode is 'w' return 'w+' or 'w+b'
@@ -315,7 +331,7 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         # subtracts the size of the python object
         return (memory_of_this(self._data) - self._data.__class__().__sizeof__()) / self._size_map[unit]
 
-    def load(self, mode=None, **kwargs) -> Any:
+    def _load(self, mode=None, **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
             logger.warning(f"I can't read this file. See class attribute <{self.__name__}._dont_read>")
             return
@@ -347,10 +363,13 @@ class _FileIO(_IFileIO, metaclass=ABCMeta):
         encoding = None if self._is_byte else 'utf-8'
         with tempfile.TemporaryDirectory() as tmpdirname:
             tmp_file = Path(tmpdirname).join(self.name)
-            if not self._newline:
+            if not self._newline and not self._is_byte:
                 kwargs.update({'newline': ''})
-            with open(tmp_file, mode=mode, encoding=encoding, **kwargs) as fp:
-                self._save_fp(fp)
+            try:
+                with open(tmp_file, mode=mode, encoding=encoding, **kwargs) as fp:
+                    self._save_fp(fp)
+            except Exception as err:
+                raise IOError(f'Error writing to the file system file: {err}')
             tmp_file.cp(self.path)
 
     def delete(self):
@@ -528,9 +547,6 @@ class _Mp4IO(_FileIO):
     def parse(self, data):
         return self._data
 
-    def add(self, data, **kwargs):
-        return NotImplementedError("it's not implemented")
-
 
 class _CsvIO(_FileIO):
     _is_byte: bool = False
@@ -656,14 +672,35 @@ class _CsvIO(_FileIO):
         return super().__getitem__(item)
 
 
+class _PyObj(_FileIO):
+    _is_byte: bool = True
+    _only_read = False
+    _newline = False
+    _ext_allowed = ('.pkl',)
+
+    def _parse_fp(self, fp: TextIO, **kwargs) -> List[List[Any]]:
+        loaded_obj = pickle.load(fp, **kwargs)
+        return self.parse(loaded_obj)
+
+    def _save_fp(self, fp: TextIO):
+        pickle.dump(self.data, fp)
+
+    def parse(self, data):
+        return data
+
+    def add(self, *args, **kwargs):
+        return super().add()
+
+
 class FileIO:
     txt = _TxtIO
     json = _JsonIO
     mp4 = _Mp4IO
     csv = _CsvIO
+    pkl = _PyObj
     _generic = _GenericFile
 
-    def __new__(cls, path_, **kwargs):
+    def __new__(cls, path_, data=None, **kwargs):
         raise Exception(f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']")
 
     @classmethod
@@ -730,3 +767,4 @@ FileType = Type[_GenericFile]
 FileTxtType = Type[_TxtIO]
 FileJsonType = Type[_JsonIO]
 FileCsvType = Type[_CsvIO]
+FilePythonObj = Type[_PyObj]
