@@ -672,7 +672,7 @@ class _CsvIO(_FileIO):
         return super().__getitem__(item)
 
 
-class _PyObj(_FileIO):
+class _PyObj(_FileIO, ABC):
     _is_byte: bool = True
     _only_read = False
     _newline = False
@@ -687,9 +687,6 @@ class _PyObj(_FileIO):
 
     def parse(self, data):
         return data
-
-    def add(self, *args, **kwargs):
-        return super().add()
 
 
 class FileIO:

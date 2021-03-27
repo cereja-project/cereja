@@ -112,7 +112,7 @@ class FileCsvTest(FileIOTest):
         self.assertEqual(self.file.flatten(), [1, 2, 3, 1, 2, 0])
 
 
-class FilePyTest(FileIOTest):
+class FilePyObjTest(FileIOTest):
     data = [[1, 2, 3]]
 
     def create(self):
