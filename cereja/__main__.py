@@ -24,26 +24,22 @@ SOFTWARE.
 import argparse
 import sys
 from cereja import get_version_pep440_compliant, Path
-from cereja.file.v1.core import crlf_to_lf, File
 from cereja.config import BASE_DIR
+from cereja.file import FileIO
 
 if __name__ == "__main__":
     sys.stdout.write("\U0001F352 Cereja Tools\n")
     sys.stdout.flush()
     parser = argparse.ArgumentParser(description='Cereja Tools.')
     parser.add_argument('--version', action='version', version=get_version_pep440_compliant())
-    parser.add_argument('--crlf_to_lf')
-    parser.add_argument('--lf_to_crlf')
     parser.add_argument('--startmodule', type=str)
     args = parser.parse_args()
-    if args.crlf_to_lf:
-        crlf_to_lf(args.crlf_to_lf)
-
     if args.startmodule:
         base_dir = Path(BASE_DIR)
-        license_ = '"""\n' + File.load(base_dir.parent.join('LICENSE')).string + '\n"""'
+        license_ = b''.join(FileIO.load(base_dir.parent.join('LICENSE')).data).decode()
+        license_ = '"""\n' + license_ + '"""'
         new_module_path = base_dir.join(*args.startmodule.split('/'))
         if new_module_path.parent.exists and new_module_path.parent.is_dir:
-            File(new_module_path, license_).save()
+            FileIO.create(new_module_path, license_).save()
         else:
             print(f"{new_module_path} is not valid.")

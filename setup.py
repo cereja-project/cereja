@@ -25,8 +25,7 @@ import setuptools
 
 import cereja
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+long_description = b''.join(cereja.file.FileIO.load('README.md').data).decode()
 
 EXCLUDE_FROM_PACKAGES = ('cereja.tests',
                          'cereja.lab',

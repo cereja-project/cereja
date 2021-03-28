@@ -23,21 +23,29 @@ SOFTWARE.
 from .config import conf
 from cereja.utils import *
 from . import utils
+from . import display
 from cereja.display import *
+from . import file
 from cereja.file import *
+from . import array
 from cereja.array import *
+from . import system
 from cereja.system.path import *
 from cereja.system.unicode import *
+from . import utils
 from .utils import decorators
 from cereja.concurrently import *
+from . import mltools
 from cereja.mltools import *
 from cereja.utils.version import get_version_pep440_compliant
-from cereja import concurrently
 from cereja.system.unicode import *
+from . import date
 from cereja.date import *
+from . import hashtools
+from . import mathtools
+from cereja.mathtools import *
 
-
-VERSION = "1.3.3.final.0"
+VERSION = "1.3.4.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 

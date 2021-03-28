@@ -24,7 +24,7 @@ from typing import Tuple
 
 from cereja.config.cj_types import Number
 
-__all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle']
+__all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle', 'distance_between_points']
 
 
 def imc(weight: float, height: float) -> Tuple[float, str]:
@@ -74,3 +74,9 @@ def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
     x1, y1 = u
     x2, y2 = v
     return math.degrees(math.acos((x1 * x2 + y1 * y2) / (math.sqrt(x1 ** 2 + y1 ** 2) * math.sqrt(x2 ** 2 + y2 ** 2))))
+
+
+def distance_between_points(u: Tuple[float, float], v: Tuple[float, float]):
+    x1, y1 = u
+    x2, y2 = v
+    return math.sqrt(((x2 - x1) ** 2) + ((y2 - y1) ** 2))
