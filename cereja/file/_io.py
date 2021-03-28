@@ -408,7 +408,7 @@ class _GenericFile(_FileIO):
 
     def _parse_fp(self, fp: BytesIO) -> List[bytes]:
         fp_lines = fp.readlines()
-        fp_lines = [b''] or fp_lines
+        fp_lines = fp_lines or [b'']
         return fp_lines
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
