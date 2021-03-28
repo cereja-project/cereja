@@ -45,7 +45,7 @@ from . import hashtools
 from . import mathtools
 from cereja.mathtools import *
 
-VERSION = "1.3.4.final.0"
+VERSION = "1.3.5.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
