@@ -42,7 +42,8 @@ from cereja.system.unicode import *
 from . import date
 from cereja.date import *
 from . import hashtools
-
+from . import mathtools
+from cereja.mathtools import *
 
 VERSION = "1.3.4.final.0"
 
