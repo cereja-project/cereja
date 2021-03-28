@@ -20,9 +20,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import warnings
+
+from cereja import FileIO
 from cereja.array import get_cols
 from cereja.mltools.pln import LanguageData
-from cereja.file.v1.core import File
 import random
 import csv
 from cereja.system.path import Path
@@ -196,15 +197,15 @@ class Corpus(object):
 
         for prefix, x, y in data_to_save:
             save_on = save_on_dir.join(f'{prefix}_{self.source_language}.{ext.strip(".")}')
-            File(save_on, content_file=x).save(**kwargs)
+            FileIO.create(save_on, data=x).save(**kwargs)
             save_on = save_on_dir.join(f'{prefix}_{self.target_language}.{ext.strip(".")}')
-            File(save_on, content_file=y).save(**kwargs)
+            FileIO.create(save_on, data=y).save(**kwargs)
 
     @classmethod
     def load_corpus_from_csv(cls, path_: str, src_col_name: str, trg_col_name: str, source_name=None,
                              target_name=None):
 
-        csv_read = csv.DictReader(File.load(path_).lines)
+        csv_read = csv.DictReader(FileIO.load(path_).data)
         src_data = []
         trg_data = []
         for i in csv_read:
