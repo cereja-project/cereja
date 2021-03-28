@@ -37,7 +37,7 @@ from cereja.config.cj_types import ClassType, FunctionType
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
-           'string_to_literal', 'rescale_values']
+           'string_to_literal', 'rescale_values', 'Source']
 logger = logging.getLogger(__name__)
 
 
