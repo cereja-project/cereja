@@ -44,7 +44,7 @@ from cereja.date import *
 from . import hashtools
 
 
-VERSION = "1.3.4.alpha.0"
+VERSION = "1.3.4.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
