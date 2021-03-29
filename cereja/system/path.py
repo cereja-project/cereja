@@ -345,7 +345,7 @@ class Path(os.PathLike):
             path_ = cls(path_)
 
         assert path_.is_dir, f"{path_} isn't dir."
-        return [p.stem if only_name else p for p in map(lambda x: path_.join(p), os.listdir(str(path_)))]
+        return [p.stem if only_name else p for p in map(path_.join, os.listdir(path_))]
 
     @classmethod
     def list_files(cls, dir_path: Union[str, 'Path'], ext: str = None, contains_in_name: List = (),
