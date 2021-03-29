@@ -155,7 +155,10 @@ class PathTest(unittest.TestCase):
         self.assertTrue('sanity' in p)
         p = p + ['con', 'cat']
         p_test = Path('cereja/test/sanity').join('con', 'cat')
+        self.assertEqual(p_test.parts[-2:], ('con', 'cat'))
         self.assertTrue(p == p_test)
+        self.assertListEqual(Path.list_dir('./', only_name=True),
+                             list(map(lambda x: x.rsplit('.')[0], os.listdir('./'))))
 
 
 class UnicodeToolTestCase(unittest.TestCase):

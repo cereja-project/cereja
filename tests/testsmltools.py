@@ -1,13 +1,12 @@
 import tempfile
 import unittest
-from abc import abstractmethod
 
 from cereja.system import Path
 from cereja.mltools.preprocess import separate
 from cereja.mltools.data import Tokenizer
 
 
-class FileIOTest(unittest.TestCase):
+class TokenizerTest(unittest.TestCase):
     data = None
 
     def test_sanity(self):
