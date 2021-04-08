@@ -519,6 +519,14 @@ class _JsonIO(_FileIO):
     def get(self, _key):
         return self._data.get(_key)
 
+    def sample_items(self, k: int = 1) -> dict:
+        """
+        Get sample of this.
+        @param k: length of sample
+        """
+        assert isinstance(k, int) and k > 0, f"k = {k} isn't valid."
+        return {key: value for n, (key, value) in enumerate(self.data.items()) if n + 1 <= k}
+
     def __getitem__(self, item):
         try:
             return self.data[item]
