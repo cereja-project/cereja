@@ -4,19 +4,24 @@ from abc import abstractmethod
 
 from cereja.system import Path
 from cereja.file import FileIO
+from cereja.display import console
 
 
 class FileIOTest(unittest.TestCase):
     data = None
 
+    @property
+    def name(self):
+        return self.__class__.__name__
+
     def setUp(self) -> None:
         self.file = self.create()
 
     def test_sanity(self):
+        console.log(f'Testing {self.name}')
         with tempfile.TemporaryDirectory() as tempdir:
             self.file.set_path(Path(tempdir).join(self.file.name))
             data_before_save = self.file.data
-            print(self.file.name)
             self.file.save(exist_ok=True)
             file = FileIO.load(self.file.path)
             self.assertTrue(file.path.exists, msg="File don't exist.")
@@ -81,6 +86,12 @@ class FileIOJsonTest(FileIOTest):
         # Insert Data
         self.file['key4'] = 'value4'
         self.assertEqual(self.file.data, {'key': 'value', 'key2': 'value2', 'key3': 'value3', 'key4': 'value4'})
+
+    def test_sample_items(self):
+        self.assertEqual(self.file.sample_items(), {'key': 'value'})
+        self.assertEqual(self.file.sample_items(k=3), {'key': 'value', 'key2': 'value2', 'key3': 'value3'})
+        self.assertRaises(AssertionError, self.file.sample_items, -1)
+        self.assertRaises(AssertionError, self.file.sample_items, 0.5)
 
 
 class FileCsvTest(FileIOTest):
