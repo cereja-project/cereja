@@ -103,7 +103,7 @@ class Freq(Counter):
         return 0.0
 
     def to_json(self, path_, probability=False, **kwargs):
-        content = self.probability if probability else self
+        content = self.probability if probability else self.most_common()
         FileIO.create(path_=path_, data=content).save(**kwargs)
 
 
