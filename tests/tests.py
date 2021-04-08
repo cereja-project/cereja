@@ -31,8 +31,7 @@ from cereja.array import group_items_in_batches, is_iterable, remove_duplicate_i
 from cereja.array import prod
 from cereja.mathtools import theta_angle
 from cereja.config.cj_types import Number
-from cereja.mltools import Corpus, preprocess
-from cereja.mltools.data import Freq
+from cereja.mltools import Corpus
 from cereja.mltools.pln import LanguageData
 from cereja.display import State, Progress
 from cereja.system.path import Path
@@ -203,24 +202,6 @@ class CorpusTestCase(unittest.TestCase):
         self.assertDictEqual(dict(corpus.target.words_freq.items()),
                              {'como':  3, 'você': 2, 'está': 2, 'joab': 2, 'meu': 1, 'nome': 1, 'é': 1, 'eu': 1,
                               'gosto': 1, 'de': 1, 'café': 1, 'nós': 1, 'somos': 1, 'o': 1, 'mundo': 1})
-
-
-class DataToolsFunctionsTestCase(unittest.TestCase):
-    def test_sanity(self):
-        self.assertEqual(preprocess.separate('how are you?', sep='?'), 'how are you ?')
-        self.assertEqual(preprocess.separate('how are you,man?', sep=('?', ','), between_char=True),
-                         'how are you , man ?')
-        self.assertEqual(preprocess.separate('how are! you?'), 'how are ! you ?')
-
-        freq = Freq([1, 1, 2, 2, 3, 3, 4, 5, 6, 7, 8, 'hi', 'o', 'a'])
-        self.assertEqual(freq.sample(max_freq=1), {4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 'hi': 1, 'o': 1, 'a': 1})
-        self.assertEqual(freq.sample(freq=2), {1: 2, 3: 2, 2: 2})
-
-        self.assertRaises(AssertionError, freq.sample, freq=1, max_freq=2)
-        self.assertRaises(AssertionError, freq.sample, freq=1, min_freq=2)
-
-        freq = Freq([1, 2, 3, 3, 4, 5, 6, 7, 6, 7, 12, 31, 123, 5, 3])
-        self.assertEqual(freq.least_freq(), {123: 1, 31: 1, 12: 1, 4: 1, 2: 1, 1: 1, 7: 2, 6: 2, 5: 2, 3: 3})
 
 
 class ProgressTestCase:
