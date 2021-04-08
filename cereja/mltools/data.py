@@ -25,12 +25,12 @@ import pickle
 import random
 import secrets
 import math
-from collections import Counter
+from collections import Counter, OrderedDict
 from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
 from cereja.array import is_iterable, is_sequence
 from cereja.file import FileIO
-from cereja.utils import invert_dict, import_string, string_to_literal
+from cereja.utils import invert_dict, string_to_literal
 from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
 from cereja.utils.decorators import thread_safe_generator
@@ -47,11 +47,11 @@ class Freq(Counter):
         super().__init__(data)
 
     @property
-    def probability(self):
+    def probability(self) -> OrderedDict:
         """
-        Return dict with percent
+        Return ordered dict with percent
         """
-        return dict(zip(self.keys(), map(self.item_prob, self.most_common())))
+        return OrderedDict(map(lambda key: (key, self.item_prob(key)), self.most_common()))
 
     def __getattribute__(self, item):
         if item in ('probability', 'item_prob'):

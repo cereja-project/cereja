@@ -30,7 +30,7 @@ import logging
 import warnings
 from cereja import utils
 
-__all__ = ['depreciation', 'synchronized', 'time_exec', 'sync_to_async', 'async_to_sync']
+__all__ = ['depreciation', 'synchronized', 'time_exec', 'sync_to_async', 'async_to_sync', 'thread_safe_generator']
 
 from cereja.config.cj_types import PEP440
 
