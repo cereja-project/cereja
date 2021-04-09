@@ -31,14 +31,35 @@ import itertools
 from copy import copy
 import inspect
 # Needed init configs
+from cereja.array import is_iterable
 
 from cereja.config.cj_types import ClassType, FunctionType
 
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
-           'string_to_literal', 'rescale_values', 'Source']
+           'string_to_literal', 'rescale_values', 'Source', 'sample']
 logger = logging.getLogger(__name__)
+
+
+def sample(v, k=None, is_random=False):
+    """
+    Get sample of anything
+
+    @param v: Any
+    @param k: int
+    @param is_random: default False
+    @return: sample list
+    """
+    if not is_iterable(v):
+        return [v]
+
+    k = k or len(v)
+    res = random.sample(list(v), k) if is_random else list(v)[:k]
+
+    if isinstance(v, (dict, set)):
+        return {key: v[key] for key in res}
+    return res
 
 
 def type_table_of(o: Union[list, tuple, dict]):

@@ -10,11 +10,11 @@ from datetime import datetime
 from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
 import json
+
 from cereja.system import Path
 from cereja.array import get_cols, flatten, get_shape, is_sequence
-from cereja.utils import fill
 from cereja.system import memory_of_this
-from cereja.utils import string_to_literal
+from cereja.utils import string_to_literal, sample, fill
 
 logger = logging.Logger(__name__)
 
@@ -519,13 +519,15 @@ class _JsonIO(_FileIO):
     def get(self, _key):
         return self._data.get(_key)
 
-    def sample_items(self, k: int = 1) -> dict:
+    def sample_items(self, k: int = 1, is_random=False) -> dict:
         """
         Get sample of this.
+
         @param k: length of sample
+        @param is_random: bool
         """
         assert isinstance(k, int) and k > 0, f"k = {k} isn't valid."
-        return {key: value for n, (key, value) in enumerate(self.data.items()) if n + 1 <= k}
+        return sample(self.data, k=k, is_random=is_random)
 
     def __getitem__(self, item):
         try:
