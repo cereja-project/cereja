@@ -30,7 +30,7 @@ from cereja.file import *
 from . import array
 from cereja.array import *
 from . import system
-from cereja.system.path import *
+from cereja.system._path import *
 from cereja.system.unicode import *
 from . import utils
 from .utils import decorators
@@ -44,6 +44,7 @@ from cereja.date import *
 from . import hashtools
 from . import mathtools
 from cereja.mathtools import *
+from . import experimental
 
 VERSION = "1.3.6.final.0"
 

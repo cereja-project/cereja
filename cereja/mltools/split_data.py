@@ -26,7 +26,7 @@ from cereja.array import get_cols
 from cereja.mltools.pln import LanguageData
 import random
 import csv
-from cereja.system.path import Path
+from cereja.system import Path
 
 __all__ = ['Corpus']
 

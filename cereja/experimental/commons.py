@@ -1,12 +1,12 @@
 from collections import OrderedDict as _OrderedDict
-import random as _random
+import random
+from cereja.utils import invert_dict
 
 __all__ = ['CJOrderedDict', 'CJDict']
 
-from cereja.utils import invert_dict
-
 
 class CJOrderedDict(_OrderedDict):
+
     @property
     def first(self):
         k = next(iter(self))
@@ -26,7 +26,7 @@ class CJDict(dict):
 
     def item(self, random_=True):
         if random_ is True:
-            return _random.choice(tuple(self.items()))
+            return random.choice(tuple(self.items()))
         k, v = self.popitem()
         self.update((k, v))
         return k, v

@@ -34,7 +34,7 @@ from cereja.config.cj_types import Number
 from cereja.mltools import Corpus
 from cereja.mltools.pln import LanguageData
 from cereja.display import State, Progress
-from cereja.system.path import Path
+from cereja.system._path import Path
 from cereja.system.unicode import Unicode
 from cereja.utils import CjTest
 from cereja.hashtools import base64_decode, base64_encode, is_base64, md5
