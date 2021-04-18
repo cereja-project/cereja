@@ -287,6 +287,18 @@ class Path(os.PathLike):
     def sep(self):
         return self.__sep
 
+    @classmethod
+    def get_current_dir(cls) -> 'Path':
+        """
+        Get current working directory
+        @return:
+        """
+        return cls(os.getcwd())
+
+    @classmethod
+    def change_current_dir(cls, to_):
+        os.chdir(to_)
+
     def join(self, *args):
         assert self.__path.suffix == '', f"join operation is only dir. full path received {self.path}"
         return self.__class__(self.__path.joinpath(*args).as_posix())
