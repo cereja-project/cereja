@@ -8,6 +8,7 @@ from collections import ValuesView
 from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
 import json
+from zipfile import ZipFile, ZIP_DEFLATED
 
 from cereja.system import Path
 from cereja.array import get_cols, flatten, get_shape, is_sequence
@@ -220,7 +221,8 @@ class _FileIO(_IFileIO, ABC):
     def __setattr__(self, key, value):
         object.__setattr__(self, key, copy.copy(value))
         if hasattr(self, '_change_history') and key not in (
-                '_current_change', '_max_history_length', '_change_history', '_built') and self._built is True:
+                '_current_change', '_max_history_length', '_change_history', '_built',
+                '_last_update') and self._built is True:
             self._set_change(key, copy.copy(object.__getattribute__(self, key)))  # append last_value of attr
 
     def __getitem__(self, item):
@@ -737,12 +739,62 @@ class _PyObj(_FileIO):
         return data
 
 
+class _ZipFileIO(_FileIO):
+    _is_byte: bool = False
+    _only_read = False
+    _newline = False
+    _ext_allowed = ('.zip',)
+
+    # ZipFile(*args, mode='w', compression=ZIP_DEFLATED, **kwargs)
+
+    def add(self, data: Union[str, list, tuple]):
+        parsed = self.parse(data)
+        self._data += parsed
+
+    def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
+        return fp
+
+    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+        raise NotImplementedError
+
+    def save(self, on_new_path: Union[str, Path] = None, exist_ok=False, overwrite=False, force=False,
+             **kwargs):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            tmp_file = Path(tmpdirname).join(self.name)
+            try:
+                with ZipFile(tmp_file.path, mode='w', compression=ZIP_DEFLATED) as myzip:
+                    for i in self.data:
+                        myzip.write(i)
+            except Exception as err:
+                raise IOError(f'Error writing to the file system file: {err}')
+            tmp_file.cp(self.path)
+            self._last_update = self.updated_at
+
+    def parse(self, data):
+        if not data:
+            return []
+        if isinstance(data, (str, Path)):
+            data = [data]
+
+        if not is_sequence(data):
+            raise ValueError("Send list of paths invalid.")
+        res = []
+
+        for p in data:
+            p = Path(p)
+            if not p.exists:
+                raise ValueError(f'{p.path} not Found.')
+            res.append(p)
+        return res
+
+
 class FileIO:
     txt = _TxtIO
     json = _JsonIO
     mp4 = _Mp4IO
     csv = _CsvIO
     pkl = _PyObj
+    zip = _ZipFileIO
     _generic = _GenericFile
 
     def __new__(cls, path_, data=None, **kwargs):
