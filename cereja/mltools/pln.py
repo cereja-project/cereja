@@ -31,7 +31,7 @@ from cereja.mltools.data import Freq
 from cereja.config.conf import BasicConfig
 from abc import ABCMeta, abstractmethod
 
-from cereja.system.path import Path
+from cereja.system import Path
 
 __all__ = ['LanguageData', 'Preprocessor', 'LanguageDetector']
 

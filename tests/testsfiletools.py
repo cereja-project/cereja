@@ -131,3 +131,7 @@ class FilePyObjTest(FileIOTest):
 
     def test_commons_operations(self):
         self.assertEqual(self.file.data, [[1, 2, 3]])
+
+
+if __name__ == '__main__':
+    unittest.main()

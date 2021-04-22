@@ -11,11 +11,8 @@
  <img src="https://i.ibb.co/Fw8SSfd/cereja-logo.png" height="300" width="300" alt="CEREJA">
 </div>
 
-*Cereja is a bundle of useful functions that I don't want to rewrite.*
+*Cereja was written only with the Standard Python Library, and it was a great way to improve knowledge in the Language also to avoid the rewriting of code.*
 
-How many times have you needed to rewrite that function or base class? Well, I thought then of joining all my lines of code, bit by bit, in one place.
-
-Not well structured yet :( ... But you can help me !!!
 
 ## Getting Started DEV
 

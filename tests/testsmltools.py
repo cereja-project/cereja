@@ -133,3 +133,7 @@ class FreqTest(unittest.TestCase):
 
         freq = Freq([1, 2, 3, 3, 4, 5, 6, 7, 6, 7, 12, 31, 123, 5, 3])
         self.assertEqual(freq.least_freq(), {123: 1, 31: 1, 12: 1, 4: 1, 2: 1, 1: 1, 7: 2, 6: 2, 5: 2, 3: 3})
+
+
+if __name__ == '__main__':
+    unittest.main()

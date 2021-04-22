@@ -34,7 +34,7 @@ from cereja.config.cj_types import Number
 from cereja.mltools import Corpus
 from cereja.mltools.pln import LanguageData
 from cereja.display import State, Progress
-from cereja.system.path import Path
+from cereja.system._path import Path
 from cereja.system.unicode import Unicode
 from cereja.utils import CjTest
 from cereja.hashtools import base64_decode, base64_encode, is_base64, md5
@@ -146,6 +146,7 @@ class UtilsTestCase(unittest.TestCase):
 
 class PathTest(unittest.TestCase):
     def test_sanity(self):
+        self.assertEqual(Path(__file__).parent, Path(os.path.realpath(__file__)).parent)
         p_test = 'cereja/test/sanity'
         p = Path(p_test)
         self.assertTrue(p.name, 'sanity')
@@ -156,8 +157,8 @@ class PathTest(unittest.TestCase):
         p_test = Path('cereja/test/sanity').join('con', 'cat')
         self.assertEqual(p_test.parts[-2:], ('con', 'cat'))
         self.assertTrue(p == p_test)
-        self.assertListEqual(Path.list_dir('./', only_name=True),
-                             list(map(lambda x: x.rsplit('.')[0], os.listdir('./'))))
+        self.assertListEqual(Path.list_dir(Path(__file__).parent, only_name=True),
+                             list(map(lambda x: x.rsplit('.')[0], os.listdir(Path(__file__).parent))))
 
 
 class UnicodeToolTestCase(unittest.TestCase):

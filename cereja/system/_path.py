@@ -29,6 +29,7 @@ import time
 import warnings
 from datetime import datetime
 from typing import List, Union
+
 from cereja.array import group_items_in_batches
 from pathlib import Path as Path_
 
@@ -137,6 +138,7 @@ def _norm_path(path_: str):
 
 class Path(os.PathLike):
     _date_format = "%Y-%m-%d %H:%M:%S"
+    __sep = os.sep
 
     def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
         self.__path = Path_(_norm_path(initial), *pathsegments)
@@ -249,15 +251,18 @@ class Path(os.PathLike):
 
     @property
     def updated_at(self):
-        return datetime.fromtimestamp(os.stat(str(self.path)).st_mtime).strftime(self._date_format)
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_mtime).strftime(
+                self._date_format) if self.exists else None
 
     @property
     def created_at(self):
-        return datetime.fromtimestamp(os.stat(str(self.path)).st_ctime).strftime(self._date_format)
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_ctime).strftime(
+                self._date_format) if self.exists else None
 
     @property
     def last_access(self):
-        return datetime.fromtimestamp(os.stat(str(self.path)).st_atime).strftime(self._date_format)
+        return datetime.fromtimestamp(os.stat(str(self.path)).st_atime).strftime(
+                self._date_format) if self.exists else None
 
     @property
     def is_hidden(self):
@@ -278,7 +283,24 @@ class Path(os.PathLike):
     def parts(self):
         return self.__path.parts
 
+    @property
+    def sep(self):
+        return self.__sep
+
+    @classmethod
+    def get_current_dir(cls) -> 'Path':
+        """
+        Get current working directory
+        @return:
+        """
+        return cls(os.getcwd())
+
+    @classmethod
+    def change_current_dir(cls, to_):
+        os.chdir(to_)
+
     def join(self, *args):
+        assert self.__path.suffix == '', f"join operation is only dir. full path received {self.path}"
         return self.__class__(self.__path.joinpath(*args).as_posix())
 
     def _shutil(self, command: str, **kwargs):

@@ -1,20 +1,19 @@
 import copy
 import csv
 import logging
-import os
 import pickle
 import tempfile
 from abc import ABCMeta, abstractmethod, ABC
 from collections import ValuesView
-from datetime import datetime
 from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
 import json
+from zipfile import ZipFile, ZIP_DEFLATED
+
 from cereja.system import Path
 from cereja.array import get_cols, flatten, get_shape, is_sequence
-from cereja.utils import fill
 from cereja.system import memory_of_this
-from cereja.utils import string_to_literal
+from cereja.utils import string_to_literal, sample, fill
 
 logger = logging.Logger(__name__)
 
@@ -58,8 +57,8 @@ class _IFileIO(metaclass=ABCMeta):
 
     def __init__(self):
         self._built = False
-        self._last_update = None
         self._length = None
+        self._last_update = None
         self._is_deleted = False
         self._current_change = 0
         self._max_history_length = 50
@@ -114,6 +113,11 @@ class _IFileIO(metaclass=ABCMeta):
     @property
     @abstractmethod
     def created_at(self):
+        pass
+
+    @property
+    @abstractmethod
+    def was_changed(self) -> bool:
         pass
 
     @property
@@ -194,7 +198,8 @@ class _FileIO(_IFileIO, ABC):
         self._creation_mode = creation_mode
         self._path = path_
         if self._ext_allowed:
-            assert self._path.suffix in self._ext_allowed, f'{path_.suffix} != {self._ext_allowed}'
+            msg_assert_err = f'{path_.suffix} != {self._ext_allowed}. Force with support_ext = ".xyz" '
+            assert self._path.suffix in self._ext_allowed, msg_assert_err
         self._ext_without_point = self._path.suffix.strip(".").upper()
         self._built = True  # next setattr will be saved in history to be future recovery
         if creation_mode:
@@ -216,7 +221,8 @@ class _FileIO(_IFileIO, ABC):
     def __setattr__(self, key, value):
         object.__setattr__(self, key, copy.copy(value))
         if hasattr(self, '_change_history') and key not in (
-                '_current_change', '_max_history_length', '_change_history', '_built') and self._built is True:
+                '_current_change', '_max_history_length', '_change_history', '_built',
+                '_last_update') and self._built is True:
             self._set_change(key, copy.copy(object.__getattribute__(self, key)))  # append last_value of attr
 
     def __getitem__(self, item):
@@ -251,6 +257,18 @@ class _FileIO(_IFileIO, ABC):
             logger.info("It's not possible")
 
     @property
+    def was_changed(self) -> bool:
+        """
+        Detect if file is changed by another application
+        if file not exists return False
+
+        @return: bool
+        """
+        if not self.exists:
+            return False
+        return self._last_update is not None and self.updated_at != self._last_update
+
+    @property
     def length(self):
         return len(self._data)
 
@@ -260,15 +278,15 @@ class _FileIO(_IFileIO, ABC):
 
     @property
     def updated_at(self):
-        return datetime.fromtimestamp(os.stat(str(self._path)).st_mtime).strftime(self._date_format)
+        return self._path.updated_at
 
     @property
     def created_at(self):
-        return datetime.fromtimestamp(os.stat(str(self._path)).st_ctime).strftime(self._date_format)
+        return self._path.created_at
 
     @property
     def last_access(self):
-        return datetime.fromtimestamp(os.stat(str(self._path)).st_atime).strftime(self._date_format)
+        return self._path.last_access
 
     @property
     def name(self):
@@ -306,9 +324,19 @@ class _FileIO(_IFileIO, ABC):
     def exists(self):
         return self.path.exists
 
+    @property
+    def only_read(self) -> bool:
+        return self._only_read
+
     @classmethod
     def add(cls, *args, **kwargs):
         raise NotImplementedError("it's not implemented")
+
+    @classmethod
+    def parse_ext(cls, ext: str) -> str:
+        if not isinstance(ext, str):
+            raise TypeError('Error during parsing ext. Send a string.')
+        return '.' + ext.replace('.', '')
 
     def _get_mode(self, mode) -> str:
         """
@@ -340,24 +368,33 @@ class _FileIO(_IFileIO, ABC):
         assert 'r' in mode, f"{mode} for read isn't valid."
         try:
             with open(self._path.path, mode=mode, encoding=encoding, **kwargs) as fp:
-                return self._parse_fp(fp)
+                parsed = self._parse_fp(fp)
+                self._last_update = self.updated_at
+                return parsed
         except PermissionError as err:
             logger.error(err)
             return
         except Exception as err:
             raise IOError(f"Error when trying to read the file {self._path}\n{err}")
 
-    def save(self, on_new_path: Union[str, Path] = None, mode=None, exist_ok=False, overwrite=False, encoding=None,
+    def save(self, on_new_path: Union[str, Path] = None, mode=None, exist_ok=False, overwrite=False, force=False,
+             encoding=None,
              **kwargs):
-        if (self._last_update is not None and overwrite is False) and not self._is_deleted:
-            if self._last_update != self.updated_at:
-                raise AssertionError(f"File change detected (last change {self.updated_at}), if you want to overwrite "
-                                     f"set overwrite=True")
-        if on_new_path is not None:
-            self.set_path(on_new_path)
-        assert exist_ok or not self.path.exists, FileExistsError(
-                "File exists. If you want override, please send 'exist_ok=True'")
-        assert self._only_read is False, f"{self.name} is only read."
+
+        if not force:
+            assert self._only_read is False, f"{self.name} is only read."
+
+            if on_new_path is not None:
+                self.set_path(on_new_path)
+
+            if self.was_changed:
+                assert overwrite is True, AssertionError(
+                        f"File change detected (last change {self.updated_at}), if you want to "
+                        + f"overwrite set overwrite=True")
+
+            assert (exist_ok or not self.path.exists) or overwrite is True or force is True, FileExistsError(
+                    "File exists. If you want override, please send 'exist_ok=True'")
+
         mode = mode or self._get_mode('w')
         assert 'w' in mode, f"{mode} for write isn't valid."
         encoding = None if self._is_byte else 'utf-8'
@@ -371,13 +408,16 @@ class _FileIO(_IFileIO, ABC):
             except Exception as err:
                 raise IOError(f'Error writing to the file system file: {err}')
             tmp_file.cp(self.path)
+            self._last_update = self.updated_at
 
     def delete(self):
         self._path.rm()
         self._is_deleted = True
 
     def set_path(self, path_):
-        self._path = Path(path_)
+        p = Path(path_)
+        assert not p.is_dir, f"{p.path} is a directory."
+        self._path = p
 
     def undo(self):
         if self._current_change > 0:
@@ -519,13 +559,15 @@ class _JsonIO(_FileIO):
     def get(self, _key):
         return self._data.get(_key)
 
-    def sample_items(self, k: int = 1) -> dict:
+    def sample_items(self, k: int = 1, is_random=False) -> dict:
         """
         Get sample of this.
+
         @param k: length of sample
+        @param is_random: bool
         """
         assert isinstance(k, int) and k > 0, f"k = {k} isn't valid."
-        return {key: value for n, (key, value) in enumerate(self.data.items()) if n + 1 <= k}
+        return sample(self.data, k=k, is_random=is_random)
 
     def __getitem__(self, item):
         try:
@@ -541,7 +583,7 @@ class _JsonIO(_FileIO):
             yield i
 
 
-class _Mp4IO(_FileIO):
+class _Mp4IO(_FileIO, ABC):
     _is_byte: bool = True
     _only_read = True
     _ext_allowed = ('.mp4',)
@@ -680,7 +722,7 @@ class _CsvIO(_FileIO):
         return super().__getitem__(item)
 
 
-class _PyObj(_FileIO, ABC):
+class _PyObj(_FileIO):
     _is_byte: bool = True
     _only_read = False
     _newline = False
@@ -697,12 +739,62 @@ class _PyObj(_FileIO, ABC):
         return data
 
 
+class _ZipFileIO(_FileIO):
+    _is_byte: bool = False
+    _only_read = False
+    _newline = False
+    _ext_allowed = ('.zip',)
+
+    # ZipFile(*args, mode='w', compression=ZIP_DEFLATED, **kwargs)
+
+    def add(self, data: Union[str, list, tuple]):
+        parsed = self.parse(data)
+        self._data += parsed
+
+    def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
+        return fp
+
+    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+        raise NotImplementedError
+
+    def save(self, on_new_path: Union[str, Path] = None, exist_ok=False, overwrite=False, force=False,
+             **kwargs):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            tmp_file = Path(tmpdirname).join(self.name)
+            try:
+                with ZipFile(tmp_file.path, mode='w', compression=ZIP_DEFLATED) as myzip:
+                    for i in self.data:
+                        myzip.write(i)
+            except Exception as err:
+                raise IOError(f'Error writing to the file system file: {err}')
+            tmp_file.cp(self.path)
+            self._last_update = self.updated_at
+
+    def parse(self, data):
+        if not data:
+            return []
+        if isinstance(data, (str, Path)):
+            data = [data]
+
+        if not is_sequence(data):
+            raise ValueError("Send list of paths invalid.")
+        res = []
+
+        for p in data:
+            p = Path(p)
+            if not p.exists:
+                raise ValueError(f'{p.path} not Found.')
+            res.append(p)
+        return res
+
+
 class FileIO:
     txt = _TxtIO
     json = _JsonIO
     mp4 = _Mp4IO
     csv = _CsvIO
     pkl = _PyObj
+    zip = _ZipFileIO
     _generic = _GenericFile
 
     def __new__(cls, path_, data=None, **kwargs):
