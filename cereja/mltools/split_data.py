@@ -32,10 +32,20 @@ __all__ = ['Corpus']
 
 
 class Corpus(object):
-    def __init__(self, source_data, target_data, source_name=None, target_name=None, **kwargs):
-        self.source = LanguageData(source_data, name=source_name, **kwargs)
-        self.target = LanguageData(target_data, name=target_name, **kwargs)
-        self._percent_train = 0.8
+    def __init__(self, source_data, target_data, source_name=None, percent_train=0.8, target_name=None, stop_words=(),
+                 punctuation='!?,.', to_lower=True, is_remove_punctuation=True, is_remove_stop_words=True,
+                 is_remove_accent=False, is_destructive=False):
+        self.source = LanguageData(source_data, name=source_name, stop_words=stop_words,
+                                   punctuation=punctuation, to_lower=to_lower,
+                                   is_remove_punctuation=is_remove_punctuation,
+                                   is_remove_stop_words=is_remove_stop_words,
+                                   is_remove_accent=is_remove_accent, is_destructive=is_destructive)
+        self.target = LanguageData(target_data, name=target_name, stop_words=stop_words,
+                                   punctuation=punctuation, to_lower=to_lower,
+                                   is_remove_punctuation=is_remove_punctuation,
+                                   is_remove_stop_words=is_remove_stop_words,
+                                   is_remove_accent=is_remove_accent, is_destructive=is_destructive)
+        self._percent_train = percent_train
         self._n_train = self.n_train
         self._valid_parallel_data(self.source.data, self.target.data)
 

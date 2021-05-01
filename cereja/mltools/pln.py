@@ -52,32 +52,37 @@ def separate(text: AnyStr, sep: Union[str, Sequence[str]] = ('!', '?', '.'), bet
 
 
 class LanguageConfig(BasicConfig):
-    name = 'UNK_LANG'
-    stop_words = ()
-    punctuation = '!?,.'
-    to_lower = True
-    is_remove_punctuation = True
-    is_remove_stop_words = True
-    is_remove_accent = False
-    is_destructive = False
 
-    def __init__(self, **kwargs):
-        name = kwargs.pop('name') if kwargs.get('name') is not None else self.name
-        stop_words = kwargs.pop('stop_words') if kwargs.get('stop_words') is not None else self.stop_words
-        punctuation = kwargs.pop('punctuation') if kwargs.get('punctuation') is not None else self.punctuation
+    def __init__(self, name='UNK_LANG', stop_words=(),
+                 punctuation='!?,.', to_lower=True, is_remove_punctuation=True, is_remove_stop_words=True,
+                 is_remove_accent=False, is_destructive=False, **kwargs):
         if not isinstance(stop_words, (tuple, list)):
             raise TypeError("Stop words must be in a list or tuple")
         if not isinstance(punctuation, str):
             raise TypeError("a string is expected for punctuation")
-        super().__init__(name=name, stop_words=stop_words, punctuation=punctuation, **kwargs)
+        super().__init__(name=name, stop_words=stop_words,
+                         punctuation=punctuation, to_lower=to_lower,
+                         is_remove_punctuation=is_remove_punctuation,
+                         is_remove_stop_words=is_remove_stop_words,
+                         is_remove_accent=is_remove_accent, is_destructive=is_destructive, **kwargs)
 
     def _before(self, new_config: dict):
         super()._before(new_config)
 
 
 class Preprocessor:
-    def __init__(self, **kwargs):
-        self.config = LanguageConfig(**kwargs)
+    def __init__(self, stop_words=(),
+                 punctuation='!?,.', to_lower=False, is_remove_punctuation=False, is_remove_stop_words=False,
+                 is_remove_accent=False, **kwargs):
+
+        self.config = LanguageConfig(stop_words=stop_words,
+                                     punctuation=punctuation, to_lower=to_lower,
+                                     is_remove_punctuation=is_remove_punctuation,
+                                     is_remove_stop_words=is_remove_stop_words,
+                                     is_remove_accent=is_remove_accent, **kwargs)
+
+    def __repr__(self):
+        return repr(self.config)
 
     def _preprocess(self, sentence, is_destructive: bool):
         if is_destructive or self.config.to_lower:
@@ -117,9 +122,15 @@ class BaseData(metaclass=ABCMeta):
 
 class LanguageData(BaseData):
 
-    def __init__(self, data, **kwargs):
+    def __init__(self, data, stop_words=(),
+                 punctuation='!?,.', to_lower=False, is_remove_punctuation=False, is_remove_stop_words=False,
+                 is_remove_accent=False, **kwargs):
 
-        self._preprocessor = Preprocessor(hook=self.re_build, **kwargs)
+        self._preprocessor = Preprocessor(hook=self.re_build, stop_words=stop_words,
+                                          punctuation=punctuation, to_lower=to_lower,
+                                          is_remove_punctuation=is_remove_punctuation,
+                                          is_remove_stop_words=is_remove_stop_words,
+                                          is_remove_accent=is_remove_accent, **kwargs)
 
         self._phrases_freq: Freq = ...
         self._words_freq: Freq = ...
@@ -208,7 +219,7 @@ class LanguageData(BaseData):
         zeros = result.count(0)
         if zeros:
             return sum(result) - (zeros / len(value))
-        return sum(result)
+        return round(sum(result), 3)
 
     def save_freq(self, save_on: str, prefix='freq', ext: str = 'json', probability=False):
         ext = ext.strip('.')  # normalize

@@ -13,7 +13,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 from cereja.system import Path
 from cereja.array import get_cols, flatten, get_shape, is_sequence
 from cereja.system import memory_of_this
-from cereja.utils import string_to_literal, sample, fill
+from cereja.utils import string_to_literal, sample, fill, obj_repr
 
 logger = logging.Logger(__name__)
 
@@ -213,7 +213,7 @@ class _FileIO(_IFileIO, ABC):
                 raise NotImplementedError(cls._need_implement.get(attr).format(class_name=cls.__name__))
 
     def __repr__(self):
-        return f'{self._ext_without_point}<{self._path.name}>'
+        return obj_repr(self)
 
     def __str__(self):
         return f'{self._ext_without_point}<{self._path.name}>'
@@ -745,14 +745,13 @@ class _ZipFileIO(_FileIO):
     _newline = False
     _ext_allowed = ('.zip',)
 
-    # ZipFile(*args, mode='w', compression=ZIP_DEFLATED, **kwargs)
-
     def add(self, data: Union[str, list, tuple]):
         parsed = self.parse(data)
         self._data += parsed
 
     def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
-        return fp
+        with ZipFile(fp.name, mode='r') as myzip:
+            return myzip.namelist()
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
         raise NotImplementedError

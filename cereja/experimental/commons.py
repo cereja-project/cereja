@@ -1,8 +1,18 @@
 from collections import OrderedDict as _OrderedDict
 import random
-from cereja.utils import invert_dict
 
-__all__ = ['CJOrderedDict', 'CJDict']
+from cereja.utils import invert_dict, obj_repr
+
+__all__ = ['CJOrderedDict', 'CJDict', 'CJMeta']
+
+
+class CJMeta(type):
+    __attr_limit = 5
+
+    def __new__(mcs, name, bases, dct):
+        x = super().__new__(mcs, name, bases, dct)
+        x.__repr__ = lambda self: obj_repr(self, attr_limit=CJMeta.__attr_limit)
+        return x
 
 
 class CJOrderedDict(_OrderedDict):
