@@ -102,12 +102,10 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
                     break
         else:
             return repr(obj_)
-        if not rep_:
-            rep_ = [f"{obj_.__class__.__name__}"]
 
     except Exception as err:
         logger.error(err)
-        rep_ = [f"{obj_.__class__.__name__}"]
+        rep_ = []
     rep_ = ',\n    '.join(rep_)
     __repr_template = f"""
     {rep_}

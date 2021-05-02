@@ -23,7 +23,7 @@ class CJOrderedDict(_OrderedDict):
         return k, self[k]
 
 
-class CJDict(dict):
+class CJDict(dict, metaclass=CJMeta):
     """
     Builtin dict class extension.
 
@@ -33,6 +33,7 @@ class CJDict(dict):
     - item: get a item
 
     """
+    __black_attr_list = dir(dict)
 
     def item(self, random_=True):
         if random_ is True:
@@ -46,3 +47,19 @@ class CJDict(dict):
         Invert dict values to key
         """
         return CJDict(invert_dict(self))
+
+    def __setitem__(self, key, value):
+        super(CJDict, self).__setitem__(key, value)
+        if key not in self.__black_attr_list:
+            setattr(self, key, value)
+
+
+class DictOfList(CJDict):
+    def add(self, key, value):
+        if key not in self:
+            self[key] = []
+        self[key].append(value)
+
+    def __setitem__(self, key, value):
+        assert isinstance(value, list), "Send a list object"
+        super(DictOfList, self).__setitem__(key, value)
