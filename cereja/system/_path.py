@@ -30,8 +30,11 @@ import warnings
 from datetime import datetime
 from typing import List, Union
 
+from cereja import obj_repr
 from cereja.array import group_items_in_batches
 from pathlib import Path as Path_
+
+from cereja.experimental import CJMeta
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +153,7 @@ class Path(os.PathLike):
         return str(self.__path)
 
     def __repr__(self):
-        return f'<Path object {self.path}>'
+        return obj_repr(self)
 
     def __str__(self):
         return self.path

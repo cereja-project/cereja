@@ -38,8 +38,79 @@ from cereja.config.cj_types import ClassType, FunctionType
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
-           'string_to_literal', 'rescale_values', 'Source', 'sample']
+           'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
+           'class_methods']
+
 logger = logging.getLogger(__name__)
+
+
+def truncate(text: Union[str, bytes], k=4):
+    """
+    Truncate text.
+    eg.:
+    >>> import cereja as cj
+    >>> cj.utils.truncate("Cereja is fun.", k=3)
+    'Cer...'
+
+    @param text: string or bytes
+    @param k: natural numbers, default is 4
+    """
+    assert isinstance(text, (str, bytes)), TypeError(f"{type(text)} isn't valid. Expected str or bytes")
+    if k > len(text) or k < 0:
+        return text
+    trunc_chars = '...' if isinstance(text, str) else b'...'
+    return text[:k] + trunc_chars
+
+
+def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=False, deep=3):
+    try:
+        if isinstance(obj_, (str, bytes)):
+            return truncate(obj_, k=attr_limit)
+        if isinstance(obj_, (bool, float, int, complex)):
+            return obj_
+        rep_ = []
+        if deep > 0:
+            for attr_ in dir(obj_):
+                if attr_.startswith('_') and not show_private:
+                    continue
+                obj = obj_.__getattribute__(attr_)
+
+                if isinstance(obj, (str, bool, float, int, complex, bytes, bytearray)):
+                    rep_.append(f'{attr_} = {obj_repr(obj)}')
+                    continue
+                if callable(obj) and not show_methods:
+                    continue
+
+                if is_iterable(obj):
+                    temp_v = []
+                    for k in obj:
+                        if isinstance(obj, dict):
+                            k = f'{k}:{type(obj[k])}'
+                        elif is_iterable(k):
+                            k = obj_repr(k, deep=deep)
+                            deep -= 1
+                        else:
+                            k = str(k)
+                        temp_v.append(k)
+                        if len(temp_v) == val_limit:
+                            break
+                    temp_v = ', '.join(temp_v)
+                    obj = f'{obj.__class__.__name__}({temp_v} ...)'
+                rep_.append(f'{attr_} = {obj}')
+                if len(rep_) >= attr_limit:
+                    rep_.append('...')
+                    break
+        else:
+            return repr(obj_)
+
+    except Exception as err:
+        logger.error(err)
+        rep_ = []
+    rep_ = ',\n    '.join(rep_)
+    __repr_template = f"""
+    {rep_}
+    """
+    return f"{obj_.__class__.__name__} ({__repr_template})"
 
 
 def sample(v, k=None, is_random=False):
@@ -277,8 +348,24 @@ def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: boo
 
 
 class CjTest(object):
-    """
-    """
+    __template_unittest_function = """
+    def test_{func_name}(self):
+        pass
+        """
+    __template_unittest_class = """
+class {class_name}Test(unittest.TestCase):
+    {func_tests}
+        """
+
+    __template_unittest = """import unittest
+
+{tests}
+
+if __name__ == '__main__':
+    unittest.main()
+
+        """
+
     __prefix_attr_err = "Attr Check Error {attr_}."
 
     def __init__(self, instance_obj: object):
@@ -422,12 +509,49 @@ class CjTest(object):
         for attr_ in self._checks:
             self.check_attr(attr_)
 
+    @classmethod
+    def _get_class_test(cls, ref):
+        func_tests = ''.join(cls.__template_unittest_function.format(func_name=i) for i in class_methods(ref))
+        return cls.__template_unittest_class.format(class_name=ref.__name__, func_tests=func_tests)
+
+    @classmethod
+    def _get_func_test(cls, ref):
+        return cls.__template_unittest_function.format(func_name=ref.__name__)
+
+    @classmethod
+    def _get_test(cls, ref):
+        if isinstance(ref, (FunctionType, types.MethodType)):
+            return cls._get_func_test(ref)
+        if isinstance(ref, type):
+            return cls._get_class_test(ref)
+        raise TypeError("send a function or class reference")
+
+    @classmethod
+    def build_test(cls, reference):
+        module_func_test = []
+        tests = []
+        if isinstance(reference, types.ModuleType):
+            for _, ref in module_references(reference).items():
+                if isinstance(ref, type):
+                    tests.append(cls._get_test(ref))
+                    continue
+                module_func_test.append(cls._get_test(ref))
+        else:
+            if isinstance(reference, type):
+                tests.append(cls._get_test(reference))
+            else:
+                module_func_test.append(cls._get_test(reference))
+        if module_func_test:
+            module_func_test = ''.join(module_func_test)
+            tests = [cls.__template_unittest_class.format(class_name='Module', func_tests=module_func_test)] + tests
+        return cls.__template_unittest.format(tests='\n'.join(tests))
+
 
 def _add_license(base_dir, ext='.py'):
-    from cereja.file import File
+    from cereja.file import FileIO
     from cereja.config import BASE_DIR
-    licence_file = File.load(BASE_DIR)
-    for file in File.load_files(base_dir, ext=ext, recursive=True):
+    licence_file = FileIO.load(BASE_DIR)
+    for file in FileIO.load_files(base_dir, ext=ext, recursive=True):
         if 'Copyright (c) 2019 The Cereja Project' in file.string:
             continue
         file.insert('"""\n' + licence_file.string + '\n"""')
@@ -488,6 +612,7 @@ def rescale_values(values: List[Any], granularity: int) -> List[Any]:
 
 
 class Source:
+
     def __init__(self, reference: Any):
         self._source_code = inspect.getsource(reference)
 

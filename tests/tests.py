@@ -266,9 +266,9 @@ class ProgressTestCase:
 
 class LanguageDataTestCase(unittest.TestCase):
     def test_sanity(self):
-        data = LanguageData(['how are you?', 'I like it', 'cereja', 'cherry'])
+        data = LanguageData(['how are you?', 'I like it', 'cereja', 'cherry'], to_lower=True)
         self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja', 'cherry']), 1)
-        self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja']), 0.875)
+        self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja']), 0.889)
 
 
 class HashToolsTestCase(unittest.TestCase):

@@ -1,8 +1,18 @@
 from collections import OrderedDict as _OrderedDict
 import random
-from cereja.utils import invert_dict
 
-__all__ = ['CJOrderedDict', 'CJDict']
+from cereja.utils import invert_dict, obj_repr
+
+__all__ = ['CJOrderedDict', 'CJDict', 'CJMeta']
+
+
+class CJMeta(type):
+    __attr_limit = 5
+
+    def __new__(mcs, name, bases, dct):
+        x = super().__new__(mcs, name, bases, dct)
+        x.__repr__ = lambda self: obj_repr(self, attr_limit=CJMeta.__attr_limit)
+        return x
 
 
 class CJOrderedDict(_OrderedDict):
@@ -13,7 +23,7 @@ class CJOrderedDict(_OrderedDict):
         return k, self[k]
 
 
-class CJDict(dict):
+class CJDict(dict, metaclass=CJMeta):
     """
     Builtin dict class extension.
 
@@ -23,6 +33,7 @@ class CJDict(dict):
     - item: get a item
 
     """
+    __black_attr_list = dir(dict)
 
     def item(self, random_=True):
         if random_ is True:
@@ -36,3 +47,19 @@ class CJDict(dict):
         Invert dict values to key
         """
         return CJDict(invert_dict(self))
+
+    def __setitem__(self, key, value):
+        super(CJDict, self).__setitem__(key, value)
+        if key not in self.__black_attr_list:
+            setattr(self, key, value)
+
+
+class DictOfList(CJDict):
+    def add(self, key, value):
+        if key not in self:
+            self[key] = []
+        self[key].append(value)
+
+    def __setitem__(self, key, value):
+        assert isinstance(value, list), "Send a list object"
+        super(DictOfList, self).__setitem__(key, value)
