@@ -521,16 +521,21 @@ class _JsonIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
     _ext_allowed = ('.json',)
+    indent = 4
+    ensure_ascii = False
 
     def __init__(self, path_: Path, **kwargs):
-
+        if 'indent' in kwargs:
+            self.indent = kwargs.pop('indent')
+        if 'ensure_ascii' in kwargs:
+            self.ensure_ascii = kwargs.pop('ensure_ascii')
         super().__init__(path_, **kwargs)
 
     def _parse_fp(self, fp: TextIO) -> dict:
         return json.load(fp)
 
     def _save_fp(self, fp):
-        json.dump(self._data, fp, indent=True, ensure_ascii=False)
+        json.dump(self._data, fp, indent=self.indent, ensure_ascii=self.ensure_ascii)
 
     def items(self) -> ItemsView:
         return self._data.items()
