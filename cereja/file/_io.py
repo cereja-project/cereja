@@ -792,6 +792,64 @@ class _ZipFileIO(_FileIO):
         return res
 
 
+class _SrtFile(_TxtIO):
+    _only_read = False
+    _ext_allowed = ('.srt',)
+
+    def parse(self, data):
+        data = super().parse(data)
+        blocks = []
+        current_block = 0
+        block = []
+        for i in data:
+            if not i.isdigit():
+                block.append(i)
+                continue
+            if block:
+                current_block += 1
+                blocks.append(self.Block(current_block, *block))
+                block = []
+
+        return blocks
+
+    @property
+    def string(self):
+        return '\n'.join([str(block_item) for block in self.data for block_item in block])
+
+    def add(self, data, line=-1):
+        raise NotImplementedError
+
+    class Block:
+        def __init__(self, number, *content):
+            self.number = number
+            time_, *content = content
+
+            self.time = time_
+            start, time_separator, end = time_.split()
+            self._start = start
+            self._end = end
+            self.content = content
+            self._time_separator = time_separator
+
+        @property
+        def start(self):
+            return self._start
+
+        @property
+        def end(self):
+            return self._end
+
+        @property
+        def _values(self):
+            return self.number, self.time, *self.content
+
+        def __getitem__(self, item):
+            return self._values[item]
+
+        def __repr__(self):
+            return f'{self._values}'
+
+
 class FileIO:
     txt = _TxtIO
     json = _JsonIO
@@ -799,6 +857,7 @@ class FileIO:
     csv = _CsvIO
     pkl = _PyObj
     zip = _ZipFileIO
+    srt = _SrtFile
     _generic = _GenericFile
 
     def __new__(cls, path_, data=None, **kwargs):
