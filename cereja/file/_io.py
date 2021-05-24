@@ -9,6 +9,7 @@ from collections import ValuesView
 from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
 import json
+from urllib import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from cereja.system import Path
@@ -828,6 +829,13 @@ class _SrtFile(_TxtIO):
     def add(self, data, line=-1):
         raise NotImplementedError
 
+    @classmethod
+    def from_url(cls, url: str):
+        # TODO: need improves
+        req = request.urlopen(url)
+        if req.code == 200:
+            return cls(Path('./subtitle.srt'), req.read().decode(), creation_mode=True)
+
     class Block:
         def __init__(self, number, *content):
             self.number = number
@@ -847,10 +855,6 @@ class _SrtFile(_TxtIO):
         @property
         def end(self):
             return self._end
-
-        @classmethod
-        def from_url(cls, url: str, req_data=None):
-            pass
 
         @property
         def _values(self):
