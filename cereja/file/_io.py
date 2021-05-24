@@ -1,6 +1,7 @@
 import copy
 import csv
 import logging
+import re
 import pickle
 import tempfile
 from abc import ABCMeta, abstractmethod, ABC
@@ -8,6 +9,7 @@ from collections import ValuesView
 from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
 import json
+from urllib import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from cereja.system import Path
@@ -521,16 +523,21 @@ class _JsonIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
     _ext_allowed = ('.json',)
+    indent = 4
+    ensure_ascii = False
 
     def __init__(self, path_: Path, **kwargs):
-
+        if 'indent' in kwargs:
+            self.indent = kwargs.pop('indent')
+        if 'ensure_ascii' in kwargs:
+            self.ensure_ascii = kwargs.pop('ensure_ascii')
         super().__init__(path_, **kwargs)
 
     def _parse_fp(self, fp: TextIO) -> dict:
         return json.load(fp)
 
     def _save_fp(self, fp):
-        json.dump(self._data, fp, indent=True, ensure_ascii=False)
+        json.dump(self._data, fp, indent=self.indent, ensure_ascii=self.ensure_ascii)
 
     def items(self) -> ItemsView:
         return self._data.items()
@@ -787,6 +794,79 @@ class _ZipFileIO(_FileIO):
         return res
 
 
+class _SrtFile(_TxtIO):
+    _only_read = False
+    _ext_allowed = ('.srt', '.vtt')
+
+    @classmethod
+    def is_block_start(cls, line) -> bool:
+        return bool(re.match(r'\d{2}:\d{2}:\d{2}[.,]\d+\s-->\s\d{2}:\d{2}:\d{2}[.,]\d+', line))
+
+    def parse(self, data):
+        data = super().parse(data)
+        blocks = []
+        current_block = 0
+        block = []
+        block_started = False
+        for i in data:
+            if self.is_block_start(i):
+                if block_started:
+                    blocks.append(self.Block(current_block, *block))
+                block_started = True
+                current_block += 1
+                block = []
+            if block_started and not i.isdigit():
+                block.append(i)
+        if block:
+            blocks.append(self.Block(current_block, *block))
+
+        return blocks
+
+    @property
+    def string(self):
+        return '\n'.join([str(block_item) for block in self.data for block_item in block])
+
+    def add(self, data, line=-1):
+        raise NotImplementedError
+
+    @classmethod
+    def from_url(cls, url: str):
+        # TODO: need improves
+        req = request.urlopen(url)
+        if req.code == 200:
+            return cls(Path('./subtitle.srt'), req.read().decode(), creation_mode=True)
+
+    class Block:
+        def __init__(self, number, *content):
+            self.number = number
+            time_, *content = content
+
+            self.time = time_
+            start, time_separator, end = time_.split()
+            self._start = start
+            self._end = end
+            self.content = content
+            self._time_separator = time_separator
+
+        @property
+        def start(self):
+            return self._start
+
+        @property
+        def end(self):
+            return self._end
+
+        @property
+        def _values(self):
+            return (self.number, self.time, *self.content)
+
+        def __getitem__(self, item):
+            return self._values[item]
+
+        def __repr__(self):
+            return f'{self._values}'
+
+
 class FileIO:
     txt = _TxtIO
     json = _JsonIO
@@ -794,6 +874,7 @@ class FileIO:
     csv = _CsvIO
     pkl = _PyObj
     zip = _ZipFileIO
+    srt = _SrtFile
     _generic = _GenericFile
 
     def __new__(cls, path_, data=None, **kwargs):
