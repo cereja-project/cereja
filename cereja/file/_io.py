@@ -858,7 +858,7 @@ class _SrtFile(_TxtIO):
 
         @property
         def _values(self):
-            return self.number, self.time, (*self.content)
+            return (self.number, self.time, *self.content)
 
         def __getitem__(self, item):
             return self._values[item]
