@@ -153,7 +153,7 @@ class Path(os.PathLike):
         return str(self.__path)
 
     def __repr__(self):
-        return obj_repr(self)
+        return self.path
 
     def __str__(self):
         return self.path

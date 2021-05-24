@@ -1,6 +1,7 @@
 import copy
 import csv
 import logging
+import re
 import pickle
 import tempfile
 from abc import ABCMeta, abstractmethod, ABC
@@ -794,21 +795,29 @@ class _ZipFileIO(_FileIO):
 
 class _SrtFile(_TxtIO):
     _only_read = False
-    _ext_allowed = ('.srt',)
+    _ext_allowed = ('.srt', '.vtt')
+
+    @classmethod
+    def is_block_start(cls, line) -> bool:
+        return bool(re.match(r'\d{2}:\d{2}:\d{2}[.,]\d+\s-->\s\d{2}:\d{2}:\d{2}[.,]\d+', line))
 
     def parse(self, data):
         data = super().parse(data)
         blocks = []
         current_block = 0
         block = []
+        block_started = False
         for i in data:
-            if not i.isdigit():
-                block.append(i)
-                continue
-            if block:
+            if self.is_block_start(i):
+                if block_started:
+                    blocks.append(self.Block(current_block, *block))
+                block_started = True
                 current_block += 1
-                blocks.append(self.Block(current_block, *block))
                 block = []
+            if block_started and not i.isdigit():
+                block.append(i)
+        if block:
+            blocks.append(self.Block(current_block, *block))
 
         return blocks
 
@@ -838,6 +847,10 @@ class _SrtFile(_TxtIO):
         @property
         def end(self):
             return self._end
+
+        @classmethod
+        def from_url(cls, url: str, req_data=None):
+            pass
 
         @property
         def _values(self):
