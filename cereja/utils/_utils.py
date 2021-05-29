@@ -25,7 +25,7 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple
+from typing import Any, Union, List, Tuple, Sequence, Generator
 import logging
 import itertools
 from copy import copy
@@ -44,27 +44,64 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
 logger = logging.getLogger(__name__)
 
 
-def chunk(data, batch_size=None, fill_with=None, is_random=False, max_batches=None):
+def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
+          max_batches: int = None) -> Generator:
+    """
+
+    e.g:
+    >>> import cereja as cj
+
+    >>> data = list(range(15))
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+
+    >>> list(cj.chunk(data, batch_size=4)) # list casting because result is generator.
+    [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14]]
+
+    >>> list(cj.chunk(data, batch_size=4, is_random=True, fill_with=0))
+    [[7, 2, 11, 4], [10, 6, 1, 13], [12, 9, 5, 0], [8, 3, 14, 0]]
+
+    >>> data = {"key1": 'value1', "key2": 'value2', "key3": 'value3', "key4": 'value4'}
+
+    >>> list(cj.chunk(data, batch_size=2,is_random=True))
+    [{'key3': 'value3', 'key2': 'value2'}, {'key1': 'value1', 'key4': 'value4'}]
+
+    @param data:
+    @param batch_size:
+    @param fill_with:
+    @param is_random:
+    @param max_batches:
+    @return:
+    """
+    assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
     if batch_size is None and max_batches is None:
         yield data
+
+    data = list(data) if isinstance(data, (set, tuple)) else copy(data)
+
     if batch_size is None or batch_size > len(data):
         if isinstance(max_batches, (int, float)) and max_batches > 0:
             batch_size = len(data) // max_batches or len(data)
         else:
             batch_size = len(data)
 
-    if is_random:
+    if is_random and not isinstance(data, dict):
         random.shuffle(data)
 
     if max_batches is None:
         max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
 
     while max_batches and len(data):
-        result = data[:batch_size]
-        if len(result) < batch_size and fill_with is not None:
-            result += [fill_with] * (batch_size - len(result))
+        if isinstance(data, dict):
+            temp_data = random.sample(list(data), min(batch_size, len(data))) if is_random else list(data)[:batch_size]
+            result = {key: data.pop(key) for key in temp_data}
+        else:
+            result = data[:batch_size]
+
+            if fill_with is not None and len(result) < batch_size:
+                result += [fill_with] * (batch_size - len(result))
+            data = data[batch_size:]
+
         yield result
-        data = data[batch_size:]
         max_batches -= 1
 
 
