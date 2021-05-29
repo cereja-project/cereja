@@ -60,8 +60,36 @@ class UtilsTest(unittest.TestCase):
     def test_rescale_values(self):
         pass
 
+    def test_can_do(self):
+        class _A:
+            def _m1(self):
+                pass
+
+            def __m2(self):
+                pass
+
+            def m(self):
+                pass
+
+            @property
+            def m1(self):
+                return self._m1()
+
+        a_obj = _A()
+
+        self.assertEqual(utils.can_do(a_obj), ['m', 'm1'])
+
     def test_sample(self):
-        pass
+        data = ['The', 'Cereja', 'is', 'for', 'everyone']
+
+        self.assertEqual(utils.sample(data, 2), ['The', 'Cereja'])
+        self.assertEqual(utils.sample(data, 3), ['The', 'Cereja', 'is'])
+        self.assertEqual(utils.sample('Cereja'), list('Cereja'))  # test sent string
+        self.assertEqual(utils.sample(b'Cereja'), list(b'Cereja'))  # test sent bytes
+        self.assertEqual(utils.sample([12], 2), [12])  # test sent number
+
+        data = {'The': 'Cereja', 'is': 'for', 'everyone': None}
+        self.assertEqual(utils.sample(data, 2), {'The': 'Cereja', 'is': 'for'})
 
     def test_set_log_level(self):
         pass

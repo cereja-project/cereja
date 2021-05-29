@@ -28,7 +28,7 @@ import math
 from collections import Counter, OrderedDict
 from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
 
-from cereja.array import is_iterable, is_sequence
+from cereja.utils._utils import is_iterable, is_sequence
 from cereja.file import FileIO
 from cereja.utils import invert_dict, string_to_literal
 from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \

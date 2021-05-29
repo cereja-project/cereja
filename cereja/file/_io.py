@@ -13,7 +13,8 @@ from urllib import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from cereja.system import Path
-from cereja.array import get_cols, flatten, get_shape, is_sequence
+from cereja.array import get_cols, flatten, get_shape
+from cereja.utils._utils import is_sequence
 from cereja.system import memory_of_this
 from cereja.utils import string_to_literal, sample, fill, obj_repr
 
@@ -215,7 +216,7 @@ class _FileIO(_IFileIO, ABC):
                 raise NotImplementedError(cls._need_implement.get(attr).format(class_name=cls.__name__))
 
     def __repr__(self):
-        return obj_repr(self)
+        return f'{self._ext_without_point}<{self._path.name}>'
 
     def __str__(self):
         return f'{self._ext_without_point}<{self._path.name}>'
@@ -430,6 +431,16 @@ class _FileIO(_IFileIO, ABC):
         if self._current_change < len(self._change_history):
             self._select_change(+1)
 
+    def sample_items(self, k: int = 1, is_random=False):
+        """
+        Get sample of this.
+
+        @param k: length of sample
+        @param is_random: bool
+        """
+        assert isinstance(k, int) and k > 0, f"k = {k} isn't valid."
+        return sample(self.data, k=k, is_random=is_random)
+
     def __len__(self):
         if self._length is None:
             return len(self._data)
@@ -565,16 +576,6 @@ class _JsonIO(_FileIO):
 
     def get(self, _key):
         return self._data.get(_key)
-
-    def sample_items(self, k: int = 1, is_random=False) -> dict:
-        """
-        Get sample of this.
-
-        @param k: length of sample
-        @param is_random: bool
-        """
-        assert isinstance(k, int) and k > 0, f"k = {k} isn't valid."
-        return sample(self.data, k=k, is_random=is_random)
 
     def __getitem__(self, item):
         try:
@@ -835,6 +836,10 @@ class _SrtFile(_TxtIO):
         req = request.urlopen(url)
         if req.code == 200:
             return cls(Path('./subtitle.srt'), req.read().decode(), creation_mode=True)
+
+    @property
+    def text(self):
+        return [content.strip() for block in self.data for content in block.content if content]
 
     class Block:
         def __init__(self, number, *content):

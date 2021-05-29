@@ -25,23 +25,82 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple
+from typing import Any, Union, List, Tuple, Sequence, Generator, Iterable
 import logging
 import itertools
 from copy import copy
 import inspect
 # Needed init configs
-from cereja.array import is_iterable
-
-from cereja.config.cj_types import ClassType, FunctionType
+from cereja.config.cj_types import ClassType, FunctionType, Number
 
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'class_methods']
+           'list_methods', 'can_do', 'chunk','is_iterable', 'is_sequence', 'is_numeric_sequence']
 
 logger = logging.getLogger(__name__)
+
+
+def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
+          max_batches: int = None) -> Generator:
+    """
+
+    e.g:
+    >>> import cereja as cj
+
+    >>> data = list(range(15))
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+
+    >>> list(cj.chunk(data, batch_size=4)) # list casting because result is generator.
+    [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14]]
+
+    >>> list(cj.chunk(data, batch_size=4, is_random=True, fill_with=0))
+    [[7, 2, 11, 4], [10, 6, 1, 13], [12, 9, 5, 0], [8, 3, 14, 0]]
+
+    >>> data = {"key1": 'value1', "key2": 'value2', "key3": 'value3', "key4": 'value4'}
+
+    >>> list(cj.chunk(data, batch_size=2,is_random=True))
+    [{'key3': 'value3', 'key2': 'value2'}, {'key1': 'value1', 'key4': 'value4'}]
+
+    @param data: Iterable data
+    @param batch_size: number of items per batch
+    @param fill_with: Any, but isn't valid for dict
+    @param is_random: shuffle data
+    @param max_batches: limit number of batches
+    @return: list of batches
+    """
+    assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
+    if batch_size is None and max_batches is None:
+        yield data
+
+    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray)) else copy(data)
+
+    if not batch_size or batch_size > len(data) or batch_size < 1:
+        if isinstance(max_batches, (int, float)) and max_batches > 0:
+            batch_size = len(data) // max_batches or len(data)
+        else:
+            batch_size = len(data)
+
+    if is_random and not isinstance(data, dict):
+        random.shuffle(data)
+
+    if max_batches is None:
+        max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
+
+    while max_batches and len(data):
+        if isinstance(data, dict):
+            temp_data = random.sample(list(data), min(batch_size, len(data))) if is_random else list(data)[:batch_size]
+            result = {key: data.pop(key) for key in temp_data}
+        else:
+            result = data[:batch_size]
+
+            if fill_with is not None and len(result) < batch_size:
+                result += [fill_with] * (batch_size - len(result))
+            data = data[batch_size:]
+
+        yield result
+        max_batches -= 1
 
 
 def truncate(text: Union[str, bytes], k=4):
@@ -94,7 +153,7 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
                         temp_v.append(k)
                         if len(temp_v) == val_limit:
                             break
-                    temp_v = ', '.join(temp_v)
+                    temp_v = ', '.join(temp_v)  # fix me, if bytes ...
                     obj = f'{obj.__class__.__name__}({temp_v} ...)'
                 rep_.append(f'{attr_} = {obj}')
                 if len(rep_) >= attr_limit:
@@ -113,24 +172,31 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
     return f"{obj_.__class__.__name__} ({__repr_template})"
 
 
-def sample(v, k=None, is_random=False):
+def can_do(obj: Any) -> List[str]:
+    """
+    List methods and attributes of a Python object.
+
+    It is essentially the builtin `dir` function without the private methods and attributes
+
+    @param obj: Any
+    @return: list of attr names sorted by name
+    """
+    return sorted([i for i in filter(lambda attr: not attr.startswith('_'), dir(obj))])
+
+
+def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
 
     @param v: Any
     @param k: int
     @param is_random: default False
-    @return: sample list
+    @return: sample iterable
     """
-    if not is_iterable(v):
-        return [v]
-
-    k = k or len(v)
-    res = random.sample(list(v), k) if is_random else list(v)[:k]
-
-    if isinstance(v, (dict, set)):
-        return {key: v[key] for key in res}
-    return res
+    result = next(chunk(v, batch_size=k, is_random=is_random, max_batches=1))
+    if isinstance(v, set):
+        result = set(result)
+    return result
 
 
 def type_table_of(o: Union[list, tuple, dict]):
@@ -222,6 +288,13 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
 
 
 def time_format(seconds: float, format_='%H:%M:%S') -> Union[str, float]:
+    """
+    Default format is '%H:%M:%S'
+
+    >>> time_format(3600)
+    '01:00:00'
+
+    """
     # this because NaN
     if seconds >= 0 or seconds < 0:
         time_ = time.strftime(format_, time.gmtime(abs(seconds)))
@@ -246,7 +319,7 @@ def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
     return value
 
 
-def class_methods(klass) -> List[str]:
+def list_methods(klass) -> List[str]:
     methods = []
     for i in dir(klass):
         if i.startswith('_') or not callable(getattr(klass, i)):
@@ -511,7 +584,7 @@ if __name__ == '__main__':
 
     @classmethod
     def _get_class_test(cls, ref):
-        func_tests = ''.join(cls.__template_unittest_function.format(func_name=i) for i in class_methods(ref))
+        func_tests = ''.join(cls.__template_unittest_function.format(func_name=i) for i in list_methods(ref))
         return cls.__template_unittest_class.format(class_name=ref.__name__, func_tests=func_tests)
 
     @classmethod
@@ -582,6 +655,8 @@ def rescale_values(values: List[Any], granularity: int) -> List[Any]:
     @param granularity: is a integer
     @return: rescaled list of values.
     """
+
+
     if len(values) >= granularity:
         return _compress_list(values, granularity)
     if len(values) == 0:
@@ -624,3 +699,30 @@ class Source:
         from cereja import FileIO, Path
         assert Path(path_).suffix == '.py', "Only python source code."
         FileIO.create(path_, self._source_code).save(**kwargs)
+
+
+def is_iterable(obj: Any) -> bool:
+    """
+    Return whether an object is iterable or not.
+
+    :param obj: Any object for check
+    """
+    return isinstance(obj, Iterable)
+
+
+def is_sequence(obj: Any) -> bool:
+    """
+    Return whether an object a Sequence or not, exclude strings and empty obj.
+
+    :param obj: Any object for check
+    """
+    return not isinstance(obj, (str, dict, bytes)) and is_iterable(obj)
+
+
+def is_numeric_sequence(obj: Sequence[Number]) -> bool:
+    try:
+        from cereja.array import flatten
+        sum(flatten(obj))
+    except (TypeError, ValueError):
+        return False
+    return True

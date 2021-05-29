@@ -25,44 +25,19 @@ import random
 import statistics
 import math
 from functools import reduce
-from typing import Any, Sequence, Tuple, Union, List, Optional, Iterable
+from typing import Any, Sequence, Tuple, Union, List, Optional
 import copy
 from cereja.config.cj_types import Number, Shape
 import logging
 
 __all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_shape',
-           'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'is_iterable', 'is_numeric_sequence',
-           'is_sequence',
-           'rand_n', 'rand_uniform', 'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
+           'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'rand_n', 'rand_uniform', 'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
            'sub', 'prod']
 
+
+from cereja.utils.decorators import depreciation
+from ..utils import is_iterable, is_sequence, is_numeric_sequence
 logger = logging.getLogger(__name__)
-
-
-def is_iterable(obj: Any) -> bool:
-    """
-    Return whether an object is iterable or not.
-
-    :param obj: Any object for check
-    """
-    return isinstance(obj, Iterable)
-
-
-def is_sequence(obj: Any) -> bool:
-    """
-    Return whether an object a Sequence or not, exclude strings and empty obj.
-
-    :param obj: Any object for check
-    """
-    return not isinstance(obj, (str, dict, bytes)) and is_iterable(obj)
-
-
-def is_numeric_sequence(obj: Sequence[Number]) -> bool:
-    try:
-        sum(flatten(obj))
-    except (TypeError, ValueError):
-        return False
-    return True
 
 
 def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, ...]) -> bool:
@@ -297,6 +272,7 @@ def array_randn(shape: Tuple[int, ...], *args, **kwargs) -> List[Union[float, An
     return array_gen(shape=shape, v=rand_n_values)
 
 
+@depreciation(alternative='cereja.utils.chunk')
 def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any = None) -> List[List[Any]]:
     """
     Responsible for grouping items in batch taking into account the quantity of items per batch
@@ -312,24 +288,8 @@ def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any
     :param fill: fill examples when items is not divisible by items_per_batch, default is None
     :return:
     """
-    items_length = len(items)
-    if not isinstance(items_per_batch, int):
-        raise TypeError(f"Value for items_per_batch is not valid. Please send integer.")
-    if items_per_batch < 0 or items_per_batch > len(items):
-        raise ValueError(f"Value for items_per_batch is not valid. I need a number integer between 0 and {len(items)}")
-    if items_per_batch == 0:
-        return items
-
-    if fill is not None:
-        missing = items_per_batch - items_length % items_per_batch
-        items += missing * [fill]
-
-    batches = []
-
-    for i in range(0, items_length, items_per_batch):
-        batch = [group for group in items[i:i + items_per_batch]]
-        batches.append(batch)
-    return batches
+    from cereja.utils import chunk
+    return list(chunk(data=items, batch_size=items_per_batch, fill_with=fill))
 
 
 def remove_duplicate_items(items: Optional[list]) -> Any:

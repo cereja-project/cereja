@@ -28,10 +28,10 @@ from typing import Callable, Any
 import abc
 import logging
 import warnings
-from cereja import utils
 
 __all__ = ['depreciation', 'synchronized', 'time_exec', 'sync_to_async', 'async_to_sync', 'thread_safe_generator']
 
+from cereja.concurrently._concurrence import SyncToAsync, AsyncToSync
 from cereja.config.cj_types import PEP440
 
 logger = logging.getLogger(__name__)
@@ -89,8 +89,8 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
 
 
 # Lowercase is more sensible for most things, and import_string is because Cyclic imports
-sync_to_async = utils.import_string('cereja.concurrently._concurrence.SyncToAsync')
-async_to_sync = utils.import_string('cereja.concurrently._concurrence.SyncToAsync')
+sync_to_async = SyncToAsync
+async_to_sync = AsyncToSync
 
 
 class Decorator(abc.ABC):
