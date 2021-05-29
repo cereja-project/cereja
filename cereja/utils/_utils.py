@@ -39,9 +39,33 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'class_methods', 'can_do']
+           'list_methods', 'can_do', 'chunk']
 
 logger = logging.getLogger(__name__)
+
+
+def chunk(data, batch_size=None, fill_with=None, is_random=False, max_batches=None):
+    if batch_size is None and max_batches is None:
+        yield data
+    if batch_size is None or batch_size > len(data):
+        if isinstance(max_batches, (int, float)) and max_batches > 0:
+            batch_size = len(data) // max_batches or len(data)
+        else:
+            batch_size = len(data)
+
+    if is_random:
+        random.shuffle(data)
+
+    if max_batches is None:
+        max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
+
+    while max_batches and len(data):
+        result = data[:batch_size]
+        if len(result) < batch_size and fill_with is not None:
+            result += [fill_with] * (batch_size - len(result))
+        yield result
+        data = data[batch_size:]
+        max_batches -= 1
 
 
 def truncate(text: Union[str, bytes], k=4):
@@ -120,9 +144,9 @@ def can_do(obj: Any) -> List[str]:
     It is essentially the builtin `dir` function without the private methods and attributes
 
     @param obj: Any
-    @return: list of attr names
+    @return: list of attr names sorted by name
     """
-    return [i for i in filter(lambda attr: not attr.startswith('_'), dir(obj))]
+    return sorted([i for i in filter(lambda attr: not attr.startswith('_'), dir(obj))])
 
 
 def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
@@ -234,6 +258,13 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
 
 
 def time_format(seconds: float, format_='%H:%M:%S') -> Union[str, float]:
+    """
+    Default format is '%H:%M:%S'
+
+    >>> time_format(3600)
+    '01:00:00'
+
+    """
     # this because NaN
     if seconds >= 0 or seconds < 0:
         time_ = time.strftime(format_, time.gmtime(abs(seconds)))
@@ -258,7 +289,7 @@ def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
     return value
 
 
-def class_methods(klass) -> List[str]:
+def list_methods(klass) -> List[str]:
     methods = []
     for i in dir(klass):
         if i.startswith('_') or not callable(getattr(klass, i)):
@@ -523,7 +554,7 @@ if __name__ == '__main__':
 
     @classmethod
     def _get_class_test(cls, ref):
-        func_tests = ''.join(cls.__template_unittest_function.format(func_name=i) for i in class_methods(ref))
+        func_tests = ''.join(cls.__template_unittest_function.format(func_name=i) for i in list_methods(ref))
         return cls.__template_unittest_class.format(class_name=ref.__name__, func_tests=func_tests)
 
     @classmethod
