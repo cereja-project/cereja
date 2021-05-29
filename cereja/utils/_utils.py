@@ -39,7 +39,7 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'class_methods']
+           'class_methods', 'can_do']
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +111,18 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
     {rep_}
     """
     return f"{obj_.__class__.__name__} ({__repr_template})"
+
+
+def can_do(obj: Any) -> List[str]:
+    """
+    List methods and attributes of a Python object.
+
+    It is essentially the builtin `dir` function without the private methods and attributes
+
+    @param obj: Any
+    @return: list of attr names
+    """
+    return [i for i in filter(lambda attr: not attr.startswith('_'), dir(obj))]
 
 
 def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:

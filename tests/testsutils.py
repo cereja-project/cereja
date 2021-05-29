@@ -60,6 +60,25 @@ class UtilsTest(unittest.TestCase):
     def test_rescale_values(self):
         pass
 
+    def test_can_do(self):
+        class _A:
+            def _m1(self):
+                pass
+
+            def __m2(self):
+                pass
+
+            def m(self):
+                pass
+
+            @property
+            def m1(self):
+                return self._m1()
+
+        a_obj = _A()
+
+        self.assertEqual(utils.can_do(a_obj), ['m', 'm1'])
+
     def test_sample(self):
         data = ['The', 'Cereja', 'is', 'for', 'everyone']
 
