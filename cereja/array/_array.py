@@ -289,7 +289,7 @@ def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any
     :return:
     """
     from cereja.utils import chunk
-    return list(chunk(data=items, batch_size=items_per_batch, fill_with=fill))
+    return chunk(data=items, batch_size=items_per_batch, fill_with=fill)
 
 
 def remove_duplicate_items(items: Optional[list]) -> Any:

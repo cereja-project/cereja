@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
-          max_batches: int = None) -> Generator:
+          max_batches: int = None) -> List:
     """
 
     e.g:
@@ -52,15 +52,15 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     >>> data = list(range(15))
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 
-    >>> list(cj.chunk(data, batch_size=4)) # list casting because result is generator.
+    >>> cj.chunk(data, batch_size=4)
     [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14]]
 
-    >>> list(cj.chunk(data, batch_size=4, is_random=True, fill_with=0))
+    >>> cj.chunk(data, batch_size=4, is_random=True, fill_with=0)
     [[7, 2, 11, 4], [10, 6, 1, 13], [12, 9, 5, 0], [8, 3, 14, 0]]
 
     >>> data = {"key1": 'value1', "key2": 'value2', "key3": 'value3', "key4": 'value4'}
 
-    >>> list(cj.chunk(data, batch_size=2,is_random=True))
+    >>> cj.chunk(data, batch_size=2,is_random=True)
     [{'key3': 'value3', 'key2': 'value2'}, {'key1': 'value1', 'key4': 'value4'}]
 
     @param data: Iterable data
@@ -73,7 +73,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
 
     assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
     if batch_size is None and max_batches is None:
-        yield data
+        return [data]
 
     data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray)) else copy(data)
     _dict_temp_keys = [] if not isinstance(data, dict) else list(data)
@@ -92,6 +92,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     if max_batches is None:
         max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
 
+    batches = []
     for i in range(0, len(data), batch_size):
 
         if isinstance(data, dict):
@@ -100,10 +101,11 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
             result = data[i:i + batch_size]
             if fill_with is not None and len(result) < batch_size:
                 result += [fill_with] * (batch_size - len(result))
-        yield result
+        batches.append(result)
         max_batches -= 1
         if not max_batches:
             break
+    return batches
 
 
 def truncate(text: Union[str, bytes], k=4):
@@ -196,7 +198,9 @@ def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
     @param is_random: default False
     @return: sample iterable
     """
-    result = next(chunk(v, batch_size=k, is_random=is_random, max_batches=1))
+    result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)
+    if len(result) == 1:
+        result = result[0]
     if isinstance(v, set):
         result = set(result)
     return result

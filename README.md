@@ -284,9 +284,9 @@ import cereja as cj
 
 data = {"key1": 'value1', "key2": 'value2', "key3": 'value3', "key4": 'value4'}
 
-list(cj.utils.chunk(list(range(10)), batch_size=3)) # cast list because is generator
+cj.utils.chunk(list(range(10)), batch_size=3)
 # [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]
-list(cj.utils.chunk(list(range(10)), batch_size=3, fill_with=0, is_random=True))
+cj.utils.chunk(list(range(10)), batch_size=3, fill_with=0, is_random=True)
 # [[9, 7, 8], [0, 3, 2], [4, 1, 5], [6, 0, 0]]
 
 # Invert Dict
