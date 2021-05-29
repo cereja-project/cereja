@@ -25,21 +25,19 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Generator
+from typing import Any, Union, List, Tuple, Sequence, Generator, Iterable
 import logging
 import itertools
 from copy import copy
 import inspect
 # Needed init configs
-from cereja.array import is_iterable
-
-from cereja.config.cj_types import ClassType, FunctionType
+from cereja.config.cj_types import ClassType, FunctionType, Number
 
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'list_methods', 'can_do', 'chunk']
+           'list_methods', 'can_do', 'chunk','is_iterable', 'is_sequence', 'is_numeric_sequence']
 
 logger = logging.getLogger(__name__)
 
@@ -65,20 +63,20 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     >>> list(cj.chunk(data, batch_size=2,is_random=True))
     [{'key3': 'value3', 'key2': 'value2'}, {'key1': 'value1', 'key4': 'value4'}]
 
-    @param data:
-    @param batch_size:
-    @param fill_with:
-    @param is_random:
-    @param max_batches:
-    @return:
+    @param data: Iterable data
+    @param batch_size: number of items per batch
+    @param fill_with: Any, but isn't valid for dict
+    @param is_random: shuffle data
+    @param max_batches: limit number of batches
+    @return: list of batches
     """
     assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
     if batch_size is None and max_batches is None:
         yield data
 
-    data = list(data) if isinstance(data, (set, tuple)) else copy(data)
+    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray)) else copy(data)
 
-    if batch_size is None or batch_size > len(data):
+    if not batch_size or batch_size > len(data) or batch_size < 1:
         if isinstance(max_batches, (int, float)) and max_batches > 0:
             batch_size = len(data) // max_batches or len(data)
         else:
@@ -195,15 +193,10 @@ def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
     @param is_random: default False
     @return: sample iterable
     """
-    if not is_iterable(v) or isinstance(v, (str, bytes)):
-        return [v]
-
-    k = k or len(v)
-    res = random.sample(list(v), k) if is_random else list(v)[:k]
-
-    if isinstance(v, (dict, set)):
-        return {key: v[key] for key in res}
-    return res
+    result = next(chunk(v, batch_size=k, is_random=is_random, max_batches=1))
+    if isinstance(v, set):
+        result = set(result)
+    return result
 
 
 def type_table_of(o: Union[list, tuple, dict]):
@@ -662,6 +655,8 @@ def rescale_values(values: List[Any], granularity: int) -> List[Any]:
     @param granularity: is a integer
     @return: rescaled list of values.
     """
+
+
     if len(values) >= granularity:
         return _compress_list(values, granularity)
     if len(values) == 0:
@@ -704,3 +699,30 @@ class Source:
         from cereja import FileIO, Path
         assert Path(path_).suffix == '.py', "Only python source code."
         FileIO.create(path_, self._source_code).save(**kwargs)
+
+
+def is_iterable(obj: Any) -> bool:
+    """
+    Return whether an object is iterable or not.
+
+    :param obj: Any object for check
+    """
+    return isinstance(obj, Iterable)
+
+
+def is_sequence(obj: Any) -> bool:
+    """
+    Return whether an object a Sequence or not, exclude strings and empty obj.
+
+    :param obj: Any object for check
+    """
+    return not isinstance(obj, (str, dict, bytes)) and is_iterable(obj)
+
+
+def is_numeric_sequence(obj: Sequence[Number]) -> bool:
+    try:
+        from cereja.array import flatten
+        sum(flatten(obj))
+    except (TypeError, ValueError):
+        return False
+    return True

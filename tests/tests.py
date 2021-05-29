@@ -26,8 +26,9 @@ import time
 import unittest
 import logging
 
-from cereja.array import group_items_in_batches, is_iterable, remove_duplicate_items, flatten, \
-    is_sequence, array_gen, get_shape, Matrix
+from cereja.array import group_items_in_batches, remove_duplicate_items, flatten, \
+    array_gen, get_shape, Matrix
+from cereja.utils._utils import is_iterable, is_sequence
 from cereja.array import prod
 from cereja.mathtools import theta_angle
 from cereja.config.cj_types import Number
@@ -57,18 +58,18 @@ class UtilsTestCase(unittest.TestCase):
     def test_group_items_in_batches(self):
         tests = [([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
                  ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
-                 ([1, 2, 3, 4, 5, 6], 0, [1, 2, 3, 4, 5, 6]),
+                 ([1, 2, 3, 4, 5, 6], 0, [[1, 2, 3, 4, 5, 6]]),
                  ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 0, 0]]),
                  ]
 
         for test_value, items_per_batch, expected_value in tests:
+            print(test_value, items_per_batch, expected_value)
             msg = f"""Test failed for values {test_value}"""
             result = group_items_in_batches(test_value, items_per_batch, 0)
             self.assertEqual(result, expected_value, msg)
 
-        tests_raise = [([1, 2, 3, 4, 5, 6], -1, ValueError),
-                       ([1, 2, 3, 4, 5, 6], 'sd', TypeError),
-                       ([1, 2, 3, 4, 5, 6], 7, ValueError),
+        tests_raise = [
+                       ([1, 2, 3, 4, 5, 6], 'sd', TypeError)
                        ]
         for test_value, items_per_batch, expected_error in tests_raise:
             self.assertRaises(expected_error, group_items_in_batches, test_value, items_per_batch)

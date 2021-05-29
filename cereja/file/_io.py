@@ -13,7 +13,8 @@ from urllib import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from cereja.system import Path
-from cereja.array import get_cols, flatten, get_shape, is_sequence
+from cereja.array import get_cols, flatten, get_shape
+from cereja.utils._utils import is_sequence
 from cereja.system import memory_of_this
 from cereja.utils import string_to_literal, sample, fill, obj_repr
 

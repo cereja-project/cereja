@@ -84,9 +84,9 @@ class UtilsTest(unittest.TestCase):
 
         self.assertEqual(utils.sample(data, 2), ['The', 'Cereja'])
         self.assertEqual(utils.sample(data, 3), ['The', 'Cereja', 'is'])
-        self.assertEqual(utils.sample('Cereja'), ['Cereja'])  # test sent string
-        self.assertEqual(utils.sample(b'Cereja'), [b'Cereja'])  # test sent bytes
-        self.assertEqual(utils.sample(12, 2), [12])  # test sent number
+        self.assertEqual(utils.sample('Cereja'), list('Cereja'))  # test sent string
+        self.assertEqual(utils.sample(b'Cereja'), list(b'Cereja'))  # test sent bytes
+        self.assertEqual(utils.sample([12], 2), [12])  # test sent number
 
         data = {'The': 'Cereja', 'is': 'for', 'everyone': None}
         self.assertEqual(utils.sample(data, 2), {'The': 'Cereja', 'is': 'for'})

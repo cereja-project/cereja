@@ -244,12 +244,13 @@ train, test = corpus.split_data()  # default percent of training is 80%
 ### 🔢 Array
 
 ```python
+import cereja.utils._utils
 import cereja as cj
 
 data = [[1, 2, 3], [3, 3, 3]]
-cj.array.is_iterable(data)  # True
-cj.array.is_sequence(data)  # True
-cj.array.is_numeric_sequence(data)  # True
+cereja.utils._utils.is_iterable(data)  # True
+cereja.utils._utils.is_sequence(data)  # True
+cereja.utils._utils.is_numeric_sequence(data)  # True
 cj.array.is_empty(data)  # False
 cj.array.get_shape(data)  # (2, 3)
 

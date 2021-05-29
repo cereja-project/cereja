@@ -32,8 +32,6 @@ import logging
 from typing import Sequence, Any
 
 from cereja.config.cj_types import FunctionType
-from cereja.array import is_sequence
-from cereja.utils.decorators import time_exec
 
 __all__ = ['TaskList']
 logger = logging.getLogger(__name__)
@@ -248,6 +246,7 @@ class TaskList:
     """
 
     def __init__(self, func: FunctionType, sequence: Sequence[Any]):
+        from ..utils import is_sequence
         if not isinstance(func, Callable):
             raise TypeError(f"{func} is not callable.")
 
@@ -278,6 +277,5 @@ class TaskList:
             return asyncio.run(self._run())
         return self.loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
 
-    @time_exec
     def _run_functional(self):
         return list(map(self.func, self.sequence))
