@@ -113,16 +113,16 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
     return f"{obj_.__class__.__name__} ({__repr_template})"
 
 
-def sample(v, k=None, is_random=False):
+def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
 
     @param v: Any
     @param k: int
     @param is_random: default False
-    @return: sample list
+    @return: sample iterable
     """
-    if not is_iterable(v):
+    if not is_iterable(v) or isinstance(v, (str, bytes)):
         return [v]
 
     k = k or len(v)
