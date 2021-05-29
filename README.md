@@ -244,13 +244,9 @@ train, test = corpus.split_data()  # default percent of training is 80%
 ### 🔢 Array
 
 ```python
-import cereja.utils._utils
 import cereja as cj
 
-data = [[1, 2, 3], [3, 3, 3]]
-cereja.utils._utils.is_iterable(data)  # True
-cereja.utils._utils.is_sequence(data)  # True
-cereja.utils._utils.is_numeric_sequence(data)  # True
+
 cj.array.is_empty(data)  # False
 cj.array.get_shape(data)  # (2, 3)
 
@@ -319,6 +315,10 @@ cj.utils.time_format(3600)
 cj.utils.truncate("Cereja is fun.", k=3)
 # Output -> 'Cer...'
 
+data = [[1, 2, 3], [3, 3, 3]]
+cereja.utils.is_iterable(data)  # True
+cereja.utils.is_sequence(data)  # True
+cereja.utils.is_numeric_sequence(data)  # True
 ```
 
 [See Usage - Jupyter Notebook](./docs/cereja_example.ipynb)
