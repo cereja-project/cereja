@@ -46,7 +46,7 @@ from . import mathtools
 from cereja.mathtools import *
 from . import experimental
 
-VERSION = "1.3.9.final.0"
+VERSION = "1.3.9.final.1"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
