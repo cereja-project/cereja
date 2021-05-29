@@ -836,6 +836,10 @@ class _SrtFile(_TxtIO):
         if req.code == 200:
             return cls(Path('./subtitle.srt'), req.read().decode(), creation_mode=True)
 
+    @property
+    def text(self):
+        return [content.strip() for block in self.data for content in block.content if content]
+
     class Block:
         def __init__(self, number, *content):
             self.number = number
