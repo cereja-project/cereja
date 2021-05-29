@@ -94,7 +94,7 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
                         temp_v.append(k)
                         if len(temp_v) == val_limit:
                             break
-                    temp_v = ', '.join(temp_v)
+                    temp_v = ', '.join(temp_v)  # fix me, if bytes ...
                     obj = f'{obj.__class__.__name__}({temp_v} ...)'
                 rep_.append(f'{attr_} = {obj}')
                 if len(rep_) >= attr_limit:

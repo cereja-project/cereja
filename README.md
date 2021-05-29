@@ -11,8 +11,8 @@
  <img src="https://i.ibb.co/Fw8SSfd/cereja-logo.png" height="300" width="300" alt="CEREJA">
 </div>
 
-*Cereja was written only with the Standard Python Library, and it was a great way to improve knowledge in the Language also to avoid the rewriting of code.*
-
+*Cereja was written only with the Standard Python Library, and it was a great way to improve knowledge in the Language
+also to avoid the rewriting of code.*
 
 ## Getting Started DEV
 
@@ -20,40 +20,140 @@ Don't be shy \0/ ... Clone the repository and submit a function or module you ma
 
 See [CONTRIBUTING](CONTRIBUTING.md) 💻
 
-### Setup
+## Setup
 
 * [Python 3.6+](https://www.python.org/downloads/ "Download python")
 * [Pip3](https://pip.pypa.io "Download Pip")
 
-### Installing
+## Install
 
-**Install Cereja Package**
 ```
-python3 -m pip install --user cereja
+pip install --user cereja
 ```
+
 or for all users
-```
-python3 -m pip install cereja
-```
-> Note: If you're using Windows, you don't need use python3, but make sure your python path settings are correct. 
 
-### Cereja Example usage
+```
+pip install cereja
+```
+
+## Cereja Example usage
 
 See some of the Cereja tools
 
-#### Filetools
-Have a fun
+To access the *Cereja's* tools you need to import it `import cereja as cj`.
+
+### 📝 [FileIO](docs/file.md)
+
 ```python
-from cereja import FileIO
-# load File
-file = FileIO.load('test.json') # return FileIO.json object (has interface for .txt, .csv, .json and more)
-print(dir(file))
+import cereja as cj
+
+file = cj.FileIO.load('path_to_file.ext')
+
+# see what you can do
+print(cj.can_do(file))
+# Output -> ['add', 'created_at', 'data', 'delete', 'dir_name', 'dir_path', 'exists', 'ext', 'history', 'is_empty', 'last_access', 'length', 'name', 'name_without_ext', 'only_read', 'parse', 'parse_ext', 'path', 'redo', 'sample_items', 'save', 'set_path', 'size', 'undo', 'updated_at', 'was_changed']
 ```
 
-#### Corpus
+### ⏳ [Progress](docs/display.md)
+
+```python
+import cereja as cj
+import time
+
+my_iterable = ['Cereja', 'is', 'very', 'easy']
+
+for i in cj.Progress.prog(my_iterable):
+    print(f"current: {i}")
+    time.sleep(2)
+
+```
+
+### 🧠 [Data Preparation](docs/ml.md)
+
+📊 **Freq**
+
+```python
+import cereja as cj
+
+freq = cj.Freq([1, 2, 3, 3, 10, 10, 4, 4, 4, 4])
+# Output -> Freq({1: 1, 2: 1, 3: 2, 10: 2, 4: 4})
+
+freq.most_common(2)
+# Output -> {4: 4, 3: 2}
+
+freq.least_freq(2)
+# Output -> {2: 1, 1: 1}
+
+freq.probability
+# Output -> OrderedDict([(4, 0.4), (3, 0.2), (10, 0.2), (1, 0.1), (2, 0.1)])
+
+freq.sample(min_freq=1, max_freq=2)
+# Output -> {3: 2, 10: 2, 1: 1, 2: 1}
+
+# Save json file.
+freq.to_json('./freq.json')
+```
+
+🧹 **Text Preprocess**
+```python
+import cereja as cj
+
+text = "Oi tudo bem?? meu nome é joab!"
+
+text = cj.preprocess.remove_extra_chars(text)
+print(text)
+# Output -> 'Oi tudo bem? meu nome é joab!'
+
+text = cj.preprocess.separate(text, sep=['?', '!'])
+# Output -> 'Oi tudo bem ? meu nome é joab !'
+
+text = cj.preprocess.accent_remove(text)
+# Output -> 'Oi tudo bem ? meu nome e joab !'
+
+# and more ..
+
+# You can use class Preprocessor ...
+preprocessor = cj.Preprocessor(stop_words=(),
+                               punctuation='!?,.', to_lower=True, is_remove_punctuation=False,
+                               is_remove_stop_words=False,
+                               is_remove_accent=True)
+
+print(preprocessor.preprocess(text))
+# Output -> 'oi tudo bem ? meu nome e joab !'
+
+print(preprocessor.preprocess(text, is_destructive=True))
+# Output -> 'oi tudo bem meu nome e joab'
+
+```
+
+🔣 **Tokenizer**
+```python
+import cereja as cj
+
+text = ['oi tudo bem meu nome é joab']
+
+tokenizer = cj.Tokenizer(text, use_unk=True)
+
+# tokens 0 to 9 is UNK
+# hash_ used to replace UNK
+token_sequence, hash_ = tokenizer.encode('meu nome é Neymar Júnior')
+# Output -> [([10, 12, 11, 0, 1], 'eeb755960ce70c')]
+
+decoded_sequence = tokenizer.decode(token_sequence)
+# Output -> ['meu', 'nome', 'é', '{0}', '{1}']
+
+decoded_sequence = ' '.join(decoded_sequence)
+
+tokenizer.replace_unks(decoded_sequence, hash_)
+# Output -> 'meu nome é Neymar Júnior'
+
+```
+
+⏸ **Corpus**
+
 Great training and test separator.
 
-##### Create from list data
 ```python
 import cereja as cj
 
@@ -61,9 +161,9 @@ X = ['how are you?', 'my name is Joab', 'I like coffee', 'how are you joab?', 'h
 Y = ['como você está?', 'meu nome é Joab', 'Eu gosto de café', 'Como você está joab?', 'como', 'Nós somos o mundo']
 
 corpus = cj.Corpus(source_data=X, target_data=Y, source_name='en', target_name='pt')
-print(corpus) # Corpus(examples: 6 - source_vocab_size: 13 - target_vocab_size:15)
-print(corpus.source) # LanguageData(examples: 6 - vocab_size: 13)
-print(corpus.target) # LanguageData(examples: 6 - vocab_size: 15)
+print(corpus)  # Corpus(examples: 6 - source_vocab_size: 13 - target_vocab_size:15)
+print(corpus.source)  # LanguageData(examples: 6 - vocab_size: 13)
+print(corpus.target)  # LanguageData(examples: 6 - vocab_size: 15)
 
 corpus.source.phrases_freq
 # Counter({'how are you': 1, 'my name is joab': 1, 'i like coffee': 1, 'how are you joab': 1, 'how': 1, 'we are the world': 1})
@@ -79,110 +179,62 @@ corpus.target.words_freq
 
 # split_data function guarantees test data without data identical to training
 # and only with vocabulary that exists in training
-train, test = corpus.split_data() # default percent of training is 80%
+train, test = corpus.split_data()  # default percent of training is 80%
 ```
-##### Read from .csv
+
+### 🔢 Array
 ```python
 import cereja as cj
 
-corpus = cj.Corpus.load_corpus_from_csv('path_to_file.csv', src_col_name='x_data', trg_col_name='y_data', source_name='en', target_name='pt')
-# now you have a Corpus instance, have fun! (:
+data = [[1, 2, 3], [3, 3, 3]]
+cj.array.is_iterable(data)  # True
+cj.array.is_sequence(data)  # True
+cj.array.is_numeric_sequence(data)  # True
+cj.array.is_empty(data)  # False
+cj.array.get_shape(data)  # (2, 3)
+
+data = cj.array.flatten(data)  # [1, 2, 3, 3, 3, 3]
+cj.array.prod(data)  # 162
+cj.array.sub(data)  # -13
+cj.array.div(data)  # 0.006172839506172839
+
+cj.array.rand_n(0.0, 2.0, n=3)  # [0.3001196087729699, 0.639679494102923, 1.060200897124107]
+cj.array.rand_n(1, 10)  # 5.086403830031244
+cj.array.array_randn((3, 3,
+                3))  # [[[0.015077210355770374, 0.014298110484612511, 0.030410666810216064], [0.029319083335697604, 0.0072365209507707666, 0.010677361074992], [0.010576754075922935, 0.04146379877648334, 0.02188348813336284]], [[0.0451851551098092, 0.037074906805326824, 0.0032484586475421007], [0.025633380630695347, 0.010312669541918484, 0.0373624007621097], [0.047923908102496145, 0.0027939333359724224, 0.05976224377251878]], [[0.046869510719106486, 0.008325638358172866, 0.0038702998343255893], [0.06475268683502387, 0.0035638592537234623, 0.06551037943638163], [0.043317416824708604, 0.06579372884523939, 0.2477564291871006]]]
+cj.array.group_items_in_batches(items=[1, 2, 3, 4], items_per_batch=3, fill=0)  # [[1, 2, 3], [4, 0, 0]]
+cj.array.remove_duplicate_items(['hi', 'hi', 'ih'])  # ['hi', 'ih'] 
+cj.array.get_cols([['line1_col1', 'line1_col2'],
+             ['line2_col1', 'line2_col2']])  # [['line1_col1', 'line2_col1'], ['line1_col2', 'line2_col2']]
+cj.array.dotproduct([1, 2], [1, 2])  # 5
+
+a = cj.array.array_gen((3, 3), 1)  # [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+b = cj.array.array_gen((3, 3), 1)  # [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+cj.array.dot(a, b)  # [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
+cj.mathtools.theta_angle((2, 2), (0, -2))  # 135.0
+
 ```
-#### Progress
+
+### 🧰 Utils
 
 ```python
-import cereja as cj
-import time
 
-def process_data(i: int):
-    # simulates some processing 
-    time.sleep(cj.rand_n()/max(abs(i), 1))
-
-my_iterable = range(1, 500)
-my_progress = cj.Progress("My Progress")
-
-for i in my_progress(my_iterable):
-    process_data(i)
-
-```
-<div>
- <img src="https://media.giphy.com/media/JNxHJ0uGPqTKRUeLWc/giphy.gif">
-</div>
-
-##### Custom Display
-```python
-import cereja as cj
-import time
-
-progress = cj.Progress("My Progress")
-print(progress)
-
-print(progress[0])
-print(progress[1])
-print(progress[2])
-
-class MyCustomState(cj.StateBase):
-    def display(self, current_value, max_value, *args, **kwargs):
-        return f'{current_value} -> {max_value}'
-    def done(self, *args, **kwargs):
-        return f'FINISHED'
-
-progress[0] = MyCustomState
-
-for i in progress(range(1, 500)):
-    time.sleep(1/i)
-```
-<div>
- <img src="https://media.giphy.com/media/JnA6EErThhwTdQ5izb/giphy.gif">
-</div>
-
-##### With Statement
-```python
-import cereja as cj
-import time
-
-with cj.Progress("My Progress") as prog:
-    time.sleep(5)
-    for i in prog(range(1, 500)):
-        time.sleep(1/i)
-```
-<div>
- <img src="https://media.giphy.com/media/W3gDDqVhgip0V9N7HA/giphy.gif">
-</div>
-
-#### Utils
-```python
-
-import cereja.mathtools
 import cereja as cj
 
-# Arraytools
-data = [[1,2,3],[3,3,3]]
-cj.is_iterable(data) # True
-cj.is_sequence(data) # True
-cj.is_numeric_sequence(data) # True
-cj.is_empty(data) # False
-cj.get_shape(data) # (2, 3)
+data = {"key1": 'value1', "key2": 'value2', "key3": 'value3', "key4": 'value4'}
 
-data = cj.flatten(data) # [1, 2, 3, 3, 3, 3]
-cereja.mathtools.prod(data) # 162
-cereja.mathtools.sub(data) # -13
-cereja.mathtools.div(data) # 0.006172839506172839
+# Invert Dict
+cj.invert_dict(data)
+# Output -> {'value1': 'key1', 'value2': 'key2', 'value3': 'key3', 'value4': 'key4'}
 
-cj.rand_n(0.0, 2.0, n=3) # [0.3001196087729699, 0.639679494102923, 1.060200897124107]
-cj.rand_n(1,10) # 5.086403830031244
-cj.array_randn((3, 3, 3)) # [[[0.015077210355770374, 0.014298110484612511, 0.030410666810216064], [0.029319083335697604, 0.0072365209507707666, 0.010677361074992], [0.010576754075922935, 0.04146379877648334, 0.02188348813336284]], [[0.0451851551098092, 0.037074906805326824, 0.0032484586475421007], [0.025633380630695347, 0.010312669541918484, 0.0373624007621097], [0.047923908102496145, 0.0027939333359724224, 0.05976224377251878]], [[0.046869510719106486, 0.008325638358172866, 0.0038702998343255893], [0.06475268683502387, 0.0035638592537234623, 0.06551037943638163], [0.043317416824708604, 0.06579372884523939, 0.2477564291871006]]]
-cj.group_items_in_batches(items=[1,2,3,4], items_per_batch=3, fill=0) # [[1, 2, 3], [4, 0, 0]]
-cj.remove_duplicate_items(['hi', 'hi', 'ih']) # ['hi', 'ih'] 
-cj.get_cols([['line1_col1','line1_col2'],['line2_col1','line2_col2']]) # [['line1_col1', 'line2_col1'], ['line1_col2', 'line2_col2']]
-cereja.mathtools.dotproduct([1,2], [1,2]) # 5
+# Get sample of large data
+cj.sample(data, k=2, is_random=True)
+# Output -> {'key1': 'value1', 'key4': 'value4'}
 
 
-a = cj.array_gen((3,3), 1) # [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
-b = cj.array_gen((3,3), 1) # [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
-cereja.mathtools.dot(a, b) # [[3, 3, 3], [3, 3, 3], [3, 3, 3]]
-cereja.mathtools.theta_angle((2,2), (0, -2)) # 135.0
+
 ```
+
 [See Usage - Jupyter Notebook](./docs/cereja_example.ipynb)
 
 ## License
