@@ -37,7 +37,7 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'list_methods', 'can_do', 'chunk','is_iterable', 'is_sequence', 'is_numeric_sequence']
+           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence']
 
 logger = logging.getLogger(__name__)
 
@@ -70,37 +70,40 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     @param max_batches: limit number of batches
     @return: list of batches
     """
+    start_time = time.time()
     assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
     if batch_size is None and max_batches is None:
         yield data
 
     data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray)) else copy(data)
-
+    _dict_temp_keys = [] if not isinstance(data, dict) else list(data)
     if not batch_size or batch_size > len(data) or batch_size < 1:
         if isinstance(max_batches, (int, float)) and max_batches > 0:
             batch_size = len(data) // max_batches or len(data)
         else:
             batch_size = len(data)
 
-    if is_random and not isinstance(data, dict):
-        random.shuffle(data)
+    if is_random:
+        if isinstance(data, dict):
+            random.shuffle(_dict_temp_keys)
+        else:
+            random.shuffle(data)
 
     if max_batches is None:
         max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
 
-    while max_batches and len(data):
-        if isinstance(data, dict):
-            temp_data = random.sample(list(data), min(batch_size, len(data))) if is_random else list(data)[:batch_size]
-            result = {key: data.pop(key) for key in temp_data}
-        else:
-            result = data[:batch_size]
+    for i in range(0, len(data), batch_size):
 
+        if isinstance(data, dict):
+            result = {key: data[key] for key in _dict_temp_keys[i: i + batch_size]}
+        else:
+            result = data[i:i + batch_size]
             if fill_with is not None and len(result) < batch_size:
                 result += [fill_with] * (batch_size - len(result))
-            data = data[batch_size:]
-
         yield result
         max_batches -= 1
+        if not max_batches:
+            break
 
 
 def truncate(text: Union[str, bytes], k=4):
@@ -655,7 +658,6 @@ def rescale_values(values: List[Any], granularity: int) -> List[Any]:
     @param granularity: is a integer
     @return: rescaled list of values.
     """
-
 
     if len(values) >= granularity:
         return _compress_list(values, granularity)
