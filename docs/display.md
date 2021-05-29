@@ -16,6 +16,11 @@ for i in cj.Progress.prog(my_iterable):
     print(f"current: {i}")
     time.sleep(2)
 
+# Output on terminal ...
+
+# 🍒 Sys[out] » current: Cereja 
+# 🍒 Sys[out] » current: is 
+# 🍒 Cereja Progress » [▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱] - 50.00% - 🕢 00:00:02 estimated
 ```
 
 ##### Custom Display

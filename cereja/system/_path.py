@@ -238,7 +238,10 @@ class Path(os.PathLike):
 
     @property
     def uri(self):
-        return self.__path.as_uri()
+        try:
+            return self.__path.as_uri()
+        except:
+            return ''
 
     @property
     def is_dir(self):

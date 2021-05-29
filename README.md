@@ -43,16 +43,66 @@ See some of the Cereja tools
 
 To access the *Cereja's* tools you need to import it `import cereja as cj`.
 
+
 ### 📝 [FileIO](docs/file.md)
 
+#### Create new files
 ```python
 import cereja as cj
 
-file = cj.FileIO.load('path_to_file.ext')
+file_json = cj.FileIO.create('./json_new_file.json', data={'k': 'v', 'k2': 'v2'})
 
-# see what you can do
-print(cj.can_do(file))
-# Output -> ['add', 'created_at', 'data', 'delete', 'dir_name', 'dir_path', 'exists', 'ext', 'history', 'is_empty', 'last_access', 'length', 'name', 'name_without_ext', 'only_read', 'parse', 'parse_ext', 'path', 'redo', 'sample_items', 'save', 'set_path', 'size', 'undo', 'updated_at', 'was_changed']
+file_txt = cj.FileIO.create('./txt_new_file.txt', ['line1', 'line2', 'line3'])
+
+file_json.save()
+file_txt.save()
+
+print(file_json.exists)
+# True
+print(file_txt.exists)
+# True
+
+
+# see what you can do .txt file
+print(cj.can_do(file_txt))
+
+# see what you can do .json file
+print(cj.can_do(file_json))
+```
+
+#### Load and edit files
+```python
+import cereja as cj
+
+file_json = cj.FileIO.load('./json_new_file.json')
+
+print(file_json.data)
+# {'k': 'v', 'k2': 'v2'}
+
+file_json.add(key='new_key', value='value')
+print(file_json.data)
+# {'k': 'v', 'k2': 'v2', 'new_key': 'value'}
+
+file_txt = cj.FileIO.load('./txt_new_file.txt')
+
+print(file_txt.data)
+# ['line1', 'line2', 'line3']
+
+file_txt.add('line4')
+print(file_txt.data)
+# ['line1', 'line2', 'line3', 'line4']
+
+file_txt.save(exist_ok=True) # Override
+file_json.save(exist_ok=True) # Override
+```
+
+### 📍 Path
+```python
+import cereja as cj
+
+file_path = cj.Path('/my/path/file.ext')
+print(cj.can_do(file_path))
+# ['change_current_dir', 'cp', 'created_at', 'exists', 'get_current_dir', 'is_dir', 'is_file', 'is_hidden', 'is_link', 'join', 'last_access', 'list_dir', 'list_files', 'mv', 'name', 'parent', 'parent_name', 'parts', 'path', 'rm', 'root', 'rsplit', 'sep', 'split', 'stem', 'suffix', 'updated_at', 'uri']
 ```
 
 ### ⏳ [Progress](docs/display.md)
@@ -66,6 +116,13 @@ my_iterable = ['Cereja', 'is', 'very', 'easy']
 for i in cj.Progress.prog(my_iterable):
     print(f"current: {i}")
     time.sleep(2)
+
+# Output on terminal ...
+
+# 🍒 Sys[out] » current: Cereja 
+# 🍒 Sys[out] » current: is 
+# 🍒 Cereja Progress » [▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱▱▱] - 50.00% - 🕢 00:00:02 estimated
+
 
 ```
 
@@ -96,6 +153,7 @@ freq.to_json('./freq.json')
 ```
 
 🧹 **Text Preprocess**
+
 ```python
 import cereja as cj
 
@@ -128,6 +186,7 @@ print(preprocessor.preprocess(text, is_destructive=True))
 ```
 
 🔣 **Tokenizer**
+
 ```python
 import cereja as cj
 
@@ -183,6 +242,7 @@ train, test = corpus.split_data()  # default percent of training is 80%
 ```
 
 ### 🔢 Array
+
 ```python
 import cereja as cj
 
@@ -201,11 +261,11 @@ cj.array.div(data)  # 0.006172839506172839
 cj.array.rand_n(0.0, 2.0, n=3)  # [0.3001196087729699, 0.639679494102923, 1.060200897124107]
 cj.array.rand_n(1, 10)  # 5.086403830031244
 cj.array.array_randn((3, 3,
-                3))  # [[[0.015077210355770374, 0.014298110484612511, 0.030410666810216064], [0.029319083335697604, 0.0072365209507707666, 0.010677361074992], [0.010576754075922935, 0.04146379877648334, 0.02188348813336284]], [[0.0451851551098092, 0.037074906805326824, 0.0032484586475421007], [0.025633380630695347, 0.010312669541918484, 0.0373624007621097], [0.047923908102496145, 0.0027939333359724224, 0.05976224377251878]], [[0.046869510719106486, 0.008325638358172866, 0.0038702998343255893], [0.06475268683502387, 0.0035638592537234623, 0.06551037943638163], [0.043317416824708604, 0.06579372884523939, 0.2477564291871006]]]
+                      3))  # [[[0.015077210355770374, 0.014298110484612511, 0.030410666810216064], [0.029319083335697604, 0.0072365209507707666, 0.010677361074992], [0.010576754075922935, 0.04146379877648334, 0.02188348813336284]], [[0.0451851551098092, 0.037074906805326824, 0.0032484586475421007], [0.025633380630695347, 0.010312669541918484, 0.0373624007621097], [0.047923908102496145, 0.0027939333359724224, 0.05976224377251878]], [[0.046869510719106486, 0.008325638358172866, 0.0038702998343255893], [0.06475268683502387, 0.0035638592537234623, 0.06551037943638163], [0.043317416824708604, 0.06579372884523939, 0.2477564291871006]]]
 cj.array.group_items_in_batches(items=[1, 2, 3, 4], items_per_batch=3, fill=0)  # [[1, 2, 3], [4, 0, 0]]
 cj.array.remove_duplicate_items(['hi', 'hi', 'ih'])  # ['hi', 'ih'] 
 cj.array.get_cols([['line1_col1', 'line1_col2'],
-             ['line2_col1', 'line2_col2']])  # [['line1_col1', 'line2_col1'], ['line1_col2', 'line2_col2']]
+                   ['line2_col1', 'line2_col2']])  # [['line1_col1', 'line2_col1'], ['line1_col2', 'line2_col2']]
 cj.array.dotproduct([1, 2], [1, 2])  # 5
 
 a = cj.array.array_gen((3, 3), 1)  # [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
@@ -223,15 +283,40 @@ import cereja as cj
 
 data = {"key1": 'value1', "key2": 'value2', "key3": 'value3', "key4": 'value4'}
 
+list(cj.utils.chunk(list(range(10)), batch_size=3)) # cast list because is generator
+# [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]
+list(cj.utils.chunk(list(range(10)), batch_size=3, fill_with=0, is_random=True))
+# [[9, 7, 8], [0, 3, 2], [4, 1, 5], [6, 0, 0]]
+
 # Invert Dict
-cj.invert_dict(data)
+cj.utils.invert_dict(data)
 # Output -> {'value1': 'key1', 'value2': 'key2', 'value3': 'key3', 'value4': 'key4'}
 
 # Get sample of large data
-cj.sample(data, k=2, is_random=True)
+cj.utils.sample(data, k=2, is_random=True)
 # Output -> {'key1': 'value1', 'key4': 'value4'}
 
+cj.utils.fill([1,2,3,4], max_size=20, with_=0)
+# Output -> [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+cj.utils.rescale_values([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], granularity=4)
+# Output -> [1, 3, 5, 7]
+
+cj.utils.import_string('cereja.file._io.FileIO')
+# Output -> <class 'cereja.file._io.FileIO'>
+
+cj.utils.list_methods(cj.Path)
+# Output -> ['change_current_dir', 'cp', 'get_current_dir', 'join', 'list_dir', 'list_files', 'mv', 'rm', 'rsplit', 'split']
+
+
+cj.utils.string_to_literal('[1,2,3,4]')
+# Output -> [1, 2, 3, 4]
+
+cj.utils.time_format(3600)
+# Output -> '01:00:00'
+
+cj.utils.truncate("Cereja is fun.", k=3)
+# Output -> 'Cer...'
 
 ```
 
