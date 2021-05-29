@@ -70,7 +70,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     @param max_batches: limit number of batches
     @return: list of batches
     """
-    start_time = time.time()
+
     assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
     if batch_size is None and max_batches is None:
         yield data
