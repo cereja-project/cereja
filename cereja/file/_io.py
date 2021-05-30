@@ -763,17 +763,19 @@ class _ZipFileIO(_FileIO):
         self._data += parsed
 
     def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
-        with ZipFile(fp.name, mode='r') as myzip:
-            if self._load_on_memory:
-                with tempfile.TemporaryDirectory() as tmpdirname:
-                    myzip.extractall(tmpdirname)
-                    return FileIO.load_files(tmpdirname)
-            else:
-                return myzip.namelist()
+        return self.unzip(fp.name, load_on_memory=self._load_on_memory)
 
-    def unzip(self, save_on: str = './'):
-        with ZipFile(self.path, mode='r') as myzip:
-            myzip.extractall(save_on)
+    @classmethod
+    def unzip(cls, file_path, save_on: str = None, load_on_memory=False):
+        with ZipFile(file_path, mode='r') as myzip:
+            if not save_on and not load_on_memory:
+                return myzip.namelist()
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                unzip_dir = save_on or tmpdirname
+                myzip.extractall(unzip_dir)
+                if load_on_memory:
+                    return FileIO.load_files(unzip_dir)
+            return myzip.namelist()
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
         raise NotImplementedError
