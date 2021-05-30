@@ -768,15 +768,14 @@ class _ZipFileIO(_FileIO):
     @classmethod
     def unzip(cls, file_path, save_on: str = None, load_on_memory=False):
         with ZipFile(file_path, mode='r') as myzip:
-            if not save_on and not load_on_memory:
-                return myzip.namelist()
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                unzip_dir = save_on or tmpdirname
-                unzip_dir = Path(unzip_dir).join(Path(myzip.filename).stem)
-                mkdir(unzip_dir)
-                myzip.extractall(unzip_dir)
-                if load_on_memory:
-                    return FileIO.load_files(unzip_dir)
+            if save_on or load_on_memory:
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    unzip_dir = save_on or tmpdirname
+                    unzip_dir = Path(unzip_dir).join(Path(myzip.filename).stem)
+                    mkdir(unzip_dir)
+                    myzip.extractall(unzip_dir)
+                    if load_on_memory:
+                        return FileIO.load_files(unzip_dir)
             return myzip.namelist()
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
