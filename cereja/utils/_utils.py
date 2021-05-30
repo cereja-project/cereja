@@ -20,16 +20,16 @@ import ast
 import gc
 import time
 from importlib import import_module
-import subprocess
 import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Generator, Iterable
+from typing import Any, Union, List, Tuple, Sequence, Iterable
 import logging
 import itertools
 from copy import copy
 import inspect
+
 # Needed init configs
 from cereja.config.cj_types import ClassType, FunctionType, Number
 
@@ -377,10 +377,16 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
 
 
 def install_if_not(lib_name: str):
+    from ..display import console
     try:
         importlib.import_module(lib_name)
+        output = 'Alredy Installed'
     except ImportError:
-        subprocess.run([f"{sys.executable}", "-m", "pip", "install", "--user", f"{lib_name}"])
+        from ..system.commons import run_on_terminal
+
+        command_ = f"{sys.executable} -m pip install {lib_name}"
+        output = run_on_terminal(command_)
+    console.log(output)
 
 
 def set_log_level(level: Union[int, str]):

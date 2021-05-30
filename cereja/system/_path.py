@@ -30,11 +30,9 @@ import warnings
 from datetime import datetime
 from typing import List, Union
 
-from cereja import obj_repr
 from cereja.array import group_items_in_batches
 from pathlib import Path as Path_
 
-from cereja.experimental import CJMeta
 
 logger = logging.getLogger(__name__)
 
