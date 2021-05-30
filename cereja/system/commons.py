@@ -36,9 +36,11 @@ def memory_usage(n_most=10):
 
 def run_on_terminal(cmd: str):
     try:
-        subprocess.run(
+        result = subprocess.run(
                 cmd,
-                shell=True, stdout=subprocess.PIPE).check_returncode()
+                shell=True, stdout=subprocess.PIPE)
+        result.check_returncode()
+        return result.stdout
     except subprocess.CalledProcessError as err:
         err_output = err.output.decode()
         raise Exception(f"{err}:{err_output}")

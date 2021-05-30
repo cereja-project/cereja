@@ -12,11 +12,11 @@ import json
 from urllib import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from cereja.system import Path
+from cereja.system import Path, mkdir
 from cereja.array import get_cols, flatten, get_shape
-from cereja.utils._utils import is_sequence
+from cereja.utils import is_sequence
 from cereja.system import memory_of_this
-from cereja.utils import string_to_literal, sample, fill, obj_repr
+from cereja.utils import string_to_literal, sample, fill
 
 logger = logging.Logger(__name__)
 
@@ -753,12 +753,29 @@ class _ZipFileIO(_FileIO):
     _newline = False
     _ext_allowed = ('.zip',)
 
+    def __init__(self, path_: Path, load_on_memory=False, **kwargs):
+
+        self._load_on_memory = load_on_memory
+        super().__init__(path_, **kwargs)
+
     def add(self, data: Union[str, list, tuple]):
         parsed = self.parse(data)
         self._data += parsed
 
     def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
-        with ZipFile(fp.name, mode='r') as myzip:
+        return self.unzip(fp.name, load_on_memory=self._load_on_memory)
+
+    @classmethod
+    def unzip(cls, file_path, save_on: str = None, load_on_memory=False):
+        with ZipFile(file_path, mode='r') as myzip:
+            if save_on or load_on_memory:
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    unzip_dir = save_on or tmpdirname
+                    unzip_dir = Path(unzip_dir).join(Path(myzip.filename).stem)
+                    mkdir(unzip_dir)
+                    myzip.extractall(unzip_dir)
+                    if load_on_memory:
+                        return FileIO.load_files(unzip_dir)
             return myzip.namelist()
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:

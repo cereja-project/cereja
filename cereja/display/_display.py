@@ -272,10 +272,11 @@ class _ConsoleBase(metaclass=ABC):
             return msg
         return msg.translate(self.NON_BMP_MAP)
 
-    def _parse(self, msg: str, title=None, color: str = None, remove_line_sep=True):
+    def _parse(self, msg, title=None, color: str = None, remove_line_sep=True):
 
         if color is None:
             color = "default"
+        msg = str(msg)
         msg = self.format(msg, color)
         if remove_line_sep:
             msg = ' '.join(msg.splitlines())
