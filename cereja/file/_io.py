@@ -12,11 +12,11 @@ import json
 from urllib import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from cereja.system import Path
+from cereja.system import Path, mkdir
 from cereja.array import get_cols, flatten, get_shape
-from cereja.utils._utils import is_sequence
+from cereja.utils import is_sequence
 from cereja.system import memory_of_this
-from cereja.utils import string_to_literal, sample, fill, obj_repr
+from cereja.utils import string_to_literal, sample, fill
 
 logger = logging.Logger(__name__)
 
@@ -772,6 +772,8 @@ class _ZipFileIO(_FileIO):
                 return myzip.namelist()
             with tempfile.TemporaryDirectory() as tmpdirname:
                 unzip_dir = save_on or tmpdirname
+                unzip_dir = Path(unzip_dir).join(Path(myzip.filename).stem)
+                mkdir(unzip_dir)
                 myzip.extractall(unzip_dir)
                 if load_on_memory:
                     return FileIO.load_files(unzip_dir)
