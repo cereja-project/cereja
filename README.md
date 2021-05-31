@@ -43,10 +43,10 @@ See some of the Cereja tools
 
 To access the *Cereja's* tools you need to import it `import cereja as cj`.
 
-
 ### 📝 [FileIO](docs/file.md)
 
 #### Create new files
+
 ```python
 import cereja as cj
 
@@ -71,6 +71,7 @@ print(cj.can_do(file_json))
 ```
 
 #### Load and edit files
+
 ```python
 import cereja as cj
 
@@ -92,17 +93,35 @@ file_txt.add('line4')
 print(file_txt.data)
 # ['line1', 'line2', 'line3', 'line4']
 
-file_txt.save(exist_ok=True) # Override
-file_json.save(exist_ok=True) # Override
+file_txt.save(exist_ok=True)  # Override
+file_json.save(exist_ok=True)  # Override
 ```
 
 ### 📍 Path
+
 ```python
 import cereja as cj
 
 file_path = cj.Path('/my/path/file.ext')
 print(cj.can_do(file_path))
 # ['change_current_dir', 'cp', 'created_at', 'exists', 'get_current_dir', 'is_dir', 'is_file', 'is_hidden', 'is_link', 'join', 'last_access', 'list_dir', 'list_files', 'mv', 'name', 'parent', 'parent_name', 'parts', 'path', 'rm', 'root', 'rsplit', 'sep', 'split', 'stem', 'suffix', 'updated_at', 'uri']
+```
+
+### 🆗 HTTP Requests
+
+```python
+import cereja as cj
+
+# Change url, headers and data values.
+url = 'localhost:8000/example'
+headers = {'Authorization': 'TOKEN'} # optional
+data = {'q': 'test'} # optional
+
+response = cj.request.post(url, data=data, headers=headers)
+
+if response.code == 200:
+    data = response.data
+    # have a fun!
 ```
 
 ### ⏳ [Progress](docs/display.md)
@@ -246,7 +265,6 @@ train, test = corpus.split_data()  # default percent of training is 80%
 ```python
 import cereja as cj
 
-
 cj.array.is_empty(data)  # False
 cj.array.get_shape(data)  # (2, 3)
 
@@ -293,7 +311,7 @@ cj.utils.invert_dict(data)
 cj.utils.sample(data, k=2, is_random=True)
 # Output -> {'key1': 'value1', 'key4': 'value4'}
 
-cj.utils.fill([1,2,3,4], max_size=20, with_=0)
+cj.utils.fill([1, 2, 3, 4], max_size=20, with_=0)
 # Output -> [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 cj.utils.rescale_values([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], granularity=4)
@@ -316,9 +334,9 @@ cj.utils.truncate("Cereja is fun.", k=3)
 # Output -> 'Cer...'
 
 data = [[1, 2, 3], [3, 3, 3]]
-cereja.utils.is_iterable(data)  # True
-cereja.utils.is_sequence(data)  # True
-cereja.utils.is_numeric_sequence(data)  # True
+cj.utils.is_iterable(data)  # True
+cj.utils.is_sequence(data)  # True
+cj.utils.is_numeric_sequence(data)  # True
 ```
 
 [See Usage - Jupyter Notebook](./docs/cereja_example.ipynb)
