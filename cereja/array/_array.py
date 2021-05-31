@@ -243,7 +243,7 @@ def array_randn(shape: Tuple[int, ...], *args, **kwargs) -> List[Union[float, An
                 _from: Number = 0.,
                 to: Number = 1.,
                 n: int = 1
-    :return: array with shape that you request
+    :return: array with shape that you _requests
 
     e.g:
 

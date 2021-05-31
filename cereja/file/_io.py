@@ -9,7 +9,7 @@ from collections import ValuesView
 from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
 import json
-from urllib import request
+from .._requests import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from cereja.system import Path, mkdir
@@ -848,11 +848,11 @@ class _SrtFile(_TxtIO):
         raise NotImplementedError
 
     @classmethod
-    def from_url(cls, url: str):
+    def from_url(cls, url: str, *args, **kwargs):
         # TODO: need improves
-        req = request.urlopen(url)
-        if req.code == 200:
-            return cls(Path('./subtitle.srt'), req.read().decode(), creation_mode=True)
+        resp = request.get(url, *args, **kwargs)
+        if resp.code == 200:
+            return cls(Path('./subtitle.srt'), resp.data, creation_mode=True)
 
     @property
     def text(self):
