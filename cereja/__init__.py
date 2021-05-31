@@ -30,7 +30,7 @@ from cereja.file import *
 from . import array
 from cereja.array import *
 from . import system
-from cereja.system._path import *
+from cereja.system import *
 from cereja.system.unicode import *
 from . import utils
 from .utils import decorators
@@ -45,10 +45,9 @@ from . import hashtools
 from . import mathtools
 from cereja.mathtools import *
 from . import experimental
+from ._requests import request
 
-
-VERSION = "1.4.1.final.0"
-
+VERSION = "1.4.2.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
