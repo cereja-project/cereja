@@ -1,3 +1,24 @@
+"""
+Copyright (c) 2019 The Cereja Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
 from urllib import request as urllib_req
 import json
 
@@ -8,11 +29,10 @@ from urllib.error import HTTPError, URLError
 
 class _Http:
 
-    def __init__(self, url, data=None, headers=None, port=None, time_out=None):
+    def __init__(self, url, data=None, headers=None, port=None):
         self.headers = headers or {}
         self._protocol, self._port, self._domains, self._endpoint = self.parse_url(url=url, port=port)
         self._data = data or None
-        self.time_out = time_out
 
     @property
     def protocol(self):
@@ -186,5 +206,5 @@ class HttpRequest(_Http):
         return str(data).encode() if data else b''
 
     @classmethod
-    def build_and_send(cls, method, url, data=None, port=None, headers=None):
-        return cls(method=method, url=url, data=data, port=port, headers=headers).send_request()
+    def build_and_send(cls, method, url, data=None, port=None, headers=None, **kwargs):
+        return cls(method=method, url=url, data=data, port=port, headers=headers).send_request(**kwargs)
