@@ -1,6 +1,7 @@
 import copy
 import csv
 import logging
+import os
 import re
 import pickle
 import tempfile
@@ -194,8 +195,10 @@ class _IFileIO(metaclass=ABCMeta):
 
 class _FileIO(_IFileIO, ABC):
 
-    def __init__(self, path_: Path, data=None, creation_mode=False, **kwargs):
+    def __init__(self, path_: Path, data=None, creation_mode=False, is_byte=None, **kwargs):
         super().__init__()
+        if is_byte is not None:
+            self._is_byte = bool(is_byte)
         if not isinstance(path_, Path):
             path_ = Path(path_)
         self._creation_mode = creation_mode
@@ -258,6 +261,10 @@ class _FileIO(_IFileIO, ABC):
             logger.warning(f'You selected amendment {self._current_change + 1}')
         except IndexError:
             logger.info("It's not possible")
+
+    @property
+    def line_sep(self):
+        return os.linesep
 
     @property
     def was_changed(self) -> bool:
@@ -454,66 +461,38 @@ class _FileIO(_IFileIO, ABC):
         return self.__next__()
 
 
-class _GenericFile(_FileIO):
+class _Generic(_FileIO):
     _is_byte: bool = True
     _only_read = False
     _ext_allowed = ()
+    _split_lines = False
 
     def _parse_fp(self, fp: BytesIO) -> List[bytes]:
-        fp_lines = fp.readlines()
-        fp_lines = fp_lines or [b'']
-        return fp_lines
+        if self._split_lines or not bool(self.ext):
+            data = fp.read().splitlines()
+        else:
+            data = fp.read()
+        return self.parse(data)
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
-        fp.write(b'\n'.join(self._data))
+        fp.write(self._convert('\n').join(self._data))
+
+    def _convert(self, val):
+        if self._is_byte and not isinstance(val, bytes):
+            return str(val).encode()
+        return val
 
     def parse(self, data) -> List[bytes]:
-        if data is None:
-            return [b'']
-        if isinstance(data, bytes):
-            return [data]
+        if isinstance(data, (bytes, str, int, float, complex)):
+            return [self._convert(data)]
+        if not data:
+            return [self._convert('')]
         if isinstance(data, (list, tuple)):
-            data = ' '.join([str(i) for i in data])
-        if isinstance(data, (int, float, complex)):
-            data = str(data)
-        if isinstance(data, str):
-            return [data.encode()]
+            return [self._convert(i) for i in data]
         raise ValueError(f"{type(data)} isn't valid.")
 
-    def add(self, data, **kwargs):
-        self._data[-1] + self.parse(data)
-
-
-class _TxtIO(_FileIO):
-    _is_byte: bool = False
-    _only_read = False
-    _ext_allowed = ('.txt',)
-
-    def _parse_fp(self, fp: TextIO) -> List[Union[str, int, float, complex]]:
-        return self.parse(fp.read())
-
-    def parse(self, data: Union[str, bytes, list, tuple, int, float, complex]) -> List[str]:
-        if isinstance(data, (str, bytes)):
-            return [i for i in data.splitlines()]
-        if isinstance(data, (int, float, complex)):
-            return [str(data)]
-        elif isinstance(data, (list, tuple)):
-            return [str(i) for i in data]
-        else:
-            raise TypeError(f"{type(data)} isn't valid")
-
-    def _save_fp(self, fp):
-        fp.write(self.string)
-
-    @property
-    def string(self):
-        return '\n'.join((str(i) for i in self.data))
-
-    @property
-    def lines(self):
-        return self._data
-
-    def _add(self, data: List[Union[str, int, float, complex]], line):
+    def add(self, data, line=-1):
+        data = self.parse(data)
         if line != -1:
             for pos, i in enumerate(data, line):
                 self._data.insert(pos, i)
@@ -522,12 +501,16 @@ class _TxtIO(_FileIO):
             return
         self._set_change('_data', self._data.copy())
 
-    def add(self, data, line=-1):
-        self._add(self.parse(data), line=line)
-
     def remove(self, line: Union[int, str]):
         self._data.pop(line)
         self._set_change('_data', self._data.copy())
+
+
+class _TxtIO(_Generic):
+    _is_byte: bool = False
+    _only_read = False
+    _ext_allowed = ('.txt',)
+    _split_lines = True
 
 
 class _JsonIO(_FileIO):
@@ -897,7 +880,7 @@ class FileIO:
     pkl = _PyObj
     zip = _ZipFileIO
     srt = _SrtFile
-    _generic = _GenericFile
+    _generic = _Generic
 
     def __new__(cls, path_, data=None, **kwargs):
         raise Exception(f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']")
@@ -907,7 +890,7 @@ class FileIO:
                                                                                  _JsonIO,
                                                                                  _Mp4IO,
                                                                                  _CsvIO,
-                                                                                 _GenericFile]:
+                                                                                 _Generic]:
         path_ = Path(path_)
         return cls.lookup(path_.suffix)(path_=path_, data=data, creation_mode=True, **kwargs)
 
@@ -916,7 +899,7 @@ class FileIO:
                                             _JsonIO,
                                             _Mp4IO,
                                             _CsvIO,
-                                            _GenericFile]]:
+                                            _Generic]]:
         ext = ext.replace('.', '')
         if hasattr(cls, ext):
             return getattr(cls, ext)
@@ -962,7 +945,7 @@ class FileIO:
         return loaded
 
 
-FileType = Type[_GenericFile]
+FileType = Type[_Generic]
 FileTxtType = Type[_TxtIO]
 FileJsonType = Type[_JsonIO]
 FileCsvType = Type[_CsvIO]
