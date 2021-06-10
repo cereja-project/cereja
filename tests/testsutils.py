@@ -1,6 +1,7 @@
 import unittest
 
 from cereja import utils
+from cereja.utils.decorators import singleton
 
 
 class UtilsTest(unittest.TestCase):
@@ -136,6 +137,33 @@ class CjTestTest(unittest.TestCase):
 class SourceTest(unittest.TestCase):
 
     def test_save(self):
+        pass
+
+
+class DecoratorTest(unittest.TestCase):
+
+    def test_depreciation(self):
+        pass
+
+    def test_singleton(self):
+        @singleton
+        class A:
+            def __init__(self, a, b, c=None):
+                self.a = a
+                self.b = b
+                self.c = c
+
+        obj_expected = A(1, b=2, c=3)
+        obj_new = A(1, 2)
+        self.assertEqual(obj_expected, obj_new, msg="Error on decorator singleton.")
+
+    def test_synchronized(self):
+        pass
+
+    def test_thread_safe_generator(self):
+        pass
+
+    def test_time_exec(self):
         pass
 
 

@@ -33,9 +33,10 @@ from typing import Sequence, Any
 
 from cereja.config.cj_types import FunctionType
 
-__all__ = ['TaskList']
+__all__ = ['TaskList', 'AsyncToSync', 'SyncToAsync']
 logger = logging.getLogger(__name__)
 
+# intern
 _exclude = ['AsyncToSync', 'SyncToAsync', 'TaskList']
 
 try:
