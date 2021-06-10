@@ -460,6 +460,10 @@ class _FileIO(_IFileIO, ABC):
     def __iter__(self):
         return self.__next__()
 
+    @classmethod
+    def load(cls, path_, **kwargs):
+        return cls(path_, creation_mode=False, **kwargs)
+
 
 class _Generic(_FileIO):
     _is_byte: bool = True
@@ -509,7 +513,7 @@ class _Generic(_FileIO):
 class _TxtIO(_Generic):
     _is_byte: bool = False
     _only_read = False
-    _ext_allowed = ('.txt',)
+    _ext_allowed = ()
     _split_lines = True
 
 
@@ -910,7 +914,7 @@ class FileIO:
         path_ = Path(path_)
         if not path_.exists:
             raise FileNotFoundError(f"{path_.path} not found.")
-        return cls.lookup(path_.suffix)(path_=path_, **kwargs)
+        return cls.lookup(path_.suffix).load(path_=path_, **kwargs)
 
     @classmethod
     def load_files(cls, path_, ext=None, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
