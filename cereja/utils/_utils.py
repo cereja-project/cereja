@@ -18,6 +18,7 @@ SOFTWARE.
 """
 import ast
 import gc
+import math
 import time
 from importlib import import_module
 import importlib
@@ -656,15 +657,31 @@ def _add_license(base_dir, ext='.py'):
         file.save(exist_ok=True)
 
 
-def _compress_list(input_list, size):
-    assert len(input_list) >= size, f'{len(input_list), size}'
+def _rescale_down(values, k):
+    size = len(values)
+    x = (math.ceil(abs(size - k) / size)) + 1
+    for i in range(0, size, x):
+        k -= 1
+        if k < 0:
+            break
+        yield values[i]
 
-    skip = len(input_list) // size
 
-    return [input_list[i] for n, i in enumerate(range(0, len(input_list), skip), start=1) if n <= size]
+def _rescale_up(values, k, fill_with=None):
+    size = len(values)
+    assert size <= k, f'Error while resizing: {size} < {k}'
+    clones = (math.ceil(abs(size - k) / size))
+    for i in values:
+        vals = (i,) + ((fill_with,) if fill_with else (i,)) * clones
+        for val in vals:
+
+            k -= 1
+            if k < 0:
+                break
+            yield val
 
 
-def rescale_values(values: List[Any], granularity: int) -> List[Any]:
+def rescale_values(values: List[Any], granularity: int, fill_with=None) -> List[Any]:
     """
     Resizes a list of values
     eg.
@@ -674,38 +691,20 @@ def rescale_values(values: List[Any], granularity: int) -> List[Any]:
         >>> cj.rescale_values(values=list(range(5)), granularity=10)
         [0, 0, 0, 1, 1, 1, 2, 2, 2, 3]
 
+
     @param values: Sequence of anything
     @param granularity: is a integer
+    @param fill_with: Any value
     @return: rescaled list of values.
     """
 
     if len(values) >= granularity:
-        return _compress_list(values, granularity)
-    if len(values) == 0:
-        return []
-    cluster = int(len(values) / granularity)
-    if cluster == 0:
-        multiplier = int(granularity / len(values) + 1)
-        oversampling = []
+        result = list(_rescale_down(values, granularity))
+    else:
+        result = list(_rescale_up(values, granularity, fill_with=fill_with))
 
-        for array in values:
-            for i in range(multiplier):
-                oversampling.append(array)
-
-        values = oversampling
-        cluster = 1
-
-    flatten_result = []
-    start_interval = 0
-
-    for i in range(granularity):
-        frames = values[start_interval:start_interval + cluster]
-        flatten_result.append(frames[-1])
-        start_interval += cluster
-
-    assert len(
-            flatten_result) == granularity, f"Error while resizing the list size {len(flatten_result)} != {granularity}"
-    return flatten_result
+    assert len(result) == granularity, f"Error while resizing the list size {len(result)} != {granularity}"
+    return result
 
 
 class Source:
