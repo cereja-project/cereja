@@ -37,7 +37,7 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence']
+           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard']
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +106,18 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
         if not max_batches:
             break
     return batches
+
+
+def _get_tkinter():
+    try:
+        from tkinter import Tk
+    except ImportError:
+        raise ValueError("Sorry. Isn't possible.")
+    return Tk()
+
+
+def clipboard() -> str:
+    return _get_tkinter().clipboard_get()
 
 
 def truncate(text: Union[str, bytes], k=4):

@@ -15,7 +15,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 from cereja.system import Path, mkdir
 from cereja.array import get_cols, flatten, get_shape
-from cereja.utils import is_sequence
+from cereja.utils import is_sequence, clipboard
 from cereja.system import memory_of_this
 from cereja.utils import string_to_literal, sample, fill
 
@@ -464,6 +464,10 @@ class _FileIO(_IFileIO, ABC):
     def load(cls, path_, **kwargs):
         return cls(path_, creation_mode=False, **kwargs)
 
+    @classmethod
+    def create(cls, path_, data=None, **kwargs):
+        return cls(path_=path_, data=data, creation_mode=True, **kwargs)
+
 
 class _Generic(_FileIO):
     _is_byte: bool = True
@@ -890,20 +894,12 @@ class FileIO:
         raise Exception(f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']")
 
     @classmethod
-    def create(cls, path_: Union[Type[Path], str], data: Any, **kwargs) -> Union[_TxtIO,
-                                                                                 _JsonIO,
-                                                                                 _Mp4IO,
-                                                                                 _CsvIO,
-                                                                                 _Generic]:
+    def create(cls, path_: Union[Type[Path], str], data: Any, **kwargs) -> _FileIO:
         path_ = Path(path_)
-        return cls.lookup(path_.suffix)(path_=path_, data=data, creation_mode=True, **kwargs)
+        return cls.lookup(path_.suffix).create(path_=path_, data=data, **kwargs)
 
     @classmethod
-    def lookup(cls, ext: str) -> Type[Union[_TxtIO,
-                                            _JsonIO,
-                                            _Mp4IO,
-                                            _CsvIO,
-                                            _Generic]]:
+    def lookup(cls, ext: str) -> Type[_FileIO]:
         ext = ext.replace('.', '')
         if hasattr(cls, ext):
             return getattr(cls, ext)
@@ -915,6 +911,10 @@ class FileIO:
         if not path_.exists:
             raise FileNotFoundError(f"{path_.path} not found.")
         return cls.lookup(path_.suffix).load(path_=path_, **kwargs)
+
+    @classmethod
+    def load_from_clipboard(cls):
+        return cls.load(Path(clipboard()))
 
     @classmethod
     def load_files(cls, path_, ext=None, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
