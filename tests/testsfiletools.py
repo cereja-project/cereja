@@ -67,6 +67,15 @@ class FileIOTxtTest(FileIOTest):
         self.assertEqual(self.file.data,
                          ['other line', 'other line', 'first line', 'second line', 'third line'])
 
+    def test_eval(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            eval_data = [1, 2, 3, 'hi', ['oi']]
+            file = FileIO.create(Path(tempdir).join(self.file.name), eval_data)
+            self.assertEqual(file.data, eval_data)
+            file.save()
+            file = FileIO.load(file.path)
+            self.assertEqual(file.data, eval_data)
+
 
 class FileIOJsonTest(FileIOTest):
     data = {'key': 'value', 'key2': 'value2', 'key3': 'value3'}
