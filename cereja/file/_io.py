@@ -483,11 +483,13 @@ class _Generic(_FileIO):
         return self.parse(data)
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
-        fp.write(self._convert('\n').join(self._data))
+        fp.write(self._convert('\n').join(i if isinstance(i, (str, bytes)) else str(i) for i in self._data))
 
     def _convert(self, val):
         if self._is_byte and not isinstance(val, bytes):
             return str(val).encode()
+        if not self._is_byte and isinstance(val, str):
+            return string_to_literal(val)
         return val
 
     def parse(self, data) -> List[bytes]:
