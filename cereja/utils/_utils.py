@@ -661,9 +661,7 @@ def _compress_list(input_list, size):
 
     skip = len(input_list) // size
 
-    output = [input_list[i] for i in range(0, len(input_list), skip)]
-
-    return output[:size]
+    return [input_list[i] for n, i in enumerate(range(0, len(input_list), skip), start=1) if n <= size]
 
 
 def rescale_values(values: List[Any], granularity: int) -> List[Any]:
