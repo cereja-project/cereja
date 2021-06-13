@@ -657,14 +657,14 @@ def _add_license(base_dir, ext='.py'):
         file.save(exist_ok=True)
 
 
-def _rescale_down(values, k):
-    size = len(values)
-    x = (math.ceil(abs(size - k) / size)) + 1
-    for i in range(0, size, x):
-        k -= 1
-        if k < 0:
+def _rescale_down(input_list, size):
+    assert len(input_list) >= size, f'{len(input_list), size}'
+
+    skip = len(input_list) // size
+    for n, i in enumerate(range(0, len(input_list), skip), start=1):
+        if n > size:
             break
-        yield values[i]
+        yield input_list[i]
 
 
 def _rescale_up(values, k, fill_with=None):
@@ -686,10 +686,10 @@ def rescale_values(values: List[Any], granularity: int, **kwargs) -> List[Any]:
     Resizes a list of values
     eg.
         >>> import cereja as cj
-        >>> cj.rescale_values(values=list(range(100)), granularity=10)
-        [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+        >>> cj.rescale_values(values=list(range(100)), granularity=12)
+        [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88]
         >>> cj.rescale_values(values=list(range(5)), granularity=10)
-        [0, 0, 0, 1, 1, 1, 2, 2, 2, 3]
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
 
 
     @param values: Sequence of anything
