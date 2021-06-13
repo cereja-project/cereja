@@ -29,9 +29,10 @@ import abc
 import logging
 import warnings
 
-__all__ = ['depreciation', 'synchronized', 'time_exec', 'sync_to_async', 'async_to_sync', 'thread_safe_generator']
+__all__ = ['depreciation', 'synchronized', 'time_exec', 'sync_to_async', 'async_to_sync', 'thread_safe_generator',
+           'singleton']
 
-from cereja.concurrently._concurrence import SyncToAsync, AsyncToSync
+from cereja.concurrently import SyncToAsync, AsyncToSync
 from cereja.config.cj_types import PEP440
 
 logger = logging.getLogger(__name__)
@@ -155,11 +156,13 @@ def depreciation(alternative: str = None):
     return register
 
 
-if __name__ == "__main__":
-    @depreciation(alternative="array.rand_n")
-    def test_deprecated_warn(val):
-        from cereja.array import rand_n as randn
-        return randn(val, 3)
+def singleton(cls):
+    instances = {}
 
+    @functools.wraps(cls)
+    def instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
 
-    test_deprecated_warn(1)
+    return instance

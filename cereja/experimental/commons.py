@@ -35,12 +35,8 @@ class CJDict(dict, metaclass=CJMeta):
     """
     __black_attr_list = dir(dict)
 
-    def item(self, random_=True):
-        if random_ is True:
-            return random.choice(tuple(self.items()))
-        k, v = self.popitem()
-        self.update((k, v))
-        return k, v
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def __invert__(self):
         """
@@ -48,10 +44,17 @@ class CJDict(dict, metaclass=CJMeta):
         """
         return CJDict(invert_dict(self))
 
-    def __setitem__(self, key, value):
-        super(CJDict, self).__setitem__(key, value)
-        if key not in self.__black_attr_list:
-            setattr(self, key, value)
+    def __getattr__(self, item):
+        if item in self and item not in self.__black_attr_list:
+            return self[item]
+        return object.__getattribute__(self, item)
+
+    def item(self, random_=True):
+        if random_ is True:
+            return random.choice(tuple(self.items()))
+        k, v = self.popitem()
+        self.update((k, v))
+        return k, v
 
 
 class DictOfList(CJDict):

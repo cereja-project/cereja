@@ -14,6 +14,11 @@ class FileIOTest(unittest.TestCase):
     def name(self):
         return self.__class__.__name__
 
+    @abstractmethod
+    def create(self):
+        file = FileIO.create('test', data=self.data)  # generic
+        return file
+
     def setUp(self) -> None:
         self.file = self.create()
 
@@ -28,11 +33,6 @@ class FileIOTest(unittest.TestCase):
             self.assertEqual(file.data, data_before_save, msg='Data corrupted')
             file.delete()
             self.assertFalse(file.path.exists)
-
-    @abstractmethod
-    def create(self):
-        file = FileIO.create('test', data=self.data)  # generic
-        return file
 
 
 class FileIOTxtTest(FileIOTest):
