@@ -672,7 +672,7 @@ def _rescale_up(values, k, fill_with=None):
     assert size <= k, f'Error while resizing: {size} < {k}'
     clones = (math.ceil(abs(size - k) / size))
     for i in values:
-        vals = (i,) + ((fill_with,) if fill_with else (i,)) * clones
+        vals = (i,) + ((fill_with,) if fill_with is not None else (i,)) * clones
         for val in vals:
 
             k -= 1
@@ -681,7 +681,7 @@ def _rescale_up(values, k, fill_with=None):
             yield val
 
 
-def rescale_values(values: List[Any], granularity: int, fill_with=None) -> List[Any]:
+def rescale_values(values: List[Any], granularity: int, **kwargs) -> List[Any]:
     """
     Resizes a list of values
     eg.
@@ -694,14 +694,15 @@ def rescale_values(values: List[Any], granularity: int, fill_with=None) -> List[
 
     @param values: Sequence of anything
     @param granularity: is a integer
-    @param fill_with: Any value
+    @param kwargs:
+        fill_with: Any value
     @return: rescaled list of values.
     """
 
     if len(values) >= granularity:
         result = list(_rescale_down(values, granularity))
     else:
-        result = list(_rescale_up(values, granularity, fill_with=fill_with))
+        result = list(_rescale_up(values, granularity, **kwargs))
 
     assert len(result) == granularity, f"Error while resizing the list size {len(result)} != {granularity}"
     return result
