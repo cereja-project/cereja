@@ -279,7 +279,7 @@ class HashToolsTestCase(unittest.TestCase):
                 {'hi': 1, 'hello': 3, 'deep': {'oi'}},
                 1,
                 2,
-                b'a')
+                'a')
         for val in vals:
             res = base64_encode(val)
             self.assertTrue(is_base64(res))
