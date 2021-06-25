@@ -1,6 +1,6 @@
 import unittest
 
-from cereja import utils
+from cereja import utils, rescale_values
 from cereja.utils.decorators import singleton
 
 
@@ -36,8 +36,8 @@ class UtilsTest(unittest.TestCase):
     def test_invert_dict(self):
         data = {"s": 0, "y": 1, "v": 2, "l": 3, "i": 4, "p": 5, "b": 6, "z": 7, "c": 8, "a": 9, "k": 10, "e": 11,
                 "d": 12, "j": 13, "x": 14, "u": 15, "o"
-                :    16, "n": 17, "t": 18, "f": 19, "g": 20, "h": 21, "r": 22, "w": 23, "m": 24, "q": 25}
-        expected = {0:  's', 1: 'y', 2: 'v', 3: 'l', 4: 'i', 5: 'p', 6: 'b', 7: 'z', 8: 'c', 9: 'a', 10: 'k', 11: 'e',
+                : 16, "n": 17, "t": 18, "f": 19, "g": 20, "h": 21, "r": 22, "w": 23, "m": 24, "q": 25}
+        expected = {0: 's', 1: 'y', 2: 'v', 3: 'l', 4: 'i', 5: 'p', 6: 'b', 7: 'z', 8: 'c', 9: 'a', 10: 'k', 11: 'e',
                     12: 'd', 13: 'j', 14: 'x', 15: 'u', 16: 'o', 17: 'n', 18: 't', 19: 'f', 20: 'g', 21: 'h', 22: 'r',
                     23: 'w', 24: 'm', 25: 'q'}
         self.assertDictEqual(utils.invert_dict(data), expected)
@@ -59,7 +59,13 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual(utils.obj_repr(Repr(1, {'oi': 1}, 'oi')), expected)
 
     def test_rescale_values(self):
-        pass
+        value = list(range(10))
+        expected = [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+        self.assertEqual(rescale_values(value, 21), expected)
+        expected = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+        self.assertEqual(rescale_values(value, 22), expected)
+        expected = [0, 0, 'joab', 1, 1, 'joab', 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+        self.assertEqual(rescale_values(value, 22, fill_with='joab'), expected)
 
     def test_can_do(self):
         class _A:
