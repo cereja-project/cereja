@@ -25,6 +25,7 @@ import logging
 import os
 import random
 import shutil
+import tempfile
 import time
 import warnings
 from datetime import datetime
@@ -33,11 +34,10 @@ from typing import List, Union
 from cereja.array import group_items_in_batches
 from pathlib import Path as Path_
 
-
 logger = logging.getLogger(__name__)
 
 __all__ = ['Path', 'change_date_from_path', 'clean_dir', 'file_name', 'get_base_dir', 'group_path_from_dir', 'listdir',
-           'mkdir', 'normalize_path']
+           'mkdir', 'normalize_path', 'TempDir']
 
 
 def mkdir(path_dir: str):
@@ -399,6 +399,40 @@ class Path(os.PathLike):
                     continue
             files.append(p)
         return files
+
+
+class TempDir:
+    def __init__(self, start_name='cj_', end_name='_temp', create_on=None):
+        self._tmpdir = tempfile.TemporaryDirectory(suffix=end_name, prefix=start_name, dir=create_on)
+        self._path = Path(self._tmpdir.name)
+
+    def __del__(self):
+        self.__delete()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.path})"
+
+    def __delete(self):
+        self._tmpdir.cleanup()
+
+    def delete(self):
+        self.__delete()
+
+    @property
+    def path(self):
+        if self._path.exists:
+            return self._path
+        raise NotADirectoryError("Not Found.")
+
+    @property
+    def files(self):
+        return self.path.list_files(self.path, recursive=True)
+
+    def __enter__(self, *args, **kwargs):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__delete()
 
 
 def normalize_path(path_: str) -> Path:
