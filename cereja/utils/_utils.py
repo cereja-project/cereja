@@ -677,7 +677,6 @@ def _rescale_up(values, k, fill_with=None):
         if refill_values > 0:
             refill_values -= 1
             yield fill_with if fill_with is not None else value
-        print(value,refill_values,clones)
         k -= 1
         if k < 0:
             break
