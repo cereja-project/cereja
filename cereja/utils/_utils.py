@@ -671,15 +671,16 @@ def _rescale_up(values, k, fill_with=None):
     size = len(values)
     assert size <= k, f'Error while resizing: {size} < {k}'
     clones = (math.ceil(abs(size - k) / size))
-    for i in values:
-        vals = (i,) + ((fill_with,) if fill_with is not None else (i,)) * clones
-        for val in vals:
-
-            k -= 1
-            if k < 0:
-                break
-            yield val
-
+    refill_values = abs(k-size*clones)
+    for value in values:
+        yield value
+        if refill_values > 0:
+            refill_values -= 1
+            yield fill_with if fill_with is not None else value
+        print(value,refill_values,clones)
+        k -= 1
+        if k < 0:
+            break
 
 def rescale_values(values: List[Any], granularity: int, **kwargs) -> List[Any]:
     """
