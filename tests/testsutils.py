@@ -1,4 +1,5 @@
 import unittest
+from collections import OrderedDict
 
 from cereja import utils, rescale_values
 from cereja.utils.decorators import singleton
@@ -36,8 +37,8 @@ class UtilsTest(unittest.TestCase):
     def test_invert_dict(self):
         data = {"s": 0, "y": 1, "v": 2, "l": 3, "i": 4, "p": 5, "b": 6, "z": 7, "c": 8, "a": 9, "k": 10, "e": 11,
                 "d": 12, "j": 13, "x": 14, "u": 15, "o"
-                : 16, "n": 17, "t": 18, "f": 19, "g": 20, "h": 21, "r": 22, "w": 23, "m": 24, "q": 25}
-        expected = {0: 's', 1: 'y', 2: 'v', 3: 'l', 4: 'i', 5: 'p', 6: 'b', 7: 'z', 8: 'c', 9: 'a', 10: 'k', 11: 'e',
+                :    16, "n": 17, "t": 18, "f": 19, "g": 20, "h": 21, "r": 22, "w": 23, "m": 24, "q": 25}
+        expected = {0:  's', 1: 'y', 2: 'v', 3: 'l', 4: 'i', 5: 'p', 6: 'b', 7: 'z', 8: 'c', 9: 'a', 10: 'k', 11: 'e',
                     12: 'd', 13: 'j', 14: 'x', 15: 'u', 16: 'o', 17: 'n', 18: 't', 19: 'f', 20: 'g', 21: 'h', 22: 'r',
                     23: 'w', 24: 'm', 25: 'q'}
         self.assertDictEqual(utils.invert_dict(data), expected)
@@ -117,6 +118,28 @@ class UtilsTest(unittest.TestCase):
 
     def test_type_table_of(self):
         pass
+
+    def test_sort_dict(self):
+        val = {0: 1, 1: 2, 2: 1, 3: 4, 4: 1, 5: 43, 6: 1, 7: 10, 8: 22, 9: 0}
+        self.assertDictEqual(utils.sort_dict(val), OrderedDict(
+                [(0, 1), (1, 2), (2, 1), (3, 4), (4, 1), (5, 43), (6, 1), (7, 10), (8, 22), (9, 0)]))
+        self.assertDictEqual(utils.sort_dict(val, by_values=True), OrderedDict(
+                [(9, 0), (0, 1), (2, 1), (4, 1), (6, 1), (1, 2), (3, 4), (7, 10), (8, 22), (5, 43)]))
+        self.assertDictEqual(utils.sort_dict(val, by_values=True, reverse=True), OrderedDict(
+                [(5, 43), (8, 22), (7, 10), (3, 4), (1, 2), (0, 1), (2, 1), (4, 1), (6, 1), (9, 0)]))
+
+        self.assertDictEqual(utils.sort_dict(val, by_keys=True), OrderedDict(
+                [(0, 1), (1, 2), (2, 1), (3, 4), (4, 1), (5, 43), (6, 1), (7, 10), (8, 22), (9, 0)]))
+        self.assertDictEqual(utils.sort_dict(val, by_keys=True, reverse=True), OrderedDict(
+                [(9, 0), (8, 22), (7, 10), (6, 1), (5, 43), (4, 1), (3, 4), (2, 1), (1, 2), (0, 1)]))
+
+    def test_dict_append(self):
+        my_dict = {}
+        utils.dict_append(my_dict, 'key_eg', 1, 2, 3, 4, 5, 6)
+        self.assertDictEqual(my_dict, {'key_eg': [1, 2, 3, 4, 5, 6]})
+        my_dict = utils.dict_append(my_dict, 'key_eg', [1, 2])
+
+        self.assertDictEqual(my_dict, {'key_eg': [1, 2, 3, 4, 5, 6, [1, 2]]})
 
 
 class CjTestTest(unittest.TestCase):

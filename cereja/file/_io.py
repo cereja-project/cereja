@@ -527,12 +527,11 @@ class _JsonIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
     _ext_allowed = ('.json',)
-    indent = 4
+    indent = False
     ensure_ascii = False
 
-    def __init__(self, path_: Path, **kwargs):
-        if 'indent' in kwargs:
-            self.indent = kwargs.pop('indent')
+    def __init__(self, path_: Path, indent=False, **kwargs):
+        self.indent = indent
         if 'ensure_ascii' in kwargs:
             self.ensure_ascii = kwargs.pop('ensure_ascii')
         super().__init__(path_, **kwargs)
@@ -541,7 +540,7 @@ class _JsonIO(_FileIO):
         return json.load(fp)
 
     def _save_fp(self, fp):
-        json.dump(self._data, fp, indent=self.indent, ensure_ascii=self.ensure_ascii)
+        json.dump(self._data, fp, indent=4 if self.indent else None, ensure_ascii=self.ensure_ascii)
 
     def items(self) -> ItemsView:
         return self._data.items()
