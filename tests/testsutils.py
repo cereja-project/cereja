@@ -133,6 +133,14 @@ class UtilsTest(unittest.TestCase):
         self.assertDictEqual(utils.sort_dict(val, by_keys=True, reverse=True), OrderedDict(
                 [(9, 0), (8, 22), (7, 10), (6, 1), (5, 43), (4, 1), (3, 4), (2, 1), (1, 2), (0, 1)]))
 
+    def test_dict_append(self):
+        my_dict = {}
+        utils.dict_append(my_dict, 'key_eg', 1, 2, 3, 4, 5, 6)
+        self.assertDictEqual(my_dict, {'key_eg': [1, 2, 3, 4, 5, 6]})
+        my_dict = utils.dict_append(my_dict, 'key_eg', [1, 2])
+
+        self.assertDictEqual(my_dict, {'key_eg': [1, 2, 3, 4, 5, 6, [1, 2]]})
+
 
 class CjTestTest(unittest.TestCase):
 
