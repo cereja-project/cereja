@@ -20,6 +20,7 @@ import ast
 import gc
 import math
 import time
+from collections import OrderedDict
 from importlib import import_module
 import importlib
 import sys
@@ -38,7 +39,8 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard']
+           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
+           'sort_dict']
 
 logger = logging.getLogger(__name__)
 
@@ -750,3 +752,18 @@ def is_numeric_sequence(obj: Sequence[Number]) -> bool:
     except (TypeError, ValueError):
         return False
     return True
+
+
+def sort_dict(obj: dict, by_keys=False, by_values=False, reverse=False, by_len_values=False, func_values=None,
+              func_keys=None) -> OrderedDict:
+    func_values = (lambda v: len(v) if by_len_values else v) if func_values is None else func_values
+    func_keys = (lambda k: k) if func_keys is None else func_keys
+
+    key_func = None
+    if (by_keys and by_values) or (not by_keys and not by_values):
+        key_func = (lambda x: (func_keys(x[0]), func_values(x[1])))
+    elif by_keys:
+        key_func = (lambda x: func_keys(x[0]))
+    elif by_values:
+        key_func = (lambda x: func_values(x[1]))
+    return OrderedDict(sorted(obj.items(), key=key_func, reverse=reverse))
