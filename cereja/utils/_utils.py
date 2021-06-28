@@ -783,7 +783,7 @@ def dict_append(obj: Dict[Any, list], key, *v):
     {'key_eg': [1, 2, 3, 4, 5, 6, [1, 2]]}
 
     @param obj: Any dict of list values
-    @param k: dict key
+    @param key: dict key
     @param v: all values after key
     @return:
     """
