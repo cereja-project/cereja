@@ -769,7 +769,7 @@ def sort_dict(obj: dict, by_keys=False, by_values=False, reverse=False, by_len_v
     return OrderedDict(sorted(obj.items(), key=key_func, reverse=reverse))
 
 
-def dict_append(obj: Dict[Any, list], key, *v):
+def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
     """
     Add items to a key, if the key is not in the dictionary it will be created with a list and the value sent.
 
@@ -790,7 +790,11 @@ def dict_append(obj: Dict[Any, list], key, *v):
     assert isinstance(obj, dict), 'Error on append values. Please send a dict object.'
     if key not in obj:
         obj[key] = []
-    assert isinstance(obj[key], list), f"Error on append values. Value of key '{key}' isn't a list."
-    for i in v:
-        obj[key].append(i)
+
+    assert isinstance(obj[key], (list, tuple)), f"Error on append values. Value of key '{key}' isn't a list."
+    if isinstance(obj[key], tuple):
+        obj[key] = (*obj[key], *v,)
+    else:
+        for i in v:
+            obj[key].append(i)
     return obj
