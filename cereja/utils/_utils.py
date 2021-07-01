@@ -40,7 +40,7 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
            'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
-           'sort_dict', 'dict_append']
+           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple']
 
 logger = logging.getLogger(__name__)
 
@@ -261,12 +261,22 @@ def get_instances_of(klass: type):
     return filter(lambda x: isinstance(x, klass), gc.get_objects())
 
 
+def _invert_parser_key(key):
+    return to_tuple(key) if isinstance(key, (list, set, dict)) else key
+
+
+def _invert_append(obj, k, v):
+    dict_append(obj, k, v)
+    if len(obj[k]) == 1:
+        obj[k] = obj[k][0]
+
+
 def invert_dict(dict_: Union[dict, set]) -> dict:
     """
     Inverts the key by value
     e.g:
-    >>> dict_ = {"a": "b", "c": "d"}
-    >>> invert_dict(dict_)
+    >>> example = {"a": "b", "c": "d"}
+    >>> invert_dict(example)
     {"b" : "a", "d": "c"}
     :return: dict
     """
@@ -275,13 +285,26 @@ def invert_dict(dict_: Union[dict, set]) -> dict:
         raise TypeError("Send a dict object.")
     new_dict = {}
     for key, value in dict_.items():
+        key = _invert_parser_key(key)
+
         if isinstance(value, dict):
-            new_dict.update({key: invert_dict(value)})
+            if key not in new_dict:
+                new_dict.update({key: invert_dict(value)})
+            else:
+                _invert_append(new_dict, key, invert_dict(value))
             continue
         if isinstance(value, (tuple, list, set)):
-            new_dict.update({k: key for k in dict_[key]})
+            for k in dict_[key]:
+                k = _invert_parser_key(k)
+                _invert_append(new_dict, k, key)
             continue
-        new_dict[value] = key
+
+        if value not in new_dict:
+            new_dict[value] = key
+        else:
+            value = _invert_parser_key(value)
+            _invert_append(new_dict, value, key)
+
     return new_dict
 
 
@@ -769,7 +792,41 @@ def sort_dict(obj: dict, by_keys=False, by_values=False, reverse=False, by_len_v
     return OrderedDict(sorted(obj.items(), key=key_func, reverse=reverse))
 
 
-def dict_append(obj: Dict[Any, list], key, *v):
+def list_to_tuple(obj):
+    assert isinstance(obj, (list, set, tuple)), f"Isn't possible convert {type(obj)} into {tuple}"
+    result = []
+    for i in obj:
+        if isinstance(i, list):
+            i = list_to_tuple(i)
+        elif isinstance(i, (set, dict)):
+            i = dict_to_tuple(i)
+        result.append(i)
+    return tuple(result)
+
+
+def dict_to_tuple(obj):
+    assert isinstance(obj, (dict, set)), f"Isn't possible convert {type(obj)} into {tuple}"
+    result = []
+    if isinstance(obj, set):
+        return tuple(obj)
+    for k, v in obj.items():
+        if isinstance(v, (dict, set)):
+            v = dict_to_tuple(v)
+        elif isinstance(v, list):
+            v = list_to_tuple(v)
+        result.append((k, v))
+    return tuple(result)
+
+
+def to_tuple(obj):
+    if isinstance(obj, (set, dict)):
+        return dict_to_tuple(obj)
+    if isinstance(obj, (list, tuple)):
+        return list_to_tuple(obj)
+    return tuple(obj)
+
+
+def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
     """
     Add items to a key, if the key is not in the dictionary it will be created with a list and the value sent.
 
@@ -790,7 +847,12 @@ def dict_append(obj: Dict[Any, list], key, *v):
     assert isinstance(obj, dict), 'Error on append values. Please send a dict object.'
     if key not in obj:
         obj[key] = []
-    assert isinstance(obj[key], list), f"Error on append values. Value of key '{key}' isn't a list."
-    for i in v:
-        obj[key].append(i)
+
+    if not isinstance(obj[key], (list, tuple)):
+        obj[key] = [obj[key]]
+    if isinstance(obj[key], tuple):
+        obj[key] = (*obj[key], *v,)
+    else:
+        for i in v:
+            obj[key].append(i)
     return obj

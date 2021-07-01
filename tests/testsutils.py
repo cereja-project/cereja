@@ -43,6 +43,10 @@ class UtilsTest(unittest.TestCase):
                     23: 'w', 24: 'm', 25: 'q'}
         self.assertDictEqual(utils.invert_dict(data), expected)
 
+        data = {1: 40, 2: 30, 3: 40, 30: 2}
+        expected = {40: [1, 3], 30: 2, 2: 30}
+        self.assertEqual(utils.invert_dict(data), expected)
+
     def test_logger_level(self):
         pass
 
@@ -140,6 +144,21 @@ class UtilsTest(unittest.TestCase):
         my_dict = utils.dict_append(my_dict, 'key_eg', [1, 2])
 
         self.assertDictEqual(my_dict, {'key_eg': [1, 2, 3, 4, 5, 6, [1, 2]]})
+
+    def test_to_tuple(self):
+        data = [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+        expected = (
+            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)), ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+
+        self.assertEqual(utils.to_tuple(data), expected)
+
+        data = {1: [1, 2, [3, 100, [1000, 30, [12, 3]]], {1: 2, 3: 4}, 4], 2: [1, 2, 3, 4], 3: {1, 2, 3}}
+        expected = ((1, (1, 2, (3, 100, (1000, 30, (12, 3))), ((1, 2), (3, 4)), 4)), (2, (1, 2, 3, 4)), (3, (1, 2, 3)))
+
+        self.assertEqual(utils.to_tuple(data), expected)
 
 
 class CjTestTest(unittest.TestCase):

@@ -773,6 +773,10 @@ class _ZipFileIO(_FileIO):
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
         raise NotImplementedError
 
+    @classmethod
+    def load(cls, path_, load_on_memory=False, **kwargs):
+        return cls(path_=path_, creation_mode=False, load_on_memory=load_on_memory, **kwargs)
+
     def save(self, on_new_path: Union[str, Path] = None, exist_ok=False, overwrite=False, force=False,
              **kwargs):
         with tempfile.TemporaryDirectory() as tmpdirname:
