@@ -798,6 +798,8 @@ def list_to_tuple(obj):
     for i in obj:
         if isinstance(i, list):
             i = list_to_tuple(i)
+        elif isinstance(i, (set, dict)):
+            i = dict_to_tuple(i)
         result.append(i)
     return tuple(result)
 
@@ -810,6 +812,8 @@ def dict_to_tuple(obj):
     for k, v in obj.items():
         if isinstance(v, (dict, set)):
             v = dict_to_tuple(v)
+        elif isinstance(v, list):
+            v = list_to_tuple(v)
         result.append((k, v))
     return tuple(result)
 
