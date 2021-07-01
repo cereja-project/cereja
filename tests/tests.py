@@ -283,7 +283,7 @@ class HashToolsTestCase(unittest.TestCase):
         for val in vals:
             res = base64_encode(val)
             self.assertTrue(is_base64(res))
-            self.assertEqual(val, base64_decode(res))
+            self.assertEqual(val, base64_decode(res, eval_str=True))
 
         self.assertEqual('fc4d5dcfe7146d09b7fbad980fb90797', md5('set the alarm clock for seven of the clock .'))
 

@@ -43,9 +43,10 @@ def base64_encode(content) -> bytes:
     return _b64.b64encode(content)
 
 
-def base64_decode(content, eval_str=True):
-    decode_val = _b64.b64decode(content).decode()
-    return string_to_literal(decode_val) if eval_str else decode_val
+def base64_decode(content, eval_str=False):
+    decoded_val = _b64.b64decode(content)
+    decoded_val = string_to_literal(decoded_val.decode()) if eval_str else decoded_val
+    return decoded_val
 
 
 def is_base64(content):
