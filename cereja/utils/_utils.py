@@ -40,7 +40,7 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
            'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
-           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple']
+           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple']
 
 logger = logging.getLogger(__name__)
 
