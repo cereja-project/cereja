@@ -82,7 +82,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     _dict_temp_keys = [] if not isinstance(data, dict) else list(data)
     if not batch_size or batch_size > len(data) or batch_size < 1:
         if isinstance(max_batches, (int, float)) and max_batches > 0:
-            batch_size = len(data) // max_batches or len(data)
+            batch_size = ((len(data) // max_batches) + len(data) % max_batches) or len(data)
         else:
             batch_size = len(data)
 
