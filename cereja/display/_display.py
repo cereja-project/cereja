@@ -561,7 +561,7 @@ class Progress:
             self.__class__.__current_prog.stop()
         self.__class__.__current_prog = self
         self._n_times = 0
-        self._name = name
+        self._name = name or 'Progress'
         self._task_count = 0
         self._started = False
         self._awaiting_update = True
@@ -759,6 +759,7 @@ class Progress:
         self._started_time = None
 
     def start(self):
+        self._console.set_prefix(self._name)
         if self._started:
             return
         self._started_time = time.time()
@@ -803,14 +804,14 @@ class Progress:
                 raise KeyError(f"Not exists {key}")
         return self._states[slice_]
 
-    def __call__(self, sequence: Sequence, task_name=None) -> "Progress":
+    def __call__(self, sequence: Sequence, name=None) -> "Progress":
         if not is_iterable(sequence):
             raise ValueError("Send a sequence.")
         self.update_max_value(len(sequence))
         self.sequence = sequence
-        if task_name is not None:
-            self._console.set_prefix(f"{self.name}({task_name})")
-        if self._with_context and task_name is None:
+        if name is not None:
+            self._console.set_prefix(f"{self.name}({name})")
+        if self._with_context and name is None:
             self._console.set_prefix(f"{self.name}(iter-{self._task_count})")
         self._started_time = time.time()
         self._task_count += 1
