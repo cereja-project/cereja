@@ -37,7 +37,7 @@ print(progress[1])
 print(progress[2])
 
 
-class MyCustomState(cj.StateBase):
+class MyCustomState(cj.display.State):
     def display(self, current_value, max_value, *args, **kwargs):
         return f'{current_value} -> {max_value}'
 
@@ -63,6 +63,8 @@ import time
 
 with cj.Progress("My Progress") as prog:
     time.sleep(5)
+    for i in prog(range(1, 500)):
+        time.sleep(1 / i)
     for i in prog(range(1, 500)):
         time.sleep(1 / i)
 ```

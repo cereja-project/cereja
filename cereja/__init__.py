@@ -21,33 +21,33 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 from .config import conf
-from cereja.utils import *
+from .utils import *
 from . import utils
 from . import display
-from cereja.display import *
+from .display import *
 from . import file
-from cereja.file import *
+from .file import *
 from . import array
-from cereja.array import *
+from .array import *
 from . import system
-from cereja.system import *
-from cereja.system.unicode import *
+from .system import *
+from .system.unicode import *
 from . import utils
 from .utils import decorators
-from cereja.concurrently import *
+from .concurrently import *
 from . import mltools
-from cereja.mltools import *
-from cereja.utils.version import get_version_pep440_compliant
-from cereja.system.unicode import *
+from .mltools import *
+from .utils.version import get_version_pep440_compliant
+from .system.unicode import *
 from . import date
-from cereja.date import *
+from .date import *
 from . import hashtools
 from . import mathtools
-from cereja.mathtools import *
+from .mathtools import *
 from . import experimental
 from ._requests import request
 
-VERSION = "1.4.8.final.0"
+VERSION = "1.4.9.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
@@ -55,12 +55,8 @@ NON_BMP_SUPPORTED = None
 if NON_BMP_SUPPORTED is None:
     # This is important, as there may be an exception if the terminal does not support unicode bmp
     try:
-        unicode_ = f"\033[31m\U0001F352\033[30m"
+        unicode_ = f"\033[31m\U0001F352\033[0;0m"
         print(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\r")
         NON_BMP_SUPPORTED = True
     except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
         NON_BMP_SUPPORTED = False
-# cj_modules_dotted_path = utils.import_string('cereja.conf.cj_modules_dotted_path')
-#
-# for dot_module in cj_modules_dotted_path:
-#     globals().update(utils.module_references(import_module(dot_module)))
