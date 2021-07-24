@@ -738,15 +738,30 @@ def rescale_values(values: List[Any], granularity: int, **kwargs) -> List[Any]:
 class Source:
 
     def __init__(self, reference: Any):
+        self._name = None
+        self._doc = inspect.getdoc(reference)
         self._source_code = inspect.getsource(reference)
+        if hasattr(reference, '__name__'):
+            self._name = reference.__name__
 
     @property
     def source_code(self):
         return self._source_code
 
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def doc(self):
+        return self._doc
+
     def save(self, path_, **kwargs):
         from cereja import FileIO, Path
-        assert Path(path_).suffix == '.py', "Only python source code."
+        path_ = Path(path_)
+        if path_.is_dir:
+            path_ = path_.join(f'{self.name}.py')
+        assert path_.suffix == '.py', "Only python source code."
         FileIO.create(path_, self._source_code).save(**kwargs)
 
 
