@@ -745,9 +745,8 @@ class _ZipFileIO(_FileIO):
     _newline = False
     _ext_allowed = ('.zip',)
 
-    def __init__(self, path_: Path, load_on_memory=False, **kwargs):
+    def __init__(self, path_: Path, **kwargs):
 
-        self._load_on_memory = load_on_memory
         super().__init__(path_, **kwargs)
 
     def add(self, data: Union[str, list, tuple]):
@@ -755,20 +754,15 @@ class _ZipFileIO(_FileIO):
         self._data += parsed
 
     def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
-        return self.unzip(fp.name, load_on_memory=self._load_on_memory)
+        return self.unzip(fp.name)
 
     @classmethod
-    def unzip(cls, file_path, save_on: str = None, load_on_memory=False):
+    def unzip(cls, file_path, save_on: str = None, k=None, is_random=False):
         with ZipFile(file_path, mode='r') as myzip:
-            if save_on or load_on_memory:
-                with tempfile.TemporaryDirectory() as tmpdirname:
-                    unzip_dir = save_on or tmpdirname
-                    unzip_dir = Path(unzip_dir).join(Path(myzip.filename).stem)
-                    mkdir(unzip_dir)
-                    myzip.extractall(unzip_dir)
-                    if load_on_memory:
-                        return FileIO.load_files(unzip_dir)
-            return myzip.namelist()
+            members = sample(myzip.namelist(), k, is_random)
+            if save_on:
+                mkdir(save_on)
+            myzip.extractall(save_on, members=members)
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
         raise NotImplementedError
