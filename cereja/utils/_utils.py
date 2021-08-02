@@ -708,7 +708,31 @@ def _rescale_up(values, k, fill_with=None):
             break
 
 
-def rescale_values(values: List[Any], granularity: int, **kwargs) -> List[Any]:
+def _interpolate(values, k):
+    size = len(values)
+
+    first_position = 0
+    last_position = size - 1
+    step = (last_position - first_position) / (k - 1)
+
+    positions = [first_position]
+    previous_position = positions[-1]
+    for _ in range(k - 2):
+        positions.append(previous_position + step)
+        previous_position = positions[-1]
+    positions.append(last_position)
+
+    for position in positions:
+        previous_position = math.floor(position)
+        next_position = math.ceil(position)
+        if previous_position == next_position:
+            yield values[previous_position]
+        else:
+            delta = position - previous_position
+            yield values[previous_position] + (values[next_position] - values[previous_position]) / (next_position - previous_position) * delta
+
+
+def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, **kwargs) -> List[Any]:
     """
     Resizes a list of values
     eg.
@@ -717,19 +741,25 @@ def rescale_values(values: List[Any], granularity: int, **kwargs) -> List[Any]:
         [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88]
         >>> cj.rescale_values(values=list(range(5)), granularity=10)
         [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
+    If interpolation is set to True, then the resized values are calculated by interpolation, 
+    otherwise they are sub- ou upsampled from the original list
 
 
     @param values: Sequence of anything
     @param granularity: is a integer
+    @param interpolation: is a boolean
     @param kwargs:
         fill_with: Any value
     @return: rescaled list of values.
     """
 
-    if len(values) >= granularity:
-        result = list(_rescale_down(values, granularity))
+    if interpolation:
+        result = list(_interpolate(values, granularity))
     else:
-        result = list(_rescale_up(values, granularity, **kwargs))
+        if len(values) >= granularity:
+            result = list(_rescale_down(values, granularity))
+        else:
+            result = list(_rescale_up(values, granularity, **kwargs))
 
     assert len(result) == granularity, f"Error while resizing the list size {len(result)} != {granularity}"
     return result

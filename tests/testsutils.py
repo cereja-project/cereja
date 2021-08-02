@@ -72,6 +72,11 @@ class UtilsTest(unittest.TestCase):
         expected = [0, 0, 'joab', 1, 1, 'joab', 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
         self.assertEqual(rescale_values(value, 22, fill_with='joab'), expected)
 
+        expected = [0, 1.8, 3.6, 5.4, 7.2, 9]
+        self.assertEqual(rescale_values(value, 6, True), expected)
+        expected = [0, 0.5625, 1.125, 1.6875, 2.25, 2.8125, 3.375, 3.9375, 4.5, 5.0625, 5.625, 6.1875, 6.75, 7.3125, 7.875, 8.4375, 9]
+        self.assertEqual(rescale_values(value, 17, True), expected)
+        
     def test_can_do(self):
         class _A:
             def _m1(self):
