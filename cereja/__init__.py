@@ -47,7 +47,7 @@ from .mathtools import *
 from . import experimental
 from ._requests import request
 
-VERSION = "1.5.0.final.0"
+VERSION = "1.5.1.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
