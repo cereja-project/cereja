@@ -83,21 +83,22 @@ globals().update(cj.FileIO.load(JOB_DIR.join('global_scope.pkl')).data)
 {func_code}
 
 if __name__ == '__main__':
-    with Pool(8) as p:
+    with Pool({n_proc}) as p:
         sequence = cj.FileIO.load(JOB_DIR.join('sequence.pkl')).data
         result = p.map({func_name}, sequence)
         cj.FileIO.create(JOB_DIR.join('result.pkl'), result).save(exist_ok=True)
     """
 
-    def __init__(self, function, global_scope: dict = None):
+    def __init__(self, function, global_scope: dict = None, n_proc=8):
         self.function = function
         self.global_scope = global_scope
+        self.n_proc = n_proc
 
     def run(self, sequence):
         import sys
         with cj.TempDir() as temp_dir:
             func_code = cj.Source(self.function)
-            code = self._template.format(path=temp_dir.path, func_code=func_code.source_code, func_name=func_code.name)
+            code = self._template.format(path=temp_dir.path, func_code=func_code.source_code, func_name=func_code.name, n_proc=self.n_proc)
             global_scope = self.global_scope if isinstance(self.global_scope, dict) else {}
             # print(code)
 
