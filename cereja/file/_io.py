@@ -554,6 +554,8 @@ class _JsonIO(_FileIO):
     def parse(self, data) -> dict:
         if isinstance(data, dict):
             return data
+        elif isinstance(data, (str, bytes)):
+            return json.loads(data)
         else:
             raise TypeError(f"{type(data)} isn't valid.")
 
