@@ -701,8 +701,11 @@ def _rescale_up(values, k, fill_with=None):
     clones = (math.ceil(abs(size - k) / size))
     refill_values = abs(k - size * clones)
     for value in values:
-        for i in range(clones):
-            yield value
+        # guarantees that the original value will be returned
+        yield value
+        for i in range(clones-1): # -1 because last line.
+            # value original or fill_with.
+            yield fill_with if fill_with is not None else value
         if refill_values > 0:
             refill_values -= 1
             yield fill_with if fill_with is not None else value
