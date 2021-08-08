@@ -36,7 +36,7 @@ from pathlib import Path as Path_
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['Path', 'change_date_from_path', 'clean_dir', 'file_name', 'get_base_dir', 'group_path_from_dir', 'listdir',
+__all__ = ['Path', 'change_date_from_path', 'clean_dir', 'file_name', 'get_base_dir', 'group_path_from_dir',
            'mkdir', 'normalize_path', 'TempDir']
 
 
@@ -358,20 +358,17 @@ class Path(os.PathLike):
     def split(self, sep=None, max_split=-1):
         return self.path.rsplit(sep, max_split)
 
-    @classmethod
-    def list_dir(cls, path_: Union[str, 'Path'], only_name=False) -> List['Path']:
+    def list_dir(self, only_name=False) -> List['Path']:
         """
         Extension of the listdir function of module os.
 
-        The difference is that by default it returns the absolute path, but you can still only request the relative path by
-        setting only_relative_path to True.
+        The difference is that by default it returns the absolute path, but you can still only request the relative
+        path by setting only_relative_path to True.
 
         """
-        if not isinstance(path_, Path):
-            path_ = cls(path_)
-
-        assert path_.is_dir, f"{path_} isn't dir."
-        return [p.stem if only_name else p for p in map(path_.join, os.listdir(path_))]
+        if not self.is_dir:
+            raise NotADirectoryError(f"check that the path '{self.path}' is correct")
+        return [p.stem if only_name else p for p in map(self.join, os.listdir(self))]
 
     @classmethod
     def list_files(cls, dir_path: Union[str, 'Path'], ext: str = None, contains_in_name: List = (),
@@ -443,27 +440,10 @@ def clean_dir(path_: str):
     """
     Delete all files on dir
     """
-    content = Path.list_dir(path_)
+    content = Path(path_).list()
     for p in content:
         p.rm(rm_tree=True)
     logger.info(f"{len(content)} files were removed")
-
-
-def listdir(path_: Union[str, Path], only_relative_path: bool = False) -> List[str]:
-    """
-    Extension of the listdir function of module os.
-
-    The difference is that by default it returns the absolute path, but you can still only request the relative path by
-    setting only_relative_path to True.
-
-    """
-    warnings.warn(f"This function will be deprecated in future versions. "
-                  f"Path.list_dir", DeprecationWarning, 2)
-    if not isinstance(path_, Path):
-        path_ = Path(path_)
-
-    assert path_.is_dir, f"{path_} isn't dir."
-    return [path_.join(p) if not only_relative_path else p for p in os.listdir(str(path_))]
 
 
 if __name__ == '__main__':
