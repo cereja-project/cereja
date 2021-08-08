@@ -44,7 +44,6 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
 
 logger = logging.getLogger(__name__)
 
-
 _DICT_ITEMS_TYPE = type({}.items())
 
 
@@ -695,15 +694,24 @@ def _rescale_down(input_list, size):
         yield input_list[i]
 
 
-def _rescale_up(values, k, fill_with=None):
+def _rescale_up(values, k, fill_with=None, filling='inner'):
     size = len(values)
     assert size <= k, f'Error while resizing: {size} < {k}'
+
     clones = (math.ceil(abs(size - k) / size))
     refill_values = abs(k - size * clones)
+    if filling == 'pre':
+        for i in range(abs(k - size)):
+            yield fill_with if fill_with is not None else values[0]
+
     for value in values:
         # guarantees that the original value will be returned
         yield value
-        for i in range(clones-1): # -1 because last line.
+
+        if filling != 'inner':
+            continue
+
+        for i in range(clones - 1):  # -1 because last line.
             # value original or fill_with.
             yield fill_with if fill_with is not None else value
         if refill_values > 0:
@@ -712,6 +720,9 @@ def _rescale_up(values, k, fill_with=None):
         k -= 1
         if k < 0:
             break
+    if filling == 'post':
+        for i in range(abs(k - size)):
+            yield fill_with if fill_with is not None else values[-1]
 
 
 def _interpolate(values, k):
@@ -739,15 +750,21 @@ def _interpolate(values, k):
                     next_position - previous_position) * delta
 
 
-def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, **kwargs) -> List[Any]:
+def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, fill_with=None, filling='inner') -> \
+        List[Any]:
     """
     Resizes a list of values
     eg.
         >>> import cereja as cj
-        >>> cj.rescale_values(values=list(range(100)), granularity=12)
+        >>> cj.rescale_values(values=list(range(100)),granularity=12)
         [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88]
-        >>> cj.rescale_values(values=list(range(5)), granularity=10)
+        >>> cj.rescale_values(values=list(range(5)),granularity=10)
         [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
+        >>> cj.rescale_values(values=list(range(5)),granularity=10, filling='pre')
+        [0, 1, 2, 3, 4, 4, 4, 4, 4, 4]
+
+        @note if you don't send any value for filling a value will be chosen arbitrarily depending on the filling type.
+
     If interpolation is set to True, then the resized values are calculated by interpolation, 
     otherwise they are sub- ou upsampled from the original list
 
@@ -755,8 +772,8 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
     @param values: Sequence of anything
     @param granularity: is a integer
     @param interpolation: is a boolean
-    @param kwargs:
-        fill_with: Any value
+    @param fill_with: only scale up, send any value for filling
+    @param filling: in case of scale up, you can define how the filling will be (pre, inner, post). 'inner' is default.
     @return: rescaled list of values.
     """
 
@@ -766,7 +783,7 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
         if len(values) >= granularity:
             result = list(_rescale_down(values, granularity))
         else:
-            result = list(_rescale_up(values, granularity, **kwargs))
+            result = list(_rescale_up(values, granularity, fill_with=fill_with, filling=filling))
 
     assert len(result) == granularity, f"Error while resizing the list size {len(result)} != {granularity}"
     return result

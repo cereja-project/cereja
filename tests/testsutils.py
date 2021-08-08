@@ -69,8 +69,26 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual(rescale_values(value, 21), expected)
         expected = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
         self.assertEqual(rescale_values(value, 22), expected)
-        expected = [0, 0, 'joab', 1, 1, 'joab', 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+        expected = [0, 'joab', 'joab', 1, 'joab', 'joab', 2, 'joab', 3, 'joab', 4, 'joab', 5, 'joab', 6, 'joab', 7,
+                    'joab', 8, 'joab', 9, 'joab']
+
         self.assertEqual(rescale_values(value, 22, fill_with='joab'), expected)
+
+        expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab',
+                    'joab', 'joab', 'joab', 'joab']
+
+        self.assertEqual(rescale_values(value, 22, fill_with='joab', filling='post'), expected)
+
+        expected = ['joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 0,
+                    1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        self.assertEqual(rescale_values(value, 22, fill_with='joab', filling='pre'), expected)
+
+        expected = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.assertEqual(rescale_values(value, 22, filling='pre'), expected)
+
+        expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+        self.assertEqual(rescale_values(value, 22, filling='post'), expected)
 
         expected = [0, 1.8, 3.6, 5.4, 7.2, 9]
         self.assertEqual(rescale_values(value, 6, True), expected)
