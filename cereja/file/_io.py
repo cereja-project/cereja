@@ -922,8 +922,8 @@ class FileIO:
                    recursive=False):
 
         ext = ext or ''
-        f_paths = Path.list_files(path_, ext=ext, contains_in_name=contains_in_name,
-                                  not_contains_in_name=not_contains_in_name, recursive=recursive)
+        f_paths = Path(path_).list_files(ext=ext, contains_in_name=contains_in_name,
+                                         not_contains_in_name=not_contains_in_name, recursive=recursive)
         loaded = []
         for p in f_paths:
             if recursive and p.is_dir:

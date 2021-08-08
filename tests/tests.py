@@ -158,7 +158,7 @@ class PathTest(unittest.TestCase):
         p_test = Path('cereja/test/sanity').join('con', 'cat')
         self.assertEqual(p_test.parts[-2:], ('con', 'cat'))
         self.assertTrue(p == p_test)
-        self.assertListEqual(Path.list_dir(Path(__file__).parent, only_name=True),
+        self.assertListEqual(Path(__file__).parent.list_dir(only_name=True),
                              list(map(lambda x: x.rsplit('.')[0], os.listdir(Path(__file__).parent))))
 
 

@@ -142,7 +142,7 @@ class Path(os.PathLike):
     __sep = os.sep
 
     def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
-        self.__path = Path_(_norm_path(initial), *pathsegments)
+        self.__path = Path_(_norm_path(str(initial)), *pathsegments)
         self.__parent = self.__path.parent.as_posix()
         self._parent_name = self.__path.parent.name
         self._verify()
@@ -370,23 +370,34 @@ class Path(os.PathLike):
             raise NotADirectoryError(f"check that the path '{self.path}' is correct")
         return [p.stem if only_name else p for p in map(self.join, os.listdir(self))]
 
-    @classmethod
-    def list_files(cls, dir_path: Union[str, 'Path'], ext: str = None, contains_in_name: List = (),
+    def list_files(self, ext: str = None, contains_in_name: List = (),
                    not_contains_in_name=(),
-                   recursive=False) -> List['Path']:
+                   recursive=False, only_name=False) -> List['Path']:
+        """
+        List files on an dir or in dir tree for this use recursive=True
+
+        @param ext: filter by ext
+        @param contains_in_name: filter only contains
+        @param not_contains_in_name: filter only not contains
+        @param recursive: for tree dir
+        @param only_name: get only the name without extension if it is a file
+        @return: Path object list
+        """
 
         ext = ext or ''
         files = []
-        for p in cls.list_dir(dir_path):
+        for p in self.list_dir():
             if p.is_dir and recursive:
+                _self = Path(p)  # because exceeded recursion Error
                 files.extend(
-                        cls.list_files(p, ext=ext, contains_in_name=contains_in_name,
-                                       not_contains_in_name=not_contains_in_name,
-                                       recursive=recursive))
+                        _self.list_files(ext=ext, contains_in_name=contains_in_name,
+                                         not_contains_in_name=not_contains_in_name,
+                                         recursive=recursive, only_name=False))
                 continue
-            if p.is_dir:
+
+            if not p.is_file:
                 continue
-            if not (p.suffix == f'.{ext.strip(".")}' or ext == ''):
+            if ext and p.suffix != f'.{ext.strip(".")}':
                 continue
             if not_contains_in_name:
                 if any(map(p.stem.__contains__, not_contains_in_name)):
@@ -394,7 +405,7 @@ class Path(os.PathLike):
             if contains_in_name:
                 if not any(map(p.stem.__contains__, contains_in_name)):
                     continue
-            files.append(p)
+            files.append(p.stem if only_name else p)
         return files
 
 
@@ -423,7 +434,7 @@ class TempDir:
 
     @property
     def files(self):
-        return self.path.list_files(self.path, recursive=True)
+        return self.path.list_files(recursive=True)
 
     def __enter__(self, *args, **kwargs):
         return self
