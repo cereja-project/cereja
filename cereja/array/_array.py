@@ -36,7 +36,8 @@ __all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_sha
 
 
 from cereja.utils.decorators import depreciation
-from ..utils import is_iterable, is_sequence, is_numeric_sequence
+from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk
+
 logger = logging.getLogger(__name__)
 
 
@@ -141,7 +142,7 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
 
     for k in shape[::-1]:
         if allow_reshape:
-            v = group_items_in_batches(v, k)
+            v = chunk(v, batch_size=k)
             continue
         v = [v * k]
     return v[0]

@@ -165,6 +165,25 @@ class UtilsTest(unittest.TestCase):
 
         self.assertEqual(utils.to_tuple(data), expected)
 
+    def test_chunk(self):
+        tests = [([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
+                 ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
+                 ([1, 2, 3, 4, 5, 6], 0, [[1, 2, 3, 4, 5, 6]]),
+                 ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 0, 0]]),
+                 ]
+
+        for test_value, items_per_batch, expected_value in tests:
+            print(test_value, items_per_batch, expected_value)
+            msg = f"""Test failed for values {test_value}"""
+            result = utils.chunk(test_value, batch_size=items_per_batch, fill_with=0)
+            self.assertEqual(result, expected_value, msg)
+
+        tests_raise = [
+                       ([1, 2, 3, 4, 5, 6], 'sd', TypeError)
+                       ]
+        for test_value, items_per_batch, expected_error in tests_raise:
+            self.assertRaises(expected_error, utils.chunk, test_value, items_per_batch)
+
 
 class CjTestTest(unittest.TestCase):
 

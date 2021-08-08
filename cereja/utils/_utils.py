@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
-          max_batches: int = None) -> List:
+          max_batches: int = None) -> List[List]:
     """
 
     e.g:

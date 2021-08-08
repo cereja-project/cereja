@@ -28,7 +28,7 @@ import logging
 
 from cereja.array import group_items_in_batches, remove_duplicate_items, flatten, \
     array_gen, get_shape, Matrix
-from cereja.utils import is_iterable, is_sequence
+from cereja.utils import is_iterable, is_sequence, chunk
 from cereja.array import prod
 from cereja.mathtools import theta_angle
 from cereja.config.cj_types import Number
@@ -54,25 +54,6 @@ class UtilsTestCase(unittest.TestCase):
 
             [[[0.]], [[0.]]]
         ]
-
-    def test_group_items_in_batches(self):
-        tests = [([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
-                 ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
-                 ([1, 2, 3, 4, 5, 6], 0, [[1, 2, 3, 4, 5, 6]]),
-                 ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 0, 0]]),
-                 ]
-
-        for test_value, items_per_batch, expected_value in tests:
-            print(test_value, items_per_batch, expected_value)
-            msg = f"""Test failed for values {test_value}"""
-            result = group_items_in_batches(test_value, items_per_batch, 0)
-            self.assertEqual(result, expected_value, msg)
-
-        tests_raise = [
-                       ([1, 2, 3, 4, 5, 6], 'sd', TypeError)
-                       ]
-        for test_value, items_per_batch, expected_error in tests_raise:
-            self.assertRaises(expected_error, group_items_in_batches, test_value, items_per_batch)
 
     def test_is_iterable(self):
         self.assertFalse(is_iterable(1))
