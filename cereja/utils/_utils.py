@@ -761,6 +761,8 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
         >>> cj.rescale_values(values=list(range(5)),granularity=10)
         [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
         >>> cj.rescale_values(values=list(range(5)),granularity=10, filling='pre')
+        [0, 0, 0, 0, 0, 0, 1, 2, 3, 4]
+        >>> cj.rescale_values(values=list(range(5)),granularity=10, filling='post')
         [0, 1, 2, 3, 4, 4, 4, 4, 4, 4]
 
         @note if you don't send any value for filling a value will be chosen arbitrarily depending on the filling type.
