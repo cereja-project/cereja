@@ -31,12 +31,13 @@ import warnings
 from datetime import datetime
 from typing import List, Union
 
+from cereja import chunk
 from cereja.array import group_items_in_batches
 from pathlib import Path as Path_
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['Path', 'change_date_from_path', 'clean_dir', 'file_name', 'get_base_dir', 'group_path_from_dir', 'listdir',
+__all__ = ['Path', 'change_date_from_path', 'clean_dir', 'file_name', 'get_base_dir', 'group_path_from_dir',
            'mkdir', 'normalize_path', 'TempDir']
 
 
@@ -142,7 +143,7 @@ class Path(os.PathLike):
     __sep = os.sep
 
     def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
-        self.__path = Path_(_norm_path(initial), *pathsegments)
+        self.__path = Path_(_norm_path(str(initial)), *pathsegments)
         self.__parent = self.__path.parent.as_posix()
         self._parent_name = self.__path.parent.name
         self._verify()
@@ -151,7 +152,7 @@ class Path(os.PathLike):
         return str(self.__path)
 
     def __repr__(self):
-        return self.path
+        return f"{self.__class__.__name__}({self.path})"
 
     def __str__(self):
         return self.path
@@ -217,7 +218,7 @@ class Path(os.PathLike):
 
     @property
     def suffix(self):
-        return self.__path.suffix
+        return '' if self.is_dir else self.__path.suffix
 
     @property
     def root(self):
@@ -292,7 +293,7 @@ class Path(os.PathLike):
         return self.__sep
 
     @classmethod
-    def get_current_dir(cls) -> 'Path':
+    def work_dir(cls) -> 'Path':
         """
         Get current working directory
         @return:
@@ -300,11 +301,15 @@ class Path(os.PathLike):
         return cls(os.getcwd())
 
     @classmethod
-    def change_current_dir(cls, to_):
+    def set_work_dir(cls, to_):
         os.chdir(to_)
 
-    def join(self, *args):
-        assert self.__path.suffix == '', f"join operation is only dir. full path received {self.path}"
+    def join(self, part, *others):
+        assert self.suffix == '', f"join operation is only dir. full path received {self.path}"
+        if isinstance(part, str):
+            args = (part, *others)
+        else:
+            args = (*part, *others)
         return self.__class__(self.__path.joinpath(*args).as_posix())
 
     def _shutil(self, command: str, **kwargs):
@@ -358,46 +363,67 @@ class Path(os.PathLike):
     def split(self, sep=None, max_split=-1):
         return self.path.rsplit(sep, max_split)
 
-    @classmethod
-    def list_dir(cls, path_: Union[str, 'Path'], only_name=False) -> List['Path']:
+    def list_dir(self, only_name=False) -> List['Path']:
         """
         Extension of the listdir function of module os.
 
-        The difference is that by default it returns the absolute path, but you can still only request the relative path by
-        setting only_relative_path to True.
+        The difference is that by default it returns the absolute path, but you can still only request the relative
+        path by setting only_relative_path to True.
 
         """
-        if not isinstance(path_, Path):
-            path_ = cls(path_)
+        assert isinstance(self, Path), f'{self} is not an instance of Path'
+        if not self.is_dir:
+            raise NotADirectoryError(f"check that the path '{self.path}' is correct")
+        try:
+            return [p.stem if only_name else p for p in map(self.join, os.listdir(self))]
+        except PermissionError as err:
+            logger.error(f"{err}")
+            return []
 
-        assert path_.is_dir, f"{path_} isn't dir."
-        return [p.stem if only_name else p for p in map(path_.join, os.listdir(path_))]
-
-    @classmethod
-    def list_files(cls, dir_path: Union[str, 'Path'], ext: str = None, contains_in_name: List = (),
+    def list_files(self, ext: str = None, contains_in_name: List = (),
                    not_contains_in_name=(),
-                   recursive=False) -> List['Path']:
+                   recursive=False, only_name=False, ignore_dirs=()) -> List['Path']:
+        """
+        List files on an dir or in dir tree for this use recursive=True
+
+
+        @param ext: filter by ext
+        @param contains_in_name: filter only contains
+        @param not_contains_in_name: filter only not contains
+        @param recursive: for tree dir
+        @param only_name: get only the name without extension if it is a file
+        @param ignore_dirs: name list of prohibited directories
+        @return: Path object list
+        """
+        assert isinstance(self, Path), f'{self} is not an instance of Path'
+        ignore_dirs = (ignore_dirs,) if isinstance(ignore_dirs, str) else tuple(ignore_dirs)
 
         ext = ext or ''
         files = []
-        for p in cls.list_dir(dir_path):
-            if p.is_dir and recursive:
-                files.extend(
-                        cls.list_files(p, ext=ext, contains_in_name=contains_in_name,
-                                       not_contains_in_name=not_contains_in_name,
-                                       recursive=recursive))
-                continue
-            if p.is_dir:
-                continue
-            if not (p.suffix == f'.{ext.strip(".")}' or ext == ''):
-                continue
-            if not_contains_in_name:
-                if any(map(p.stem.__contains__, not_contains_in_name)):
+        for p in self.list_dir():
+            try:
+                if p.is_dir and recursive and p.name not in ignore_dirs:
+                    _self = Path(p)  # because exceeded recursion Error
+                    files.extend(
+                            _self.list_files(ext=ext, contains_in_name=contains_in_name,
+                                             not_contains_in_name=not_contains_in_name,
+                                             recursive=recursive, only_name=False))
                     continue
-            if contains_in_name:
-                if not any(map(p.stem.__contains__, contains_in_name)):
+
+                if not p.is_file:
                     continue
-            files.append(p)
+                if ext and p.suffix != f'.{ext.strip(".")}':
+                    continue
+                if not_contains_in_name:
+                    if any(map(p.stem.__contains__, not_contains_in_name)):
+                        continue
+                if contains_in_name:
+                    if not any(map(p.stem.__contains__, contains_in_name)):
+                        continue
+            except Exception as err:
+                logger.error(err)
+                continue
+            files.append(p.stem if only_name else p)
         return files
 
 
@@ -410,7 +436,10 @@ class TempDir:
         self.__delete()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.path})"
+        return f"{self.__class__.__name__}({self.path.path})"
+
+    def __str__(self):
+        return self.path.path
 
     def __delete(self):
         self._tmpdir.cleanup()
@@ -426,7 +455,7 @@ class TempDir:
 
     @property
     def files(self):
-        return self.path.list_files(self.path, recursive=True)
+        return self.path.list_files(recursive=True)
 
     def __enter__(self, *args, **kwargs):
         return self
@@ -443,28 +472,7 @@ def clean_dir(path_: str):
     """
     Delete all files on dir
     """
-    content = Path.list_dir(path_)
+    content = Path(path_).list_dir()
     for p in content:
         p.rm(rm_tree=True)
     logger.info(f"{len(content)} files were removed")
-
-
-def listdir(path_: Union[str, Path], only_relative_path: bool = False) -> List[str]:
-    """
-    Extension of the listdir function of module os.
-
-    The difference is that by default it returns the absolute path, but you can still only request the relative path by
-    setting only_relative_path to True.
-
-    """
-    warnings.warn(f"This function will be deprecated in future versions. "
-                  f"Path.list_dir", DeprecationWarning, 2)
-    if not isinstance(path_, Path):
-        path_ = Path(path_)
-
-    assert path_.is_dir, f"{path_} isn't dir."
-    return [path_.join(p) if not only_relative_path else p for p in os.listdir(str(path_))]
-
-
-if __name__ == '__main__':
-    pass

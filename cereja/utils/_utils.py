@@ -44,9 +44,11 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
 
 logger = logging.getLogger(__name__)
 
+_DICT_ITEMS_TYPE = type({}.items())
+
 
 def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
-          max_batches: int = None) -> List:
+          max_batches: int = None) -> List[Union[Sequence, List, Tuple, Dict]]:
     """
 
     e.g:
@@ -78,8 +80,14 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     if batch_size is None and max_batches is None:
         return [data]
 
-    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray)) else copy(data)
-    _dict_temp_keys = [] if not isinstance(data, dict) else list(data)
+    # used to return the same data type
+    __parser = None
+
+    if isinstance(data, (dict, tuple, set)):
+        __parser = type(data)
+        data = data.items() if isinstance(data, dict) else data
+
+    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray, _DICT_ITEMS_TYPE)) else copy(data)
     if not batch_size or batch_size > len(data) or batch_size < 1:
         if isinstance(max_batches, (int, float)) and max_batches > 0:
             batch_size = ((len(data) // max_batches) + len(data) % max_batches) or len(data)
@@ -87,10 +95,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
             batch_size = len(data)
 
     if is_random:
-        if isinstance(data, dict):
-            random.shuffle(_dict_temp_keys)
-        else:
-            random.shuffle(data)
+        random.shuffle(data)
 
     if max_batches is None:
         max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
@@ -98,13 +103,10 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     batches = []
     for i in range(0, len(data), batch_size):
 
-        if isinstance(data, dict):
-            result = {key: data[key] for key in _dict_temp_keys[i: i + batch_size]}
-        else:
-            result = data[i:i + batch_size]
-            if fill_with is not None and len(result) < batch_size:
-                result += [fill_with] * (batch_size - len(result))
-        batches.append(result)
+        result = data[i:i + batch_size]
+        if fill_with is not None and len(result) < batch_size:
+            result += [fill_with] * (batch_size - len(result))
+        batches.append(__parser(result) if __parser is not None else result)
         max_batches -= 1
         if not max_batches:
             break
@@ -204,7 +206,7 @@ def can_do(obj: Any) -> List[str]:
     return sorted([i for i in filter(lambda attr: not attr.startswith('_'), dir(obj))])
 
 
-def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
+def sample(v: Sequence, k: int = None, is_random: bool = False) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
 
@@ -692,20 +694,35 @@ def _rescale_down(input_list, size):
         yield input_list[i]
 
 
-def _rescale_up(values, k, fill_with=None):
+def _rescale_up(values, k, fill_with=None, filling='inner'):
     size = len(values)
     assert size <= k, f'Error while resizing: {size} < {k}'
+
     clones = (math.ceil(abs(size - k) / size))
     refill_values = abs(k - size * clones)
+    if filling == 'pre':
+        for i in range(abs(k - size)):
+            yield fill_with if fill_with is not None else values[0]
+
     for value in values:
-        for i in range(clones):
-            yield value
+        # guarantees that the original value will be returned
+        yield value
+
+        if filling != 'inner':
+            continue
+
+        for i in range(clones - 1):  # -1 because last line.
+            # value original or fill_with.
+            yield fill_with if fill_with is not None else value
         if refill_values > 0:
             refill_values -= 1
             yield fill_with if fill_with is not None else value
         k -= 1
         if k < 0:
             break
+    if filling == 'post':
+        for i in range(abs(k - size)):
+            yield fill_with if fill_with is not None else values[-1]
 
 
 def _interpolate(values, k):
@@ -729,18 +746,27 @@ def _interpolate(values, k):
             yield values[previous_position]
         else:
             delta = position - previous_position
-            yield values[previous_position] + (values[next_position] - values[previous_position]) / (next_position - previous_position) * delta
+            yield values[previous_position] + (values[next_position] - values[previous_position]) / (
+                    next_position - previous_position) * delta
 
 
-def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, **kwargs) -> List[Any]:
+def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, fill_with=None, filling='inner') -> \
+        List[Any]:
     """
     Resizes a list of values
     eg.
         >>> import cereja as cj
-        >>> cj.rescale_values(values=list(range(100)), granularity=12)
+        >>> cj.rescale_values(values=list(range(100)),granularity=12)
         [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88]
-        >>> cj.rescale_values(values=list(range(5)), granularity=10)
+        >>> cj.rescale_values(values=list(range(5)),granularity=10)
         [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
+        >>> cj.rescale_values(values=list(range(5)),granularity=10, filling='pre')
+        [0, 0, 0, 0, 0, 0, 1, 2, 3, 4]
+        >>> cj.rescale_values(values=list(range(5)),granularity=10, filling='post')
+        [0, 1, 2, 3, 4, 4, 4, 4, 4, 4]
+
+        @note if you don't send any value for filling a value will be chosen arbitrarily depending on the filling type.
+
     If interpolation is set to True, then the resized values are calculated by interpolation, 
     otherwise they are sub- ou upsampled from the original list
 
@@ -748,8 +774,8 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
     @param values: Sequence of anything
     @param granularity: is a integer
     @param interpolation: is a boolean
-    @param kwargs:
-        fill_with: Any value
+    @param fill_with: only scale up, send any value for filling
+    @param filling: in case of scale up, you can define how the filling will be (pre, inner, post). 'inner' is default.
     @return: rescaled list of values.
     """
 
@@ -759,7 +785,7 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
         if len(values) >= granularity:
             result = list(_rescale_down(values, granularity))
         else:
-            result = list(_rescale_up(values, granularity, **kwargs))
+            result = list(_rescale_up(values, granularity, fill_with=fill_with, filling=filling))
 
     assert len(result) == granularity, f"Error while resizing the list size {len(result)} != {granularity}"
     return result
@@ -776,7 +802,7 @@ class Source:
 
     @property
     def source_code(self):
-        return self._source_code
+        return self._source_code.lstrip()
 
     @property
     def name(self):

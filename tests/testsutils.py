@@ -69,14 +69,33 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual(rescale_values(value, 21), expected)
         expected = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
         self.assertEqual(rescale_values(value, 22), expected)
-        expected = [0, 0, 'joab', 1, 1, 'joab', 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+        expected = [0, 'joab', 'joab', 1, 'joab', 'joab', 2, 'joab', 3, 'joab', 4, 'joab', 5, 'joab', 6, 'joab', 7,
+                    'joab', 8, 'joab', 9, 'joab']
+
         self.assertEqual(rescale_values(value, 22, fill_with='joab'), expected)
+
+        expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab',
+                    'joab', 'joab', 'joab', 'joab']
+
+        self.assertEqual(rescale_values(value, 22, fill_with='joab', filling='post'), expected)
+
+        expected = ['joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 0,
+                    1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        self.assertEqual(rescale_values(value, 22, fill_with='joab', filling='pre'), expected)
+
+        expected = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.assertEqual(rescale_values(value, 22, filling='pre'), expected)
+
+        expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
+        self.assertEqual(rescale_values(value, 22, filling='post'), expected)
 
         expected = [0, 1.8, 3.6, 5.4, 7.2, 9]
         self.assertEqual(rescale_values(value, 6, True), expected)
-        expected = [0, 0.5625, 1.125, 1.6875, 2.25, 2.8125, 3.375, 3.9375, 4.5, 5.0625, 5.625, 6.1875, 6.75, 7.3125, 7.875, 8.4375, 9]
+        expected = [0, 0.5625, 1.125, 1.6875, 2.25, 2.8125, 3.375, 3.9375, 4.5, 5.0625, 5.625, 6.1875, 6.75, 7.3125,
+                    7.875, 8.4375, 9]
         self.assertEqual(rescale_values(value, 17, True), expected)
-        
+
     def test_can_do(self):
         class _A:
             def _m1(self):
@@ -164,6 +183,28 @@ class UtilsTest(unittest.TestCase):
         expected = ((1, (1, 2, (3, 100, (1000, 30, (12, 3))), ((1, 2), (3, 4)), 4)), (2, (1, 2, 3, 4)), (3, (1, 2, 3)))
 
         self.assertEqual(utils.to_tuple(data), expected)
+
+    def test_chunk(self):
+        tests = [([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
+                 ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
+                 ([1, 2, 3, 4, 5, 6], 0, [[1, 2, 3, 4, 5, 6]]),
+                 ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 0, 0]]),
+                 ({'oi': 'amigo', 'tudo': 'bem'}, 1, [{'oi': 'amigo'}, {'tudo': 'bem'}]),
+                 ({'eu': 'gosto', 'do': 'cereja'}.items(), 1, [[('eu', 'gosto')], [('do', 'cereja')]]),
+                 (('eu', 'gosto', 'do', 'cereja'), 2, [('eu', 'gosto'), ('do', 'cereja')])
+                 ]
+
+        for test_value, items_per_batch, expected_value in tests:
+            print(test_value, items_per_batch, expected_value)
+            msg = f"""Test failed for values {test_value}"""
+            result = utils.chunk(test_value, batch_size=items_per_batch, fill_with=0)
+            self.assertEqual(result, expected_value, msg)
+
+        tests_raise = [
+            ([1, 2, 3, 4, 5, 6], 'sd', TypeError)
+        ]
+        for test_value, items_per_batch, expected_error in tests_raise:
+            self.assertRaises(expected_error, utils.chunk, test_value, items_per_batch)
 
 
 class CjTestTest(unittest.TestCase):
