@@ -31,6 +31,7 @@ import warnings
 from datetime import datetime
 from typing import List, Union
 
+from cereja import chunk
 from cereja.array import group_items_in_batches
 from pathlib import Path as Path_
 
@@ -475,7 +476,3 @@ def clean_dir(path_: str):
     for p in content:
         p.rm(rm_tree=True)
     logger.info(f"{len(content)} files were removed")
-
-
-if __name__ == '__main__':
-    pass

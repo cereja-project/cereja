@@ -100,7 +100,6 @@ if __name__ == '__main__':
             func_code = cj.Source(self.function)
             code = self._template.format(path=temp_dir.path, func_code=func_code.source_code, func_name=func_code.name, n_proc=self.n_proc)
             global_scope = self.global_scope if isinstance(self.global_scope, dict) else {}
-            # print(code)
 
             code_path = temp_dir.path.join('code.py')
             cj.FileIO.create(code_path, code).save()

@@ -802,7 +802,7 @@ class Source:
 
     @property
     def source_code(self):
-        return self._source_code
+        return self._source_code.lstrip()
 
     @property
     def name(self):
