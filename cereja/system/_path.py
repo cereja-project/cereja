@@ -471,7 +471,7 @@ def clean_dir(path_: str):
     """
     Delete all files on dir
     """
-    content = Path(path_).list()
+    content = Path(path_).list_dir()
     for p in content:
         p.rm(rm_tree=True)
     logger.info(f"{len(content)} files were removed")
