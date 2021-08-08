@@ -219,10 +219,7 @@ class _FileIO(_IFileIO, ABC):
                 raise NotImplementedError(cls._need_implement.get(attr).format(class_name=cls.__name__))
 
     def __repr__(self):
-        return f'{self._ext_without_point}<{self._path.name}>'
-
-    def __str__(self):
-        return f'{self._ext_without_point}<{self._path.name}>'
+        return f"File{self.__class__.__name__.replace('_', '')}({self._path.name})"
 
     def __setattr__(self, key, value):
         object.__setattr__(self, key, copy.copy(value))
@@ -371,7 +368,7 @@ class _FileIO(_IFileIO, ABC):
 
     def _load(self, mode=None, **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
-            logger.warning(f"I can't read this file. See class attribute <{self.__name__}._dont_read>")
+            logger.warning(f"I can't read this file. See class attribute <{self.__class__.__name__}._dont_read>")
             return
         mode = mode or self._get_mode('r')
         encoding = None if self._is_byte else 'utf-8'
@@ -919,33 +916,21 @@ class FileIO:
 
     @classmethod
     def load_files(cls, path_, ext=None, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
-                   recursive=False):
+                   recursive=False, ignore_dirs=()):
 
         ext = ext or ''
-        f_paths = Path(path_).list_files(ext=ext, contains_in_name=contains_in_name,
-                                         not_contains_in_name=not_contains_in_name, recursive=recursive)
+        f_paths = Path(path_).list_files(ext=ext,
+                                         contains_in_name=contains_in_name,
+                                         not_contains_in_name=not_contains_in_name,
+                                         recursive=recursive,
+                                         ignore_dirs=ignore_dirs)
         loaded = []
         for p in f_paths:
-            if recursive and p.is_dir:
-                loaded.extend(cls.load_files(path_=p, ext=ext, contains_in_name=contains_in_name,
-                                             not_contains_in_name=not_contains_in_name, take_empty=take_empty,
-                                             recursive=recursive))
-                continue
-            if not p.exists or p.is_dir:
-                continue
             file_ = cls.load(path_=p)
             if file_ is None:
                 continue
             if take_empty is True and file_.is_empty:
                 continue
-            if not (file_.ext == f'.{ext.strip(".")}' or ext == ''):
-                continue
-            if contains_in_name:
-                if not any(map(file_.name_without_ext.__contains__, contains_in_name)):
-                    continue
-            if not_contains_in_name:
-                if any(map(file_.name_without_ext.__contains__, not_contains_in_name)):
-                    continue
             loaded.append(file_)
         return loaded
 

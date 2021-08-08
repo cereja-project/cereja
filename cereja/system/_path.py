@@ -217,7 +217,7 @@ class Path(os.PathLike):
 
     @property
     def suffix(self):
-        return self.__path.suffix
+        return '' if self.is_dir else self.__path.suffix
 
     @property
     def root(self):
@@ -304,7 +304,7 @@ class Path(os.PathLike):
         os.chdir(to_)
 
     def join(self, part, *others):
-        assert self.__path.suffix == '', f"join operation is only dir. full path received {self.path}"
+        assert self.suffix == '', f"join operation is only dir. full path received {self.path}"
         if isinstance(part, str):
             args = (part, *others)
         else:
@@ -370,45 +370,58 @@ class Path(os.PathLike):
         path by setting only_relative_path to True.
 
         """
+        assert isinstance(self, Path), f'{self} is not an instance of Path'
         if not self.is_dir:
             raise NotADirectoryError(f"check that the path '{self.path}' is correct")
-        return [p.stem if only_name else p for p in map(self.join, os.listdir(self))]
+        try:
+            return [p.stem if only_name else p for p in map(self.join, os.listdir(self))]
+        except PermissionError as err:
+            logger.error(f"{err}")
+            return []
 
     def list_files(self, ext: str = None, contains_in_name: List = (),
                    not_contains_in_name=(),
-                   recursive=False, only_name=False) -> List['Path']:
+                   recursive=False, only_name=False, ignore_dirs=()) -> List['Path']:
         """
         List files on an dir or in dir tree for this use recursive=True
+
 
         @param ext: filter by ext
         @param contains_in_name: filter only contains
         @param not_contains_in_name: filter only not contains
         @param recursive: for tree dir
         @param only_name: get only the name without extension if it is a file
+        @param ignore_dirs: name list of prohibited directories
         @return: Path object list
         """
+        assert isinstance(self, Path), f'{self} is not an instance of Path'
+        ignore_dirs = (ignore_dirs,) if isinstance(ignore_dirs, str) else tuple(ignore_dirs)
 
         ext = ext or ''
         files = []
         for p in self.list_dir():
-            if p.is_dir and recursive:
-                _self = Path(p)  # because exceeded recursion Error
-                files.extend(
-                        _self.list_files(ext=ext, contains_in_name=contains_in_name,
-                                         not_contains_in_name=not_contains_in_name,
-                                         recursive=recursive, only_name=False))
-                continue
+            try:
+                if p.is_dir and recursive and p.name not in ignore_dirs:
+                    _self = Path(p)  # because exceeded recursion Error
+                    files.extend(
+                            _self.list_files(ext=ext, contains_in_name=contains_in_name,
+                                             not_contains_in_name=not_contains_in_name,
+                                             recursive=recursive, only_name=False))
+                    continue
 
-            if not p.is_file:
-                continue
-            if ext and p.suffix != f'.{ext.strip(".")}':
-                continue
-            if not_contains_in_name:
-                if any(map(p.stem.__contains__, not_contains_in_name)):
+                if not p.is_file:
                     continue
-            if contains_in_name:
-                if not any(map(p.stem.__contains__, contains_in_name)):
+                if ext and p.suffix != f'.{ext.strip(".")}':
                     continue
+                if not_contains_in_name:
+                    if any(map(p.stem.__contains__, not_contains_in_name)):
+                        continue
+                if contains_in_name:
+                    if not any(map(p.stem.__contains__, contains_in_name)):
+                        continue
+            except Exception as err:
+                logger.error(err)
+                continue
             files.append(p.stem if only_name else p)
         return files
 
@@ -422,7 +435,10 @@ class TempDir:
         self.__delete()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.path})"
+        return f"{self.__class__.__name__}({self.path.path})"
+
+    def __str__(self):
+        return self.path.path
 
     def __delete(self):
         self._tmpdir.cleanup()

@@ -28,14 +28,14 @@ import logging
 
 from cereja.array import group_items_in_batches, remove_duplicate_items, flatten, \
     array_gen, get_shape, Matrix
-from cereja.utils._utils import is_iterable, is_sequence
+from cereja.utils import is_iterable, is_sequence
 from cereja.array import prod
 from cereja.mathtools import theta_angle
 from cereja.config.cj_types import Number
 from cereja.mltools import Corpus
 from cereja.mltools.pln import LanguageData
 from cereja.display import State, Progress
-from cereja.system._path import Path
+from cereja.system import Path, TempDir, mkdir
 from cereja.system.unicode import Unicode
 from cereja.utils import CjTest
 from cereja.hashtools import base64_decode, base64_encode, is_base64, md5
@@ -160,6 +160,13 @@ class PathTest(unittest.TestCase):
         self.assertTrue(p == p_test)
         self.assertListEqual(Path(__file__).parent.list_dir(only_name=True),
                              list(map(lambda x: x.rsplit('.')[0], os.listdir(Path(__file__).parent))))
+
+        with TempDir() as tmp_dir:
+            tmp_dir = Path(tmp_dir)
+            suffix_case = tmp_dir.join('test.suffix')
+            self.assertEqual(suffix_case.suffix, '.suffix')
+            mkdir(suffix_case)
+            self.assertEqual(suffix_case.suffix, '')
 
 
 class UnicodeToolTestCase(unittest.TestCase):
