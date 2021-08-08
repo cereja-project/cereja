@@ -74,9 +74,10 @@ class UtilsTest(unittest.TestCase):
 
         expected = [0, 1.8, 3.6, 5.4, 7.2, 9]
         self.assertEqual(rescale_values(value, 6, True), expected)
-        expected = [0, 0.5625, 1.125, 1.6875, 2.25, 2.8125, 3.375, 3.9375, 4.5, 5.0625, 5.625, 6.1875, 6.75, 7.3125, 7.875, 8.4375, 9]
+        expected = [0, 0.5625, 1.125, 1.6875, 2.25, 2.8125, 3.375, 3.9375, 4.5, 5.0625, 5.625, 6.1875, 6.75, 7.3125,
+                    7.875, 8.4375, 9]
         self.assertEqual(rescale_values(value, 17, True), expected)
-        
+
     def test_can_do(self):
         class _A:
             def _m1(self):
@@ -170,6 +171,9 @@ class UtilsTest(unittest.TestCase):
                  ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
                  ([1, 2, 3, 4, 5, 6], 0, [[1, 2, 3, 4, 5, 6]]),
                  ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 0, 0]]),
+                 ({'oi': 'amigo', 'tudo': 'bem'}, 1, [{'oi': 'amigo'}, {'tudo': 'bem'}]),
+                 ({'eu': 'gosto', 'do': 'cereja'}.items(), 1, [[('eu', 'gosto')], [('do', 'cereja')]]),
+                 (('eu', 'gosto', 'do', 'cereja'), 2, [('eu', 'gosto'), ('do', 'cereja')])
                  ]
 
         for test_value, items_per_batch, expected_value in tests:
@@ -179,8 +183,8 @@ class UtilsTest(unittest.TestCase):
             self.assertEqual(result, expected_value, msg)
 
         tests_raise = [
-                       ([1, 2, 3, 4, 5, 6], 'sd', TypeError)
-                       ]
+            ([1, 2, 3, 4, 5, 6], 'sd', TypeError)
+        ]
         for test_value, items_per_batch, expected_error in tests_raise:
             self.assertRaises(expected_error, utils.chunk, test_value, items_per_batch)
 

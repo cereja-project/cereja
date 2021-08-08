@@ -45,8 +45,11 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
 logger = logging.getLogger(__name__)
 
 
+_DICT_ITEMS_TYPE = type({}.items())
+
+
 def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
-          max_batches: int = None) -> List[List]:
+          max_batches: int = None) -> List[Union[Sequence, List, Tuple, Dict]]:
     """
 
     e.g:
@@ -78,8 +81,14 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     if batch_size is None and max_batches is None:
         return [data]
 
-    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray)) else copy(data)
-    _dict_temp_keys = [] if not isinstance(data, dict) else list(data)
+    # used to return the same data type
+    __parser = None
+
+    if isinstance(data, (dict, tuple, set)):
+        __parser = type(data)
+        data = data.items() if isinstance(data, dict) else data
+
+    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray, _DICT_ITEMS_TYPE)) else copy(data)
     if not batch_size or batch_size > len(data) or batch_size < 1:
         if isinstance(max_batches, (int, float)) and max_batches > 0:
             batch_size = ((len(data) // max_batches) + len(data) % max_batches) or len(data)
@@ -87,10 +96,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
             batch_size = len(data)
 
     if is_random:
-        if isinstance(data, dict):
-            random.shuffle(_dict_temp_keys)
-        else:
-            random.shuffle(data)
+        random.shuffle(data)
 
     if max_batches is None:
         max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
@@ -98,13 +104,10 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     batches = []
     for i in range(0, len(data), batch_size):
 
-        if isinstance(data, dict):
-            result = {key: data[key] for key in _dict_temp_keys[i: i + batch_size]}
-        else:
-            result = data[i:i + batch_size]
-            if fill_with is not None and len(result) < batch_size:
-                result += [fill_with] * (batch_size - len(result))
-        batches.append(result)
+        result = data[i:i + batch_size]
+        if fill_with is not None and len(result) < batch_size:
+            result += [fill_with] * (batch_size - len(result))
+        batches.append(__parser(result) if __parser is not None else result)
         max_batches -= 1
         if not max_batches:
             break
@@ -204,7 +207,7 @@ def can_do(obj: Any) -> List[str]:
     return sorted([i for i in filter(lambda attr: not attr.startswith('_'), dir(obj))])
 
 
-def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
+def sample(v: Sequence, k: int = None, is_random: bool = False) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
 
@@ -729,7 +732,8 @@ def _interpolate(values, k):
             yield values[previous_position]
         else:
             delta = position - previous_position
-            yield values[previous_position] + (values[next_position] - values[previous_position]) / (next_position - previous_position) * delta
+            yield values[previous_position] + (values[next_position] - values[previous_position]) / (
+                    next_position - previous_position) * delta
 
 
 def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, **kwargs) -> List[Any]:
