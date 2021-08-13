@@ -407,7 +407,7 @@ class Path(os.PathLike):
                     files.extend(
                             _self.list_files(ext=ext, contains_in_name=contains_in_name,
                                              not_contains_in_name=not_contains_in_name,
-                                             recursive=recursive, only_name=False))
+                                             recursive=recursive, only_name=only_name))
                     continue
 
                 if not p.is_file:
