@@ -31,9 +31,9 @@ from cereja.config.cj_types import Number, Shape
 import logging
 
 __all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_shape',
-           'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'rand_n', 'rand_uniform', 'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
+           'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'rand_n', 'rand_uniform',
+           'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
            'sub', 'prod']
-
 
 from cereja.utils.decorators import depreciation
 from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk
@@ -345,11 +345,20 @@ def sub(sequence: Sequence[Number]) -> Number:
     return reduce((lambda x, y: x - y), sequence)
 
 
+def _div(a, b):
+    if not isinstance(a, (int, float)) and not isinstance(b, (int, float)):
+        temp_res = []
+        for _a, _b in zip(a, b):
+            temp_res.append(_div(_a, _b))
+        return temp_res
+    return a / b
+
+
 def div(sequence: Sequence[Number]) -> Number:
     if not is_sequence(sequence):
         raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
 
-    return reduce((lambda x, y: x / y), sequence)
+    return reduce(_div, sequence)
 
 
 def dotproduct(vec1, vec2):
@@ -404,8 +413,12 @@ class Matrix(object):
         return self.__mul__(other)
 
     def __truediv__(self, other):
+        if isinstance(other, (float, int)):
+            other = Matrix(array_gen(self.shape, other))
         assert self.shape == get_shape(other), "the shape must be the same"
-        return Matrix([list(map(div, zip(*t))) for t in zip(self, other)])
+        result = Matrix([list(map(div, zip(*t))) for t in zip(self, other)])
+        assert self.shape == result.shape, "the shape must be the same"
+        return result
 
     def __iadd__(self, other):
         return Matrix(list(map(lambda x: x + other, self.flatten())))
