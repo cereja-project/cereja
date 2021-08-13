@@ -448,13 +448,17 @@ class _StateAwaiting(_StateLoading):
     def _clean(self, result):
         return result.strip(self.left_right_delimiter)
 
-    def display(self, *args, **kwargs) -> str:
-        result = self._clean(super().display(*args, **kwargs))
-        return f"Awaiting{result}"
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        result = self._clean(
+                super().display(current_value=current_value, max_value=max_value, current_percent=current_percent,
+                                time_it=time_it,
+                                n_times=n_times))
+        return f"{time_format(time_it)} - Awaiting{result}"
 
-    def done(self, *args, **kwargs) -> str:
-        result = self._clean(super().done(*args, **kwargs))
-        return f"Awaiting{result} Done!"
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
+        return f"Total Time: {time_format(time_it)}"
 
 
 class _StateBar(State):
@@ -603,7 +607,10 @@ class Progress:
         return tuple(map(lambda stt: stt.__class__.__name__, self._states))
 
     def _get_done_state(self, **kwargs):
-        result = list(map(lambda state: state.done(**kwargs), self._states))
+        if self._current_value == 0:
+            result = [self.__awaiting_state.done(**kwargs)]
+        else:
+            result = list(map(lambda state: state.done(**kwargs), self._states))
         done_msg = f"Done! {self.__done_unicode}"
         done_msg = self._console.format(done_msg, 'green')
         result.append(done_msg)
@@ -709,7 +716,8 @@ class Progress:
         while self._started:
             if (self._awaiting_update and self._current_value != last_value) or (not self._show and not self._was_done):
                 n_times += 1
-                self._console.replace_last_msg(self.__awaiting_state.display(0, 0, 0, 0, n_times=n_times))
+                self._console.replace_last_msg(
+                    self.__awaiting_state.display(0, 0, 0, time_it=self.time_it, n_times=n_times))
                 time.sleep(0.5)
             if not self._awaiting_update or self._show:
                 self._show_progress(self._current_value)
