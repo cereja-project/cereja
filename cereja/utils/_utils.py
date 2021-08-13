@@ -726,6 +726,10 @@ def _rescale_up(values, k, fill_with=None, filling='inner'):
 
 
 def _interpolate(values, k):
+    if isinstance(values, list):
+        from ..array import Matrix
+        # because true_div ...
+        values = Matrix(values)
     size = len(values)
 
     first_position = 0
