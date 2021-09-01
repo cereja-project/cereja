@@ -616,7 +616,7 @@ class _CsvIO(_FileIO):
         self._str_to_literal = str_to_literal
         self._fill_with = fill_with
         self._n_values = 0
-        self._has_col = has_col
+        self._has_col = has_col or cols
         super().__init__(*args, **kwargs)
 
     @property
@@ -670,7 +670,7 @@ class _CsvIO(_FileIO):
         if not is_sequence(data):
             data = [data]
         for row in data:
-            if not self._cols:
+            if not self._cols and self._has_col:
                 # set cols on first iter
                 self._cols = fill(value=list(row), max_size=len(row), with_=fill_with)
                 continue
