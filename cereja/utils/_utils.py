@@ -215,12 +215,7 @@ def sample(v: Sequence, k: int = None, is_random: bool = False) -> Union[list, d
     @param is_random: default False
     @return: sample iterable
     """
-    result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)
-    if len(result) == 1:
-        result = result[0]
-    if isinstance(v, set):
-        result = set(result)
-    return result
+    return chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
 
 
 def type_table_of(o: Union[list, tuple, dict]):
