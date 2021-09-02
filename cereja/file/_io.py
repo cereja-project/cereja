@@ -527,8 +527,9 @@ class _JsonIO(_FileIO):
     indent = False
     ensure_ascii = False
 
-    def __init__(self, path_: Path, indent=False, **kwargs):
+    def __init__(self, path_: Path, indent=False, string_eval=True, **kwargs):
         self.indent = indent
+        self.string_eval = string_eval
         if 'ensure_ascii' in kwargs:
             self.ensure_ascii = kwargs.pop('ensure_ascii')
         super().__init__(path_, **kwargs)
@@ -538,7 +539,7 @@ class _JsonIO(_FileIO):
         return {string_to_literal(k): string_to_literal(v) for k, v in obj.items()}
 
     def _parse_fp(self, fp: TextIO) -> dict:
-        return json.load(fp, object_hook=self._object_hook)
+        return json.load(fp, object_hook=self._object_hook if self.string_eval else None)
 
     def _save_fp(self, fp):
         json.dump(self._data, fp, indent=4 if self.indent else None, ensure_ascii=self.ensure_ascii)
@@ -556,7 +557,7 @@ class _JsonIO(_FileIO):
         if isinstance(data, dict):
             return data
         elif isinstance(data, (str, bytes)):
-            return json.loads(data, object_hook=self._object_hook)
+            return json.loads(data, object_hook=self._object_hook if self.string_eval else None)
         else:
             raise TypeError(f"{type(data)} isn't valid.")
 

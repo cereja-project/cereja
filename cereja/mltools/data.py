@@ -317,7 +317,7 @@ class Tokenizer:
 
     @classmethod
     def load_from_json(cls, path_: str):
-        data = FileIO.load(path_)
+        data = FileIO.load(path_, string_eval=False)
         return cls(data.data, load_mode=True)
 
     def replace_unks(self, sentence: str, hash_):
