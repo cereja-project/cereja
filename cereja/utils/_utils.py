@@ -76,7 +76,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     @return: list of batches
     """
 
-    assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
+    assert is_iterable(data) and len(data) > 0, f"Chunk isn't possible, because value {data} isn't valid."
     if batch_size is None and max_batches is None:
         return [data]
 
@@ -215,12 +215,7 @@ def sample(v: Sequence, k: int = None, is_random: bool = False) -> Union[list, d
     @param is_random: default False
     @return: sample iterable
     """
-    result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)
-    if len(result) == 1:
-        result = result[0]
-    if isinstance(v, set):
-        result = set(result)
-    return result
+    return chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
 
 
 def type_table_of(o: Union[list, tuple, dict]):

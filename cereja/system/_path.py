@@ -27,12 +27,10 @@ import random
 import shutil
 import tempfile
 import time
-import warnings
 from datetime import datetime
 from typing import List, Union
 
-from cereja import chunk
-from cereja.array import group_items_in_batches
+from ..array import group_items_in_batches
 from pathlib import Path as Path_
 
 logger = logging.getLogger(__name__)

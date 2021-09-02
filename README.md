@@ -218,12 +218,7 @@ tokenizer = cj.Tokenizer(text, use_unk=True)
 token_sequence, hash_ = tokenizer.encode('meu nome é Neymar Júnior')
 # Output -> [([10, 12, 11, 0, 1], 'eeb755960ce70c')]
 
-decoded_sequence = tokenizer.decode(token_sequence)
-# Output -> ['meu', 'nome', 'é', '{0}', '{1}']
-
-decoded_sequence = ' '.join(decoded_sequence)
-
-tokenizer.replace_unks(decoded_sequence, hash_)
+decoded_sequence = tokenizer.decode(token_sequence, hash_=hash_)
 # Output -> 'meu nome é Neymar Júnior'
 
 ```

@@ -527,14 +527,19 @@ class _JsonIO(_FileIO):
     indent = False
     ensure_ascii = False
 
-    def __init__(self, path_: Path, indent=False, **kwargs):
+    def __init__(self, path_: Path, indent=False, string_eval=True, **kwargs):
         self.indent = indent
+        self.string_eval = string_eval
         if 'ensure_ascii' in kwargs:
             self.ensure_ascii = kwargs.pop('ensure_ascii')
         super().__init__(path_, **kwargs)
 
+    @staticmethod
+    def _object_hook(obj):
+        return {string_to_literal(k): string_to_literal(v) for k, v in obj.items()}
+
     def _parse_fp(self, fp: TextIO) -> dict:
-        return json.load(fp)
+        return json.load(fp, object_hook=self._object_hook if self.string_eval else None)
 
     def _save_fp(self, fp):
         json.dump(self._data, fp, indent=4 if self.indent else None, ensure_ascii=self.ensure_ascii)
@@ -552,7 +557,7 @@ class _JsonIO(_FileIO):
         if isinstance(data, dict):
             return data
         elif isinstance(data, (str, bytes)):
-            return json.loads(data)
+            return json.loads(data, object_hook=self._object_hook if self.string_eval else None)
         else:
             raise TypeError(f"{type(data)} isn't valid.")
 
@@ -616,7 +621,7 @@ class _CsvIO(_FileIO):
         self._str_to_literal = str_to_literal
         self._fill_with = fill_with
         self._n_values = 0
-        self._has_col = has_col
+        self._has_col = has_col or cols
         super().__init__(*args, **kwargs)
 
     @property
@@ -670,7 +675,7 @@ class _CsvIO(_FileIO):
         if not is_sequence(data):
             data = [data]
         for row in data:
-            if not self._cols:
+            if not self._cols and self._has_col:
                 # set cols on first iter
                 self._cols = fill(value=list(row), max_size=len(row), with_=fill_with)
                 continue

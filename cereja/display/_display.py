@@ -290,8 +290,9 @@ class _ConsoleBase(metaclass=ABC):
 
     def _normalize_format(self, s):
         for color_name in self.__color_map:
-            s = s.replace(f'end{color_name}', 'default')
-        s = s.replace('  ', ' ')
+            s = s.replace('{end%s}' % color_name, self.__color_map['default'])
+            s = s.replace('{%s}' % color_name, self.__color_map[color_name])
+        s = s.replace('  ', ' ') + self.__color_map['default']
         return s
 
     def parse(self, msg, title=None):
@@ -303,13 +304,7 @@ class _ConsoleBase(metaclass=ABC):
         :param s:
         :return:
         """
-        s = self._normalize_format(s)
-        try:
-            s = f'{s}'.format_map(self.__color_map)
-            return s
-        except KeyError as err:
-            self.error(f"Color {err} not found.")
-        return s
+        return self._normalize_format(s)
 
     def format(self, s: str, color: str):
         if color == "random":
@@ -318,8 +313,7 @@ class _ConsoleBase(metaclass=ABC):
             raise ValueError(
                     f"Color {repr(color)} not found. Choose an available color"
                     f" [red, green, yellow, blue, magenta and cyan].")
-        s = self.template_format(s)
-        return f"{self._color_map[color]}{s}{self._color_map[color]}"
+        return f"{self._color_map[color]}{s}{self._color_map['default']}"
 
     def random_color(self, text: str):
         color = random.choice(list(self.__color_map))
@@ -559,7 +553,8 @@ class Progress:
     _console = console
     __current_prog = None
 
-    def __init__(self, name="Progress", max_value: int = 100, states=('value', 'bar', 'percent', 'time')):
+    def __init__(self, sequence=None, name="Progress", max_value: int = 100,
+                 states=('value', 'bar', 'percent', 'time')):
         # fix me
         if self.__class__.__current_prog:
             self.__class__.__current_prog.stop()
@@ -579,6 +574,8 @@ class Progress:
         self._was_done = False
         self._err = False
         self.__built = True
+        if sequence is not None:
+            self.__call__(sequence)
 
     @property
     def name(self):
@@ -717,7 +714,7 @@ class Progress:
             if (self._awaiting_update and self._current_value != last_value) or (not self._show and not self._was_done):
                 n_times += 1
                 self._console.replace_last_msg(
-                    self.__awaiting_state.display(0, 0, 0, time_it=self.time_it, n_times=n_times))
+                        self.__awaiting_state.display(0, 0, 0, time_it=self.time_it, n_times=n_times))
                 time.sleep(0.5)
             if not self._awaiting_update or self._show:
                 self._show_progress(self._current_value)

@@ -38,7 +38,7 @@ class TokenizerTest(unittest.TestCase):
                                     tokenizer._item_to_index['tranquilo']]]
             self.assertEqual(tokenizer.last_index, 14)
             self.assertEqual(encoded, valid_encode_tokens)
-            decoded = ' '.join(tokenizer.decode(encoded[0]))
+            decoded = tokenizer.decode(encoded[0])
             self.assertEqual(decoded, to_encode)
             temp_file = Path(tempdir).join('tokenizer.json')
             tokenizer.to_json(temp_file)
@@ -48,7 +48,7 @@ class TokenizerTest(unittest.TestCase):
             encoded = tokenizer.encode([to_encode])
             self.assertEqual(tokenizer.last_index, 14)
             self.assertEqual(encoded, valid_encode_tokens)
-            decoded = ' '.join(tokenizer.decode(encoded[0]))
+            decoded = tokenizer.decode(encoded[0])
             self.assertEqual(decoded, to_encode)
 
 

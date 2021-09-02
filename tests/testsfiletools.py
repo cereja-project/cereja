@@ -9,6 +9,7 @@ from cereja.display import console
 
 class FileIOTest(unittest.TestCase):
     data = None
+    load_kwargs = {}
 
     @property
     def name(self):
@@ -28,7 +29,7 @@ class FileIOTest(unittest.TestCase):
             self.file.set_path(Path(tempdir).join(self.file.name))
             data_before_save = self.file.data
             self.file.save(exist_ok=True)
-            file = FileIO.load(self.file.path)
+            file = FileIO.load(self.file.path, **self.load_kwargs)
             self.assertTrue(file.path.exists, msg="File don't exist.")
             self.assertEqual(file.data, data_before_save, msg='Data corrupted')
             file.delete()
@@ -106,6 +107,7 @@ class FileIOJsonTest(FileIOTest):
 class FileCsvTest(FileIOTest):
     data = [[1, 2, 3]]
     cols = ['col1', 'col2', 'col3']
+    load_kwargs = {'has_col': True}
 
     def create(self):
         return FileIO.csv('test.csv', data=self.data, creation_mode=True, cols=self.cols)
