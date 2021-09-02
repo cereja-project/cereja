@@ -559,7 +559,7 @@ class Progress:
     _console = console
     __current_prog = None
 
-    def __init__(self, name="Progress", max_value: int = 100, states=('value', 'bar', 'percent', 'time')):
+    def __init__(self, sequence=None, name="Progress", max_value: int = 100, states=('value', 'bar', 'percent', 'time')):
         # fix me
         if self.__class__.__current_prog:
             self.__class__.__current_prog.stop()
@@ -579,6 +579,8 @@ class Progress:
         self._was_done = False
         self._err = False
         self.__built = True
+        if sequence is not None:
+            self.__call__(sequence)
 
     @property
     def name(self):
