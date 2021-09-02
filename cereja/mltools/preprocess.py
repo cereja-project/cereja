@@ -139,7 +139,9 @@ def preprocess(text: str, is_destructive: bool = False, is_lower: bool = None, i
     text = remove_non_language_elements(text)
     if is_destructive or is_remove_accent:
         text = accent_remove(text)
-    text = separate(text)
+
     if is_destructive or is_remove_punctuation:
         text = remove_punctuation(text)
-    return remove_extra_chars(text)  # remove whitespaces
+    else:
+        text = separate(text)
+    return text
