@@ -533,8 +533,12 @@ class _JsonIO(_FileIO):
             self.ensure_ascii = kwargs.pop('ensure_ascii')
         super().__init__(path_, **kwargs)
 
+    @staticmethod
+    def _object_hook(obj):
+        return {string_to_literal(k): string_to_literal(v) for k, v in obj.items()}
+
     def _parse_fp(self, fp: TextIO) -> dict:
-        return json.load(fp, object_hook=lambda x: {string_to_literal(k): string_to_literal(v) for k, v in x.items()})
+        return json.load(fp, object_hook=self._object_hook)
 
     def _save_fp(self, fp):
         json.dump(self._data, fp, indent=4 if self.indent else None, ensure_ascii=self.ensure_ascii)
@@ -552,7 +556,7 @@ class _JsonIO(_FileIO):
         if isinstance(data, dict):
             return data
         elif isinstance(data, (str, bytes)):
-            return json.loads(data, object_hook=lambda x: (string_to_literal(x[0]), string_to_literal(x[1])))
+            return json.loads(data, object_hook=self._object_hook)
         else:
             raise TypeError(f"{type(data)} isn't valid.")
 
