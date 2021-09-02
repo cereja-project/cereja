@@ -76,7 +76,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     @return: list of batches
     """
 
-    assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
+    assert is_iterable(data) and len(data) > 0, f"Chunk isn't possible, because value {data} isn't valid."
     if batch_size is None and max_batches is None:
         return [data]
 
