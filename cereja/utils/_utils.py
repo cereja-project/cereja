@@ -370,10 +370,10 @@ def list_methods(klass) -> List[str]:
     return methods
 
 
-def string_to_literal(val: str):
-    if isinstance(val, str):
+def string_to_literal(val: Union[str, bytes]):
+    if isinstance(val, (str, bytes)):
         try:
-            return ast.literal_eval(val)
+            return eval(val)
         except:
             pass
     return val
