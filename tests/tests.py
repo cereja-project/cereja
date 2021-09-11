@@ -27,7 +27,7 @@ import unittest
 import logging
 
 from cereja.array import group_items_in_batches, remove_duplicate_items, flatten, \
-    array_gen, get_shape, Matrix
+    array_gen, get_shape, Matrix, reshape
 from cereja.utils import is_iterable, is_sequence, chunk
 from cereja.array import prod
 from cereja.mathtools import theta_angle
@@ -115,6 +115,11 @@ class UtilsTestCase(unittest.TestCase):
             self.assertEqual(sequence_length, prod(shape_received), msg=f"array shape {shape_received} is inconsistent")
             self.assertEqual(shape_received, expected_shape)
 
+    def test_reshape(self):
+        data = [[1, 2, 3]] * 4
+        expected = [[[[1], [2], [3]]], [[[1], [2], [3]]], [[[1], [2], [3]]], [[[1], [2], [3]]]]
+        self.assertListEqual(reshape(data, (4, 1, 3, 1)), expected)
+
     def test_randn(self):
         logger.warning("Awaiting tests!")
 
@@ -135,7 +140,7 @@ class PathTest(unittest.TestCase):
         self.assertTrue(p.parent.name, 'test')
         self.assertTrue(p == p_test)
         self.assertTrue('sanity' in p)
-        p = p + ['con', 'cat']
+        p = p + ['/con/', 'cat']
         p_test = Path('cereja/test/sanity').join('con', 'cat')
         self.assertEqual(p_test.parts[-2:], ('con', 'cat'))
         self.assertTrue(p == p_test)
