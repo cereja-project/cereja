@@ -308,7 +308,7 @@ class Path(os.PathLike):
             args = (part, *others)
         else:
             args = (*part, *others)
-        return self.__class__(self.__path.joinpath(*args).as_posix())
+        return self.__class__(self.__path.joinpath(*map(lambda p: p.lstrip('/\\'), args)).as_posix())
 
     def _shutil(self, command: str, **kwargs):
         if not self.exists:
