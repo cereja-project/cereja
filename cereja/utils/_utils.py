@@ -373,7 +373,7 @@ def list_methods(klass) -> List[str]:
 def string_to_literal(val: Union[str, bytes]):
     if isinstance(val, (str, bytes)):
         try:
-            return eval(val)
+            return ast.literal_eval(val)
         except:
             pass
     return val

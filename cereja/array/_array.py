@@ -33,10 +33,10 @@ import logging
 __all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_shape',
            'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'rand_n', 'rand_uniform',
            'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
-           'sub', 'prod']
+           'sub', 'prod', 'reshape']
 
 from cereja.utils.decorators import depreciation
-from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk
+from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, rescale_values
 
 logger = logging.getLogger(__name__)
 
@@ -99,15 +99,15 @@ def get_shape_recursive(sequence: Sequence[Any], wki: Tuple[int, ...] = None) ->
 
 
 def reshape(sequence: Sequence, shape):
-    """
-    [!] need development [!]
+    sequence = flatten(sequence)
 
-    :param sequence:
-    :param shape:
-    :return:
-    """
+    expected_size = prod(shape)
+    current_size = len(sequence)
 
-    return NotImplementedError
+    assert current_size == expected_size, f'cannot reshape array of size {current_size} into shape {shape}'
+    for batch in shape[::-1]:
+        sequence = chunk(sequence, batch_size=batch)
+    return sequence[0]
 
 
 def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> List[Union[float, Any]]:
@@ -503,7 +503,7 @@ class Matrix(object):
         return sum(flattened) / len(flattened)
 
     def reshape(self, shape: Shape):
-        return Matrix(array_gen(shape, self.flatten().to_list()))
+        return Matrix(reshape(self, shape))
 
     @staticmethod
     def arange(*args):
