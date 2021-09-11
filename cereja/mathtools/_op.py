@@ -22,9 +22,11 @@ SOFTWARE.
 import math
 from typing import Tuple
 
+from ..array import flatten, get_shape
+from ..utils import is_sequence, chunk
 from cereja.config.cj_types import Number
 
-__all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle', 'distance_between_points']
+__all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle', 'distance_between_points', 'theta_from_array']
 
 
 def imc(weight: float, height: float) -> Tuple[float, str]:
@@ -61,7 +63,13 @@ def percent(from_: Number, to: Number, ndigits=2) -> Number:
     return round((from_ / to) * 100, ndigits)
 
 
-def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
+def pow_(x, y=2):
+    if not is_sequence(x):
+        x = (x,)
+    return [math.pow(i, y) for i in x]
+
+
+def theta_angle(u: Tuple[float, float], v: Tuple[float, float], degrees=True) -> float:
     """
     Calculates and returns theta angle between two vectors
 
@@ -71,12 +79,21 @@ def theta_angle(u: Tuple[float, float], v: Tuple[float, float]) -> float:
     >>> theta_angle(u, v)
     135.0
     """
-    x1, y1 = u
-    x2, y2 = v
-    return math.degrees(math.acos((x1 * x2 + y1 * y2) / (math.sqrt(x1 ** 2 + y1 ** 2) * math.sqrt(x2 ** 2 + y2 ** 2))))
+    try:
+        acos = math.acos(sum(an * vn for an, vn in zip(u, v)) / (math.sqrt(sum(pow_(u))) * math.sqrt(sum(pow_(v)))))
+    except ValueError:
+        acos = float('NaN')
+    return math.degrees(acos) if degrees else acos
+
+
+def theta_from_array(a, b, degrees=True):
+    s = get_shape(a)[-1]
+    a = flatten(a)
+    b = flatten(b)
+    a = chunk(a, s)
+    b = chunk(b, s)
+    return [theta_angle(u, v, degrees=degrees) for u, v in zip(a, b)]
 
 
 def distance_between_points(u: Tuple[float, float], v: Tuple[float, float]):
-    x1, y1 = u
-    x2, y2 = v
-    return math.sqrt(((x2 - x1) ** 2) + ((y2 - y1) ** 2))
+    return math.sqrt(sum(map(lambda x: (x[0]-x[-1])**2, zip(u, v))))
