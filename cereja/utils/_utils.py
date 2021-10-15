@@ -31,6 +31,7 @@ import logging
 import itertools
 from copy import copy
 import inspect
+from collections import defaultdict
 
 # Needed init configs
 from cereja.config.cj_types import ClassType, FunctionType, Number
@@ -40,7 +41,7 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
            'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
-           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple']
+           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len']
 
 logger = logging.getLogger(__name__)
 
@@ -303,6 +304,25 @@ def invert_dict(dict_: Union[dict, set]) -> dict:
             _invert_append(new_dict, value, key)
 
     return new_dict
+
+
+def group_by(values, fn) -> dict:
+    """
+    group items by result of fn (function)
+
+    eg.
+    >>> import cereja as cj
+    >>> values = ['joab', 'leite', 'da', 'silva', 'Neto', 'você']
+    >>> cj.group_by(values, lambda x: 'N' if x.lower().startswith('n') else 'OTHER')
+    # {'OTHER': ['joab', 'leite', 'da', 'silva', 'você'], 'N': ['Neto']}
+
+    @param values: list of values
+    @param fn: a function
+    """
+    d = defaultdict(list)
+    for el in values:
+        d[fn(el)].append(el)
+    return dict(d)
 
 
 def import_string(dotted_path):
@@ -872,6 +892,11 @@ def list_to_tuple(obj):
             i = dict_to_tuple(i)
         result.append(i)
     return tuple(result)
+
+
+def dict_values_len(obj, max_len=None, min_len=None, take_len=False):
+    return {i: len(obj[i]) if take_len else obj[i] for i in obj if
+            (max_len is None or len(obj[i]) <= max_len) and (min_len is None or len(obj[i]) >= min_len)}
 
 
 def dict_to_tuple(obj):
