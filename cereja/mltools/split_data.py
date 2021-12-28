@@ -20,15 +20,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import warnings
-
-from cereja import FileIO
-from cereja.array import get_cols
-from cereja.mltools.pln import LanguageData
 import random
 import csv
-from cereja.system import Path
 
-__all__ = ['Corpus']
+from .. import file as cj_file
+from .. import array as cj_array
+from cereja.mltools.pln import LanguageData
+from cereja.system import Path
+from .. import utils as cj_utils
+from .. import display as cj_display
+
+__all__ = ['Corpus', 'make_pairs_by_classes']
 
 
 class Corpus(object):
@@ -127,7 +129,7 @@ class Corpus(object):
 
     @classmethod
     def distinct_from_parallel(cls, data):
-        return get_cols(data)
+        return cj_array.get_cols(data)
 
     @classmethod
     def load_from_parallel_data(cls, data, source_name: str = None, target_name: str = None, **kwargs):
@@ -207,15 +209,15 @@ class Corpus(object):
 
         for prefix, x, y in data_to_save:
             save_on = save_on_dir.join(f'{prefix}_{self.source_language}.{ext.strip(".")}')
-            FileIO.create(save_on, data=x).save(**kwargs)
+            cj_file.FileIO.create(save_on, data=x).save(**kwargs)
             save_on = save_on_dir.join(f'{prefix}_{self.target_language}.{ext.strip(".")}')
-            FileIO.create(save_on, data=y).save(**kwargs)
+            cj_file.FileIO.create(save_on, data=y).save(**kwargs)
 
     @classmethod
     def load_corpus_from_csv(cls, path_: str, src_col_name: str, trg_col_name: str, source_name=None,
                              target_name=None):
 
-        csv_read = csv.DictReader(FileIO.load(path_).data)
+        csv_read = csv.DictReader(cj_file.FileIO.load(path_).data)
         src_data = []
         trg_data = []
         for i in csv_read:
@@ -275,7 +277,7 @@ class Corpus(object):
             train.append([x, y])
 
         if take_parallel_data is False:
-            return (*get_cols(train), *get_cols(test))
+            return (*cj_array.get_cols(train), *cj_array.get_cols(test))
         if take_corpus_instances is True:
             train = self.load_from_parallel_data(train, self.source_language, self.target_language)
             test = self.load_from_parallel_data(test, self.source_language, self.target_language)
@@ -287,3 +289,21 @@ class Corpus(object):
         warnings.warn(f"This function has been deprecated and will be removed in future versions. "
                       f"{alternative}", DeprecationWarning, 2)
         self.save(**kwargs)
+
+
+def make_pairs_by_classes(clusters, limit_items_per_batch=None, limit_n_clusters=None):
+    result = []
+    if limit_items_per_batch or limit_n_clusters:
+        clusters = {i: cj_utils.sample(values, k=limit_items_per_batch, is_random=True) for i, values in
+                    cj_utils.sample(clusters, k=limit_n_clusters).items() if len(values)}
+    all_classes = list(clusters)
+    for primary_id, items_on_cluster in cj_display.Progress.prog(clusters.items()):
+        if len(items_on_cluster) == 1:
+            continue
+        all_items_on_cluster = {primary_id, *items_on_cluster}
+
+        result += [(a, b, 1) for a, b in
+                   cj_utils.combine_with_all(*cj_utils.chunk(all_items_on_cluster, max_batches=2))]
+    result += [(a, b, 0) for a, b in cj_utils.combine_with_all(*cj_utils.chunk(all_classes, max_batches=2))]
+    random.shuffle(result)
+    return result

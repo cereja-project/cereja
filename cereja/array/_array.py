@@ -36,7 +36,8 @@ __all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_sha
            'sub', 'prod', 'reshape']
 
 from cereja.utils.decorators import depreciation
-from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, rescale_values
+
+from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, dict_to_tuple
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +168,11 @@ def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1,
     >>> flatten(sequence, depth=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
-    assert is_sequence(sequence), f"Invalid value {sequence}"
+    if isinstance(sequence, dict):
+        sequence = dict_to_tuple(sequence)
+    else:
+        assert is_sequence(sequence), f"Invalid value {sequence}"
+
     depth = kwargs.get('max_recursion') or depth
 
     if not isinstance(depth, int):
