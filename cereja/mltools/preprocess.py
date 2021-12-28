@@ -25,7 +25,7 @@ import re
 from typing import AnyStr, Sequence, Union, List
 from unicodedata import normalize as _normalize
 
-from cereja.config import ENG_CONTRACTIONS, PUNCTUATION, VALID_LANGUAGE_CHAR, LANGUAGES, STOP_WORDS
+from ..config import ENG_CONTRACTIONS, PUNCTUATION, VALID_LANGUAGE_CHAR, LANGUAGES, STOP_WORDS
 
 _NORMALIZE_VALUES = ''.join(PUNCTUATION)
 

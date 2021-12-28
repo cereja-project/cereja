@@ -20,7 +20,7 @@ import ast
 import gc
 import math
 import time
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from importlib import import_module
 import importlib
 import sys
@@ -31,10 +31,9 @@ import logging
 import itertools
 from copy import copy
 import inspect
-from collections import defaultdict
 
 # Needed init configs
-from cereja.config.cj_types import ClassType, FunctionType, Number
+from ..config.cj_types import ClassType, FunctionType, Number
 
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',

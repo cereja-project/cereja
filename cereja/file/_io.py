@@ -6,18 +6,17 @@ import re
 import pickle
 import tempfile
 from abc import ABCMeta, abstractmethod, ABC
-from collections import ValuesView
 from io import BytesIO
-from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
+from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView, ValuesView
 import json
 from .._requests import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from cereja.system import Path, mkdir
-from cereja.array import get_cols, flatten, get_shape
-from cereja.utils import is_sequence, clipboard
-from cereja.system import memory_of_this
-from cereja.utils import string_to_literal, sample, fill
+from ..system import Path, mkdir
+from ..array import get_cols, flatten, get_shape
+from ..utils import is_sequence, clipboard
+from ..system import memory_of_this
+from ..utils import string_to_literal, sample, fill
 
 logger = logging.Logger(__name__)
 

@@ -24,14 +24,14 @@ import itertools
 import warnings
 from typing import List, Dict, Union, Sequence, AnyStr, Any, Iterable
 
-from cereja import FileIO
-from cereja.config.cj_types import Number
-from cereja.mltools import preprocess as _preprocess
-from cereja.mltools.data import Freq
-from cereja.config.conf import BasicConfig
+from ..file import FileIO
+from ..config.cj_types import Number
+from ..mltools import preprocess as _preprocess
+from ..mltools.data import Freq
+from ..config.conf import BasicConfig
 from abc import ABCMeta, abstractmethod
 
-from cereja.system import Path
+from ..system import Path
 
 __all__ = ['LanguageData', 'Preprocessor', 'LanguageDetector']
 

@@ -25,8 +25,8 @@ import csv
 
 from .. import file as cj_file
 from .. import array as cj_array
-from cereja.mltools.pln import LanguageData
-from cereja.system import Path
+from ..mltools.pln import LanguageData
+from ..system import Path
 from .. import utils as cj_utils
 from .. import display as cj_display
 

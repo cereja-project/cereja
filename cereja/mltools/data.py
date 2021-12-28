@@ -25,15 +25,15 @@ import pickle
 import random
 import secrets
 import math
-from collections import Counter, OrderedDict
-from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
+from collections import OrderedDict
+from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set, Counter
 
-from cereja.utils._utils import is_iterable, is_sequence
-from cereja.file import FileIO
-from cereja.utils import invert_dict, string_to_literal
-from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
+from ..utils import is_iterable, is_sequence
+from ..file import FileIO
+from ..utils import invert_dict, string_to_literal
+from ..mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
-from cereja.utils.decorators import thread_safe_generator
+from ..utils.decorators import thread_safe_generator
 
 __all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf', 'DataGenerator']
 
