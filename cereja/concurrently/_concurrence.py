@@ -26,7 +26,7 @@ import functools
 import os
 import threading
 import time
-from collections import Callable
+from typing import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 import logging
 from typing import Sequence, Any
