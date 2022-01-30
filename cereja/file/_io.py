@@ -552,8 +552,8 @@ class _JsonIO(_FileIO):
     def values(self) -> ValuesView:
         return self._data.values()
 
-    def parse(self, data) -> dict:
-        if isinstance(data, dict):
+    def parse(self, data) -> Union[dict, list]:
+        if isinstance(data, (dict, list)):
             return data
         elif isinstance(data, (str, bytes)):
             return json.loads(data, object_hook=self._object_hook if self.string_eval else None)
