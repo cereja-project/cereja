@@ -41,7 +41,7 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
            'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
            'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len',
-           'dict_max_value', 'dict_min_value', 'dict_filter_value']
+           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask']
 
 logger = logging.getLogger(__name__)
 
@@ -995,3 +995,17 @@ def dict_min_value(obj: Dict[Any, Any]) -> Any:
     @return: dict filtered
     """
     return dict_filter_value(obj, min)
+
+
+def get_zero_mask(number: int, max_len: int = 3) -> str:
+    """
+    Returns string of numbers formated with zero mask
+    eg.
+    >>> get_zero_mask(100, 4)
+    '0100'
+    >>> get_zero_mask(101, 4)
+    '0101'
+    >>> get_zero_mask(101, 4)
+    '0101'
+    """
+    return f'%0.{max_len}d' % number
