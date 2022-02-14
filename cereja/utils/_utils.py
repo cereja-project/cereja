@@ -40,7 +40,8 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
            'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
-           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len']
+           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len',
+           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask']
 
 logger = logging.getLogger(__name__)
 
@@ -950,3 +951,61 @@ def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
         for i in v:
             obj[key].append(i)
     return obj
+
+
+def dict_filter_value(obj: Dict[Any, Any], f) -> Any:
+    """
+    Results is a filtered dict by f func result
+
+    @param obj: is a dict
+    @param f: function filter
+    @return:
+    """
+    inv_dict = invert_dict(obj)
+    filter_val = f(inv_dict)
+    res = inv_dict[filter_val]
+    if isinstance(res, list):
+        return dict(map(lambda x: (x, filter_val), res))
+    return {res: filter_val}
+
+
+def dict_max_value(obj: Dict[Any, Any]) -> Any:
+    """
+    Results is a filtered dict by max value
+
+    >>> import cereja as cj
+    >>> cj.dict_max_value({'oi': 10, 'aqui': 20, 'sei': 20})
+    {'aqui': 20, 'sei': 20}
+
+    @param obj: is a dict
+    @return: dict filtered
+    """
+    return dict_filter_value(obj, max)
+
+
+def dict_min_value(obj: Dict[Any, Any]) -> Any:
+    """
+    Results is a filtered dict by min value
+
+    >>> import cereja as cj
+    >>> cj.dict_min_value({'oi': 10, 'aqui': 20, 'sei': 20})
+    {'oi': 10}
+
+    @param obj: is a dict
+    @return: dict filtered
+    """
+    return dict_filter_value(obj, min)
+
+
+def get_zero_mask(number: int, max_len: int = 3) -> str:
+    """
+    Returns string of numbers formated with zero mask
+    eg.
+    >>> get_zero_mask(100, 4)
+    '0100'
+    >>> get_zero_mask(101, 4)
+    '0101'
+    >>> get_zero_mask(101, 4)
+    '0101'
+    """
+    return f'%0.{max_len}d' % number
