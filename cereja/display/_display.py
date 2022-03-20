@@ -313,6 +313,7 @@ class _ConsoleBase(metaclass=ABC):
             raise ValueError(
                     f"Color {repr(color)} not found. Choose an available color"
                     f" [red, green, yellow, blue, magenta and cyan].")
+        s = self._normalize_format(s)
         return f"{self._color_map[color]}{s}{self._color_map['default']}"
 
     def random_color(self, text: str):
