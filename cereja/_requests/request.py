@@ -21,7 +21,17 @@ SOFTWARE.
 """
 from ._http import HttpRequest, HttpResponse
 
-__all__ = ['post', 'get', 'put', 'head', 'delete', 'connect', 'options', 'trace', 'patch']
+__all__ = ['post', 'get', 'put', 'head', 'delete', 'connect', 'options', 'trace', 'patch', 'is_url']
+
+
+def is_url(url):
+    """
+    Check if the url is valid.
+
+    :param url: The url to check.
+    :return: True if the url is valid, False otherwise.
+    """
+    return HttpRequest.is_url(url)
 
 
 def post(url, data=None, headers=None, **kwargs) -> HttpResponse:
