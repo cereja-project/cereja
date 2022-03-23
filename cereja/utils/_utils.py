@@ -1025,4 +1025,3 @@ def get_batch_strides(data, kernel_size, strides=1, take_index=False):
         if len(batches) == kernel_size:
             yield batches
             batches = batches[strides:]
-

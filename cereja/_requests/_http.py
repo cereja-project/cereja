@@ -19,7 +19,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import re
 from urllib import request as urllib_req
 import json
 
@@ -219,3 +218,4 @@ class HttpRequest(_Http):
     @classmethod
     def build_and_send(cls, method, url, data=None, port=None, headers=None, **kwargs):
         return cls(method=method, url=url, data=data, port=port, headers=headers).send_request(**kwargs)
+
