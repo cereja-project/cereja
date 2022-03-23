@@ -25,6 +25,7 @@ import json
 __all__ = ['HttpRequest', 'HttpResponse']
 
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 
 
 class _Http:
@@ -33,6 +34,14 @@ class _Http:
         self.headers = headers or {}
         self._protocol, self._port, self._domains, self._endpoint = self.parse_url(url=url, port=port)
         self._data = data or None
+
+    @staticmethod
+    def is_url(val):
+        try:
+            result = urlparse(val)
+            return all([result.scheme, result.netloc])
+        except:
+            return False
 
     @property
     def protocol(self):
@@ -66,6 +75,7 @@ class _Http:
 
     @classmethod
     def parse_url(cls, url: str, port=None):
+        # TODO: need use urlparse
 
         url = url.replace('://', '.').replace(':', '.')
         url = url.split('/', maxsplit=1)
@@ -208,3 +218,4 @@ class HttpRequest(_Http):
     @classmethod
     def build_and_send(cls, method, url, data=None, port=None, headers=None, **kwargs):
         return cls(method=method, url=url, data=data, port=port, headers=headers).send_request(**kwargs)
+

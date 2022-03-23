@@ -33,6 +33,8 @@ from typing import List, Union
 from ..array import group_items_in_batches
 from pathlib import Path as Path_
 
+from ..utils.decorators import on_except
+
 logger = logging.getLogger(__name__)
 
 __all__ = ['Path', 'change_date_from_path', 'clean_dir', 'file_name', 'get_base_dir', 'group_path_from_dir',
@@ -203,6 +205,7 @@ class Path(os.PathLike):
         return self.__path.name
 
     @property
+    @on_except(return_value=False, warn_text='Path is not valid.')
     def exists(self):
         return self.__path.exists()
 
@@ -234,6 +237,7 @@ class Path(os.PathLike):
         return self._parent_name
 
     @property
+    @on_except(return_value=False, warn_text='Error on parser path in uri')
     def uri(self):
         try:
             return self.__path.as_uri()
@@ -241,14 +245,17 @@ class Path(os.PathLike):
             return ''
 
     @property
+    @on_except(return_value=False)
     def is_dir(self):
         return self.__path.is_dir()
 
     @property
+    @on_except(return_value=False)
     def is_file(self):
         return self.__path.is_file()
 
     @property
+    @on_except(return_value=False)
     def is_link(self):
         return self.__path.is_symlink()
 
@@ -268,6 +275,7 @@ class Path(os.PathLike):
                 self._date_format) if self.exists else None
 
     @property
+    @on_except(return_value=False)
     def is_hidden(self):
         """
         In Unix-like operating systems, any file or folder that starts with a dot character

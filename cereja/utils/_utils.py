@@ -41,7 +41,7 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
            'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
            'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len',
-           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask']
+           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides']
 
 logger = logging.getLogger(__name__)
 
@@ -1009,3 +1009,19 @@ def get_zero_mask(number: int, max_len: int = 3) -> str:
     '0101'
     """
     return f'%0.{max_len}d' % number
+
+
+def get_batch_strides(data, kernel_size, strides=1, take_index=False):
+    """
+    Returns batches of fixed window size (kernel_size) with a given stride
+    @param data: iterable
+    @param kernel_size: window size
+    @param strides: default is 1
+    @param take_index: add number of index on items
+    """
+    batches = []
+    for index, item in enumerate(data):
+        batches.append(item if not take_index else [index, item])
+        if len(batches) == kernel_size:
+            yield batches
+            batches = batches[strides:]
