@@ -456,6 +456,22 @@ class _StateAwaiting(_StateLoading):
         return f"Total Time: {time_format(time_it)}"
 
 
+class _StateDownloadData(State):
+    _size_map = {"B":  1.e0,
+                 "KB": 1.e3,
+                 "MB": 1.e6,
+                 "GB": 1.e9,
+                 "TB": 1.e12
+                 }
+
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        current_value /= self._size_map['MB']
+        max_value /= self._size_map['MB']
+        per_second = (current_value / time_it)
+        return f"{current_value:.2f}/{max_value:.2f} MB ({per_second:.2f} MB/s)"
+
+
 class _StateBar(State):
     left_right_delimiter = "[]"
     arrow = ">"
@@ -542,24 +558,21 @@ class Progress:
     __done_unicode = Unicode("\U00002705")
     __err_unicode = Unicode("\U0000274C")
     __key_map = {
-        "loading": _StateLoading,
-        "time":    _StateTime,
-        "percent": _StatePercent,
-        "bar":     _StateBar,
-        "value":   _StateValue
+        "loading":  _StateLoading,
+        "time":     _StateTime,
+        "percent":  _StatePercent,
+        "bar":      _StateBar,
+        "value":    _StateValue,
+        'download': _StateDownloadData,
 
     }
     _with_context = False
     __built = False
     _console = console
-    __current_prog = None
+    _progresses = {}
 
     def __init__(self, sequence=None, name="Progress", max_value: int = 100,
                  states=('value', 'bar', 'percent', 'time')):
-        # fix me
-        if self.__class__.__current_prog:
-            self.__class__.__current_prog.stop()
-        self.__class__.__current_prog = self
         self._n_times = 0
         self._name = name or 'Progress'
         self._task_count = 0
@@ -577,6 +590,9 @@ class Progress:
         self.__built = True
         if sequence is not None:
             self.__call__(sequence)
+        if len(Progress._progresses) >= 10:
+            Progress._progresses.pop(id(self))
+        Progress._progresses[id(self)] = self
 
     @property
     def name(self):
@@ -600,6 +616,15 @@ class Progress:
         self._err = True
         if not self._with_context:
             self.stop()
+
+    @property
+    def completed(self):
+        return self._was_done
+
+    @staticmethod
+    def die_all():
+        for progress in Progress._progresses:
+            progress.stop()
 
     def _parse_states(self):
         return tuple(map(lambda stt: stt.__class__.__name__, self._states))
@@ -626,6 +651,10 @@ class Progress:
     @property
     def time_it(self):
         return time.time() - (self._started_time or time.time())
+
+    @property
+    def total_completed(self):
+        return f'{self.percent_(self._current_value)}%'
 
     def _states_view(self, for_value: Number) -> Tuple[str, bool]:
         """
@@ -785,6 +814,7 @@ class Progress:
             self._started = False
             self._th_root.join()
             self._console.disable()
+        Progress._progresses.pop(id(self))
 
     def restart(self):
         self._reset()
@@ -867,5 +897,3 @@ if IP:
     IP.set_custom_exc((Exception, GeneratorExit, SystemExit, KeyboardInterrupt), _Stdout.custom_exc)
 else:
     sys.excepthook = _Stdout.die_threads
-if __name__ == "__main__":
-    pass

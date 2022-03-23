@@ -21,7 +21,14 @@ SOFTWARE.
 """
 from ._http import HttpRequest, HttpResponse
 
-__all__ = ['post', 'get', 'put', 'head', 'delete', 'connect', 'options', 'trace', 'patch', 'is_url']
+__all__ = ['is_url', 'download']
+
+
+def download(url, save_on=None, timeout=None, **kwargs) -> HttpResponse:
+    """
+    The GET method requests a representation of the specified resource. Requests using GET should only retrieve data.
+    """
+    return HttpRequest.build_and_send(method='GET', url=url, save_on=save_on, timeout=timeout, **kwargs)
 
 
 def is_url(url):
