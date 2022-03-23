@@ -19,13 +19,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import threading
 from urllib import request as urllib_req
 import json
+import io
 
 __all__ = ['HttpRequest', 'HttpResponse']
 
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
+
+from cereja import Progress
 
 
 class _Http:
@@ -73,71 +77,89 @@ class _Http:
     def content_type(self):
         return self.headers.get('Content-type')
 
+    @property
+    def content_length(self):
+        return self.headers.get('Content-length')
+
     @classmethod
     def parse_url(cls, url: str, port=None):
-        # TODO: need use urlparse
 
-        url = url.replace('://', '.').replace(':', '.')
+        url = url.replace('://', '.')
         url = url.split('/', maxsplit=1)
 
-        url, endpoint = url if len(url) == 2 else (*url, '')
+        domains = url.pop(0).split('.')
+        if ':' in domains[-1]:
+            domain, port = domains[-1].split(':')
+            domains[-1] = domain
 
-        endpoint = endpoint.split('/')
-
-        protocol = None
-        domains = []
-        for n, i in enumerate(url.split('.')):
-
-            i = i.strip().lower()
-            if not i:
-                continue
-            if n == 0 and i.startswith('http'):
-                protocol = i
-                continue
-
-            if i.isdigit():
-                port = i
-                continue
-            domains.append(i)
-
-        protocol = protocol or 'http'
+        protocol = domains.pop(0) if domains[0].startswith('http') else 'https'
 
         if not port:
             port = ''
 
         domains = '.'.join(domains)
-        endpoint = '/'.join(endpoint)
+        endpoint = '/'.join(url) if url else ''
 
         return protocol, port, domains, endpoint
 
 
 class HttpResponse:
-    def __init__(self, request: 'HttpRequest'):
+    CHUNK_SIZE = 1024 * 1024 * 1  # 1MB
+
+    def __init__(self, request: 'HttpRequest', save_on_path=None, timeout=None):
         self._request = request
+        self._save_on_path = save_on_path
         self._headers = {}
+        self._total_completed = '0.0%'
+        self._timeout = timeout
+        self._finished = False
+        self._code = None
+        self._status = None
+        self._data = None
+        self._th_request = threading.Thread(target=self.__request)
+        self._th_request.start()
+
+    def __request(self):
+        # TODO: send to HttpRequest
         try:
-            with urllib_req.urlopen(self._request.urllib_req) as f:
-                data = f.read()
-                code = f.status
-                reason = f.reason
-                if hasattr(f, 'headers'):
-                    self._headers = dict(f.headers.items())
+            with urllib_req.urlopen(self._request.urllib_req, timeout=self._timeout) as req_file:
+                self._code = req_file.status
+                self._status = req_file.reason
+                if hasattr(req_file, 'headers'):
+                    self._headers = dict(req_file.headers.items())
+                if self.CHUNK_SIZE * 3 > req_file.length:
+                    self._data = req_file.read()
+                else:
+                    with Progress(name=f'Fetching data', max_value=int(req_file.getheader('Content-Length')),
+                                  states=('download', 'time')) as prog:
+
+                        with (open(self._save_on_path, 'wb') if self._save_on_path else io.BytesIO()) as f:
+                            total_downloaded = 0
+                            while True:
+                                chunk = req_file.read(self.CHUNK_SIZE)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                                total_downloaded += len(chunk)
+                                prog.show_progress(total_downloaded)
+                                self._total_completed = prog.total_completed
+
+                            self._data = f if self._save_on_path else f.getvalue()
         except HTTPError as err:
-            data = err.read()
-            code = err.code
-            reason = err.reason
+            self._data = err.read()
+            self._code = err.code
+            self._status = err.reason
             if hasattr(err, 'headers'):
                 self._headers = dict(err.headers.items())
         except URLError as err:
             msg = f"{err.reason}: {self._request.url}"
             raise URLError(msg)
-
-        self._code = code
-        self._status = reason
-        self._data = data
+        self._finished = True
 
     def __repr__(self):
-        return f'Response(code={self.code}, status={self._status})'
+        if not self._finished:
+            return f"<HttpResponse: Fetching data {self._total_completed}>"
+        return f'<HttpResponse: code={self.code}, status={self._status}>'
 
     @property
     def content_type(self):
@@ -165,6 +187,7 @@ class HttpResponse:
 
     @property
     def data(self):
+        self._th_request.join()  # await for request
         if self.content_type == 'application/json':
             if not self._data:
                 return {}
@@ -184,7 +207,7 @@ class HttpRequest(_Http):
     def __repr__(self):
         return f'Request(url={self.url}, method={self._method})'
 
-    def send_request(self, **kwargs):
+    def send_request(self, save_on=None, timeout=None, **kwargs):
         if 'data' in kwargs:
             self._data = self.parser(kwargs.pop('data'))
 
@@ -193,7 +216,7 @@ class HttpRequest(_Http):
             assert isinstance(headers, dict), TypeError("Headers type is invalid. send a dict")
             self.headers.update(headers)
         self._count += 1
-        return HttpResponse(request=self)
+        return HttpResponse(request=self, save_on_path=save_on, timeout=timeout)
 
     @property
     def urllib_req(self):
@@ -218,4 +241,3 @@ class HttpRequest(_Http):
     @classmethod
     def build_and_send(cls, method, url, data=None, port=None, headers=None, **kwargs):
         return cls(method=method, url=url, data=data, port=port, headers=headers).send_request(**kwargs)
-
