@@ -757,9 +757,9 @@ class _ZipFileIO(_FileIO):
         return self.unzip(fp.name)
 
     @classmethod
-    def unzip(cls, file_path, save_on: str = None, k=None, is_random=False):
+    def unzip(cls, file_path, save_on: str = None, members: List = None, k=None, is_random=False):
         with ZipFile(file_path, mode='r') as myzip:
-            members = sample(myzip.namelist(), k, is_random)
+            members = members or sample(myzip.namelist(), k, is_random)
             if save_on:
                 mkdir(save_on)
             myzip.extractall(save_on, members=members)
