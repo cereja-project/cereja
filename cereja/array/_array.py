@@ -31,12 +31,14 @@ from cereja.config.cj_types import Number, Shape
 import logging
 
 __all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_shape',
-           'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'rand_n', 'rand_uniform', 'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
-           'sub', 'prod']
-
+           'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'rand_n', 'rand_uniform',
+           'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
+           'sub', 'prod', 'reshape']
 
 from cereja.utils.decorators import depreciation
-from ..utils import is_iterable, is_sequence, is_numeric_sequence
+
+from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, dict_to_tuple
+
 logger = logging.getLogger(__name__)
 
 
@@ -98,15 +100,15 @@ def get_shape_recursive(sequence: Sequence[Any], wki: Tuple[int, ...] = None) ->
 
 
 def reshape(sequence: Sequence, shape):
-    """
-    [!] need development [!]
+    sequence = flatten(sequence)
 
-    :param sequence:
-    :param shape:
-    :return:
-    """
+    expected_size = prod(shape)
+    current_size = len(sequence)
 
-    return NotImplementedError
+    assert current_size == expected_size, f'cannot reshape array of size {current_size} into shape {shape}'
+    for batch in shape[::-1]:
+        sequence = chunk(sequence, batch_size=batch)
+    return sequence[0]
 
 
 def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> List[Union[float, Any]]:
@@ -141,7 +143,7 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
 
     for k in shape[::-1]:
         if allow_reshape:
-            v = group_items_in_batches(v, k)
+            v = chunk(v, batch_size=k)
             continue
         v = [v * k]
     return v[0]
@@ -166,7 +168,11 @@ def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1,
     >>> flatten(sequence, depth=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
-    assert is_sequence(sequence), f"Invalid value {sequence}"
+    if isinstance(sequence, dict):
+        sequence = dict_to_tuple(sequence)
+    else:
+        assert is_sequence(sequence), f"Invalid value {sequence}"
+
     depth = kwargs.get('max_recursion') or depth
 
     if not isinstance(depth, int):
@@ -344,11 +350,20 @@ def sub(sequence: Sequence[Number]) -> Number:
     return reduce((lambda x, y: x - y), sequence)
 
 
+def _div(a, b):
+    if not isinstance(a, (int, float)) and not isinstance(b, (int, float)):
+        temp_res = []
+        for _a, _b in zip(a, b):
+            temp_res.append(_div(_a, _b))
+        return temp_res
+    return a / b
+
+
 def div(sequence: Sequence[Number]) -> Number:
     if not is_sequence(sequence):
         raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
 
-    return reduce((lambda x, y: x / y), sequence)
+    return reduce(_div, sequence)
 
 
 def dotproduct(vec1, vec2):
@@ -403,8 +418,12 @@ class Matrix(object):
         return self.__mul__(other)
 
     def __truediv__(self, other):
+        if isinstance(other, (float, int)):
+            other = Matrix(array_gen(self.shape, other))
         assert self.shape == get_shape(other), "the shape must be the same"
-        return Matrix([list(map(div, zip(*t))) for t in zip(self, other)])
+        result = Matrix([list(map(div, zip(*t))) for t in zip(self, other)])
+        assert self.shape == result.shape, "the shape must be the same"
+        return result
 
     def __iadd__(self, other):
         return Matrix(list(map(lambda x: x + other, self.flatten())))
@@ -489,7 +508,7 @@ class Matrix(object):
         return sum(flattened) / len(flattened)
 
     def reshape(self, shape: Shape):
-        return Matrix(array_gen(shape, self.flatten().to_list()))
+        return Matrix(reshape(self, shape))
 
     @staticmethod
     def arange(*args):

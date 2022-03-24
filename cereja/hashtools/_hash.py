@@ -23,7 +23,6 @@ import binascii
 import hashlib
 import base64 as _b64
 from typing import Union
-import ast
 
 from cereja import string_to_literal
 from cereja.config.cj_types import Number

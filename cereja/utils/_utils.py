@@ -20,7 +20,7 @@ import ast
 import gc
 import math
 import time
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from importlib import import_module
 import importlib
 import sys
@@ -33,20 +33,23 @@ from copy import copy
 import inspect
 
 # Needed init configs
-from cereja.config.cj_types import ClassType, FunctionType, Number
+from ..config.cj_types import ClassType, FunctionType, Number
 
 __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
            'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
-           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple']
+           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len',
+           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides']
 
 logger = logging.getLogger(__name__)
 
+_DICT_ITEMS_TYPE = type({}.items())
+
 
 def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
-          max_batches: int = None) -> List:
+          max_batches: int = None) -> List[Union[Sequence, List, Tuple, Dict]]:
     """
 
     e.g:
@@ -74,12 +77,18 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     @return: list of batches
     """
 
-    assert is_iterable(data), f"Chunk isn't possible, because value {data} isn't iterable."
+    assert is_iterable(data) and len(data) > 0, f"Chunk isn't possible, because value {data} isn't valid."
     if batch_size is None and max_batches is None:
         return [data]
 
-    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray)) else copy(data)
-    _dict_temp_keys = [] if not isinstance(data, dict) else list(data)
+    # used to return the same data type
+    __parser = None
+
+    if isinstance(data, (dict, tuple, set)):
+        __parser = type(data)
+        data = data.items() if isinstance(data, dict) else data
+
+    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray, _DICT_ITEMS_TYPE)) else copy(data)
     if not batch_size or batch_size > len(data) or batch_size < 1:
         if isinstance(max_batches, (int, float)) and max_batches > 0:
             batch_size = ((len(data) // max_batches) + len(data) % max_batches) or len(data)
@@ -87,10 +96,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
             batch_size = len(data)
 
     if is_random:
-        if isinstance(data, dict):
-            random.shuffle(_dict_temp_keys)
-        else:
-            random.shuffle(data)
+        random.shuffle(data)
 
     if max_batches is None:
         max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
@@ -98,13 +104,10 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     batches = []
     for i in range(0, len(data), batch_size):
 
-        if isinstance(data, dict):
-            result = {key: data[key] for key in _dict_temp_keys[i: i + batch_size]}
-        else:
-            result = data[i:i + batch_size]
-            if fill_with is not None and len(result) < batch_size:
-                result += [fill_with] * (batch_size - len(result))
-        batches.append(result)
+        result = data[i:i + batch_size]
+        if fill_with is not None and len(result) < batch_size:
+            result += [fill_with] * (batch_size - len(result))
+        batches.append(__parser(result) if __parser is not None else result)
         max_batches -= 1
         if not max_batches:
             break
@@ -204,7 +207,7 @@ def can_do(obj: Any) -> List[str]:
     return sorted([i for i in filter(lambda attr: not attr.startswith('_'), dir(obj))])
 
 
-def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
+def sample(v: Sequence, k: int = None, is_random: bool = False) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
 
@@ -213,12 +216,7 @@ def sample(v, k=None, is_random=False) -> Union[list, dict, set, Any]:
     @param is_random: default False
     @return: sample iterable
     """
-    result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)
-    if len(result) == 1:
-        result = result[0]
-    if isinstance(v, set):
-        result = set(result)
-    return result
+    return chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
 
 
 def type_table_of(o: Union[list, tuple, dict]):
@@ -308,6 +306,25 @@ def invert_dict(dict_: Union[dict, set]) -> dict:
     return new_dict
 
 
+def group_by(values, fn) -> dict:
+    """
+    group items by result of fn (function)
+
+    eg.
+    >>> import cereja as cj
+    >>> values = ['joab', 'leite', 'da', 'silva', 'Neto', 'você']
+    >>> cj.group_by(values, lambda x: 'N' if x.lower().startswith('n') else 'OTHER')
+    # {'OTHER': ['joab', 'leite', 'da', 'silva', 'você'], 'N': ['Neto']}
+
+    @param values: list of values
+    @param fn: a function
+    """
+    d = defaultdict(list)
+    for el in values:
+        d[fn(el)].append(el)
+    return dict(d)
+
+
 def import_string(dotted_path):
     """
     Import a dotted module path and return the attribute/class designated by the
@@ -373,8 +390,8 @@ def list_methods(klass) -> List[str]:
     return methods
 
 
-def string_to_literal(val: str):
-    if isinstance(val, str):
+def string_to_literal(val: Union[str, bytes]):
+    if isinstance(val, (str, bytes)):
         try:
             return ast.literal_eval(val)
         except:
@@ -692,23 +709,42 @@ def _rescale_down(input_list, size):
         yield input_list[i]
 
 
-def _rescale_up(values, k, fill_with=None):
+def _rescale_up(values, k, fill_with=None, filling='inner'):
     size = len(values)
     assert size <= k, f'Error while resizing: {size} < {k}'
+
     clones = (math.ceil(abs(size - k) / size))
     refill_values = abs(k - size * clones)
+    if filling == 'pre':
+        for i in range(abs(k - size)):
+            yield fill_with if fill_with is not None else values[0]
+
     for value in values:
-        for i in range(clones):
-            yield value
+        # guarantees that the original value will be returned
+        yield value
+
+        if filling != 'inner':
+            continue
+
+        for i in range(clones - 1):  # -1 because last line.
+            # value original or fill_with.
+            yield fill_with if fill_with is not None else value
         if refill_values > 0:
             refill_values -= 1
             yield fill_with if fill_with is not None else value
         k -= 1
         if k < 0:
             break
+    if filling == 'post':
+        for i in range(abs(k - size)):
+            yield fill_with if fill_with is not None else values[-1]
 
 
 def _interpolate(values, k):
+    if isinstance(values, list):
+        from ..array import Matrix
+        # because true_div ...
+        values = Matrix(values)
     size = len(values)
 
     first_position = 0
@@ -729,18 +765,27 @@ def _interpolate(values, k):
             yield values[previous_position]
         else:
             delta = position - previous_position
-            yield values[previous_position] + (values[next_position] - values[previous_position]) / (next_position - previous_position) * delta
+            yield values[previous_position] + (values[next_position] - values[previous_position]) / (
+                    next_position - previous_position) * delta
 
 
-def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, **kwargs) -> List[Any]:
+def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, fill_with=None, filling='inner') -> \
+        List[Any]:
     """
     Resizes a list of values
     eg.
         >>> import cereja as cj
-        >>> cj.rescale_values(values=list(range(100)), granularity=12)
+        >>> cj.rescale_values(values=list(range(100)),granularity=12)
         [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88]
-        >>> cj.rescale_values(values=list(range(5)), granularity=10)
+        >>> cj.rescale_values(values=list(range(5)),granularity=10)
         [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
+        >>> cj.rescale_values(values=list(range(5)),granularity=10, filling='pre')
+        [0, 0, 0, 0, 0, 0, 1, 2, 3, 4]
+        >>> cj.rescale_values(values=list(range(5)),granularity=10, filling='post')
+        [0, 1, 2, 3, 4, 4, 4, 4, 4, 4]
+
+        @note if you don't send any value for filling a value will be chosen arbitrarily depending on the filling type.
+
     If interpolation is set to True, then the resized values are calculated by interpolation, 
     otherwise they are sub- ou upsampled from the original list
 
@@ -748,8 +793,8 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
     @param values: Sequence of anything
     @param granularity: is a integer
     @param interpolation: is a boolean
-    @param kwargs:
-        fill_with: Any value
+    @param fill_with: only scale up, send any value for filling
+    @param filling: in case of scale up, you can define how the filling will be (pre, inner, post). 'inner' is default.
     @return: rescaled list of values.
     """
 
@@ -759,7 +804,7 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
         if len(values) >= granularity:
             result = list(_rescale_down(values, granularity))
         else:
-            result = list(_rescale_up(values, granularity, **kwargs))
+            result = list(_rescale_up(values, granularity, fill_with=fill_with, filling=filling))
 
     assert len(result) == granularity, f"Error while resizing the list size {len(result)} != {granularity}"
     return result
@@ -776,7 +821,7 @@ class Source:
 
     @property
     def source_code(self):
-        return self._source_code
+        return self._source_code.lstrip()
 
     @property
     def name(self):
@@ -849,6 +894,11 @@ def list_to_tuple(obj):
     return tuple(result)
 
 
+def dict_values_len(obj, max_len=None, min_len=None, take_len=False):
+    return {i: len(obj[i]) if take_len else obj[i] for i in obj if
+            (max_len is None or len(obj[i]) <= max_len) and (min_len is None or len(obj[i]) >= min_len)}
+
+
 def dict_to_tuple(obj):
     assert isinstance(obj, (dict, set)), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
@@ -901,3 +951,77 @@ def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
         for i in v:
             obj[key].append(i)
     return obj
+
+
+def dict_filter_value(obj: Dict[Any, Any], f) -> Any:
+    """
+    Results is a filtered dict by f func result
+
+    @param obj: is a dict
+    @param f: function filter
+    @return:
+    """
+    inv_dict = invert_dict(obj)
+    filter_val = f(inv_dict)
+    res = inv_dict[filter_val]
+    if isinstance(res, list):
+        return dict(map(lambda x: (x, filter_val), res))
+    return {res: filter_val}
+
+
+def dict_max_value(obj: Dict[Any, Any]) -> Any:
+    """
+    Results is a filtered dict by max value
+
+    >>> import cereja as cj
+    >>> cj.dict_max_value({'oi': 10, 'aqui': 20, 'sei': 20})
+    {'aqui': 20, 'sei': 20}
+
+    @param obj: is a dict
+    @return: dict filtered
+    """
+    return dict_filter_value(obj, max)
+
+
+def dict_min_value(obj: Dict[Any, Any]) -> Any:
+    """
+    Results is a filtered dict by min value
+
+    >>> import cereja as cj
+    >>> cj.dict_min_value({'oi': 10, 'aqui': 20, 'sei': 20})
+    {'oi': 10}
+
+    @param obj: is a dict
+    @return: dict filtered
+    """
+    return dict_filter_value(obj, min)
+
+
+def get_zero_mask(number: int, max_len: int = 3) -> str:
+    """
+    Returns string of numbers formated with zero mask
+    eg.
+    >>> get_zero_mask(100, 4)
+    '0100'
+    >>> get_zero_mask(101, 4)
+    '0101'
+    >>> get_zero_mask(101, 4)
+    '0101'
+    """
+    return f'%0.{max_len}d' % number
+
+
+def get_batch_strides(data, kernel_size, strides=1, take_index=False):
+    """
+    Returns batches of fixed window size (kernel_size) with a given stride
+    @param data: iterable
+    @param kernel_size: window size
+    @param strides: default is 1
+    @param take_index: add number of index on items
+    """
+    batches = []
+    for index, item in enumerate(data):
+        batches.append(item if not take_index else [index, item])
+        if len(batches) == kernel_size:
+            yield batches
+            batches = batches[strides:]

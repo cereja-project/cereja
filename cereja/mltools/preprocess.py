@@ -25,7 +25,7 @@ import re
 from typing import AnyStr, Sequence, Union, List
 from unicodedata import normalize as _normalize
 
-from cereja.config._constants import ENG_CONTRACTIONS, PUNCTUATION, VALID_LANGUAGE_CHAR, LANGUAGES, STOP_WORDS
+from ..config import ENG_CONTRACTIONS, PUNCTUATION, VALID_LANGUAGE_CHAR, LANGUAGES, STOP_WORDS
 
 _NORMALIZE_VALUES = ''.join(PUNCTUATION)
 
@@ -114,5 +114,34 @@ def remove_stop_words(sentence: str, stop_words: List[str] = None, language: str
 
     stop_words = stop_words if stop_words else STOP_WORDS.get(language, None)
     sentence = ' '.join([word for word in sentence.split() if word.lower() not in stop_words]) if stop_words \
-               else sentence
+        else sentence
     return sentence.strip()
+
+
+def preprocess(text: str, is_destructive: bool = False, is_lower: bool = None, is_remove_accent: bool = None,
+               is_remove_punctuation: bool = None):
+    """
+    Run pack of preprocess functions
+
+    non-destructive functions: remove_extra_chars, remove_non_language_elements and separate
+    destructive functions: lower, accent_remove and remove_punctuation
+
+    @param text: any string data.
+    @param is_destructive: is a bool value, if True exec non-destructive and destructive functions
+    @param is_lower: bool
+    @param is_remove_accent: bool
+    @param is_remove_punctuation: bool
+    @return: preprocessed text
+    """
+    if is_destructive or is_lower:
+        text = text.lower()
+    text = remove_extra_chars(text)
+    text = remove_non_language_elements(text)
+    if is_destructive or is_remove_accent:
+        text = accent_remove(text)
+
+    if is_destructive or is_remove_punctuation:
+        text = remove_punctuation(text)
+    else:
+        text = separate(text)
+    return text

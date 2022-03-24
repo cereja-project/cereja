@@ -30,7 +30,7 @@ import logging
 import warnings
 
 __all__ = ['depreciation', 'synchronized', 'time_exec', 'sync_to_async', 'async_to_sync', 'thread_safe_generator',
-           'singleton']
+           'singleton', 'on_except']
 
 from cereja.concurrently import SyncToAsync, AsyncToSync
 from cereja.config.cj_types import PEP440
@@ -150,6 +150,21 @@ def depreciation(alternative: str = None):
                           f"{alternative}", DeprecationWarning, 2)
             result = func(*args, **kwargs)
             return result
+
+        return wrapper
+
+    return register
+
+
+def on_except(return_value=None, warn_text=None):
+    def register(func):
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if warn_text:
+                    warnings.warn(f'{e}: {warn_text}')
+                return return_value
 
         return wrapper
 

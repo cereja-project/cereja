@@ -6,18 +6,17 @@ import re
 import pickle
 import tempfile
 from abc import ABCMeta, abstractmethod, ABC
-from collections import ValuesView
 from io import BytesIO
-from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView
+from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView, ValuesView
 import json
 from .._requests import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from cereja.system import Path, mkdir
-from cereja.array import get_cols, flatten, get_shape
-from cereja.utils import is_sequence, clipboard
-from cereja.system import memory_of_this
-from cereja.utils import string_to_literal, sample, fill
+from ..system import Path, mkdir
+from ..array import get_cols, flatten, get_shape
+from ..utils import is_sequence, clipboard
+from ..system import memory_of_this
+from ..utils import string_to_literal, sample, fill
 
 logger = logging.Logger(__name__)
 
@@ -219,10 +218,7 @@ class _FileIO(_IFileIO, ABC):
                 raise NotImplementedError(cls._need_implement.get(attr).format(class_name=cls.__name__))
 
     def __repr__(self):
-        return f'{self._ext_without_point}<{self._path.name}>'
-
-    def __str__(self):
-        return f'{self._ext_without_point}<{self._path.name}>'
+        return f"File{self.__class__.__name__.replace('_', '')}({self._path.name})"
 
     def __setattr__(self, key, value):
         object.__setattr__(self, key, copy.copy(value))
@@ -371,7 +367,7 @@ class _FileIO(_IFileIO, ABC):
 
     def _load(self, mode=None, **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
-            logger.warning(f"I can't read this file. See class attribute <{self.__name__}._dont_read>")
+            logger.warning(f"I can't read this file. See class attribute <{self.__class__.__name__}._dont_read>")
             return
         mode = mode or self._get_mode('r')
         encoding = None if self._is_byte else 'utf-8'
@@ -530,14 +526,19 @@ class _JsonIO(_FileIO):
     indent = False
     ensure_ascii = False
 
-    def __init__(self, path_: Path, indent=False, **kwargs):
+    def __init__(self, path_: Path, indent=False, string_eval=True, **kwargs):
         self.indent = indent
+        self.string_eval = string_eval
         if 'ensure_ascii' in kwargs:
             self.ensure_ascii = kwargs.pop('ensure_ascii')
         super().__init__(path_, **kwargs)
 
+    @staticmethod
+    def _object_hook(obj):
+        return {string_to_literal(k): string_to_literal(v) for k, v in obj.items()}
+
     def _parse_fp(self, fp: TextIO) -> dict:
-        return json.load(fp)
+        return json.load(fp, object_hook=self._object_hook if self.string_eval else None)
 
     def _save_fp(self, fp):
         json.dump(self._data, fp, indent=4 if self.indent else None, ensure_ascii=self.ensure_ascii)
@@ -551,9 +552,11 @@ class _JsonIO(_FileIO):
     def values(self) -> ValuesView:
         return self._data.values()
 
-    def parse(self, data) -> dict:
-        if isinstance(data, dict):
+    def parse(self, data) -> Union[dict, list]:
+        if isinstance(data, (dict, list)):
             return data
+        elif isinstance(data, (str, bytes)):
+            return json.loads(data, object_hook=self._object_hook if self.string_eval else None)
         else:
             raise TypeError(f"{type(data)} isn't valid.")
 
@@ -917,33 +920,21 @@ class FileIO:
 
     @classmethod
     def load_files(cls, path_, ext=None, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
-                   recursive=False):
+                   recursive=False, ignore_dirs=()):
 
         ext = ext or ''
-        f_paths = Path.list_files(path_, ext=ext, contains_in_name=contains_in_name,
-                                  not_contains_in_name=not_contains_in_name, recursive=recursive)
+        f_paths = Path(path_).list_files(ext=ext,
+                                         contains_in_name=contains_in_name,
+                                         not_contains_in_name=not_contains_in_name,
+                                         recursive=recursive,
+                                         ignore_dirs=ignore_dirs)
         loaded = []
         for p in f_paths:
-            if recursive and p.is_dir:
-                loaded.extend(cls.load_files(path_=p, ext=ext, contains_in_name=contains_in_name,
-                                             not_contains_in_name=not_contains_in_name, take_empty=take_empty,
-                                             recursive=recursive))
-                continue
-            if not p.exists or p.is_dir:
-                continue
             file_ = cls.load(path_=p)
             if file_ is None:
                 continue
             if take_empty is True and file_.is_empty:
                 continue
-            if not (file_.ext == f'.{ext.strip(".")}' or ext == ''):
-                continue
-            if contains_in_name:
-                if not any(map(file_.name_without_ext.__contains__, contains_in_name)):
-                    continue
-            if not_contains_in_name:
-                if any(map(file_.name_without_ext.__contains__, not_contains_in_name)):
-                    continue
             loaded.append(file_)
         return loaded
 

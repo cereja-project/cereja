@@ -290,8 +290,9 @@ class _ConsoleBase(metaclass=ABC):
 
     def _normalize_format(self, s):
         for color_name in self.__color_map:
-            s = s.replace(f'end{color_name}', 'default')
-        s = s.replace('  ', ' ')
+            s = s.replace('{end%s}' % color_name, self.__color_map['default'])
+            s = s.replace('{%s}' % color_name, self.__color_map[color_name])
+        s = s.replace('  ', ' ') + self.__color_map['default']
         return s
 
     def parse(self, msg, title=None):
@@ -303,13 +304,7 @@ class _ConsoleBase(metaclass=ABC):
         :param s:
         :return:
         """
-        s = self._normalize_format(s)
-        try:
-            s = f'{s}'.format_map(self.__color_map)
-            return s
-        except KeyError as err:
-            self.error(f"Color {err} not found.")
-        return s
+        return self._normalize_format(s)
 
     def format(self, s: str, color: str):
         if color == "random":
@@ -318,8 +313,8 @@ class _ConsoleBase(metaclass=ABC):
             raise ValueError(
                     f"Color {repr(color)} not found. Choose an available color"
                     f" [red, green, yellow, blue, magenta and cyan].")
-        s = self.template_format(s)
-        return f"{self._color_map[color]}{s}{self._color_map[color]}"
+        s = self._normalize_format(s)
+        return f"{self._color_map[color]}{s}{self._color_map['default']}"
 
     def random_color(self, text: str):
         color = random.choice(list(self.__color_map))
@@ -448,13 +443,33 @@ class _StateAwaiting(_StateLoading):
     def _clean(self, result):
         return result.strip(self.left_right_delimiter)
 
-    def display(self, *args, **kwargs) -> str:
-        result = self._clean(super().display(*args, **kwargs))
-        return f"Awaiting{result}"
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        result = self._clean(
+                super().display(current_value=current_value, max_value=max_value, current_percent=current_percent,
+                                time_it=time_it,
+                                n_times=n_times))
+        return f"{time_format(time_it)} - Awaiting{result}"
 
-    def done(self, *args, **kwargs) -> str:
-        result = self._clean(super().done(*args, **kwargs))
-        return f"Awaiting{result} Done!"
+    def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+             n_times: int) -> str:
+        return f"Total Time: {time_format(time_it)}"
+
+
+class _StateDownloadData(State):
+    _size_map = {"B":  1.e0,
+                 "KB": 1.e3,
+                 "MB": 1.e6,
+                 "GB": 1.e9,
+                 "TB": 1.e12
+                 }
+
+    def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
+                n_times: int) -> str:
+        current_value /= self._size_map['MB']
+        max_value /= self._size_map['MB']
+        per_second = (current_value / time_it)
+        return f"{current_value:.2f}/{max_value:.2f} MB ({per_second:.2f} MB/s)"
 
 
 class _StateBar(State):
@@ -543,23 +558,21 @@ class Progress:
     __done_unicode = Unicode("\U00002705")
     __err_unicode = Unicode("\U0000274C")
     __key_map = {
-        "loading": _StateLoading,
-        "time":    _StateTime,
-        "percent": _StatePercent,
-        "bar":     _StateBar,
-        "value":   _StateValue
+        "loading":  _StateLoading,
+        "time":     _StateTime,
+        "percent":  _StatePercent,
+        "bar":      _StateBar,
+        "value":    _StateValue,
+        'download': _StateDownloadData,
 
     }
     _with_context = False
     __built = False
     _console = console
-    __current_prog = None
+    _progresses = {}
 
-    def __init__(self, name="Progress", max_value: int = 100, states=('value', 'bar', 'percent', 'time')):
-        # fix me
-        if self.__class__.__current_prog:
-            self.__class__.__current_prog.stop()
-        self.__class__.__current_prog = self
+    def __init__(self, sequence=None, name="Progress", max_value: int = 100,
+                 states=('value', 'bar', 'percent', 'time')):
         self._n_times = 0
         self._name = name or 'Progress'
         self._task_count = 0
@@ -575,6 +588,11 @@ class Progress:
         self._was_done = False
         self._err = False
         self.__built = True
+        if sequence is not None:
+            self.__call__(sequence)
+        if len(Progress._progresses) >= 10:
+            Progress._progresses.pop(id(self))
+        Progress._progresses[id(self)] = self
 
     @property
     def name(self):
@@ -599,11 +617,23 @@ class Progress:
         if not self._with_context:
             self.stop()
 
+    @property
+    def completed(self):
+        return self._was_done
+
+    @staticmethod
+    def die_all():
+        for progress in Progress._progresses:
+            progress.stop()
+
     def _parse_states(self):
         return tuple(map(lambda stt: stt.__class__.__name__, self._states))
 
     def _get_done_state(self, **kwargs):
-        result = list(map(lambda state: state.done(**kwargs), self._states))
+        if self._current_value == 0:
+            result = [self.__awaiting_state.done(**kwargs)]
+        else:
+            result = list(map(lambda state: state.done(**kwargs), self._states))
         done_msg = f"Done! {self.__done_unicode}"
         done_msg = self._console.format(done_msg, 'green')
         result.append(done_msg)
@@ -621,6 +651,10 @@ class Progress:
     @property
     def time_it(self):
         return time.time() - (self._started_time or time.time())
+
+    @property
+    def total_completed(self):
+        return f'{self.percent_(self._current_value)}%'
 
     def _states_view(self, for_value: Number) -> Tuple[str, bool]:
         """
@@ -709,7 +743,8 @@ class Progress:
         while self._started:
             if (self._awaiting_update and self._current_value != last_value) or (not self._show and not self._was_done):
                 n_times += 1
-                self._console.replace_last_msg(self.__awaiting_state.display(0, 0, 0, 0, n_times=n_times))
+                self._console.replace_last_msg(
+                        self.__awaiting_state.display(0, 0, 0, time_it=self.time_it, n_times=n_times))
                 time.sleep(0.5)
             if not self._awaiting_update or self._show:
                 self._show_progress(self._current_value)
@@ -779,6 +814,7 @@ class Progress:
             self._started = False
             self._th_root.join()
             self._console.disable()
+        Progress._progresses.pop(id(self))
 
     def restart(self):
         self._reset()
@@ -861,5 +897,3 @@ if IP:
     IP.set_custom_exc((Exception, GeneratorExit, SystemExit, KeyboardInterrupt), _Stdout.custom_exc)
 else:
     sys.excepthook = _Stdout.die_threads
-if __name__ == "__main__":
-    pass

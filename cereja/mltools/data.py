@@ -25,15 +25,15 @@ import pickle
 import random
 import secrets
 import math
-from collections import Counter, OrderedDict
-from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set
+from collections import OrderedDict
+from typing import Optional, Sequence, Dict, Any, List, Union, Tuple, Set, Counter
 
-from cereja.utils._utils import is_iterable, is_sequence
-from cereja.file import FileIO
-from cereja.utils import invert_dict, string_to_literal
-from cereja.mltools.preprocess import remove_punctuation, remove_stop_words, \
+from ..utils import is_iterable, is_sequence
+from ..file import FileIO
+from ..utils import invert_dict, string_to_literal
+from ..mltools.preprocess import remove_punctuation, remove_stop_words, \
     replace_english_contractions
-from cereja.utils.decorators import thread_safe_generator
+from ..utils.decorators import thread_safe_generator
 
 __all__ = ['ConnectValues', 'Freq', 'Tokenizer', 'TfIdf', 'DataGenerator']
 
@@ -235,6 +235,9 @@ class Tokenizer:
         data = self.normalize(values)
         result = []
         for v in data:
+            if isinstance(v, (int, float, complex)):
+                result += [str(v)]
+                continue
             result += v.split()
         return set(map(self.preprocess_function, result))
 
@@ -295,8 +298,11 @@ class Tokenizer:
             result.append((self._encode(sentence.split(), __hash), __hash))
         return result
 
-    def decode(self, data: Union[List[int], int]):
-        return [self.index_item(index) for index in self.normalize(data)]
+    def decode(self, data: Union[List[int], int], hash_=None):
+        decoded = ' '.join([self.index_item(index) for index in self.normalize(data)])
+        if hash_ is not None:
+            decoded = self.replace_unks(decoded, hash_=hash_)
+        return decoded
 
     def to_json(self, path_: str):
         try:
@@ -311,7 +317,7 @@ class Tokenizer:
 
     @classmethod
     def load_from_json(cls, path_: str):
-        data = FileIO.load(path_)
+        data = FileIO.load(path_, string_eval=False)
         return cls(data.data, load_mode=True)
 
     def replace_unks(self, sentence: str, hash_):
