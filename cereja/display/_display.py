@@ -40,8 +40,6 @@ from cereja.mathtools import proportional, estimate, percent
 
 __all__ = ['Progress', "State", "console"]
 
-from cereja.utils.decorators import singleton
-
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
             "ProgressLoadingSequence", "State"]
 
@@ -750,8 +748,8 @@ class Progress:
                 self._show_progress(self._current_value)
             last_value = self._current_value
             time.sleep(0.01)
-        if not self._was_done:
-            self._show_progress(self._max_value)
+        # if not self._was_done:
+        #     self._show_progress(self._max_value)
 
     def _show_progress(self, for_value=None):
         self._awaiting_update = False
@@ -856,11 +854,13 @@ class Progress:
     def __next__(self):
         if not self._with_context:
             self.start()
-        for n, obj in enumerate(self.sequence):
-            self._update_value(n + 1)
-            yield obj
-        if not self._with_context:
-            self.stop()
+        try:
+            for n, obj in enumerate(self.sequence):
+                self._update_value(n + 1)
+                yield obj
+        finally:
+            if not self._with_context:
+                self.stop()
         self._console.set_prefix(self.name)
         self.sequence = ()
 
