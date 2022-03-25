@@ -9,6 +9,8 @@ from abc import ABCMeta, abstractmethod, ABC
 from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView, ValuesView
 import json
+
+import cereja
 from .._requests import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -765,7 +767,7 @@ class _ZipFileIO(_FileIO):
             members = members or sample(myzip.namelist(), k, is_random)
             if save_on:
                 mkdir(save_on)
-            myzip.extractall(save_on, members=members)
+            myzip.extractall(save_on, members=cereja.Progress.prog(list(members), 'Extracting'))
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
         raise NotImplementedError
