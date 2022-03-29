@@ -621,7 +621,7 @@ class Progress:
 
     @staticmethod
     def die_all():
-        for progress in Progress._progresses:
+        for progress in Progress._progresses.values():
             progress.stop()
 
     def _parse_states(self):

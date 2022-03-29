@@ -126,7 +126,7 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(text: Union[str, bytes], k=4):
+def truncate(text: Union[str, bytes], k=15):
     """
     Truncate text.
     eg.:
@@ -138,10 +138,11 @@ def truncate(text: Union[str, bytes], k=4):
     @param k: natural numbers, default is 4
     """
     assert isinstance(text, (str, bytes)), TypeError(f"{type(text)} isn't valid. Expected str or bytes")
-    if k > len(text) or k < 0:
+    if k > len(text) or k <= 4:
         return text
-    trunc_chars = '...' if isinstance(text, str) else b'...'
-    return text[:k] + trunc_chars
+    n = int((k - 4) / 2)  # k is the max length of text, 4 is the length of truncate symbol
+    trunc_chars = '....' if isinstance(text, str) else b'....'
+    return text[:n] + trunc_chars + text[-n:]
 
 
 def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=False, deep=3):

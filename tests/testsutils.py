@@ -137,10 +137,11 @@ class UtilsTest(unittest.TestCase):
         pass
 
     def test_truncate(self):
-        self.assertEqual(utils.truncate("Cereja is fun.", k=3), 'Cer...')
-        self.assertEqual(utils.truncate(b"Cereja is fun.", k=3), b'Cer...')
+        self.assertEqual(utils.truncate("Cereja is fun.", k=3), "Cereja is fun.")
+        self.assertEqual(utils.truncate(b"Cereja is fun.", k=3), b"Cereja is fun.")
         self.assertEqual(utils.truncate("Cereja is fun.", k=-1), "Cereja is fun.")
         self.assertEqual(utils.truncate("Cereja is fun.", k=1000), "Cereja is fun.")
+        self.assertEqual(utils.truncate("Cereja is fun.", k=10), "Cer....un.")
 
         self.assertRaises(AssertionError, utils.truncate, 1123)
 

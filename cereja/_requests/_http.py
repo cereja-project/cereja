@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import threading
+import time
 from urllib import request as urllib_req
 import json
 import io
@@ -107,20 +108,22 @@ class HttpResponse:
     CHUNK_SIZE = 1024 * 1024 * 1  # 1MB
 
     def __init__(self, request: 'HttpRequest', save_on_path=None, timeout=None):
-        self._request = request
-        self._save_on_path = save_on_path
-        self._headers = {}
-        self._total_completed = '0.0%'
-        self._timeout = timeout
         self._finished = False
+        self._timeout = timeout
         self._code = None
         self._status = None
         self._data = None
+        self._headers = {}
+        self._request = request
+        self._save_on_path = save_on_path
+        self._total_completed = '0.0%'
         self._th_request = threading.Thread(target=self.__request)
         self._th_request.start()
+        while not self.headers:
+            time.sleep(0.1)  # await headers
 
     def __request(self):
-        # TODO: send to HttpRequest
+        # TODO: send to HttpRequest ?
         try:
             with urllib_req.urlopen(self._request.urllib_req, timeout=self._timeout) as req_file:
                 self._code = req_file.status
