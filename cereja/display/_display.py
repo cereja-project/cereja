@@ -23,7 +23,6 @@ import io
 import os
 import threading
 import time
-import warnings
 import sys
 import random
 from typing import Tuple
@@ -589,7 +588,8 @@ class Progress:
         if sequence is not None:
             self.__call__(sequence)
         if len(Progress._progresses) >= 10:
-            Progress._progresses.pop(id(self))
+            # TODO: This is a hack to avoid memory leaks.
+            Progress._progresses.clear()
         Progress._progresses[id(self)] = self
 
     @property
