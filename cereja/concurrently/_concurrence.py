@@ -33,11 +33,11 @@ from typing import Sequence, Any
 
 from cereja.config.cj_types import FunctionType
 
-__all__ = ['TaskList', 'AsyncToSync', 'SyncToAsync']
+__all__ = ['TaskList', 'AsyncToSync', 'SyncToAsync', 'sync_to_async', 'async_to_sync']
 logger = logging.getLogger(__name__)
 
 # intern
-_exclude = ['AsyncToSync', 'SyncToAsync', 'TaskList']
+_exclude = ['AsyncToSync', 'SyncToAsync', 'TaskList', 'sync_to_async', 'async_to_sync']
 
 try:
     import contextvars  # Python 3.7+ only.
@@ -280,3 +280,7 @@ class TaskList:
 
     def _run_functional(self):
         return list(map(self.func, self.sequence))
+
+
+sync_to_async = SyncToAsync
+async_to_sync = AsyncToSync
