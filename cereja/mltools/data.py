@@ -341,6 +341,21 @@ class TfIdf:
 
     def __init__(self, sentences: List[str], language: str = 'english', punctuation: str = None,
                  stop_words: List[str] = None):
+        """
+        Calculate tf-idf of a sentence based on a document
+        :param sentences: sentence to calculate tf-idf
+        :param language: sentence language
+        :param punctuation: custom scores to be removed from sentences
+        :param stop_words: custom words to be removed from sentences
+
+        e.g:
+        document = ['i like coffee', 'i need coffee', 'do you believe me?', 'maria saved my life']
+        tfidf = TfIdf(document, language='english')
+        sentence = document[0]
+        sentence_tf_idf = tfidf.sentence_tf_idf(sentence, language='english')
+        sentence_tf_idf = tfidf.ordered_tf_idf(sentence_tf_idf)
+        # [('like', 0.23104906018664842), ('i', 0.09589402415059362), ('coffee', 0.09589402415059362)]
+        """
         self._sentences = self.clean_sentences(sentences,
                                                language=language,
                                                punctuation=punctuation,
