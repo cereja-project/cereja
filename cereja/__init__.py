@@ -32,7 +32,6 @@ from .array import *
 from . import system
 from .system import *
 from .system.unicode import *
-from . import utils
 from .utils import decorators
 from .concurrently import *
 from . import mltools
@@ -48,7 +47,7 @@ from . import experimental
 from ._requests import request
 
 
-VERSION = "1.6.7.final.0"
+VERSION = "1.6.8.final.0"
 
 
 __version__ = get_version_pep440_compliant(VERSION)

@@ -812,7 +812,9 @@ class Progress:
             self._started = False
             self._th_root.join()
             self._console.disable()
-        Progress._progresses.pop(id(self))
+        if id(self) in Progress._progresses:
+            # TODO: verify if this works
+            Progress._progresses.pop(id(self))
 
     def restart(self):
         self._reset()
