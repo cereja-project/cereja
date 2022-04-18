@@ -21,6 +21,7 @@ SOFTWARE.
 """
 
 import functools
+import os
 import threading
 import time
 from abc import abstractmethod
@@ -50,10 +51,27 @@ def synchronized(func):
     return synced_func
 
 
+class _Thread(threading.Thread):
+
+    def __init__(self, target, args, kwargs, name=None, daemon=None, callback=None):
+        while threading.active_count() > os.cpu_count():
+            time.sleep(0.1)
+        super().__init__(daemon=daemon, name=name)
+        self._func = target
+        self._args = args
+        self._kwargs = kwargs
+        self._callback = callback
+
+    def run(self):
+        res = self._func(*self._args, **self._kwargs)
+        if self._callback:
+            self._callback(res)
+
+
 def use_thread(func):
     def wrapper(*args, **kwargs):
-        threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True).start()
-
+        th = _Thread(target=func, args=args, kwargs=kwargs, daemon=True)
+        th.start()
     return wrapper
 
 
