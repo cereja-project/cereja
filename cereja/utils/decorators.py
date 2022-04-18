@@ -29,8 +29,8 @@ import abc
 import logging
 import warnings
 
-__all__ = ['depreciation', 'synchronized', 'time_exec','thread_safe_generator',
-           'singleton', 'on_except']
+__all__ = ['depreciation', 'synchronized', 'time_exec', 'thread_safe_generator',
+           'singleton', 'on_except', 'use_thread']
 
 from ..config.cj_types import PEP440
 
@@ -48,6 +48,13 @@ def synchronized(func):
             return func(*args, **kws)
 
     return synced_func
+
+
+def use_thread(func):
+    def wrapper(*args, **kwargs):
+        threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True).start()
+
+    return wrapper
 
 
 class _ThreadSafeIterator:
@@ -86,6 +93,7 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
         return result
 
     return wrapper
+
 
 class Decorator(abc.ABC):
     def __init__(self):
