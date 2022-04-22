@@ -19,6 +19,8 @@ SOFTWARE.
 import ast
 import gc
 import math
+import os
+import threading
 import time
 from collections import OrderedDict, defaultdict
 from importlib import import_module
@@ -41,11 +43,32 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
            'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
            'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len',
-           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides']
+           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides', 'Thread']
 
 logger = logging.getLogger(__name__)
 
 _DICT_ITEMS_TYPE = type({}.items())
+
+
+class Thread(threading.Thread):
+
+    def __init__(self, target, args=None, kwargs=None, name=None, daemon=None, callback=None):
+        while threading.active_count() > os.cpu_count() * 2:
+            time.sleep(0.1)
+        super().__init__(daemon=daemon, name=name)
+        if args is None:
+            args = ()
+        if kwargs is None:
+            kwargs = {}
+        self._func = target
+        self._args = args
+        self._kwargs = kwargs
+        self._callback = callback
+
+    def run(self):
+        res = self._func(*self._args, **self._kwargs)
+        if self._callback:
+            self._callback(res)
 
 
 def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
