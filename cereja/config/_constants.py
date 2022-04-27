@@ -152,8 +152,7 @@ STOP_WORDS = {
 LANGUAGES = {'english', 'portuguese'}
 VALID_LANGUAGE_CHAR = {chr(i) for i in range(10000) if 'LETTER' in Unicode(i).name}
 VALID_LANGUAGE_CHAR.update(string.digits)
-VALID_LANGUAGE_CHAR.update(string.punctuation)
-VALID_LANGUAGE_CHAR.update(PUNCTUATION)
+VALID_LANGUAGE_CHAR.update(',!%$?-.')
 VALID_LANGUAGE_CHAR.update(' ')
 
 DATA_UNIT_MAP = {"B":  1.e0,
