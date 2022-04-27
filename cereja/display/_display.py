@@ -154,7 +154,7 @@ class _Stdout:
     def persist(self):
         if not self.persisting:
             self.use_th_console = True
-            self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
+            self.th_console = threading.Thread(name="Console", target=self.write_user_msg, daemon=True)
             self.th_console.start()
             sys.stdout = self._stdout_buffer
             sys.stderr = self._stderr_buffer
@@ -602,7 +602,7 @@ class Progress:
         self._name = value
 
     def _create_progress_service(self):
-        return threading.Thread(name="awaiting", target=self._progress_service)
+        return threading.Thread(name="awaiting", target=self._progress_service, daemon=True)
 
     def __repr__(self):
         state, _ = self._states_view(self._max_value)

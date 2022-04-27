@@ -41,9 +41,10 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
+           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_indexable', 'is_sequence', 'is_numeric_sequence',
+           'clipboard',
            'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len',
-           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides', 'Thread']
+           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides', 'Thread', 'prune_values']
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,10 @@ class Thread(threading.Thread):
         res = self._func(*self._args, **self._kwargs)
         if self._callback:
             self._callback(res)
+
+
+def is_indexable(v):
+    return hasattr(v, '__getitem__')
 
 
 def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
@@ -1049,3 +1054,16 @@ def get_batch_strides(data, kernel_size, strides=1, take_index=False):
         if len(batches) == kernel_size:
             yield batches
             batches = batches[strides:]
+
+
+def prune_values(values: Sequence, factor=2):
+    assert is_indexable(values), TypeError('object is not subscriptable')
+    if len(values) <= factor:
+        return values
+    w = round(len(values) / 2)
+    k = int(round(w / factor))
+    res = values[w-k:w+k]
+
+    if len(res) == 0:
+        return values[k]
+    return res
