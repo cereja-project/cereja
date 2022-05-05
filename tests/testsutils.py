@@ -207,6 +207,16 @@ class UtilsTest(unittest.TestCase):
         for test_value, items_per_batch, expected_error in tests_raise:
             self.assertRaises(expected_error, utils.chunk, test_value, items_per_batch)
 
+    def test_get_batch_strides(self):
+        tests = [(range(1, 26), 5, 9, [[1, 2, 3, 4, 5], [10, 11, 12, 13, 14], [19, 20, 21, 22, 23]]),
+                 (range(1, 26), 5, 2,
+                  [[1, 2, 3, 4, 5], [3, 4, 5, 6, 7], [5, 6, 7, 8, 9], [7, 8, 9, 10, 11], [9, 10, 11, 12, 13],
+                   [11, 12, 13, 14, 15], [13, 14, 15, 16, 17], [15, 16, 17, 18, 19], [17, 18, 19, 20, 21],
+                   [19, 20, 21, 22, 23], [21, 22, 23, 24, 25], [23, 24, 25, 25, 25]]),
+                 ]
+        for test_value, kernel_size, strides, expected in tests:
+            self.assertEqual(list(utils.get_batch_strides(test_value, kernel_size, strides)), expected)
+
 
 class CjTestTest(unittest.TestCase):
 
