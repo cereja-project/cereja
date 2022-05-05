@@ -47,7 +47,7 @@ from . import experimental
 from ._requests import request
 
 
-VERSION = "1.7.1.final.0"
+VERSION = "1.7.2.final.0"
 
 
 __version__ = get_version_pep440_compliant(VERSION)
