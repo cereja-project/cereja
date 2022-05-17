@@ -169,7 +169,11 @@ def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1,
     >>> flatten(sequence, depth=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
-    assert is_sequence(sequence), f"Invalid value {sequence}"
+    if isinstance(sequence, dict):
+        sequence = dict_to_tuple(sequence)
+    else:
+        assert is_sequence(sequence), f"Invalid value {sequence}"
+
     depth = kwargs.get('max_recursion') or depth
 
     if not isinstance(depth, int):
