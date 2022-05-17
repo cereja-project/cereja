@@ -149,10 +149,11 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     return v[0]
 
 
-def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1, **kwargs) -> Union[List[Any], Any]:
+def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1, return_shapes=False, **kwargs) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
 
+    :param return_shapes: should return the shapes of the original values?
     :param sequence: Is sequence of values.
     :param depth: allows you to control a max depth, for example if you send a
     sequence=[1,2, [[3]]] and depth=1 your return will be [1, 2, [3]].
@@ -168,11 +169,7 @@ def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1,
     >>> flatten(sequence, depth=2)
     [1, 2, 3, 2, [3], 4, 6]
     """
-    if isinstance(sequence, dict):
-        sequence = dict_to_tuple(sequence)
-    else:
-        assert is_sequence(sequence), f"Invalid value {sequence}"
-
+    assert is_sequence(sequence), f"Invalid value {sequence}"
     depth = kwargs.get('max_recursion') or depth
 
     if not isinstance(depth, int):
@@ -180,21 +177,35 @@ def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1,
 
     flattened = []
     i = 0
-    deep = 0
     jump = len(sequence)
+    deep = 0
+    deep_counter = {deep: jump}
+    shapes = {deep: [jump]}
     while i < len(sequence):
         element = sequence[i]
         if is_sequence(element) and (depth == -1 or depth > deep):
             jump = len(element)
             deep += 1
+            deep_counter[deep] = deep_counter.get(deep, 0) + jump
+            shapes[deep] = shapes.get(deep, []) + [jump]
             sequence = list(element) + list(sequence[i + 1:])
+            if jump == 0:
+                deep -= 1
             i = 0
         else:
             flattened.append(element)
+            deep_counter[deep] -= 1
             i += 1
-        if i >= jump:
-            deep -= 1
-            jump = len(sequence)
+            if i >= jump:
+                for d in range(deep, 0, -1):
+                    if deep_counter[d] == 0:
+                        deep_counter[d-1] -= 1
+                        deep -= 1
+                    else:
+                        break
+
+    if return_shapes:
+        return flattened, shapes
     return flattened
 
 
@@ -403,12 +414,18 @@ class Matrix(object):
 
     def __add__(self, other):
         assert self.shape == get_shape(other), "the shape must be the same"
-        return Matrix([list(map(sum, zip(*t))) for t in zip(self, other)])
+        if len(self.shape) == 1:
+            return Matrix([sum(t) for t in zip(self, other)])
+        else:
+            return Matrix([list(map(sum, zip(*t))) for t in zip(self, other)])
 
     def __sub__(self, other):
         if is_numeric_sequence(other):
             assert self.shape == get_shape(other), "the shape must be the same"
-            return Matrix([list(map(sub, zip(*t))) for t in zip(self, other)])
+            if len(self.shape) == 1:
+                return Matrix([sub(t) for t in zip(self, other)])
+            else:
+                return Matrix([list(map(sub, zip(*t))) for t in zip(self, other)])
         return Matrix(array_gen(self.shape, list(map(lambda x: x - other, self.flatten()))))
 
     def __mul__(self, other):
@@ -421,7 +438,10 @@ class Matrix(object):
         if isinstance(other, (float, int)):
             other = Matrix(array_gen(self.shape, other))
         assert self.shape == get_shape(other), "the shape must be the same"
-        result = Matrix([list(map(div, zip(*t))) for t in zip(self, other)])
+        if len(self.shape) == 1:
+            result = Matrix([div(t) for t in zip(self, other)])
+        else:
+            result = Matrix([list(map(div, zip(*t))) for t in zip(self, other)])
         assert self.shape == result.shape, "the shape must be the same"
         return result
 
