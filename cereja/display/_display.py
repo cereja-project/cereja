@@ -23,7 +23,6 @@ import io
 import os
 import threading
 import time
-import warnings
 import sys
 import random
 from typing import Tuple
@@ -39,8 +38,6 @@ from cereja.utils import fill, time_format, get_instances_of, import_string
 from cereja.mathtools import proportional, estimate, percent
 
 __all__ = ['Progress', "State", "console"]
-
-from cereja.utils.decorators import singleton
 
 _exclude = ["_Stdout", "ConsoleBase", "BaseProgress", "ProgressLoading", "ProgressBar",
             "ProgressLoadingSequence", "State"]
@@ -157,7 +154,7 @@ class _Stdout:
     def persist(self):
         if not self.persisting:
             self.use_th_console = True
-            self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
+            self.th_console = threading.Thread(name="Console", target=self.write_user_msg, daemon=True)
             self.th_console.start()
             sys.stdout = self._stdout_buffer
             sys.stderr = self._stderr_buffer
@@ -591,7 +588,8 @@ class Progress:
         if sequence is not None:
             self.__call__(sequence)
         if len(Progress._progresses) >= 10:
-            Progress._progresses.pop(id(self))
+            # TODO: This is a hack to avoid memory leaks.
+            Progress._progresses.clear()
         Progress._progresses[id(self)] = self
 
     @property
@@ -604,7 +602,7 @@ class Progress:
         self._name = value
 
     def _create_progress_service(self):
-        return threading.Thread(name="awaiting", target=self._progress_service)
+        return threading.Thread(name="awaiting", target=self._progress_service, daemon=True)
 
     def __repr__(self):
         state, _ = self._states_view(self._max_value)
@@ -623,7 +621,7 @@ class Progress:
 
     @staticmethod
     def die_all():
-        for progress in Progress._progresses:
+        for progress in Progress._progresses.values():
             progress.stop()
 
     def _parse_states(self):
@@ -750,8 +748,8 @@ class Progress:
                 self._show_progress(self._current_value)
             last_value = self._current_value
             time.sleep(0.01)
-        if not self._was_done:
-            self._show_progress(self._max_value)
+        # if not self._was_done:
+        #     self._show_progress(self._max_value)
 
     def _show_progress(self, for_value=None):
         self._awaiting_update = False
@@ -814,7 +812,9 @@ class Progress:
             self._started = False
             self._th_root.join()
             self._console.disable()
-        Progress._progresses.pop(id(self))
+        if id(self) in Progress._progresses:
+            # TODO: verify if this works
+            Progress._progresses.pop(id(self))
 
     def restart(self):
         self._reset()
@@ -856,11 +856,13 @@ class Progress:
     def __next__(self):
         if not self._with_context:
             self.start()
-        for n, obj in enumerate(self.sequence):
-            self._update_value(n + 1)
-            yield obj
-        if not self._with_context:
-            self.stop()
+        try:
+            for n, obj in enumerate(self.sequence):
+                self._update_value(n + 1)
+                yield obj
+        finally:
+            if not self._with_context:
+                self.stop()
         self._console.set_prefix(self.name)
         self.sequence = ()
 

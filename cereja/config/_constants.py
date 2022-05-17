@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from cereja.system.unicode import Unicode
+from ..system.unicode import Unicode
 import string
 
 ENG_CONTRACTIONS = {
@@ -145,13 +145,19 @@ ENG_CONTRACTIONS = {
 }
 PUNCTUATION = [',', '!', '#', '$', '%', "'", '*', '+', '-', '.', '/', '?', '@', '\\', '^', '_', '~']
 STOP_WORDS = {
-    'english': ['is', 'are', 'am', 'at', 'a', 'an', 'of', 'the'],
-    'portuguese': ['em', 'do', 'da', 'de', 'pro', 'pra', 'no', 'dos', 'na', 'os', 'à', 'pela', 'nas', 'num',\
+    'english':    ['is', 'are', 'am', 'at', 'a', 'an', 'of', 'the'],
+    'portuguese': ['em', 'do', 'da', 'de', 'pro', 'pra', 'no', 'dos', 'na', 'os', 'à', 'pela', 'nas', 'num',
                    'das', 'numa', 'nos', 'às', 'pelas', 'as', 'uns', 'umas', 'lhe', 'é', 'o', 'a']
 }
 LANGUAGES = {'english', 'portuguese'}
 VALID_LANGUAGE_CHAR = {chr(i) for i in range(10000) if 'LETTER' in Unicode(i).name}
 VALID_LANGUAGE_CHAR.update(string.digits)
-VALID_LANGUAGE_CHAR.update(string.punctuation)
-VALID_LANGUAGE_CHAR.update(PUNCTUATION)
+VALID_LANGUAGE_CHAR.update(',!%$?-.')
 VALID_LANGUAGE_CHAR.update(' ')
+
+DATA_UNIT_MAP = {"B":  1.e0,
+                 "KB": 1.e3,
+                 "MB": 1.e6,
+                 "GB": 1.e9,
+                 "TB": 1.e12
+                 }

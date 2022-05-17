@@ -9,9 +9,12 @@ from abc import ABCMeta, abstractmethod, ABC
 from io import BytesIO
 from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView, ValuesView
 import json
+
 from .._requests import request
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from ..display import Progress
+from ..config import DATA_UNIT_MAP
 from ..system import Path, mkdir
 from ..array import get_cols, flatten, get_shape
 from ..utils import is_sequence, clipboard
@@ -24,12 +27,7 @@ __all__ = ['FileIO']
 
 
 class _IFileIO(metaclass=ABCMeta):
-    _size_map = {"B":  1.e0,
-                 "KB": 1.e3,
-                 "MB": 1.e6,
-                 "GB": 1.e9,
-                 "TB": 1.e12
-                 }
+    _size_map = DATA_UNIT_MAP
     _dont_read = [".pyc"]
     _ignore_dir = [".git"]
     _date_format = "%Y-%m-%d %H:%M:%S"
@@ -765,7 +763,7 @@ class _ZipFileIO(_FileIO):
             members = members or sample(myzip.namelist(), k, is_random)
             if save_on:
                 mkdir(save_on)
-            myzip.extractall(save_on, members=members)
+            myzip.extractall(save_on, members=Progress.prog(list(members), name='Extracting'))
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
         raise NotImplementedError

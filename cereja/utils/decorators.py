@@ -29,11 +29,10 @@ import abc
 import logging
 import warnings
 
-__all__ = ['depreciation', 'synchronized', 'time_exec', 'sync_to_async', 'async_to_sync', 'thread_safe_generator',
-           'singleton', 'on_except']
+__all__ = ['depreciation', 'synchronized', 'time_exec', 'thread_safe_generator',
+           'singleton', 'on_except', 'use_thread']
 
-from cereja.concurrently import SyncToAsync, AsyncToSync
-from cereja.config.cj_types import PEP440
+from ..config.cj_types import PEP440
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +48,16 @@ def synchronized(func):
             return func(*args, **kws)
 
     return synced_func
+
+
+def use_thread(func):
+    from .. import Thread
+
+    def wrapper(*args, **kwargs):
+        th = Thread(target=func, args=args, kwargs=kwargs, daemon=True)
+        th.start()
+
+    return wrapper
 
 
 class _ThreadSafeIterator:
@@ -87,11 +96,6 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
         return result
 
     return wrapper
-
-
-# Lowercase is more sensible for most things, and import_string is because Cyclic imports
-sync_to_async = SyncToAsync
-async_to_sync = AsyncToSync
 
 
 class Decorator(abc.ABC):

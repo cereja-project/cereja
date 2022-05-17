@@ -19,6 +19,8 @@ SOFTWARE.
 import ast
 import gc
 import math
+import os
+import threading
 import time
 from collections import OrderedDict, defaultdict
 from importlib import import_module
@@ -39,13 +41,40 @@ __all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_
            'get_implements', 'get_instances_of', 'import_string',
            'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
            'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_sequence', 'is_numeric_sequence', 'clipboard',
+           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_indexable', 'is_sequence', 'is_numeric_sequence',
+           'clipboard',
            'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len',
-           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides']
+           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides', 'Thread',
+           'prune_values']
 
 logger = logging.getLogger(__name__)
 
 _DICT_ITEMS_TYPE = type({}.items())
+
+
+class Thread(threading.Thread):
+
+    def __init__(self, target, args=None, kwargs=None, name=None, daemon=None, callback=None):
+        while threading.active_count() > os.cpu_count() * 2:
+            time.sleep(0.1)
+        super().__init__(daemon=daemon, name=name)
+        if args is None:
+            args = ()
+        if kwargs is None:
+            kwargs = {}
+        self._func = target
+        self._args = args
+        self._kwargs = kwargs
+        self._callback = callback
+
+    def run(self):
+        res = self._func(*self._args, **self._kwargs)
+        if self._callback:
+            self._callback(res)
+
+
+def is_indexable(v):
+    return hasattr(v, '__getitem__')
 
 
 def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
@@ -91,7 +120,7 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray, _DICT_ITEMS_TYPE)) else copy(data)
     if not batch_size or batch_size > len(data) or batch_size < 1:
         if isinstance(max_batches, (int, float)) and max_batches > 0:
-            batch_size = ((len(data) // max_batches) + len(data) % max_batches) or len(data)
+            batch_size = math.ceil(len(data) / max_batches)
         else:
             batch_size = len(data)
 
@@ -126,7 +155,7 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(text: Union[str, bytes], k=4):
+def truncate(text: Union[str, bytes], k=15):
     """
     Truncate text.
     eg.:
@@ -138,10 +167,11 @@ def truncate(text: Union[str, bytes], k=4):
     @param k: natural numbers, default is 4
     """
     assert isinstance(text, (str, bytes)), TypeError(f"{type(text)} isn't valid. Expected str or bytes")
-    if k > len(text) or k < 0:
+    if k > len(text) or k <= 4:
         return text
-    trunc_chars = '...' if isinstance(text, str) else b'...'
-    return text[:k] + trunc_chars
+    n = int((k - 4) / 2)  # k is the max length of text, 4 is the length of truncate symbol
+    trunc_chars = '....' if isinstance(text, str) else b'....'
+    return text[:n] + trunc_chars + text[-n:]
 
 
 def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=False, deep=3):
@@ -1011,17 +1041,33 @@ def get_zero_mask(number: int, max_len: int = 3) -> str:
     return f'%0.{max_len}d' % number
 
 
-def get_batch_strides(data, kernel_size, strides=1, take_index=False):
+def get_batch_strides(data, kernel_size, strides=1, fill_=True, take_index=False):
     """
     Returns batches of fixed window size (kernel_size) with a given stride
     @param data: iterable
     @param kernel_size: window size
     @param strides: default is 1
     @param take_index: add number of index on items
+    @param fill_: padding last batch if it needs
     """
     batches = []
     for index, item in enumerate(data):
         batches.append(item if not take_index else [index, item])
-        if len(batches) == kernel_size:
-            yield batches
+        if index % strides == 0 and len(batches) >= kernel_size:
+            yield batches[:kernel_size]
             batches = batches[strides:]
+    if len(batches):
+        yield rescale_values(batches, granularity=kernel_size, filling='post') if fill_ else batches
+
+
+def prune_values(values: Sequence, factor=2):
+    assert is_indexable(values), TypeError('object is not subscriptable')
+    if len(values) <= factor:
+        return values
+    w = round(len(values) / 2)
+    k = int(round(w / factor))
+    res = values[w - k:w + k]
+
+    if len(res) == 0:
+        return values[k]
+    return res

@@ -35,9 +35,9 @@ __all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_sha
            'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
            'sub', 'prod', 'reshape']
 
-from cereja.utils.decorators import depreciation
 
 from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, dict_to_tuple
+from ..utils.decorators import depreciation
 
 logger = logging.getLogger(__name__)
 
