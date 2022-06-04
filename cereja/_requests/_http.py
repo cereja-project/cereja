@@ -24,6 +24,7 @@ import time
 from urllib import request as urllib_req
 import json
 import io
+from ..config import PROXIES_URL
 
 __all__ = ['HttpRequest', 'HttpResponse']
 
@@ -188,17 +189,22 @@ class HttpResponse:
     def status(self):
         return self._status
 
+    def json(self):
+        return json.loads(self._data)
+
     @property
     def data(self):
         self._th_request.join()  # await for request
         if self.content_type == 'application/json':
             if not self._data:
                 return {}
-            return json.loads(self._data)
+            return self.json()
         return self._data
 
 
 class HttpRequest(_Http):
+    PROXIES = {}
+
     def __init__(self, method, url, *args, **kwargs):
         super().__init__(url=url, *args, **kwargs)
         if isinstance(self.data, dict):
@@ -209,6 +215,17 @@ class HttpRequest(_Http):
 
     def __repr__(self):
         return f'Request(url={self.url}, method={self._method})'
+
+    @classmethod
+    def get_proxies_list(cls):
+        if cls.PROXIES:
+            print('já tem proxies')
+            return cls.PROXIES
+        try:
+            cls.PROXIES = json.loads(cls('GET', PROXIES_URL).send_request().data)
+        except:
+            pass
+        return cls.PROXIES
 
     def send_request(self, save_on=None, timeout=None, **kwargs):
         if 'data' in kwargs:
