@@ -25,7 +25,7 @@ import threading
 import time
 import sys
 import random
-from typing import Tuple
+from typing import Tuple, Callable
 from abc import ABCMeta as ABC
 from typing import List
 from abc import ABCMeta, abstractmethod
@@ -569,13 +569,15 @@ class Progress:
     _progresses = {}
 
     def __init__(self, sequence=None, name="Progress", max_value: int = 100,
-                 states=('value', 'bar', 'percent', 'time')):
+                 states=('value', 'bar', 'percent', 'time'), custom_state_func=None, custom_state_name=None):
         self._n_times = 0
         self._name = name or 'Progress'
         self._task_count = 0
         self._started = False
         self._awaiting_update = True
         self._show = False
+        self._custom_state_value = custom_state_func if isinstance(custom_state_func, Callable) else None
+        self._custom_state_name = custom_state_name if custom_state_name else 'Custom State'
         self._started_time = None
         self._states = ()
         self.add_state(states)
@@ -669,10 +671,11 @@ class Progress:
             "time_it":         self.time_it,
             "n_times":         self._n_times
         }
+        extra_ = f' - {self._custom_state_name}: {self._custom_state_value()}' if self._custom_state_value else ''
         if for_value >= self._max_value:
-            return ' - '.join(self._get_done_state(**kwargs)), True
+            return ' - '.join(self._get_done_state(**kwargs)) + extra_, True
 
-        return ' - '.join(self._get_state(**kwargs)), False
+        return ' - '.join(self._get_state(**kwargs)) + extra_, False
 
     def add_state(self, state: Union[State, Sequence[State]], idx=-1):
         self._filter_and_add_state(state, idx)
@@ -748,8 +751,8 @@ class Progress:
                 self._show_progress(self._current_value)
             last_value = self._current_value
             time.sleep(0.01)
-        # if not self._was_done:
-        #     self._show_progress(self._max_value)
+        if not self._was_done:
+            self._show_progress(self._max_value)
 
     def _show_progress(self, for_value=None):
         self._awaiting_update = False
@@ -821,8 +824,8 @@ class Progress:
 
     @classmethod
     def prog(cls, sequence: Sequence[Any], name: str = None,
-             states=('value', 'bar', 'percent', 'time')) -> 'Progress':
-        return cls(name=name, states=states)(sequence)
+             states=('value', 'bar', 'percent', 'time'), custom_state_func=None, custom_state_name=None) -> 'Progress':
+        return cls(name=name, states=states, custom_state_func=custom_state_func, custom_state_name=custom_state_name)(sequence)
 
     def __len__(self):
         return len(self._states)
