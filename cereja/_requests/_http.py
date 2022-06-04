@@ -131,7 +131,7 @@ class HttpResponse:
                 self._status = req_file.reason
                 if hasattr(req_file, 'headers'):
                     self._headers = dict(req_file.headers.items())
-                if self.CHUNK_SIZE * 3 > req_file.length:
+                if self.CHUNK_SIZE * 3 > (req_file.length or 0):
                     self._data = req_file.read()
                 else:
                     with Progress(name=f'Fetching data', max_value=int(req_file.getheader('Content-Length')),
