@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import math
-from typing import Tuple
+from typing import Tuple, Union
 
 from ..array import flatten, get_shape
 from ..utils import is_sequence, chunk
@@ -47,8 +47,8 @@ def imc(weight: float, height: float) -> Tuple[float, str]:
     return _imc, grade
 
 
-def proportional(value, pro_of_val: int):
-    return (pro_of_val / 100) * value
+def proportional(value, old_max_value: Union[float, int], new_max_value: Union[float, int] = 100):
+    return (new_max_value / old_max_value) * value
 
 
 def estimate(from_: Number, to: Number, based: Number, ndigits=2) -> Number:

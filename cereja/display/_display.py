@@ -485,7 +485,7 @@ class _StateBar(State):
     def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> AnyStr:
         l_delimiter, r_delimiter = self.left_right_delimiter
-        prop_max_size = int(proportional(current_percent, self.size))
+        prop_max_size = int(proportional(current_value, max_value, self.size))
         blanks = self.blank * (self.size - prop_max_size - 1)
         body = console.template_format(f"{{green}}{self.default_char * prop_max_size}{self.arrow}{{endgreen}}")
         # value = f"{current_value:0{len(str(max_value))}d}/{max_value}"
@@ -518,7 +518,7 @@ class _StateTime(State):
     def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
                 n_times: int) -> str:
         time_estimate = estimate(current_value, max_value, time_it)
-        idx = int(proportional(int(current_percent), self.__max_sequence))
+        idx = int(proportional(current_value, max_value, self.__max_sequence))
         t_format = f"{time_format(time_estimate)}"
         value = f"{self.__clock + idx} {time_format(time_it)}/{t_format}"
         return f"{value}{self.blanks(len(value))} estimated"
@@ -825,7 +825,8 @@ class Progress:
     @classmethod
     def prog(cls, sequence: Sequence[Any], name: str = None,
              states=('value', 'bar', 'percent', 'time'), custom_state_func=None, custom_state_name=None) -> 'Progress':
-        return cls(name=name, states=states, custom_state_func=custom_state_func, custom_state_name=custom_state_name)(sequence)
+        return cls(name=name, states=states, custom_state_func=custom_state_func, custom_state_name=custom_state_name)(
+            sequence)
 
     def __len__(self):
         return len(self._states)
