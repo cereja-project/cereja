@@ -120,7 +120,7 @@ class HttpResponse:
         self._total_completed = '0.0%'
         self._th_request = threading.Thread(target=self.__request)
         self._th_request.start()
-        while not self.headers:
+        while not self.headers and not self._finished:
             time.sleep(0.1)  # await headers
 
     def __request(self):
@@ -157,6 +157,7 @@ class HttpResponse:
                 self._headers = dict(err.headers.items())
         except URLError as err:
             msg = f"{err.reason}: {self._request.url}"
+            self._finished = True
             raise URLError(msg)
         self._finished = True
 
@@ -167,29 +168,43 @@ class HttpResponse:
 
     @property
     def content_type(self):
+        if not self._finished:
+            self._th_request.join()
         return self._headers.get('Content-Type')
 
     @property
     def headers(self):
+        if not self._finished:
+            self._th_request.join()
         return self._headers
 
     @property
     def request(self):
+        if not self._finished:
+            self._th_request.join()
         return self._request
 
     @property
     def success(self):
+        if not self._finished:
+            self._th_request.join()
         return self._code == 200
 
     @property
     def code(self):
+        if not self._finished:
+            self._th_request.join()
         return self._code
 
     @property
     def status(self):
+        if not self._finished:
+            self._th_request.join()
         return self._status
 
     def json(self):
+        if not self._finished:
+            self._th_request.join()
         return json.loads(self._data)
 
     @property
