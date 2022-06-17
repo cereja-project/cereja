@@ -24,6 +24,7 @@ import time
 from urllib import request as urllib_req
 import json
 import io
+from ..config import PROXIES_URL
 
 __all__ = ['HttpRequest', 'HttpResponse']
 
@@ -119,7 +120,7 @@ class HttpResponse:
         self._total_completed = '0.0%'
         self._th_request = threading.Thread(target=self.__request)
         self._th_request.start()
-        while not self.headers:
+        while not self.headers and not self._finished:
             time.sleep(0.1)  # await headers
 
     def __request(self):
@@ -130,7 +131,7 @@ class HttpResponse:
                 self._status = req_file.reason
                 if hasattr(req_file, 'headers'):
                     self._headers = dict(req_file.headers.items())
-                if self.CHUNK_SIZE * 3 > req_file.length:
+                if self.CHUNK_SIZE * 3 > (req_file.length or 0):
                     self._data = req_file.read()
                 else:
                     with Progress(name=f'Fetching data', max_value=int(req_file.getheader('Content-Length')),
@@ -156,6 +157,7 @@ class HttpResponse:
                 self._headers = dict(err.headers.items())
         except URLError as err:
             msg = f"{err.reason}: {self._request.url}"
+            self._finished = True
             raise URLError(msg)
         self._finished = True
 
@@ -166,27 +168,44 @@ class HttpResponse:
 
     @property
     def content_type(self):
+        if not self._finished:
+            self._th_request.join()
         return self._headers.get('Content-Type')
 
     @property
     def headers(self):
+        if not self._finished:
+            self._th_request.join()
         return self._headers
 
     @property
     def request(self):
+        if not self._finished:
+            self._th_request.join()
         return self._request
 
     @property
     def success(self):
+        if not self._finished:
+            self._th_request.join()
         return self._code == 200
 
     @property
     def code(self):
+        if not self._finished:
+            self._th_request.join()
         return self._code
 
     @property
     def status(self):
+        if not self._finished:
+            self._th_request.join()
         return self._status
+
+    def json(self):
+        if not self._finished:
+            self._th_request.join()
+        return json.loads(self._data)
 
     @property
     def data(self):
@@ -194,11 +213,13 @@ class HttpResponse:
         if self.content_type == 'application/json':
             if not self._data:
                 return {}
-            return json.loads(self._data)
+            return self.json()
         return self._data
 
 
 class HttpRequest(_Http):
+    PROXIES = {}
+
     def __init__(self, method, url, *args, **kwargs):
         super().__init__(url=url, *args, **kwargs)
         if isinstance(self.data, dict):
@@ -209,6 +230,17 @@ class HttpRequest(_Http):
 
     def __repr__(self):
         return f'Request(url={self.url}, method={self._method})'
+
+    @classmethod
+    def get_proxies_list(cls):
+        if cls.PROXIES:
+            print('já tem proxies')
+            return cls.PROXIES
+        try:
+            cls.PROXIES = json.loads(cls('GET', PROXIES_URL).send_request().data)
+        except:
+            pass
+        return cls.PROXIES
 
     def send_request(self, save_on=None, timeout=None, **kwargs):
         if 'data' in kwargs:

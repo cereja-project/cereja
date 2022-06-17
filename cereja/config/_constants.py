@@ -161,3 +161,5 @@ DATA_UNIT_MAP = {"B":  1.e0,
                  "GB": 1.e9,
                  "TB": 1.e12
                  }
+
+PROXIES_URL = 'https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/json/proxies.json'
