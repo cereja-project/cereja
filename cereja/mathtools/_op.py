@@ -28,7 +28,7 @@ from ..utils import is_sequence, chunk
 from cereja.config.cj_types import Number
 
 __all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle', 'distance_between_points', 'theta_from_array',
-           'mmc']
+           'greatest_common_multiple', 'least_common_multiple', 'degrees_to_radian', 'radian_to_degrees']
 
 
 def imc(weight: float, height: float) -> Tuple[float, str]:
