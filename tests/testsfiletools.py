@@ -17,7 +17,7 @@ class FileIOTest(unittest.TestCase):
 
     @abstractmethod
     def create(self):
-        file = FileIO.create('test', data=self.data)  # generic
+        file = FileIO.create('test.tka', data=self.data)  # generic
         return file
 
     def setUp(self) -> None:

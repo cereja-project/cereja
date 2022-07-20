@@ -223,7 +223,10 @@ class Path(os.PathLike):
 
     @property
     def suffix(self):
-        return '' if self.is_dir else self.__path.suffix
+        if self.exists and self.__path.is_dir():
+            # is a dir
+            return ''
+        return self.__path.suffix
 
     @property
     def ext(self):
@@ -250,14 +253,17 @@ class Path(os.PathLike):
         return self.__path.as_uri()
 
     @property
-    @on_except(return_value=False)
     def is_dir(self):
-        return self.__path.is_dir()
+        if self.exists:
+            return self.__path.is_dir()
+        else:
+            return self.ext == ''
 
     @property
-    @on_except(return_value=False)
     def is_file(self):
-        return self.__path.is_file()
+        if self.exists:
+            return self.__path.is_file()
+        return self.ext != ''
 
     @property
     @on_except(return_value=False)
