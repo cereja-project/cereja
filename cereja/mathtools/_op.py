@@ -20,13 +20,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import math
+from functools import reduce
 from typing import Tuple, Union
 
 from ..array import flatten, get_shape
 from ..utils import is_sequence, chunk
 from cereja.config.cj_types import Number
 
-__all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle', 'distance_between_points', 'theta_from_array']
+__all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle', 'distance_between_points', 'theta_from_array',
+           'greatest_common_multiple', 'least_common_multiple', 'degrees_to_radian', 'radian_to_degrees']
 
 
 def imc(weight: float, height: float) -> Tuple[float, str]:
@@ -45,6 +47,14 @@ def imc(weight: float, height: float) -> Tuple[float, str]:
     else:
         grade = 'Obesity grade 3'
     return _imc, grade
+
+
+def greatest_common_multiple(values):
+    return reduce(math.gcd, values)
+
+
+def least_common_multiple(values):
+    return reduce((lambda x, y: int(x * y / math.gcd(x, y))), values)
 
 
 def proportional(value, old_max_value: Union[float, int], new_max_value: Union[float, int] = 100):
@@ -96,4 +106,12 @@ def theta_from_array(a, b, degrees=True):
 
 
 def distance_between_points(u: Tuple[float, float], v: Tuple[float, float]):
-    return math.sqrt(sum(map(lambda x: (x[0]-x[-1])**2, zip(u, v))))
+    return math.sqrt(sum(map(lambda x: (x[0] - x[-1]) ** 2, zip(u, v))))
+
+
+def degrees_to_radian(val):
+    return (val * math.pi) / 180.0
+
+
+def radian_to_degrees(val):
+    return (val * 180.0) / math.pi

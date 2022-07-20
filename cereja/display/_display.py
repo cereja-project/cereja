@@ -573,10 +573,9 @@ class Progress:
     _progresses = {}
 
     def __init__(self, sequence=None, name="Progress", max_value: int = 100,
-                 states=('value', 'bar', 'percent', 'time'), start_on=0, custom_state_func=None,
+                 states=('value', 'bar', 'percent', 'time'), custom_state_func=None,
                  custom_state_name=None):
         self._n_times = 0
-        self._start_on = start_on
         self._name = name or 'Progress'
         self._task_count = 0
         self._started = False
@@ -676,7 +675,6 @@ class Progress:
             "current_percent": self.percent_(for_value),
             "time_it":         self.time_it,
             "n_times":         self._n_times,
-            'started_on':      self._start_on
         }
         extra_ = f' - {self._custom_state_name}: {self._custom_state_value()}' if self._custom_state_value else ''
         if for_value >= self._max_value:
@@ -758,8 +756,8 @@ class Progress:
                 self._show_progress(self._current_value)
             last_value = self._current_value
             time.sleep(0.01)
-        if not self._was_done:
-            self._show_progress(self._max_value)
+        # if not self._was_done:
+        #     self._show_progress(self._max_value)
 
     def _show_progress(self, for_value=None):
         self._awaiting_update = False
@@ -831,9 +829,9 @@ class Progress:
 
     @classmethod
     def prog(cls, sequence: Sequence[Any], name: str = None,
-             states=('value', 'bar', 'percent', 'time'), start_on=0, custom_state_func=None,
+             states=('value', 'bar', 'percent', 'time'), custom_state_func=None,
              custom_state_name=None) -> 'Progress':
-        return cls(name=name, states=states, start_on=start_on, custom_state_func=custom_state_func,
+        return cls(name=name, states=states, custom_state_func=custom_state_func,
                    custom_state_name=custom_state_name)(
                 sequence)
 
@@ -870,7 +868,7 @@ class Progress:
         if not self._with_context:
             self.start()
         try:
-            for n, obj in enumerate(self.sequence, start=self._start_on):
+            for n, obj in enumerate(self.sequence):
                 self._update_value(n + 1)
                 yield obj
         finally:

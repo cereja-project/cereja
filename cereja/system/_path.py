@@ -218,8 +218,19 @@ class Path(os.PathLike):
         return self.__path.stem
 
     @property
+    def prefix(self):
+        return self.stem
+
+    @property
     def suffix(self):
-        return '' if self.is_dir else self.__path.suffix
+        if self.exists and self.__path.is_dir():
+            # is a dir
+            return ''
+        return self.__path.suffix
+
+    @property
+    def ext(self):
+        return self.suffix
 
     @property
     def root(self):
@@ -237,22 +248,22 @@ class Path(os.PathLike):
         return self._parent_name
 
     @property
-    @on_except(return_value=False, warn_text='Error on parser path in uri')
+    @on_except(return_value='', warn_text='Error on parser path in uri')
     def uri(self):
-        try:
-            return self.__path.as_uri()
-        except:
-            return ''
+        return self.__path.as_uri()
 
     @property
-    @on_except(return_value=False)
     def is_dir(self):
-        return self.__path.is_dir()
+        if self.exists:
+            return self.__path.is_dir()
+        else:
+            return self.ext == ''
 
     @property
-    @on_except(return_value=False)
     def is_file(self):
-        return self.__path.is_file()
+        if self.exists:
+            return self.__path.is_file()
+        return self.ext != ''
 
     @property
     @on_except(return_value=False)
@@ -337,15 +348,13 @@ class Path(os.PathLike):
                         raise Exception(f'{err}.\n Use rm_tree=True to DELETE {self.uri}.')
         elif command == 'mv':
             to = kwargs.get('to')
-            shutil.move(str(self), str(to))
-            return to
+            return self.__class__(shutil.move(str(self), str(to)))
         elif command == 'cp':
             to = kwargs.get('to')
             if self.is_dir:
-                shutil.copytree(str(self), str(to))
+                return self.__class__(shutil.copytree(str(self), str(to)))
             elif self.is_file:
-                shutil.copy(str(self), str(to))
-            return to
+                return self.__class__(shutil.copy(str(self), str(to)))
 
     def rm(self, rm_tree=False):
         """

@@ -21,7 +21,8 @@ SOFTWARE.
 """
 from ._http import HttpRequest, HttpResponse
 
-__all__ = ['is_url', 'download']
+__all__ = ['is_url', 'download', 'get_proxies_list', 'post', 'get', 'put', 'head', 'delete', 'connect', 'options',
+           'trace', 'patch']
 
 
 def download(url, save_on=None, timeout=None, **kwargs) -> HttpResponse:
@@ -39,6 +40,10 @@ def is_url(url):
     :return: True if the url is valid, False otherwise.
     """
     return HttpRequest.is_url(url)
+
+
+def get_proxies_list():
+    return HttpRequest.get_proxies_list()
 
 
 def post(url, data=None, headers=None, **kwargs) -> HttpResponse:
