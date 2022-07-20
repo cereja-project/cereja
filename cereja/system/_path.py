@@ -218,8 +218,16 @@ class Path(os.PathLike):
         return self.__path.stem
 
     @property
+    def prefix(self):
+        return self.stem
+
+    @property
     def suffix(self):
         return '' if self.is_dir else self.__path.suffix
+
+    @property
+    def ext(self):
+        return self.suffix
 
     @property
     def root(self):
@@ -237,12 +245,9 @@ class Path(os.PathLike):
         return self._parent_name
 
     @property
-    @on_except(return_value=False, warn_text='Error on parser path in uri')
+    @on_except(return_value='', warn_text='Error on parser path in uri')
     def uri(self):
-        try:
-            return self.__path.as_uri()
-        except:
-            return ''
+        return self.__path.as_uri()
 
     @property
     @on_except(return_value=False)
