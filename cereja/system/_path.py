@@ -337,15 +337,13 @@ class Path(os.PathLike):
                         raise Exception(f'{err}.\n Use rm_tree=True to DELETE {self.uri}.')
         elif command == 'mv':
             to = kwargs.get('to')
-            shutil.move(str(self), str(to))
-            return to
+            return self.__class__(shutil.move(str(self), str(to)))
         elif command == 'cp':
             to = kwargs.get('to')
             if self.is_dir:
-                shutil.copytree(str(self), str(to))
+                return self.__class__(shutil.copytree(str(self), str(to)))
             elif self.is_file:
-                shutil.copy(str(self), str(to))
-            return to
+                return self.__class__(shutil.copy(str(self), str(to)))
 
     def rm(self, rm_tree=False):
         """
