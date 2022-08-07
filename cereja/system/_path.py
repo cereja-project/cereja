@@ -32,7 +32,7 @@ from typing import List, Union
 
 from ..array import group_items_in_batches
 from pathlib import Path as Path_
-
+import glob
 from ..utils.decorators import on_except
 
 logger = logging.getLogger(__name__)
@@ -141,6 +141,7 @@ def _norm_path(path_: str):
 class Path(os.PathLike):
     _date_format = "%Y-%m-%d %H:%M:%S"
     __sep = os.sep
+    _verified = set()
 
     def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
         self.__path = Path_(_norm_path(str(initial)), *pathsegments)
@@ -189,6 +190,8 @@ class Path(os.PathLike):
     def _verify(self):
         part = self.__path
         for i in range(len(self.__path.parts)):
+            if str(part) in self._verified:
+                return
             part_split = part.name.split('.')
             if part_split[-1] == '.':
                 logger.info(f'It is not common to use dot <{part.name}> in the end of name.')
@@ -199,6 +202,7 @@ class Path(os.PathLike):
             if len(part_split) > 2:
                 logger.info(f"<{part.name}> has more dot than usual.")
             part = part.parent
+        self._verified.add(str(self.__path.parent))
 
     @property
     def name(self):
@@ -378,7 +382,7 @@ class Path(os.PathLike):
     def split(self, sep=None, max_split=-1):
         return self.path.rsplit(sep, max_split)
 
-    def list_dir(self, only_name=False) -> List['Path']:
+    def list_dir(self, search_match='*', only_name=False, recursive=False) -> List['Path']:
         """
         Extension of the listdir function of module os.
 
@@ -390,7 +394,8 @@ class Path(os.PathLike):
         if not self.is_dir:
             raise NotADirectoryError(f"check that the path '{self.path}' is correct")
         try:
-            return [p.stem if only_name else p for p in map(self.join, os.listdir(self))]
+            return [self.__class__(p).stem if only_name else self.__class__(p) for p in
+                    glob.glob(self.join(search_match).path, recursive=recursive)]
         except PermissionError as err:
             logger.error(f"{err}")
             return []
