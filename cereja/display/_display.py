@@ -98,11 +98,21 @@ class _Stdout:
             return True
         else:
             return False
-
+    @property
+    def stdout_buffer_values(self):
+        vals = self._stdout_buffer.getvalue()
+        self._stdout_buffer.seek(0)
+        self._stdout_buffer.truncate()
+        return vals
+    @property
+    def stderr_buffer_values(self):
+        vals = self._stderr_buffer.getvalue()
+        self._stderr_buffer.seek(0)
+        self._stderr_buffer.truncate()
+        return vals
     def write_user_msg(self):
         while self.use_th_console:
-            stdout = self._stdout_buffer.getvalue()[:-1]
-            stderr = self._stderr_buffer.getvalue()[:-1]
+            stdout, stderr = self.stdout_buffer_values, self.stderr_buffer_values
             if stdout and not (stdout in ["\n", "\r\n", "\n"]):
                 values = []
                 for value in stdout.splitlines():
@@ -111,8 +121,7 @@ class _Stdout:
                 value = '\n'.join(values)
                 value = f'\r{value}\n{self.last_console_msg}'
                 self._write(value)
-                self._stdout_buffer.seek(0)
-                self._stdout_buffer.truncate()
+
             if stderr and not (stderr in ["\n", "\r\n", "\n"]):
                 unicode_err = '\U0000274C'
                 prefix = self.console.template_format(f"{{red}}{unicode_err} Error:{{endred}}")
@@ -120,8 +129,6 @@ class _Stdout:
                 msg_err = self.console.format(stderr, color="red")
                 msg_err = f'\r{msg_err_prefix}\n{msg_err}\n{self.last_console_msg}'
                 self._write(msg_err)
-                self._stderr_buffer.seek(0)
-                self._stderr_buffer.truncate()
             time.sleep(0.1)
 
     def _write(self, msg: str):
@@ -157,7 +164,7 @@ class _Stdout:
     def persist(self):
         if not self.persisting:
             self.use_th_console = True
-            self.th_console = threading.Thread(name="Console", target=self.write_user_msg, daemon=True)
+            self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
             self.th_console.start()
             sys.stdout = self._stdout_buffer
             sys.stderr = self._stderr_buffer
@@ -580,6 +587,7 @@ class Progress:
         self._task_count = 0
         self._started = False
         self._awaiting_update = True
+        self._iter_finaly = False
         self._show = False
         self._custom_state_value = custom_state_func if isinstance(custom_state_func, Callable) else None
         self._custom_state_name = custom_state_name if custom_state_name else 'Custom State'
@@ -612,7 +620,7 @@ class Progress:
         return threading.Thread(name="awaiting", target=self._progress_service, daemon=True)
 
     def __repr__(self):
-        state, _ = self._states_view(self._max_value)
+        state = self._states_view(self._max_value)
         progress_example_view = f"{state}"
         state_conf = f"{self.__class__.__name__}{self._parse_states()}"
         return f"{state_conf}\n{self._console.parse(progress_example_view, title='Example States View')}"
@@ -624,7 +632,7 @@ class Progress:
 
     @property
     def completed(self):
-        return self._was_done
+        return self._was_done or self._err or self._iter_finaly
 
     @staticmethod
     def die_all():
@@ -644,12 +652,6 @@ class Progress:
         result.append(done_msg)
         return result
 
-    def _get_error_state(self):
-        result, _ = self._states_view(self._current_value)
-        error_msg = f"Error! {self.__err_unicode}"
-        error_msg = self._console.format(error_msg, 'red')
-        return f'{result} {error_msg}'
-
     def _get_state(self, **kwargs):
         return list(map(lambda state: state.display(**kwargs), self._states))
 
@@ -661,7 +663,7 @@ class Progress:
     def total_completed(self):
         return f'{self.percent_(self._current_value)}%'
 
-    def _states_view(self, for_value: Number) -> Tuple[str, bool]:
+    def _states_view(self, for_value: Number) -> str:
         """
         Return current state and bool
         bool:
@@ -677,10 +679,19 @@ class Progress:
             "n_times":         self._n_times,
         }
         extra_ = f' - {self._custom_state_name}: {self._custom_state_value()}' if self._custom_state_value else ''
-        if for_value >= self._max_value:
-            return ' - '.join(self._get_done_state(**kwargs)) + extra_, True
-
-        return ' - '.join(self._get_state(**kwargs)) + extra_, False
+        if self._was_done:
+            return ' - '.join(self._get_done_state(**kwargs)) + extra_
+        else:
+            _state_msg = ' - '.join(self._get_state(**kwargs)) + extra_
+            if self._err:
+                error_msg = f"Error! {self.__err_unicode}"
+                error_msg = self._console.format(error_msg, 'red')
+                _state_msg = f'{_state_msg} {error_msg}'
+            elif self._iter_finaly:
+                finish_msg = f"Done! {self.__done_unicode}"
+                finish_msg = self._console.format(finish_msg, 'green')
+                _state_msg = f'{_state_msg} {finish_msg}'
+            return _state_msg
 
     def add_state(self, state: Union[State, Sequence[State]], idx=-1):
         self._filter_and_add_state(state, idx)
@@ -746,7 +757,7 @@ class Progress:
     def _progress_service(self):
         last_value = self._current_value
         n_times = 0
-        while self._started:
+        while self._started and not self._iter_finaly:
             if (self._awaiting_update and self._current_value != last_value) or (not self._show and not self._was_done):
                 n_times += 1
                 self._console.replace_last_msg(
@@ -756,24 +767,11 @@ class Progress:
                 self._show_progress(self._current_value)
             last_value = self._current_value
             time.sleep(0.01)
-        # if not self._was_done:
-        #     self._show_progress(self._max_value)
-
     def _show_progress(self, for_value=None):
         self._awaiting_update = False
-        build_progress, is_done = self._states_view(for_value)
-        end = '\n' if is_done else None
+        build_progress = self._states_view(for_value)
+        self._console.replace_last_msg(build_progress, end='\n' if self._iter_finaly else None)
 
-        if self._err:
-            self._console.replace_last_msg((self._get_error_state()))
-        if not self._was_done and not self._err:
-            self._console.replace_last_msg(build_progress, end=end)
-        if is_done:
-            self._awaiting_update = True
-            self._show = False
-            self._was_done = True
-        else:
-            self._was_done = False
 
     def _update_value(self, value):
         self._awaiting_update = False
@@ -872,8 +870,15 @@ class Progress:
                 self._update_value(n + 1)
                 yield obj
         finally:
+            self._awaiting_update = True
+            self._iter_finaly = True
+            self._was_done = (self._current_value >= self._max_value) and not self._err
             if not self._with_context:
                 self.stop()
+
+            self._show_progress(self._current_value)
+
+
         self._console.set_prefix(self.name)
         self.sequence = ()
 
