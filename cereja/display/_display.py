@@ -110,27 +110,32 @@ class _Stdout:
         self._stderr_buffer.seek(0)
         self._stderr_buffer.truncate()
         return vals
+
     def write_user_msg(self):
+        stdout, stderr = self.stdout_buffer_values, self.stderr_buffer_values
+        if stdout and not (stdout in ["\n", "\r\n", "\n"]):
+            values = []
+            for value in stdout.splitlines():
+                value = f"{self.console.parse(value, title='Sys[out]')}"
+                values.append(value)
+            value = '\n'.join(values)
+            value = f'\r{value}\n{self.last_console_msg}'
+            self._write(value)
+
+        if stderr and not (stderr in ["\n", "\r\n", "\n"]):
+            unicode_err = '\U0000274C'
+            prefix = self.console.template_format(f"{{red}}{unicode_err} Error:{{endred}}")
+            msg_err_prefix = f"{self.console.parse(prefix, title='Sys[err]')}"
+            msg_err = self.console.format(stderr, color="red")
+            msg_err = f'\r{msg_err_prefix}\n{msg_err}\n{self.last_console_msg}'
+            self._write(msg_err)
+
+    def _write_user_msg_loop(self):
         while self.use_th_console:
-            stdout, stderr = self.stdout_buffer_values, self.stderr_buffer_values
-            if stdout and not (stdout in ["\n", "\r\n", "\n"]):
-                values = []
-                for value in stdout.splitlines():
-                    value = f"{self.console.parse(value, title='Sys[out]')}"
-                    values.append(value)
-                value = '\n'.join(values)
-                value = f'\r{value}\n{self.last_console_msg}'
-                self._write(value)
-
-            if stderr and not (stderr in ["\n", "\r\n", "\n"]):
-                unicode_err = '\U0000274C'
-                prefix = self.console.template_format(f"{{red}}{unicode_err} Error:{{endred}}")
-                msg_err_prefix = f"{self.console.parse(prefix, title='Sys[err]')}"
-                msg_err = self.console.format(stderr, color="red")
-                msg_err = f'\r{msg_err_prefix}\n{msg_err}\n{self.last_console_msg}'
-                self._write(msg_err)
+            self.write_user_msg()
             time.sleep(0.1)
-
+        if self._has_user_msg():
+            self.write_user_msg()
     def _write(self, msg: str):
         try:
 
@@ -164,7 +169,7 @@ class _Stdout:
     def persist(self):
         if not self.persisting:
             self.use_th_console = True
-            self.th_console = threading.Thread(name="Console", target=self.write_user_msg)
+            self.th_console = threading.Thread(name="Console", target=self._write_user_msg_loop)
             self.th_console.start()
             sys.stdout = self._stdout_buffer
             sys.stderr = self._stderr_buffer
@@ -172,14 +177,10 @@ class _Stdout:
 
     def disable(self):
         if self.use_th_console:
-            while self._has_user_msg():
-                # fixme: terrible
-                pass
-            else:
-                self.use_th_console = False
-                self.th_console.join()
-                self.persisting = False
-                self.console.set_prefix(_LOGIN_NAME)
+            self.use_th_console = False
+            self.th_console.join()
+            self.persisting = False
+            self.console.set_prefix(_LOGIN_NAME)
         self.restore_sys_module_state()
 
     def restore_sys_module_state(self):
@@ -870,12 +871,11 @@ class Progress:
                 self._update_value(n + 1)
                 yield obj
         finally:
-            self._awaiting_update = True
             self._iter_finaly = True
-            self._was_done = (self._current_value >= self._max_value) and not self._err
+
             if not self._with_context:
                 self.stop()
-
+            self._was_done = (self._current_value >= self._max_value) and not self._err
             self._show_progress(self._current_value)
 
 
