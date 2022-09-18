@@ -38,7 +38,7 @@ class _Http:
     def __init__(self, url, data=None, headers=None, port=None):
         self.headers = headers or {}
         self._protocol, self._port, self._domains, self._endpoint = self.parse_url(
-            url=url, port=port
+                url=url, port=port
         )
         self._data = data or None
 
@@ -128,7 +128,7 @@ class HttpResponse:
         # TODO: send to HttpRequest ?
         try:
             with urllib_req.urlopen(
-                self._request.urllib_req, timeout=self._timeout
+                    self._request.urllib_req, timeout=self._timeout
             ) as req_file:
                 self._code = req_file.status
                 self._status = req_file.reason
@@ -138,15 +138,15 @@ class HttpResponse:
                     self._data = req_file.read()
                 else:
                     with Progress(
-                        name=f"Fetching data",
-                        max_value=int(req_file.getheader("Content-Length")),
-                        states=("download", "time"),
+                            name=f"Fetching data",
+                            max_value=int(req_file.getheader("Content-Length")),
+                            states=("download", "time"),
                     ) as prog:
 
                         with (
-                            open(self._save_on_path, "wb")
-                            if self._save_on_path
-                            else io.BytesIO()
+                                open(self._save_on_path, "wb")
+                                if self._save_on_path
+                                else io.BytesIO()
                         ) as f:
                             total_downloaded = 0
                             while True:
@@ -259,7 +259,7 @@ class HttpRequest(_Http):
         if "headers" in kwargs:
             headers = kwargs.pop("headers")
             assert isinstance(headers, dict), TypeError(
-                "Headers type is invalid. send a dict"
+                    "Headers type is invalid. send a dict"
             )
             self.headers.update(headers)
         self._count += 1
@@ -268,10 +268,10 @@ class HttpRequest(_Http):
     @property
     def urllib_req(self):
         return urllib_req.Request(
-            url=self.url,
-            data=self.parser(self.data),
-            headers=self.headers,
-            method=self._method,
+                url=self.url,
+                data=self.parser(self.data),
+                headers=self.headers,
+                method=self._method,
         )
 
     @property
@@ -292,5 +292,5 @@ class HttpRequest(_Http):
     @classmethod
     def build_and_send(cls, method, url, data=None, port=None, headers=None, **kwargs):
         return cls(
-            method=method, url=url, data=data, port=port, headers=headers
+                method=method, url=url, data=data, port=port, headers=headers
         ).send_request(**kwargs)

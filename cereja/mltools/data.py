@@ -55,7 +55,7 @@ class Freq(Counter):
         Return ordered dict with percent
         """
         return OrderedDict(
-            map(lambda key: (key, self.item_prob(key)), self.most_common())
+                map(lambda key: (key, self.item_prob(key)), self.most_common())
         )
 
     def __getattribute__(self, item):
@@ -65,12 +65,12 @@ class Freq(Counter):
         return super(Freq, self).__getattribute__(item)
 
     def sample(
-        self,
-        freq: Optional[int] = None,
-        min_freq: Optional[int] = 1,
-        max_freq: Optional[int] = None,
-        max_items: int = -1,
-        order="most_common",
+            self,
+            freq: Optional[int] = None,
+            min_freq: Optional[int] = 1,
+            max_freq: Optional[int] = None,
+            max_items: int = -1,
+            order="most_common",
     ):
         """
         :param freq: only this
@@ -84,14 +84,14 @@ class Freq(Counter):
             "the <freq> parameter must be used without <max_freq> and " "<min_freq> "
         )
         assert order in ("most_common", "least_common"), ValueError(
-            f"Order {order} not in ('most_common', 'least_common')"
+                f"Order {order} not in ('most_common', 'least_common')"
         )
         assert isinstance(max_items, int), TypeError(
-            f"max_items {type(max_items)} != {int}"
+                f"max_items {type(max_items)} != {int}"
         )
         max_items = len(self) if max_items == -1 else max_items
         if order == "least_common":
-            query = super(Freq, self).most_common()[: -max_items - 1 : -1]
+            query = super(Freq, self).most_common()[: -max_items - 1: -1]
         else:
             query = super(Freq, self).most_common(max_items)
         if freq is not None:
@@ -182,11 +182,11 @@ class Tokenizer:
     __unks.update(invert_dict(__unks))
 
     def __init__(
-        self,
-        data: Union[List[str], dict],
-        preprocess_function=None,
-        load_mode=False,
-        use_unk=True,
+            self,
+            data: Union[List[str], dict],
+            preprocess_function=None,
+            load_mode=False,
+            use_unk=True,
     ):
         self._temp_unks = dict()
         self._hash = self.new_hash  # default
@@ -249,7 +249,7 @@ class Tokenizer:
         elif isinstance(data, (int, float, bytes)):
             return [data]
         assert is_sequence(data), TypeError(
-            f"this data type is not supported, try sending a {str}, {list} or tuple"
+                f"this data type is not supported, try sending a {str}, {list} or tuple"
         )
         return data
 
@@ -283,9 +283,9 @@ class Tokenizer:
                 if not self._use_unk:
                     if not self._warning_not_use_unk:
                         logger.warning(
-                            "use_unk is False. All unknown item encoded will be added to tokenizer don't forget "
-                            "to save your "
-                            "tokenizer after encoding."
+                                "use_unk is False. All unknown item encoded will be added to tokenizer don't forget "
+                                "to save your "
+                                "tokenizer after encoding."
                         )
                         self._warning_not_use_unk = True
                     self.add_item(word)
@@ -300,7 +300,7 @@ class Tokenizer:
         return result
 
     def encode(
-        self, data: Union[str, List[str]]
+            self, data: Union[str, List[str]]
     ) -> Union[Tuple[List[int], str], List[List[int]]]:
         """
         Encodes values in a sequence of numbers
@@ -342,9 +342,9 @@ class Tokenizer:
         tokenizer_data = {
             "_metadata": {
                 "_preprocess_function": preprocess_function,
-                "_use_unk": use_unk,
+                "_use_unk":             use_unk,
             },
-            "data": self._index_to_item,
+            "data":      self._index_to_item,
         }
         FileIO.create(path_, tokenizer_data).save(exist_ok=True)
 
@@ -365,19 +365,19 @@ class Tokenizer:
             self._temp_unks.pop(hash_)
         except KeyError as err:
             logger.error(
-                msg=f"{err}: There's something wrong open please issue "
-                f"https://github.com/jlsneto/cereja/issues/new?template=bug-report.md"
+                    msg=f"{err}: There's something wrong open please issue "
+                        f"https://github.com/jlsneto/cereja/issues/new?template=bug-report.md"
             )
         return sentence
 
 
 class TfIdf:
     def __init__(
-        self,
-        sentences: List[str],
-        language: str = "english",
-        punctuation: str = None,
-        stop_words: List[str] = None,
+            self,
+            sentences: List[str],
+            language: str = "english",
+            punctuation: str = None,
+            stop_words: List[str] = None,
     ):
         """
         Calculate tf-idf of a sentence based on a document
@@ -395,7 +395,7 @@ class TfIdf:
         # [('like', 0.23104906018664842), ('i', 0.09589402415059362), ('coffee', 0.09589402415059362)]
         """
         self._sentences = self.clean_sentences(
-            sentences, language=language, punctuation=punctuation, stop_words=stop_words
+                sentences, language=language, punctuation=punctuation, stop_words=stop_words
         )
         self._corpus_bow = self._corpus_bag_of_words(self.sentences)
         self._idf = self._compute_idf(self.sentences)
@@ -418,11 +418,11 @@ class TfIdf:
 
     @classmethod
     def _clean_sentence(
-        cls,
-        sentence: str,
-        language: str = "english",
-        punctuation: str = None,
-        stop_words: List[str] = None,
+            cls,
+            sentence: str,
+            language: str = "english",
+            punctuation: str = None,
+            stop_words: List[str] = None,
     ) -> str:
         sentence = (
             replace_english_contractions(sentence)
@@ -454,7 +454,7 @@ class TfIdf:
         idf_dict = dict.fromkeys(self.corpus_bow, 0.0)
         for sentence in sentences:
             num_of_words = self._sentence_num_of_words(
-                self.sentence_bag_of_words(sentence)
+                    self.sentence_bag_of_words(sentence)
             )
             for word, val in num_of_words.items():
                 if val > 0:
@@ -466,18 +466,18 @@ class TfIdf:
 
     @classmethod
     def clean_sentences(
-        cls,
-        sentences: List[str],
-        language: str = "english",
-        punctuation: str = None,
-        stop_words: List[str] = None,
+            cls,
+            sentences: List[str],
+            language: str = "english",
+            punctuation: str = None,
+            stop_words: List[str] = None,
     ) -> List[str]:
         return [
             cls._clean_sentence(
-                sentence.lower(),
-                language=language,
-                punctuation=punctuation,
-                stop_words=stop_words,
+                    sentence.lower(),
+                    language=language,
+                    punctuation=punctuation,
+                    stop_words=stop_words,
             )
             for sentence in sentences
         ]
@@ -485,14 +485,14 @@ class TfIdf:
     @classmethod
     def ordered_tf_idf(cls, sentence_tf_idf: Set[Tuple[str, float]], reverse=True):
         return sorted(
-            [word_score for word_score in sentence_tf_idf],
-            key=lambda x: x[1],
-            reverse=reverse,
+                [word_score for word_score in sentence_tf_idf],
+                key=lambda x: x[1],
+                reverse=reverse,
         )
 
     @classmethod
     def sentence_tf(
-        cls, sentence_num_of_words: Dict[str, int], sentence_bag_of_words: List[str]
+            cls, sentence_num_of_words: Dict[str, int], sentence_bag_of_words: List[str]
     ) -> Dict[str, float]:
         tf_dict = {}
         bow_count = len(sentence_bag_of_words)
@@ -501,16 +501,16 @@ class TfIdf:
         return tf_dict
 
     def sentence_tf_idf(
-        self,
-        sentence: str,
-        language: str = "english",
-        punctuation: str = None,
-        stop_words: List[str] = None,
-        use_filter: bool = True,
+            self,
+            sentence: str,
+            language: str = "english",
+            punctuation: str = None,
+            stop_words: List[str] = None,
+            use_filter: bool = True,
     ) -> Union[Dict[str, float], Set[Tuple[str, float]]]:
         tf_idf = {}
         sentence = self._clean_sentence(
-            sentence, language=language, punctuation=punctuation, stop_words=stop_words
+                sentence, language=language, punctuation=punctuation, stop_words=stop_words
         )
         sentence_bow = self.sentence_bag_of_words(sentence)
         sentence_now = self._sentence_num_of_words(sentence_bow)
@@ -522,9 +522,9 @@ class TfIdf:
 
     def inverse_data_frequency_order(self, reverse=False):
         return sorted(
-            [(w, idf) for w, idf in self.idf.items()],
-            key=lambda x: x[1],
-            reverse=reverse,
+                [(w, idf) for w, idf in self.idf.items()],
+                key=lambda x: x[1],
+                reverse=reverse,
         )
 
 
@@ -542,7 +542,7 @@ class DataGenerator:
         @return: batch of data
         """
         assert batch_size <= len(
-            self._data
+                self._data
         ), f"batch_size > data length! Send value <= {len(self._data)}"
         data = iter(self._data)
         while True:
@@ -562,7 +562,7 @@ class DataGenerator:
 if __name__ == "__main__":
     tokenizer = Tokenizer(data=["i like it", "my name is Joab", "hello"])
     sequences = tokenizer.encode(
-        data=["hello my friend, how are you?", "my name is joab"]
+            data=["hello my friend, how are you?", "my name is joab"]
     )
     decoded = []
     print(sequences)

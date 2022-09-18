@@ -43,7 +43,7 @@ __all__ = [
 
 
 def imc(weight: float, height: float) -> Tuple[float, str]:
-    _imc = weight / (height**2)
+    _imc = weight / (height ** 2)
     _imc = _imc if _imc > 0.1 else _imc * 10000  # convert if send in meters.
     if _imc < 18.5:
         grade = "Underweight"
@@ -69,7 +69,7 @@ def least_common_multiple(values):
 
 
 def proportional(
-    value, old_max_value: Union[float, int], new_max_value: Union[float, int] = 100
+        value, old_max_value: Union[float, int], new_max_value: Union[float, int] = 100
 ):
     return (new_max_value / old_max_value) * value
 
@@ -104,8 +104,8 @@ def theta_angle(u: Tuple[float, float], v: Tuple[float, float], degrees=True) ->
     """
     try:
         acos = math.acos(
-            sum(an * vn for an, vn in zip(u, v))
-            / (math.sqrt(sum(pow_(u))) * math.sqrt(sum(pow_(v))))
+                sum(an * vn for an, vn in zip(u, v))
+                / (math.sqrt(sum(pow_(u))) * math.sqrt(sum(pow_(v))))
         )
     except ValueError:
         acos = float("NaN")

@@ -90,7 +90,7 @@ _DICT_ITEMS_TYPE = type({}.items())
 
 class Thread(threading.Thread):
     def __init__(
-        self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
+            self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
     ):
         while threading.active_count() > os.cpu_count() * 2:
             time.sleep(0.1)
@@ -115,11 +115,11 @@ def is_indexable(v):
 
 
 def chunk(
-    data: Sequence,
-    batch_size: int = None,
-    fill_with: Any = None,
-    is_random: bool = False,
-    max_batches: int = None,
+        data: Sequence,
+        batch_size: int = None,
+        fill_with: Any = None,
+        is_random: bool = False,
+        max_batches: int = None,
 ) -> List[Union[Sequence, List, Tuple, Dict]]:
     """
 
@@ -149,7 +149,7 @@ def chunk(
     """
 
     assert (
-        is_iterable(data) and len(data) > 0
+            is_iterable(data) and len(data) > 0
     ), f"Chunk isn't possible, because value {data} isn't valid."
     if batch_size is None and max_batches is None:
         return [data]
@@ -185,7 +185,7 @@ def chunk(
     batches = []
     for i in range(0, len(data), batch_size):
 
-        result = data[i : i + batch_size]
+        result = data[i: i + batch_size]
         if fill_with is not None and len(result) < batch_size:
             result += [fill_with] * (batch_size - len(result))
         batches.append(__parser(result) if __parser is not None else result)
@@ -219,19 +219,19 @@ def truncate(text: Union[str, bytes], k=15):
     @param k: natural numbers, default is 4
     """
     assert isinstance(text, (str, bytes)), TypeError(
-        f"{type(text)} isn't valid. Expected str or bytes"
+            f"{type(text)} isn't valid. Expected str or bytes"
     )
     if k > len(text) or k <= 4:
         return text
     n = int(
-        (k - 4) / 2
+            (k - 4) / 2
     )  # k is the max length of text, 4 is the length of truncate symbol
     trunc_chars = "...." if isinstance(text, str) else b"...."
     return text[:n] + trunc_chars + text[-n:]
 
 
 def obj_repr(
-    obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=False, deep=3
+        obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=False, deep=3
 ):
     try:
         if isinstance(obj_, (str, bytes)):
@@ -296,7 +296,7 @@ def can_do(obj: Any) -> List[str]:
 
 
 def sample(
-    v: Sequence, k: int = None, is_random: bool = False
+        v: Sequence, k: int = None, is_random: bool = False
 ) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
@@ -307,7 +307,7 @@ def sample(
     @return: sample iterable
     """
     result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
-    if len(v) > 1 and k == 1:
+    if len(v) > 1 and k == 1 and len(result) > 1:
         return result[0]
     return result
 
@@ -434,7 +434,7 @@ def import_string(dotted_path):
         return getattr(module, class_name)
     except AttributeError as err:
         raise ImportError(
-            f"Module {module_path} does not define a {class_name} attribute/class"
+                f"Module {module_path} does not define a {class_name} attribute/class"
         ) from err
 
 
@@ -506,7 +506,7 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     :return: List[str]
     """
     assert isinstance(
-        instance, types.ModuleType
+            instance, types.ModuleType
     ), "You need to submit a module instance."
     logger.debug(f"Checking module {instance.__name__}")
     definitions = {}
@@ -514,10 +514,10 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
         if i.startswith("_"):
             continue
         exclude = (
-            get_attr_if_exists(instance, "_exclude") or kwargs.get("_exclude") or []
+                get_attr_if_exists(instance, "_exclude") or kwargs.get("_exclude") or []
         )
         include = (
-            get_attr_if_exists(instance, "_include") or kwargs.get("_include") or []
+                get_attr_if_exists(instance, "_include") or kwargs.get("_include") or []
         )
 
         obj = get_attr_if_exists(instance, i)
@@ -570,7 +570,7 @@ def logger_level():
 
 
 def combine_with_all(
-    a: list, b: list, n_a_combinations: int = 1, is_random: bool = False
+        a: list, b: list, n_a_combinations: int = 1, is_random: bool = False
 ) -> List[Tuple[Any, ...]]:
     """
     >>> a = [1, 2, 3]
@@ -634,7 +634,7 @@ if __name__ == '__main__':
     @property
     def _instance_obj_attrs(self):
         return filter(
-            lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
+                lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
         )
 
     def _get_attr_obj(self, attr_: str):
@@ -731,7 +731,7 @@ if __name__ == '__main__':
 
     def _valid_attr(self, attr_name: str):
         assert hasattr(
-            self._instance_obj, attr_name
+                self._instance_obj, attr_name
         ), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
         return attr_name
 
@@ -763,11 +763,11 @@ if __name__ == '__main__':
     @classmethod
     def _get_class_test(cls, ref):
         func_tests = "".join(
-            cls.__template_unittest_function.format(func_name=i)
-            for i in list_methods(ref)
+                cls.__template_unittest_function.format(func_name=i)
+                for i in list_methods(ref)
         )
         return cls.__template_unittest_class.format(
-            class_name=ref.__name__, func_tests=func_tests
+                class_name=ref.__name__, func_tests=func_tests
         )
 
     @classmethod
@@ -800,10 +800,10 @@ if __name__ == '__main__':
         if module_func_test:
             module_func_test = "".join(module_func_test)
             tests = [
-                cls.__template_unittest_class.format(
-                    class_name="Module", func_tests=module_func_test
-                )
-            ] + tests
+                        cls.__template_unittest_class.format(
+                                class_name="Module", func_tests=module_func_test
+                        )
+                    ] + tests
         return cls.__template_unittest.format(tests="\n".join(tests))
 
 
@@ -887,16 +887,16 @@ def _interpolate(values, k):
         else:
             delta = position - previous_position
             yield values[previous_position] + (
-                values[next_position] - values[previous_position]
+                    values[next_position] - values[previous_position]
             ) / (next_position - previous_position) * delta
 
 
 def rescale_values(
-    values: List[Any],
-    granularity: int,
-    interpolation: bool = False,
-    fill_with=None,
-    filling="inner",
+        values: List[Any],
+        granularity: int,
+        interpolation: bool = False,
+        fill_with=None,
+        filling="inner",
 ) -> List[Any]:
     """
     Resizes a list of values
@@ -932,11 +932,11 @@ def rescale_values(
             result = list(_rescale_down(values, granularity))
         else:
             result = list(
-                _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
+                    _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
             )
 
     assert (
-        len(result) == granularity
+            len(result) == granularity
     ), f"Error while resizing the list size {len(result)} != {granularity}"
     return result
 
@@ -1000,13 +1000,13 @@ def is_numeric_sequence(obj: Sequence[Number]) -> bool:
 
 
 def sort_dict(
-    obj: dict,
-    by_keys=False,
-    by_values=False,
-    reverse=False,
-    by_len_values=False,
-    func_values=None,
-    func_keys=None,
+        obj: dict,
+        by_keys=False,
+        by_values=False,
+        reverse=False,
+        by_len_values=False,
+        func_values=None,
+        func_keys=None,
 ) -> OrderedDict:
     func_values = (
         (lambda v: len(v) if by_len_values else v)
@@ -1027,7 +1027,7 @@ def sort_dict(
 
 def list_to_tuple(obj):
     assert isinstance(
-        obj, (list, set, tuple)
+            obj, (list, set, tuple)
     ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     for i in obj:
@@ -1044,13 +1044,13 @@ def dict_values_len(obj, max_len=None, min_len=None, take_len=False):
         i: len(obj[i]) if take_len else obj[i]
         for i in obj
         if (max_len is None or len(obj[i]) <= max_len)
-        and (min_len is None or len(obj[i]) >= min_len)
+           and (min_len is None or len(obj[i]) >= min_len)
     }
 
 
 def dict_to_tuple(obj):
     assert isinstance(
-        obj, (dict, set)
+            obj, (dict, set)
     ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     if isinstance(obj, set):
@@ -1182,7 +1182,7 @@ def get_batch_strides(data, kernel_size, strides=1, fill_=True, take_index=False
             batches = batches[strides:]
     if len(batches):
         yield rescale_values(
-            batches, granularity=kernel_size, filling="post"
+                batches, granularity=kernel_size, filling="post"
         ) if fill_ else batches
 
 
@@ -1192,7 +1192,7 @@ def prune_values(values: Sequence, factor=2):
         return values
     w = round(len(values) / 2)
     k = int(round(w / factor))
-    res = values[w - k : w + k]
+    res = values[w - k: w + k]
 
     if len(res) == 0:
         return values[k]

@@ -23,11 +23,11 @@ class Buffer:
                 item = next(self._data)
                 self._total_taked += 1
                 batch.append(
-                    item if not self._take_index else [self._total_taked - 1, item]
+                        item if not self._take_index else [self._total_taked - 1, item]
                 )
                 if len(batch) == self._size:
                     yield batch
-                    batch = batch[self._stride :]
+                    batch = batch[self._stride:]
             except StopIteration:
                 if batch:
                     yield batch

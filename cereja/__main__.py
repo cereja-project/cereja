@@ -32,7 +32,7 @@ if __name__ == "__main__":
     sys.stdout.flush()
     parser = argparse.ArgumentParser(description="Cereja Tools.")
     parser.add_argument(
-        "--version", action="version", version=get_version_pep440_compliant()
+            "--version", action="version", version=get_version_pep440_compliant()
     )
     parser.add_argument("--startmodule", type=str)
     args = parser.parse_args()

@@ -42,7 +42,7 @@ def download(url, save_on=None, timeout=None, **kwargs) -> HttpResponse:
     The GET method requests a representation of the specified resource. Requests using GET should only retrieve data.
     """
     return HttpRequest.build_and_send(
-        method="GET", url=url, save_on=save_on, timeout=timeout, **kwargs
+            method="GET", url=url, save_on=save_on, timeout=timeout, **kwargs
     )
 
 
@@ -67,7 +67,7 @@ def post(url, data=None, headers=None, **kwargs) -> HttpResponse:
 
     """
     return HttpRequest.build_and_send(
-        method="POST", url=url, data=data, headers=headers, **kwargs
+            method="POST", url=url, data=data, headers=headers, **kwargs
     )
 
 
@@ -76,7 +76,7 @@ def get(url, data=None, headers=None, **kwargs) -> HttpResponse:
     The GET method requests a representation of the specified resource. Requests using GET should only retrieve data.
     """
     return HttpRequest.build_and_send(
-        method="GET", url=url, data=data, headers=headers, **kwargs
+            method="GET", url=url, data=data, headers=headers, **kwargs
     )
 
 

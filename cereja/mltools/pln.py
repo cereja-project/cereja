@@ -40,43 +40,43 @@ _LANGUAGE_ISO_639_1 = {"pt": "English", "en": "Portuguese"}
 
 
 def separate(
-    text: AnyStr, sep: Union[str, Sequence[str]] = ("!", "?", "."), between_char=False
+        text: AnyStr, sep: Union[str, Sequence[str]] = ("!", "?", "."), between_char=False
 ) -> str:
     warnings.warn(
-        f"This function will be deprecated in future versions. " f"preprocess.separate",
-        DeprecationWarning,
-        2,
+            f"This function will be deprecated in future versions. " f"preprocess.separate",
+            DeprecationWarning,
+            2,
     )
     return _preprocess.separate(text=text, sep=sep, between_char=between_char)
 
 
 class LanguageConfig(BasicConfig):
     def __init__(
-        self,
-        name="UNK_LANG",
-        stop_words=(),
-        punctuation="!?,.",
-        to_lower=True,
-        is_remove_punctuation=True,
-        is_remove_stop_words=True,
-        is_remove_accent=False,
-        is_destructive=False,
-        **kwargs,
+            self,
+            name="UNK_LANG",
+            stop_words=(),
+            punctuation="!?,.",
+            to_lower=True,
+            is_remove_punctuation=True,
+            is_remove_stop_words=True,
+            is_remove_accent=False,
+            is_destructive=False,
+            **kwargs,
     ):
         if not isinstance(stop_words, (tuple, list)):
             raise TypeError("Stop words must be in a list or tuple")
         if not isinstance(punctuation, str):
             raise TypeError("a string is expected for punctuation")
         super().__init__(
-            name=name,
-            stop_words=stop_words,
-            punctuation=punctuation,
-            to_lower=to_lower,
-            is_remove_punctuation=is_remove_punctuation,
-            is_remove_stop_words=is_remove_stop_words,
-            is_remove_accent=is_remove_accent,
-            is_destructive=is_destructive,
-            **kwargs,
+                name=name,
+                stop_words=stop_words,
+                punctuation=punctuation,
+                to_lower=to_lower,
+                is_remove_punctuation=is_remove_punctuation,
+                is_remove_stop_words=is_remove_stop_words,
+                is_remove_accent=is_remove_accent,
+                is_destructive=is_destructive,
+                **kwargs,
         )
 
     def _before(self, new_config: dict):
@@ -85,24 +85,24 @@ class LanguageConfig(BasicConfig):
 
 class Preprocessor:
     def __init__(
-        self,
-        stop_words=(),
-        punctuation="!?,.",
-        to_lower=False,
-        is_remove_punctuation=False,
-        is_remove_stop_words=False,
-        is_remove_accent=False,
-        **kwargs,
+            self,
+            stop_words=(),
+            punctuation="!?,.",
+            to_lower=False,
+            is_remove_punctuation=False,
+            is_remove_stop_words=False,
+            is_remove_accent=False,
+            **kwargs,
     ):
 
         self.config = LanguageConfig(
-            stop_words=stop_words,
-            punctuation=punctuation,
-            to_lower=to_lower,
-            is_remove_punctuation=is_remove_punctuation,
-            is_remove_stop_words=is_remove_stop_words,
-            is_remove_accent=is_remove_accent,
-            **kwargs,
+                stop_words=stop_words,
+                punctuation=punctuation,
+                to_lower=to_lower,
+                is_remove_punctuation=is_remove_punctuation,
+                is_remove_stop_words=is_remove_stop_words,
+                is_remove_accent=is_remove_accent,
+                **kwargs,
         )
 
     def __repr__(self):
@@ -122,7 +122,7 @@ class Preprocessor:
             sentence = _preprocess.remove_punctuation(sentence, self.config.punctuation)
         if is_destructive or self.config.is_remove_stop_words:
             sentence = " ".join(
-                [w for w in sentence.split() if w not in self.config.stop_words]
+                    [w for w in sentence.split() if w not in self.config.stop_words]
             )
         return _preprocess.remove_extra_chars(sentence)
 
@@ -130,8 +130,8 @@ class Preprocessor:
         if isinstance(data, str):
             return self._preprocess(sentence=data, is_destructive=is_destructive)
         return map(
-            lambda sentence: self._preprocess(sentence, is_destructive=is_destructive),
-            data,
+                lambda sentence: self._preprocess(sentence, is_destructive=is_destructive),
+                data,
         )
 
 
@@ -151,26 +151,26 @@ class BaseData(metaclass=ABCMeta):
 
 class LanguageData(BaseData):
     def __init__(
-        self,
-        data,
-        stop_words=(),
-        punctuation="!?,.",
-        to_lower=False,
-        is_remove_punctuation=False,
-        is_remove_stop_words=False,
-        is_remove_accent=False,
-        **kwargs,
+            self,
+            data,
+            stop_words=(),
+            punctuation="!?,.",
+            to_lower=False,
+            is_remove_punctuation=False,
+            is_remove_stop_words=False,
+            is_remove_accent=False,
+            **kwargs,
     ):
 
         self._preprocessor = Preprocessor(
-            hook=self.re_build,
-            stop_words=stop_words,
-            punctuation=punctuation,
-            to_lower=to_lower,
-            is_remove_punctuation=is_remove_punctuation,
-            is_remove_stop_words=is_remove_stop_words,
-            is_remove_accent=is_remove_accent,
-            **kwargs,
+                hook=self.re_build,
+                stop_words=stop_words,
+                punctuation=punctuation,
+                to_lower=to_lower,
+                is_remove_punctuation=is_remove_punctuation,
+                is_remove_stop_words=is_remove_stop_words,
+                is_remove_accent=is_remove_accent,
+                **kwargs,
         )
 
         self._phrases_freq: Freq = ...
@@ -254,7 +254,7 @@ class LanguageData(BaseData):
             value = [value]
         try:
             value = set(
-                itertools.chain(*map(lambda val: self.preprocess(val).split(), value))
+                    itertools.chain(*map(lambda val: self.preprocess(val).split(), value))
             )
         except AttributeError:
             raise ValueError("Inconsistent data format.")
@@ -265,7 +265,7 @@ class LanguageData(BaseData):
         return round(sum(result), 3)
 
     def save_freq(
-        self, save_on: str, prefix="freq", ext: str = "json", probability=False
+            self, save_on: str, prefix="freq", ext: str = "json", probability=False
     ):
         ext = ext.strip(".")  # normalize
         save_on = Path(save_on)
@@ -299,15 +299,15 @@ class LanguageData(BaseData):
         self.__recovery_phrase_freq = self._phrases_freq.copy()
 
     def sample_words_freq(
-        self, freq: int = None, max_items: int = -1, order="most_common"
+            self, freq: int = None, max_items: int = -1, order="most_common"
     ):
         return self._words_freq.sample(max_items=max_items, max_freq=freq, order=order)
 
     def sample_phrases_freq(
-        self, freq: int = None, max_items: int = -1, order="most_common"
+            self, freq: int = None, max_items: int = -1, order="most_common"
     ):
         return self._phrases_freq.sample(
-            max_items=max_items, max_freq=freq, order=order
+                max_items=max_items, max_freq=freq, order=order
         )
 
 
@@ -339,10 +339,10 @@ class LanguageDetector:
                     result.append((lang, obj[word]))
             if result:
                 self.__memory[word] = list(
-                    map(
-                        lambda x: (x[0], x[1] / sum(dict(result).values())),
-                        sorted(result, key=lambda x: x[1]),
-                    )
+                        map(
+                                lambda x: (x[0], x[1] / sum(dict(result).values())),
+                                sorted(result, key=lambda x: x[1]),
+                        )
                 )
             else:
                 return []

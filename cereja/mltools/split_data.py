@@ -35,41 +35,41 @@ __all__ = ["Corpus", "make_pairs_by_classes"]
 
 class Corpus(object):
     def __init__(
-        self,
-        source_data,
-        target_data,
-        source_name=None,
-        percent_train=0.8,
-        target_name=None,
-        stop_words=(),
-        punctuation="!?,.",
-        to_lower=True,
-        is_remove_punctuation=True,
-        is_remove_stop_words=True,
-        is_remove_accent=False,
-        is_destructive=False,
+            self,
+            source_data,
+            target_data,
+            source_name=None,
+            percent_train=0.8,
+            target_name=None,
+            stop_words=(),
+            punctuation="!?,.",
+            to_lower=True,
+            is_remove_punctuation=True,
+            is_remove_stop_words=True,
+            is_remove_accent=False,
+            is_destructive=False,
     ):
         self.source = LanguageData(
-            source_data,
-            name=source_name,
-            stop_words=stop_words,
-            punctuation=punctuation,
-            to_lower=to_lower,
-            is_remove_punctuation=is_remove_punctuation,
-            is_remove_stop_words=is_remove_stop_words,
-            is_remove_accent=is_remove_accent,
-            is_destructive=is_destructive,
+                source_data,
+                name=source_name,
+                stop_words=stop_words,
+                punctuation=punctuation,
+                to_lower=to_lower,
+                is_remove_punctuation=is_remove_punctuation,
+                is_remove_stop_words=is_remove_stop_words,
+                is_remove_accent=is_remove_accent,
+                is_destructive=is_destructive,
         )
         self.target = LanguageData(
-            target_data,
-            name=target_name,
-            stop_words=stop_words,
-            punctuation=punctuation,
-            to_lower=to_lower,
-            is_remove_punctuation=is_remove_punctuation,
-            is_remove_stop_words=is_remove_stop_words,
-            is_remove_accent=is_remove_accent,
-            is_destructive=is_destructive,
+                target_data,
+                name=target_name,
+                stop_words=stop_words,
+                punctuation=punctuation,
+                to_lower=to_lower,
+                is_remove_punctuation=is_remove_punctuation,
+                is_remove_stop_words=is_remove_stop_words,
+                is_remove_accent=is_remove_accent,
+                is_destructive=is_destructive,
         )
         self._percent_train = percent_train
         self._n_train = self.n_train
@@ -145,7 +145,7 @@ class Corpus(object):
         try:
             for x, y in data:
                 if isinstance(x, (str, int, float)) and isinstance(
-                    y, (str, int, float)
+                        y, (str, int, float)
                 ):
                     return True
                 break
@@ -159,16 +159,16 @@ class Corpus(object):
 
     @classmethod
     def load_from_parallel_data(
-        cls, data, source_name: str = None, target_name: str = None, **kwargs
+            cls, data, source_name: str = None, target_name: str = None, **kwargs
     ):
         if cls.is_parallel(data):
             source_data, target_data = cls.distinct_from_parallel(data)
             return cls(
-                source_data,
-                target_data,
-                source_name=source_name,
-                target_name=target_name,
-                **kwargs,
+                    source_data,
+                    target_data,
+                    source_name=source_name,
+                    target_name=target_name,
+                    **kwargs,
             )
         raise ValueError("isn't valid parallel data")
 
@@ -196,7 +196,7 @@ class Corpus(object):
 
     def _valid_parallel_data(self, x, y):
         assert len(x) == len(
-            y
+                y
         ), f"Size of {self.source_language} ({len(x)}) != {self.target_language} ({len(y)})"
 
     def _update_filters(self, x, y):
@@ -212,65 +212,65 @@ class Corpus(object):
         self.target.phrases_freq.subtract([y])
 
     def _get_vocab_data(
-        self,
-        source_vocab_size: int = None,
-        target_vocab_size: int = None,
-        order="most_common",
+            self,
+            source_vocab_size: int = None,
+            target_vocab_size: int = None,
+            order="most_common",
     ):
         source_vocab_data = {}
         target_vocab_data = {}
         if source_vocab_size is not None:
             source_vocab_data = self.source.sample_words_freq(
-                max_items=source_vocab_size, order=order
+                    max_items=source_vocab_size, order=order
             )
         if target_vocab_size is not None:
             target_vocab_data = self.target.sample_words_freq(
-                max_items=target_vocab_size, order=order
+                    max_items=target_vocab_size, order=order
             )
 
         for x, y in zip(self.source.data, self.target.data):
             if source_vocab_size:
                 if not all(
-                    list(
-                        map(
-                            lambda w: w in source_vocab_data,
-                            self.source.preprocess(x).split(),
+                        list(
+                                map(
+                                        lambda w: w in source_vocab_data,
+                                        self.source.preprocess(x).split(),
+                                )
                         )
-                    )
                 ):
                     continue
             if target_vocab_size:
                 if not all(
-                    list(
-                        map(
-                            lambda w: w in target_vocab_data,
-                            self.target.preprocess(y).split(),
+                        list(
+                                map(
+                                        lambda w: w in target_vocab_data,
+                                        self.target.preprocess(y).split(),
+                                )
                         )
-                    )
                 ):
                     continue
             yield [x, y]
 
     def save(
-        self,
-        save_on_dir: str,
-        take_split: bool = True,
-        test_max_size: int = None,
-        source_vocab_size: int = None,
-        target_vocab_size: int = None,
-        shuffle=True,
-        prefix=None,
-        ext="align",
-        **kwargs,
+            self,
+            save_on_dir: str,
+            take_split: bool = True,
+            test_max_size: int = None,
+            source_vocab_size: int = None,
+            target_vocab_size: int = None,
+            shuffle=True,
+            prefix=None,
+            ext="align",
+            **kwargs,
     ):
         save_on_dir = Path(save_on_dir)
         if take_split:
             x_train, y_train, x_test, y_test = self.split_data(
-                test_max_size=test_max_size,
-                source_vocab_size=source_vocab_size,
-                target_vocab_size=target_vocab_size,
-                take_parallel_data=False,
-                shuffle=shuffle,
+                    test_max_size=test_max_size,
+                    source_vocab_size=source_vocab_size,
+                    target_vocab_size=target_vocab_size,
+                    take_parallel_data=False,
+                    shuffle=shuffle,
             )
             train_prefix, test_prefix = (
                 (f"{prefix}_train", f"{prefix}_test")
@@ -286,22 +286,22 @@ class Corpus(object):
 
         for prefix, x, y in data_to_save:
             save_on = save_on_dir.join(
-                f'{prefix}_{self.source_language}.{ext.strip(".")}'
+                    f'{prefix}_{self.source_language}.{ext.strip(".")}'
             )
             cj_file.FileIO.create(save_on, data=x).save(**kwargs)
             save_on = save_on_dir.join(
-                f'{prefix}_{self.target_language}.{ext.strip(".")}'
+                    f'{prefix}_{self.target_language}.{ext.strip(".")}'
             )
             cj_file.FileIO.create(save_on, data=y).save(**kwargs)
 
     @classmethod
     def load_corpus_from_csv(
-        cls,
-        path_: str,
-        src_col_name: str,
-        trg_col_name: str,
-        source_name=None,
-        target_name=None,
+            cls,
+            path_: str,
+            src_col_name: str,
+            trg_col_name: str,
+            source_name=None,
+            target_name=None,
     ):
 
         csv_read = csv.DictReader(cj_file.FileIO.load(path_).data)
@@ -316,14 +316,14 @@ class Corpus(object):
         return cls(src_data, trg_data, source_name=source_name, target_name=target_name)
 
     def split_data(
-        self,
-        test_max_size: int = None,
-        source_vocab_size: int = None,
-        target_vocab_size: int = None,
-        shuffle=True,
-        take_parallel_data=True,
-        take_corpus_instances=False,
-        legacy_test=None,
+            self,
+            test_max_size: int = None,
+            source_vocab_size: int = None,
+            target_vocab_size: int = None,
+            shuffle=True,
+            take_parallel_data=True,
+            take_corpus_instances=False,
+            legacy_test=None,
     ):
         """
         Guarantees test data without data identical to training and only with vocabulary that exists in training
@@ -344,9 +344,9 @@ class Corpus(object):
 
         if legacy_test is not None:
             test = Corpus(
-                *self.distinct_from_parallel(legacy_test),
-                source_name=self.source_language,
-                target_name=self.target_language,
+                    *self.distinct_from_parallel(legacy_test),
+                    source_name=self.source_language,
+                    target_name=self.target_language,
             )
 
         test_max_size = (
@@ -356,10 +356,10 @@ class Corpus(object):
         )
         if source_vocab_size is not None or target_vocab_size is not None:
             data = list(
-                self._get_vocab_data(
-                    source_vocab_size=source_vocab_size,
-                    target_vocab_size=target_vocab_size,
-                )
+                    self._get_vocab_data(
+                            source_vocab_size=source_vocab_size,
+                            target_vocab_size=target_vocab_size,
+                    )
             )
         else:
             data = list(zip(self.source.data, self.target.data))
@@ -376,7 +376,7 @@ class Corpus(object):
                 if self.source.preprocess(x) in test.source.phrases_freq:
                     continue
             if (
-                self._can_go_test(x, y) and len(test) < test_max_size
+                    self._can_go_test(x, y) and len(test) < test_max_size
             ) and legacy_test is None:
                 test.append([x, y])
                 self._update_filters(x, y)
@@ -387,10 +387,10 @@ class Corpus(object):
             return (*cj_array.get_cols(train), *cj_array.get_cols(test))
         if take_corpus_instances is True:
             train = self.load_from_parallel_data(
-                train, self.source_language, self.target_language
+                    train, self.source_language, self.target_language
             )
             test = self.load_from_parallel_data(
-                test, self.source_language, self.target_language
+                    test, self.source_language, self.target_language
             )
             return train, test
         return train, test
@@ -398,10 +398,10 @@ class Corpus(object):
     def split_data_and_save(self, **kwargs):
         alternative = f"You can use <Corpus.save>"
         warnings.warn(
-            f"This function has been deprecated and will be removed in future versions. "
-            f"{alternative}",
-            DeprecationWarning,
-            2,
+                f"This function has been deprecated and will be removed in future versions. "
+                f"{alternative}",
+                DeprecationWarning,
+                2,
         )
         self.save(**kwargs)
 
@@ -423,13 +423,13 @@ def make_pairs_by_classes(clusters, limit_items_per_batch=None, limit_n_clusters
         result += [
             (a, b, 1)
             for a, b in cj_utils.combine_with_all(
-                *cj_utils.chunk(all_items_on_cluster, max_batches=2)
+                    *cj_utils.chunk(all_items_on_cluster, max_batches=2)
             )
         ]
     result += [
         (a, b, 0)
         for a, b in cj_utils.combine_with_all(
-            *cj_utils.chunk(all_classes, max_batches=2)
+                *cj_utils.chunk(all_classes, max_batches=2)
         )
     ]
     random.shuffle(result)

@@ -100,10 +100,10 @@ if __name__ == '__main__':
         with cj.TempDir() as temp_dir:
             func_code = cj.Source(self.function)
             code = self._template.format(
-                path=temp_dir.path,
-                func_code=func_code.source_code,
-                func_name=func_code.name,
-                n_proc=self.n_proc,
+                    path=temp_dir.path,
+                    func_code=func_code.source_code,
+                    func_name=func_code.name,
+                    n_proc=self.n_proc,
             )
             global_scope = (
                 self.global_scope if isinstance(self.global_scope, dict) else {}
@@ -112,7 +112,7 @@ if __name__ == '__main__':
             code_path = temp_dir.path.join("code.py")
             cj.FileIO.create(code_path, code).save()
             cj.FileIO.create(
-                temp_dir.path.join("global_scope.pkl"), global_scope
+                    temp_dir.path.join("global_scope.pkl"), global_scope
             ).save()
             cj.FileIO.create(temp_dir.path.join("sequence.pkl"), sequence).save()
             cj.run_on_terminal(f"{sys.executable} {code_path.path}")

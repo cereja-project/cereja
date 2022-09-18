@@ -79,11 +79,11 @@ def mkdir(path_dir: str):
 
 
 def group_path_from_dir(
-    dir_path: str,
-    num_items_on_tuple: int,
-    ext_file: str,
-    to_random: bool = False,
-    key_sort_function=None,
+        dir_path: str,
+        num_items_on_tuple: int,
+        ext_file: str,
+        to_random: bool = False,
+        key_sort_function=None,
 ):
     """
     returns data tuples based on the number of items entered for each tuple, follows the default order
@@ -102,12 +102,12 @@ def group_path_from_dir(
 
     key_sort_function = {"key": key_sort_function} if key_sort_function else {}
     paths = sorted(
-        [
-            os.path.join(dir_path, i)
-            for i in os.listdir(dir_path)
-            if ext_file == os.path.splitext(i)[1]
-        ],
-        **key_sort_function,
+            [
+                os.path.join(dir_path, i)
+                for i in os.listdir(dir_path)
+                if ext_file == os.path.splitext(i)[1]
+            ],
+            **key_sort_function,
     )
 
     batches = group_items_in_batches(items=paths, items_per_batch=num_items_on_tuple)
@@ -215,12 +215,12 @@ class Path(os.PathLike):
             part_split = part.name.split(".")
             if part_split[-1] == ".":
                 logger.info(
-                    f"It is not common to use dot <{part.name}> in the end of name."
+                        f"It is not common to use dot <{part.name}> in the end of name."
                 )
                 break
             if (part.suffix or part_split[-1] == ".") and i > 0:
                 logger.info(
-                    f"It is not common to use dot in the middle or end of directory name <{part.name}>"
+                        f"It is not common to use dot in the middle or end of directory name <{part.name}>"
                 )
                 break
             if len(part_split) > 2:
@@ -302,7 +302,7 @@ class Path(os.PathLike):
     def updated_at(self):
         return (
             datetime.fromtimestamp(os.stat(str(self.path)).st_mtime).strftime(
-                self._date_format
+                    self._date_format
             )
             if self.exists
             else None
@@ -312,7 +312,7 @@ class Path(os.PathLike):
     def created_at(self):
         return (
             datetime.fromtimestamp(os.stat(str(self.path)).st_ctime).strftime(
-                self._date_format
+                    self._date_format
             )
             if self.exists
             else None
@@ -322,7 +322,7 @@ class Path(os.PathLike):
     def last_access(self):
         return (
             datetime.fromtimestamp(os.stat(str(self.path)).st_atime).strftime(
-                self._date_format
+                    self._date_format
             )
             if self.exists
             else None
@@ -366,14 +366,14 @@ class Path(os.PathLike):
 
     def join(self, part, *others):
         assert (
-            self.suffix == ""
+                self.suffix == ""
         ), f"join operation is only dir. full path received {self.path}"
         if isinstance(part, str):
             args = (part, *others)
         else:
             args = (*part, *others)
         return self.__class__(
-            self.__path.joinpath(*map(lambda p: p.lstrip("/\\"), args)).as_posix()
+                self.__path.joinpath(*map(lambda p: p.lstrip("/\\"), args)).as_posix()
         )
 
     def _shutil(self, command: str, **kwargs):
@@ -393,7 +393,7 @@ class Path(os.PathLike):
                         os.rmdir(str(self))
                     except OSError as err:
                         raise Exception(
-                            f"{err}.\n Use rm_tree=True to DELETE {self.uri}."
+                                f"{err}.\n Use rm_tree=True to DELETE {self.uri}."
                         )
         elif command == "mv":
             to = kwargs.get("to")
@@ -428,7 +428,7 @@ class Path(os.PathLike):
         return self.path.rsplit(sep, max_split)
 
     def list_dir(
-        self, search_match="*", only_name=False, recursive=False
+            self, search_match="*", only_name=False, recursive=False
     ) -> List["Path"]:
         """
         Extension of the listdir function of module os.
@@ -450,13 +450,13 @@ class Path(os.PathLike):
             return []
 
     def list_files(
-        self,
-        ext: str = None,
-        contains_in_name: List = (),
-        not_contains_in_name=(),
-        recursive=False,
-        only_name=False,
-        ignore_dirs=(),
+            self,
+            ext: str = None,
+            contains_in_name: List = (),
+            not_contains_in_name=(),
+            recursive=False,
+            only_name=False,
+            ignore_dirs=(),
     ) -> List["Path"]:
         """
         List files on an dir or in dir tree for this use recursive=True
@@ -482,14 +482,14 @@ class Path(os.PathLike):
                 if p.is_dir and recursive and p.name not in ignore_dirs:
                     _self = Path(p)  # because exceeded recursion Error
                     files.extend(
-                        _self.list_files(
-                            ext=ext,
-                            contains_in_name=contains_in_name,
-                            not_contains_in_name=not_contains_in_name,
-                            recursive=recursive,
-                            only_name=only_name,
-                            ignore_dirs=ignore_dirs,
-                        )
+                            _self.list_files(
+                                    ext=ext,
+                                    contains_in_name=contains_in_name,
+                                    not_contains_in_name=not_contains_in_name,
+                                    recursive=recursive,
+                                    only_name=only_name,
+                                    ignore_dirs=ignore_dirs,
+                            )
                     )
                     continue
 
@@ -513,7 +513,7 @@ class Path(os.PathLike):
 class TempDir:
     def __init__(self, start_name="cj_", end_name="_temp", create_on=None):
         self._tmpdir = tempfile.TemporaryDirectory(
-            suffix=end_name, prefix=start_name, dir=create_on
+                suffix=end_name, prefix=start_name, dir=create_on
         )
         self._path = Path(self._tmpdir.name)
 

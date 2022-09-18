@@ -48,17 +48,17 @@ class DateTime(datetime):
 
     def add(self, days=0, min_=0, sec=0):
         return self.fromtimestamp(
-            self.timestamp() + self.into_timestamp(days, min_, sec)
+                self.timestamp() + self.into_timestamp(days, min_, sec)
         )
 
     def sub(self, days=0, min_=0, sec=0):
         return self.fromtimestamp(
-            abs(self.timestamp() - self.into_timestamp(days, min_, sec))
+                abs(self.timestamp() - self.into_timestamp(days, min_, sec))
         )
 
     def days_between(self, other):
         return self.days_from_timestamp(
-            abs(self.timestamp() - self._validate_date(other).timestamp())
+                abs(self.timestamp() - self._validate_date(other).timestamp())
         )
 
     def compare(self, other):

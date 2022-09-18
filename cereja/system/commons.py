@@ -31,9 +31,9 @@ def memory_of_this(obj):
 
 def memory_usage(n_most=10):
     return sorted(
-        map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()),
-        key=lambda x: x[1],
-        reverse=True,
+            map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()),
+            key=lambda x: x[1],
+            reverse=True,
     )[:n_most]
 
 

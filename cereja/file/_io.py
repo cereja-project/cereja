@@ -48,13 +48,13 @@ class _IFileIO(metaclass=ABCMeta):
     _newline = True
     _ext_allowed = None
     _need_implement = {
-        "_is_byte": """
+        "_is_byte":     """
     Define the configuration of the file in the class {class_name}:
     e.g:
     class {class_name}:
         _is_byte: bool = True # or False
     """,
-        "_only_read": """Define the configuration of the file in the class {class_name}:
+        "_only_read":   """Define the configuration of the file in the class {class_name}:
     e.g:
     class {class_name}:
         _only_read: bool = True # or False
@@ -159,11 +159,11 @@ class _IFileIO(metaclass=ABCMeta):
 
     @abstractmethod
     def save(
-        self,
-        on_new_path: Union[str, Path] = None,
-        exist_ok=False,
-        overwrite=False,
-        **kwargs,
+            self,
+            on_new_path: Union[str, Path] = None,
+            exist_ok=False,
+            overwrite=False,
+            **kwargs,
     ):
         pass
 
@@ -210,7 +210,7 @@ class _IFileIO(metaclass=ABCMeta):
 
 class _FileIO(_IFileIO, ABC):
     def __init__(
-        self, path_: Path, data=None, creation_mode=False, is_byte=None, **kwargs
+            self, path_: Path, data=None, creation_mode=False, is_byte=None, **kwargs
     ):
         super().__init__()
         if is_byte is not None:
@@ -235,7 +235,7 @@ class _FileIO(_IFileIO, ABC):
         for attr in cls._need_implement:
             if getattr(cls, attr) is None:
                 raise NotImplementedError(
-                    cls._need_implement.get(attr).format(class_name=cls.__name__)
+                        cls._need_implement.get(attr).format(class_name=cls.__name__)
                 )
 
     def __repr__(self):
@@ -244,19 +244,19 @@ class _FileIO(_IFileIO, ABC):
     def __setattr__(self, key, value):
         object.__setattr__(self, key, copy.copy(value))
         if (
-            hasattr(self, "_change_history")
-            and key
-            not in (
+                hasattr(self, "_change_history")
+                and key
+                not in (
                 "_current_change",
                 "_max_history_length",
                 "_change_history",
                 "_built",
                 "_last_update",
-            )
-            and self._built is True
+        )
+                and self._built is True
         ):
             self._set_change(
-                key, copy.copy(object.__getattribute__(self, key))
+                    key, copy.copy(object.__getattribute__(self, key))
             )  # append last_value of attr
 
     def __getitem__(self, item):
@@ -390,23 +390,23 @@ class _FileIO(_IFileIO, ABC):
 
         """
         assert isinstance(
-            unit, str
+                unit, str
         ), f"expected {str.__name__} not {type(unit).__name__}."
 
         unit = unit.upper()
 
         assert (
-            unit in self._size_map
+                unit in self._size_map
         ), f"{repr(unit)} is'nt valid. Choose anyone in {tuple(self._size_map)}"
         # subtracts the size of the python object
         return (
-            memory_of_this(self._data) - self._data.__class__().__sizeof__()
-        ) / self._size_map[unit]
+                       memory_of_this(self._data) - self._data.__class__().__sizeof__()
+               ) / self._size_map[unit]
 
     def _load(self, mode=None, **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
             logger.warning(
-                f"I can't read this file. See class attribute <{self.__class__.__name__}._dont_read>"
+                    f"I can't read this file. See class attribute <{self.__class__.__name__}._dont_read>"
             )
             return
         mode = mode or self._get_mode("r")
@@ -424,14 +424,14 @@ class _FileIO(_IFileIO, ABC):
             raise IOError(f"Error when trying to read the file {self._path}\n{err}")
 
     def save(
-        self,
-        on_new_path: Union[str, Path] = None,
-        mode=None,
-        exist_ok=False,
-        overwrite=False,
-        force=False,
-        encoding=None,
-        **kwargs,
+            self,
+            on_new_path: Union[str, Path] = None,
+            mode=None,
+            exist_ok=False,
+            overwrite=False,
+            force=False,
+            encoding=None,
+            **kwargs,
     ):
 
         if not force:
@@ -442,14 +442,14 @@ class _FileIO(_IFileIO, ABC):
 
             if self.was_changed:
                 assert overwrite is True, AssertionError(
-                    f"File change detected (last change {self.updated_at}), if you want to "
-                    + f"overwrite set overwrite=True"
+                        f"File change detected (last change {self.updated_at}), if you want to "
+                        + f"overwrite set overwrite=True"
                 )
 
             assert (
-                (exist_ok or not self.path.exists) or overwrite is True or force is True
+                    (exist_ok or not self.path.exists) or overwrite is True or force is True
             ), FileExistsError(
-                "File exists. If you want override, please send 'exist_ok=True'"
+                    "File exists. If you want override, please send 'exist_ok=True'"
             )
 
         mode = mode or self._get_mode("w")
@@ -531,9 +531,9 @@ class _Generic(_FileIO):
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
         fp.write(
-            self._convert("\n").join(
-                i if isinstance(i, (str, bytes)) else str(i) for i in self._data
-            )
+                self._convert("\n").join(
+                        i if isinstance(i, (str, bytes)) else str(i) for i in self._data
+                )
         )
 
     def _convert(self, val):
@@ -594,15 +594,15 @@ class _JsonIO(_FileIO):
 
     def _parse_fp(self, fp: TextIO) -> dict:
         return json.load(
-            fp, object_hook=self._object_hook if self.string_eval else None
+                fp, object_hook=self._object_hook if self.string_eval else None
         )
 
     def _save_fp(self, fp):
         json.dump(
-            self._data,
-            fp,
-            indent=4 if self.indent else None,
-            ensure_ascii=self.ensure_ascii,
+                self._data,
+                fp,
+                indent=4 if self.indent else None,
+                ensure_ascii=self.ensure_ascii,
         )
 
     def items(self) -> ItemsView:
@@ -619,7 +619,7 @@ class _JsonIO(_FileIO):
             return data
         elif isinstance(data, (str, bytes)):
             return json.loads(
-                data, object_hook=self._object_hook if self.string_eval else None
+                    data, object_hook=self._object_hook if self.string_eval else None
             )
         else:
             raise TypeError(f"{type(data)} isn't valid.")
@@ -672,13 +672,13 @@ class _CsvIO(_FileIO):
     _ext_allowed = (".csv",)
 
     def __init__(
-        self,
-        *args,
-        cols: Union[Tuple[str], List[str]] = (),
-        fill_with=None,
-        str_to_literal=True,
-        has_col=False,
-        **kwargs,
+            self,
+            *args,
+            cols: Union[Tuple[str], List[str]] = (),
+            fill_with=None,
+            str_to_literal=True,
+            has_col=False,
+            **kwargs,
     ):
         """
         :param data: expected row or list of rows with `n` elements equal to `k` cols, if not it will be fill with
@@ -697,8 +697,8 @@ class _CsvIO(_FileIO):
     @property
     def cols(self):
         return tuple(
-            value if value is not None else f"unamed_col_{i}"
-            for i, value in enumerate(self._cols)
+                value if value is not None else f"unamed_col_{i}"
+                for i, value in enumerate(self._cols)
         )
 
     @property
@@ -746,9 +746,9 @@ class _CsvIO(_FileIO):
         ]
 
     def parse(
-        self,
-        data: Union[Iterable[Iterable[Any]], str, int, float, complex],
-        fill_with=None,
+            self,
+            data: Union[Iterable[Iterable[Any]], str, int, float, complex],
+            fill_with=None,
     ) -> List[List[Any]]:
         if fill_with is None:
             fill_with = self._fill_with
@@ -764,7 +764,7 @@ class _CsvIO(_FileIO):
                 self._cols = fill(value=list(row), max_size=len(row), with_=fill_with)
                 continue
             row_normalized = self._normalize_row(
-                row, fill_with=fill_with, literal_values=self._str_to_literal
+                    row, fill_with=fill_with, literal_values=self._str_to_literal
             )
             self._n_values += len(row_normalized)
             normalized_data.append(row_normalized)
@@ -807,7 +807,7 @@ class _CsvIO(_FileIO):
             if isinstance(col, tuple):
                 raise ValueError("Isn't Possible.")
             assert col <= self.n_cols - 1, ValueError(
-                f"Invalid Column. Choice available index {list(range(self.n_cols))}"
+                    f"Invalid Column. Choice available index {list(range(self.n_cols))}"
             )
             return get_cols(self.data)[col][lines]
         return super().__getitem__(item)
@@ -849,19 +849,19 @@ class _ZipFileIO(_FileIO):
 
     @classmethod
     def unzip(
-        cls,
-        file_path,
-        save_on: str = None,
-        members: List = None,
-        k=None,
-        is_random=False,
+            cls,
+            file_path,
+            save_on: str = None,
+            members: List = None,
+            k=None,
+            is_random=False,
     ):
         with ZipFile(file_path, mode="r") as myzip:
             members = members or sample(myzip.namelist(), k, is_random)
             if save_on:
                 mkdir(save_on)
             myzip.extractall(
-                save_on, members=Progress.prog(list(members), name="Extracting")
+                    save_on, members=Progress.prog(list(members), name="Extracting")
             )
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
@@ -870,22 +870,22 @@ class _ZipFileIO(_FileIO):
     @classmethod
     def load(cls, path_, load_on_memory=False, **kwargs):
         return cls(
-            path_=path_, creation_mode=False, load_on_memory=load_on_memory, **kwargs
+                path_=path_, creation_mode=False, load_on_memory=load_on_memory, **kwargs
         )
 
     def save(
-        self,
-        on_new_path: Union[str, Path] = None,
-        exist_ok=False,
-        overwrite=False,
-        force=False,
-        **kwargs,
+            self,
+            on_new_path: Union[str, Path] = None,
+            exist_ok=False,
+            overwrite=False,
+            force=False,
+            **kwargs,
     ):
         with tempfile.TemporaryDirectory() as tmpdirname:
             tmp_file = Path(tmpdirname).join(self.name)
             try:
                 with ZipFile(
-                    tmp_file.path, mode="w", compression=ZIP_DEFLATED
+                        tmp_file.path, mode="w", compression=ZIP_DEFLATED
                 ) as myzip:
                     for i in self.data:
                         myzip.write(i)
@@ -919,7 +919,7 @@ class _SrtFile(_TxtIO):
     @classmethod
     def is_block_start(cls, line) -> bool:
         return bool(
-            re.match(r"\d{2}:\d{2}:\d{2}[.,]\d+\s-->\s\d{2}:\d{2}:\d{2}[.,]\d+", line)
+                re.match(r"\d{2}:\d{2}:\d{2}[.,]\d+\s-->\s\d{2}:\d{2}:\d{2}[.,]\d+", line)
         )
 
     def parse(self, data):
@@ -945,7 +945,7 @@ class _SrtFile(_TxtIO):
     @property
     def string(self):
         return "\n".join(
-            [str(block_item) for block in self.data for block_item in block]
+                [str(block_item) for block in self.data for block_item in block]
         )
 
     def add(self, data, line=-1):
@@ -1010,7 +1010,7 @@ class FileIO:
 
     def __new__(cls, path_, data=None, **kwargs):
         raise Exception(
-            f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']"
+                f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']"
         )
 
     @classmethod
@@ -1038,23 +1038,23 @@ class FileIO:
 
     @classmethod
     def load_files(
-        cls,
-        path_,
-        ext=None,
-        contains_in_name: List = (),
-        not_contains_in_name=(),
-        take_empty=True,
-        recursive=False,
-        ignore_dirs=(),
+            cls,
+            path_,
+            ext=None,
+            contains_in_name: List = (),
+            not_contains_in_name=(),
+            take_empty=True,
+            recursive=False,
+            ignore_dirs=(),
     ):
 
         ext = ext or ""
         f_paths = Path(path_).list_files(
-            ext=ext,
-            contains_in_name=contains_in_name,
-            not_contains_in_name=not_contains_in_name,
-            recursive=recursive,
-            ignore_dirs=ignore_dirs,
+                ext=ext,
+                contains_in_name=contains_in_name,
+                not_contains_in_name=not_contains_in_name,
+                recursive=recursive,
+                ignore_dirs=ignore_dirs,
         )
         loaded = []
         for p in f_paths:

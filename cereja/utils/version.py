@@ -59,12 +59,12 @@ def latest_git():
     """
     repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     git_log = subprocess.run(
-        ["git", "log", "--pretty=format:%ct", "--quiet", "-1", "HEAD"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        shell=True,
-        cwd=repo_dir,
-        universal_newlines=True,
+            ["git", "log", "--pretty=format:%ct", "--quiet", "-1", "HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            cwd=repo_dir,
+            universal_newlines=True,
     )
     timestamp = git_log.stdout
     try:

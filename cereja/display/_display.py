@@ -134,7 +134,7 @@ class _Stdout:
         if stderr and not (stderr in ["\n", "\r\n", "\n"]):
             unicode_err = "\U0000274C"
             prefix = self.console.template_format(
-                f"{{red}}{unicode_err} Error:{{endred}}"
+                    f"{{red}}{unicode_err} Error:{{endred}}"
             )
             msg_err_prefix = f"{self.console.parse(prefix, title='Sys[err]')}"
             msg_err = self.console.format(stderr, color="red")
@@ -182,7 +182,7 @@ class _Stdout:
         if not self.persisting:
             self.use_th_console = True
             self.th_console = threading.Thread(
-                name="Console", target=self._write_user_msg_loop
+                    name="Console", target=self._write_user_msg_loop
             )
             self.th_console.start()
             sys.stdout = self._stdout_buffer
@@ -228,14 +228,14 @@ class _ConsoleBase(metaclass=ABC):
     __right_point = f"{CL_CYAN}{RIGHT_POINTER}{__CL_DEFAULT}"
     __msg_prefix = f"{CL_RED}{CHERRY_UNICODE}{CL_BLUE}"
     __color_map = {
-        "black": CL_BLACK,
-        "red": CL_RED,
-        "green": CL_GREEN,
-        "yellow": CL_YELLOW,
-        "blue": CL_BLUE,
+        "black":   CL_BLACK,
+        "red":     CL_RED,
+        "green":   CL_GREEN,
+        "yellow":  CL_YELLOW,
+        "blue":    CL_BLUE,
         "magenta": CL_MAGENTA,
-        "cyan": CL_CYAN,
-        "white": CL_WHITE,
+        "cyan":    CL_CYAN,
+        "white":   CL_WHITE,
         "default": __CL_DEFAULT,
     }
 
@@ -338,8 +338,8 @@ class _ConsoleBase(metaclass=ABC):
             return self.random_color(s)
         if color not in self.__color_map:
             raise ValueError(
-                f"Color {repr(color)} not found. Choose an available color"
-                f" [red, green, yellow, blue, magenta and cyan]."
+                    f"Color {repr(color)} not found. Choose an available color"
+                    f" [red, green, yellow, blue, magenta and cyan]."
             )
         s = self._normalize_format(s)
         return f"{self._color_map[color]}{s}{self._color_map['default']}"
@@ -394,7 +394,7 @@ class _ConsoleBase(metaclass=ABC):
     def __print(self, msg, title=None, color: str = None, end=__os_line_sep):
         remove_line_sep = True if end is None else False
         msg = self._parse(
-            msg=msg, title=title, color=color, remove_line_sep=remove_line_sep
+                msg=msg, title=title, color=color, remove_line_sep=remove_line_sep
         )
         self._stdout.cj_msg(msg, end)
 
@@ -422,12 +422,12 @@ class State(metaclass=ABCMeta):
 
     @abstractmethod
     def display(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
     ) -> str:
         """
         This function is always being called.
@@ -436,12 +436,12 @@ class State(metaclass=ABCMeta):
         pass
 
     def done(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
     ) -> str:
         return self.display(current_value, max_value, current_percent, time_it, n_times)
 
@@ -467,13 +467,13 @@ class _StateLoading(State):
     size = 3
 
     def display(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         idx = n_times % self.size
         value = "".join(self.sequence[: idx + 1])
@@ -482,13 +482,13 @@ class _StateLoading(State):
         return f"{l_delimiter}{filled}{r_delimiter}"
 
     def done(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         l_delimiter, r_delimiter = self.left_right_delimiter
         return f"{l_delimiter}{self.default_char * self.size}{r_delimiter}"
@@ -499,33 +499,33 @@ class _StateAwaiting(_StateLoading):
         return result.strip(self.left_right_delimiter)
 
     def display(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         result = self._clean(
-            super().display(
-                current_value=current_value,
-                max_value=max_value,
-                current_percent=current_percent,
-                time_it=time_it,
-                n_times=n_times,
-            )
+                super().display(
+                        current_value=current_value,
+                        max_value=max_value,
+                        current_percent=current_percent,
+                        time_it=time_it,
+                        n_times=n_times,
+                )
         )
         return f"{time_format(time_it)} - Awaiting{result}"
 
     def done(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         return f"Total Time: {time_format(time_it)}"
 
@@ -534,13 +534,13 @@ class _StateDownloadData(State):
     _size_map = {"B": 1.0e0, "KB": 1.0e3, "MB": 1.0e6, "GB": 1.0e9, "TB": 1.0e12}
 
     def display(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         current_value /= self._size_map["MB"]
         max_value /= self._size_map["MB"]
@@ -562,35 +562,35 @@ class _StateBar(State):
             self.blank = "▱"
 
     def display(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> AnyStr:
         l_delimiter, r_delimiter = self.left_right_delimiter
         prop_max_size = int(proportional(current_value, max_value, self.size))
         blanks = self.blank * (self.size - prop_max_size - 1)
         body = console.template_format(
-            f"{{green}}{self.default_char * prop_max_size}{self.arrow}{{endgreen}}"
+                f"{{green}}{self.default_char * prop_max_size}{self.arrow}{{endgreen}}"
         )
         # value = f"{current_value:0{len(str(max_value))}d}/{max_value}"
         return f"{l_delimiter}{body}{blanks}{r_delimiter}"
 
     def done(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         l_delimiter, r_delimiter = self.left_right_delimiter
         body = console.template_format(
-            f"{{green}}{self.default_char * self.size}{{endgreen}}"
+                f"{{green}}{self.default_char * self.size}{{endgreen}}"
         )
         return f"{l_delimiter}{body}{r_delimiter}"
 
@@ -599,24 +599,24 @@ class _StatePercent(State):
     size = 8
 
     def display(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         return f"{current_percent:.2f}%"
 
     def done(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         return f"{100:.2f}%"
 
@@ -627,18 +627,18 @@ class _StateTime(State):
     size = 11
 
     def display(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         time_estimate = estimate(
-            current_value - kwargs.get("started_on", 0),
-            max_value - kwargs.get("started_on", 0),
-            time_it,
+                current_value - kwargs.get("started_on", 0),
+                max_value - kwargs.get("started_on", 0),
+                time_it,
         )
         idx = int(proportional(current_value, max_value, self.__max_sequence))
         t_format = f"{time_format(time_estimate)}"
@@ -646,13 +646,13 @@ class _StateTime(State):
         return f"{value}{self.blanks(len(value))} estimated"
 
     def done(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: float,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: float,
+            **kwargs,
     ) -> str:
         return f"{self.__clock} {time_format(time_it)} total"
 
@@ -662,25 +662,25 @@ class _StateValue(State):
     _mask = "%.d"
 
     def display(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         current_value = f"{current_value:0{len(str(max_value))}d}"
         return f"{current_value}/{max_value}"
 
     def done(
-        self,
-        current_value: Number,
-        max_value: Number,
-        current_percent: Number,
-        time_it: Number,
-        n_times: int,
-        **kwargs,
+            self,
+            current_value: Number,
+            max_value: Number,
+            current_percent: Number,
+            time_it: Number,
+            n_times: int,
+            **kwargs,
     ) -> str:
         return f"{max_value}/{max_value}"
 
@@ -699,11 +699,11 @@ class Progress:
     __done_unicode = Unicode("\U00002705")
     __err_unicode = Unicode("\U0000274C")
     __key_map = {
-        "loading": _StateLoading,
-        "time": _StateTime,
-        "percent": _StatePercent,
-        "bar": _StateBar,
-        "value": _StateValue,
+        "loading":  _StateLoading,
+        "time":     _StateTime,
+        "percent":  _StatePercent,
+        "bar":      _StateBar,
+        "value":    _StateValue,
         "download": _StateDownloadData,
     }
     _with_context = False
@@ -712,13 +712,13 @@ class Progress:
     _progresses = {}
 
     def __init__(
-        self,
-        sequence=None,
-        name="Progress",
-        max_value: int = 100,
-        states=("value", "bar", "percent", "time"),
-        custom_state_func=None,
-        custom_state_name=None,
+            self,
+            sequence=None,
+            name="Progress",
+            max_value: int = 100,
+            states=("value", "bar", "percent", "time"),
+            custom_state_func=None,
+            custom_state_name=None,
     ):
         self._n_times = 0
         self._name = name or "Progress"
@@ -760,7 +760,7 @@ class Progress:
 
     def _create_progress_service(self):
         return threading.Thread(
-            name="awaiting", target=self._progress_service, daemon=True
+                name="awaiting", target=self._progress_service, daemon=True
         )
 
     def __repr__(self):
@@ -816,11 +816,11 @@ class Progress:
         """
         self._n_times += 1
         kwargs = {
-            "current_value": for_value,
-            "max_value": self._max_value,
+            "current_value":   for_value,
+            "max_value":       self._max_value,
             "current_percent": self.percent_(for_value),
-            "time_it": self.time_it,
-            "n_times": self._n_times,
+            "time_it":         self.time_it,
+            "n_times":         self._n_times,
         }
         extra_ = (
             f" - {self._custom_state_name}: {self._custom_state_value()}"
@@ -853,7 +853,7 @@ class Progress:
         if isinstance(state, str):
             state = self.__key_map.get(state)
         assert issubclass(state, State) or isinstance(
-            state, State
+                state, State
         ), f"State `{state}` not found in valid values [{list(self.__key_map)}]"
         if not isinstance(state, State):
             return state()
@@ -904,13 +904,13 @@ class Progress:
         n_times = 0
         while self._started and not self._iter_finaly:
             if (self._awaiting_update and self._current_value != last_value) or (
-                not self._show and not self._was_done
+                    not self._show and not self._was_done
             ):
                 n_times += 1
                 self._console.replace_last_msg(
-                    self.__awaiting_state.display(
-                        0, 0, 0, time_it=self.time_it, n_times=n_times
-                    )
+                        self.__awaiting_state.display(
+                                0, 0, 0, time_it=self.time_it, n_times=n_times
+                        )
                 )
                 time.sleep(0.5)
             if not self._awaiting_update or self._show:
@@ -922,7 +922,7 @@ class Progress:
         self._awaiting_update = False
         build_progress = self._states_view(for_value)
         self._console.replace_last_msg(
-            build_progress, end="\n" if self._iter_finaly else None
+                build_progress, end="\n" if self._iter_finaly else None
         )
 
     def _update_value(self, value):
@@ -979,18 +979,18 @@ class Progress:
 
     @classmethod
     def prog(
-        cls,
-        sequence: Sequence[Any],
-        name: str = None,
-        states=("value", "bar", "percent", "time"),
-        custom_state_func=None,
-        custom_state_name=None,
+            cls,
+            sequence: Sequence[Any],
+            name: str = None,
+            states=("value", "bar", "percent", "time"),
+            custom_state_func=None,
+            custom_state_name=None,
     ) -> "Progress":
         return cls(
-            name=name,
-            states=states,
-            custom_state_func=custom_state_func,
-            custom_state_name=custom_state_name,
+                name=name,
+                states=states,
+                custom_state_func=custom_state_func,
+                custom_state_name=custom_state_name,
         )(sequence)
 
     def __len__(self):
@@ -1063,10 +1063,10 @@ class Progress:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if isinstance(exc_val, Exception) and not isinstance(
-            exc_val, DeprecationWarning
+                exc_val, DeprecationWarning
         ):
             self._console.error(
-                f"{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}"
+                    f"{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}"
             )
         self.stop()
         self._task_count = 0
@@ -1075,7 +1075,7 @@ class Progress:
 
 if IP:
     IP.set_custom_exc(
-        (Exception, GeneratorExit, SystemExit, KeyboardInterrupt), _Stdout.custom_exc
+            (Exception, GeneratorExit, SystemExit, KeyboardInterrupt), _Stdout.custom_exc
     )
 else:
     sys.excepthook = _Stdout.die_threads

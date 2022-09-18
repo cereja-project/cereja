@@ -37,7 +37,7 @@ _NORMALIZE_VALUES = "".join(PUNCTUATION)
 
 
 def separate(
-    text: AnyStr, sep: Union[AnyStr, Sequence[AnyStr]] = PUNCTUATION, between_char=False
+        text: AnyStr, sep: Union[AnyStr, Sequence[AnyStr]] = PUNCTUATION, between_char=False
 ) -> str:
     """
     Creating a space between an element in sep values
@@ -58,7 +58,7 @@ def separate(
     if isinstance(sep, str):
         sep = (sep,)
     assert isinstance(
-        sep, (tuple, list)
+            sep, (tuple, list)
     ), f"{type(sep)} is not acceptable. Only (str, list and tuple) types"
     assert isinstance(text, str), f"{type(text)} is not acceptable. Only str type."
     new_text = []
@@ -115,7 +115,7 @@ def remove_punctuation(sentence: str, punctuation: str = None):
 
 
 def remove_stop_words(
-    sentence: str, stop_words: List[str] = None, language: str = "english"
+        sentence: str, stop_words: List[str] = None, language: str = "english"
 ):
     """
     Default Stop Words -> ['is', 'are', 'am', 'at', 'a', 'an', 'of', 'the']
@@ -134,11 +134,11 @@ def remove_stop_words(
 
 
 def preprocess(
-    text: str,
-    is_destructive: bool = False,
-    is_lower: bool = None,
-    is_remove_accent: bool = None,
-    is_remove_punctuation: bool = None,
+        text: str,
+        is_destructive: bool = False,
+        is_lower: bool = None,
+        is_remove_accent: bool = None,
+        is_remove_punctuation: bool = None,
 ):
     """
     Run pack of preprocess functions

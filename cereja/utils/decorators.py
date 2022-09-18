@@ -133,7 +133,7 @@ class __Deprecated(Decorator):
     __alternative_template = "You can use {dotted_path}."
 
     def __call__(
-        self, alternative: str, from_version: PEP440 = None, more_info: str = None
+            self, alternative: str, from_version: PEP440 = None, more_info: str = None
     ):
         logger.warning("[!] It's still under development [!]")
         if more_info is not None:
@@ -156,16 +156,16 @@ __deprecated = __Deprecated()
 # Function version
 def depreciation(alternative: str = None):
     alternative = (
-        f"You can use {alternative}" or "There is no alternative to this function"
+            f"You can use {alternative}" or "There is no alternative to this function"
     )
 
     def register(func):
         def wrapper(*args, **kwargs):
             warnings.warn(
-                f"This function will be deprecated in future versions. "
-                f"{alternative}",
-                DeprecationWarning,
-                2,
+                    f"This function will be deprecated in future versions. "
+                    f"{alternative}",
+                    DeprecationWarning,
+                    2,
             )
             result = func(*args, **kwargs)
             return result
