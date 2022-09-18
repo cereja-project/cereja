@@ -25,12 +25,20 @@ import re
 from typing import AnyStr, Sequence, Union, List
 from unicodedata import normalize as _normalize
 
-from ..config import ENG_CONTRACTIONS, PUNCTUATION, VALID_LANGUAGE_CHAR, LANGUAGES, STOP_WORDS
+from ..config import (
+    ENG_CONTRACTIONS,
+    PUNCTUATION,
+    VALID_LANGUAGE_CHAR,
+    LANGUAGES,
+    STOP_WORDS,
+)
 
-_NORMALIZE_VALUES = ''.join(PUNCTUATION)
+_NORMALIZE_VALUES = "".join(PUNCTUATION)
 
 
-def separate(text: AnyStr, sep: Union[AnyStr, Sequence[AnyStr]] = PUNCTUATION, between_char=False) -> str:
+def separate(
+    text: AnyStr, sep: Union[AnyStr, Sequence[AnyStr]] = PUNCTUATION, between_char=False
+) -> str:
     """
     Creating a space between an element in sep values
     PUNCTUATION = {'?', '!', ',', '.'}
@@ -49,15 +57,17 @@ def separate(text: AnyStr, sep: Union[AnyStr, Sequence[AnyStr]] = PUNCTUATION, b
     """
     if isinstance(sep, str):
         sep = (sep,)
-    assert isinstance(sep, (tuple, list)), f"{type(sep)} is not acceptable. Only (str, list and tuple) types"
+    assert isinstance(
+        sep, (tuple, list)
+    ), f"{type(sep)} is not acceptable. Only (str, list and tuple) types"
     assert isinstance(text, str), f"{type(text)} is not acceptable. Only str type."
     new_text = []
     for word in text.split():
         for i in sep:
             if (word.startswith(i) or word.endswith(i)) or between_char is True:
-                word = f' {i} '.join(word.split(i)).strip()
+                word = f" {i} ".join(word.split(i)).strip()
         new_text += word.split()
-    return ' '.join(new_text)
+    return " ".join(new_text)
 
 
 def accent_remove(text: AnyStr) -> AnyStr:
@@ -69,12 +79,12 @@ def replace_english_contractions(sentence: AnyStr) -> str:
     Returns phrase without contractions
     """
     replaced_sentence = []
-    for word in sentence.split(' '):
+    for word in sentence.split(" "):
         if word.lower() in ENG_CONTRACTIONS:
             # Todo: create function that chooses the appropriate value
-            word = ENG_CONTRACTIONS.get(word.lower()).split(',')[0]
+            word = ENG_CONTRACTIONS.get(word.lower()).split(",")[0]
         replaced_sentence.append(word)
-    return ' '.join(replaced_sentence)
+    return " ".join(replaced_sentence)
 
 
 def remove_extra_chars(sentence: str) -> str:
@@ -84,13 +94,13 @@ def remove_extra_chars(sentence: str) -> str:
     e.g
         'i   like it!!!' --> 'i like it!'
     """
-    sentence = re.sub(f"([{_NORMALIZE_VALUES}])+", r'\1', sentence)
-    return re.sub('[\t\n\r\x0b\x0c ]+', " ", sentence).strip()
+    sentence = re.sub(f"([{_NORMALIZE_VALUES}])+", r"\1", sentence)
+    return re.sub("[\t\n\r\x0b\x0c ]+", " ", sentence).strip()
 
 
 def remove_non_language_elements(sentence: str) -> str:
     for invalid in set(sentence).difference(VALID_LANGUAGE_CHAR):
-        sentence = sentence.replace(invalid, '')
+        sentence = sentence.replace(invalid, "")
     return sentence.strip()
 
 
@@ -98,13 +108,15 @@ def remove_punctuation(sentence: str, punctuation: str = None):
     """
     Default Punctuation -> [',', '!', '#', '$', '%', "'", '*', '+', '-', '.', '/', '?', '@', '\\', '^', '_', '~']
     """
-    punctuation = punctuation or ''.join(PUNCTUATION)
+    punctuation = punctuation or "".join(PUNCTUATION)
     for x in punctuation:
-        sentence = sentence.replace(x, '')
+        sentence = sentence.replace(x, "")
     return sentence.strip()
 
 
-def remove_stop_words(sentence: str, stop_words: List[str] = None, language: str = 'english'):
+def remove_stop_words(
+    sentence: str, stop_words: List[str] = None, language: str = "english"
+):
     """
     Default Stop Words -> ['is', 'are', 'am', 'at', 'a', 'an', 'of', 'the']
     """
@@ -113,13 +125,21 @@ def remove_stop_words(sentence: str, stop_words: List[str] = None, language: str
         print(f'Idioma "{language}" não encontrado. Idiomas disponíveis: {LANGUAGES}')
 
     stop_words = stop_words if stop_words else STOP_WORDS.get(language, None)
-    sentence = ' '.join([word for word in sentence.split() if word.lower() not in stop_words]) if stop_words \
+    sentence = (
+        " ".join([word for word in sentence.split() if word.lower() not in stop_words])
+        if stop_words
         else sentence
+    )
     return sentence.strip()
 
 
-def preprocess(text: str, is_destructive: bool = False, is_lower: bool = None, is_remove_accent: bool = None,
-               is_remove_punctuation: bool = None):
+def preprocess(
+    text: str,
+    is_destructive: bool = False,
+    is_lower: bool = None,
+    is_remove_accent: bool = None,
+    is_remove_punctuation: bool = None,
+):
     """
     Run pack of preprocess functions
 

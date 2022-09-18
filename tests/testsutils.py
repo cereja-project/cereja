@@ -6,7 +6,6 @@ from cereja.utils.decorators import singleton
 
 
 class UtilsTest(unittest.TestCase):
-
     def test_camel_to_snake(self):
         pass
 
@@ -35,12 +34,62 @@ class UtilsTest(unittest.TestCase):
         pass
 
     def test_invert_dict(self):
-        data = {"s": 0, "y": 1, "v": 2, "l": 3, "i": 4, "p": 5, "b": 6, "z": 7, "c": 8, "a": 9, "k": 10, "e": 11,
-                "d": 12, "j": 13, "x": 14, "u": 15, "o"
-                :    16, "n": 17, "t": 18, "f": 19, "g": 20, "h": 21, "r": 22, "w": 23, "m": 24, "q": 25}
-        expected = {0:  's', 1: 'y', 2: 'v', 3: 'l', 4: 'i', 5: 'p', 6: 'b', 7: 'z', 8: 'c', 9: 'a', 10: 'k', 11: 'e',
-                    12: 'd', 13: 'j', 14: 'x', 15: 'u', 16: 'o', 17: 'n', 18: 't', 19: 'f', 20: 'g', 21: 'h', 22: 'r',
-                    23: 'w', 24: 'm', 25: 'q'}
+        data = {
+            "s": 0,
+            "y": 1,
+            "v": 2,
+            "l": 3,
+            "i": 4,
+            "p": 5,
+            "b": 6,
+            "z": 7,
+            "c": 8,
+            "a": 9,
+            "k": 10,
+            "e": 11,
+            "d": 12,
+            "j": 13,
+            "x": 14,
+            "u": 15,
+            "o": 16,
+            "n": 17,
+            "t": 18,
+            "f": 19,
+            "g": 20,
+            "h": 21,
+            "r": 22,
+            "w": 23,
+            "m": 24,
+            "q": 25,
+        }
+        expected = {
+            0: "s",
+            1: "y",
+            2: "v",
+            3: "l",
+            4: "i",
+            5: "p",
+            6: "b",
+            7: "z",
+            8: "c",
+            9: "a",
+            10: "k",
+            11: "e",
+            12: "d",
+            13: "j",
+            14: "x",
+            15: "u",
+            16: "o",
+            17: "n",
+            18: "t",
+            19: "f",
+            20: "g",
+            21: "h",
+            22: "r",
+            23: "w",
+            24: "m",
+            25: "q",
+        }
         self.assertDictEqual(utils.invert_dict(data), expected)
 
         data = {1: 40, 2: 30, 3: 40, 30: 2}
@@ -60,8 +109,10 @@ class UtilsTest(unittest.TestCase):
                 self.b = b
                 self.c = c
 
-        expected = "Repr (\n    a = 1,\n    b = dict(oi:<class 'int'> ...),\n    c = oi\n    )"
-        self.assertEqual(utils.obj_repr(Repr(1, {'oi': 1}, 'oi')), expected)
+        expected = (
+            "Repr (\n    a = 1,\n    b = dict(oi:<class 'int'> ...),\n    c = oi\n    )"
+        )
+        self.assertEqual(utils.obj_repr(Repr(1, {"oi": 1}, "oi")), expected)
 
     def test_rescale_values(self):
         value = list(range(10))
@@ -69,31 +120,118 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual(rescale_values(value, 21), expected)
         expected = [0, 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
         self.assertEqual(rescale_values(value, 22), expected)
-        expected = [0, 'joab', 'joab', 1, 'joab', 'joab', 2, 'joab', 3, 'joab', 4, 'joab', 5, 'joab', 6, 'joab', 7,
-                    'joab', 8, 'joab', 9, 'joab']
+        expected = [
+            0,
+            "joab",
+            "joab",
+            1,
+            "joab",
+            "joab",
+            2,
+            "joab",
+            3,
+            "joab",
+            4,
+            "joab",
+            5,
+            "joab",
+            6,
+            "joab",
+            7,
+            "joab",
+            8,
+            "joab",
+            9,
+            "joab",
+        ]
 
-        self.assertEqual(rescale_values(value, 22, fill_with='joab'), expected)
+        self.assertEqual(rescale_values(value, 22, fill_with="joab"), expected)
 
-        expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab',
-                    'joab', 'joab', 'joab', 'joab']
+        expected = [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+        ]
 
-        self.assertEqual(rescale_values(value, 22, fill_with='joab', filling='post'), expected)
+        self.assertEqual(
+            rescale_values(value, 22, fill_with="joab", filling="post"), expected
+        )
 
-        expected = ['joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 'joab', 0,
-                    1, 2, 3, 4, 5, 6, 7, 8, 9]
+        expected = [
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            "joab",
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+        ]
 
-        self.assertEqual(rescale_values(value, 22, fill_with='joab', filling='pre'), expected)
+        self.assertEqual(
+            rescale_values(value, 22, fill_with="joab", filling="pre"), expected
+        )
 
         expected = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        self.assertEqual(rescale_values(value, 22, filling='pre'), expected)
+        self.assertEqual(rescale_values(value, 22, filling="pre"), expected)
 
         expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]
-        self.assertEqual(rescale_values(value, 22, filling='post'), expected)
+        self.assertEqual(rescale_values(value, 22, filling="post"), expected)
 
         expected = [0, 1.8, 3.6, 5.4, 7.2, 9]
         self.assertEqual(rescale_values(value, 6, True), expected)
-        expected = [0, 0.5625, 1.125, 1.6875, 2.25, 2.8125, 3.375, 3.9375, 4.5, 5.0625, 5.625, 6.1875, 6.75, 7.3125,
-                    7.875, 8.4375, 9]
+        expected = [
+            0,
+            0.5625,
+            1.125,
+            1.6875,
+            2.25,
+            2.8125,
+            3.375,
+            3.9375,
+            4.5,
+            5.0625,
+            5.625,
+            6.1875,
+            6.75,
+            7.3125,
+            7.875,
+            8.4375,
+            9,
+        ]
         self.assertEqual(rescale_values(value, 17, True), expected)
 
     def test_can_do(self):
@@ -113,19 +251,19 @@ class UtilsTest(unittest.TestCase):
 
         a_obj = _A()
 
-        self.assertEqual(utils.can_do(a_obj), ['m', 'm1'])
+        self.assertEqual(utils.can_do(a_obj), ["m", "m1"])
 
     def test_sample(self):
-        data = ['The', 'Cereja', 'is', 'for', 'everyone']
+        data = ["The", "Cereja", "is", "for", "everyone"]
 
-        self.assertEqual(utils.sample(data, 2), ['The', 'Cereja'])
-        self.assertEqual(utils.sample(data, 3), ['The', 'Cereja', 'is'])
-        self.assertEqual(utils.sample('Cereja'), list('Cereja'))  # test sent string
-        self.assertEqual(utils.sample(b'Cereja'), list(b'Cereja'))  # test sent bytes
+        self.assertEqual(utils.sample(data, 2), ["The", "Cereja"])
+        self.assertEqual(utils.sample(data, 3), ["The", "Cereja", "is"])
+        self.assertEqual(utils.sample("Cereja"), list("Cereja"))  # test sent string
+        self.assertEqual(utils.sample(b"Cereja"), list(b"Cereja"))  # test sent bytes
         self.assertEqual(utils.sample([12], 2), [12])  # test sent number
 
-        data = {'The': 'Cereja', 'is': 'for', 'everyone': None}
-        self.assertEqual(utils.sample(data, 2), {'The': 'Cereja', 'is': 'for'})
+        data = {"The": "Cereja", "is": "for", "everyone": None}
+        self.assertEqual(utils.sample(data, 2), {"The": "Cereja", "is": "for"})
 
     def test_set_log_level(self):
         pass
@@ -150,50 +288,142 @@ class UtilsTest(unittest.TestCase):
 
     def test_sort_dict(self):
         val = {0: 1, 1: 2, 2: 1, 3: 4, 4: 1, 5: 43, 6: 1, 7: 10, 8: 22, 9: 0}
-        self.assertDictEqual(utils.sort_dict(val), OrderedDict(
-                [(0, 1), (1, 2), (2, 1), (3, 4), (4, 1), (5, 43), (6, 1), (7, 10), (8, 22), (9, 0)]))
-        self.assertDictEqual(utils.sort_dict(val, by_values=True), OrderedDict(
-                [(9, 0), (0, 1), (2, 1), (4, 1), (6, 1), (1, 2), (3, 4), (7, 10), (8, 22), (5, 43)]))
-        self.assertDictEqual(utils.sort_dict(val, by_values=True, reverse=True), OrderedDict(
-                [(5, 43), (8, 22), (7, 10), (3, 4), (1, 2), (0, 1), (2, 1), (4, 1), (6, 1), (9, 0)]))
+        self.assertDictEqual(
+            utils.sort_dict(val),
+            OrderedDict(
+                [
+                    (0, 1),
+                    (1, 2),
+                    (2, 1),
+                    (3, 4),
+                    (4, 1),
+                    (5, 43),
+                    (6, 1),
+                    (7, 10),
+                    (8, 22),
+                    (9, 0),
+                ]
+            ),
+        )
+        self.assertDictEqual(
+            utils.sort_dict(val, by_values=True),
+            OrderedDict(
+                [
+                    (9, 0),
+                    (0, 1),
+                    (2, 1),
+                    (4, 1),
+                    (6, 1),
+                    (1, 2),
+                    (3, 4),
+                    (7, 10),
+                    (8, 22),
+                    (5, 43),
+                ]
+            ),
+        )
+        self.assertDictEqual(
+            utils.sort_dict(val, by_values=True, reverse=True),
+            OrderedDict(
+                [
+                    (5, 43),
+                    (8, 22),
+                    (7, 10),
+                    (3, 4),
+                    (1, 2),
+                    (0, 1),
+                    (2, 1),
+                    (4, 1),
+                    (6, 1),
+                    (9, 0),
+                ]
+            ),
+        )
 
-        self.assertDictEqual(utils.sort_dict(val, by_keys=True), OrderedDict(
-                [(0, 1), (1, 2), (2, 1), (3, 4), (4, 1), (5, 43), (6, 1), (7, 10), (8, 22), (9, 0)]))
-        self.assertDictEqual(utils.sort_dict(val, by_keys=True, reverse=True), OrderedDict(
-                [(9, 0), (8, 22), (7, 10), (6, 1), (5, 43), (4, 1), (3, 4), (2, 1), (1, 2), (0, 1)]))
+        self.assertDictEqual(
+            utils.sort_dict(val, by_keys=True),
+            OrderedDict(
+                [
+                    (0, 1),
+                    (1, 2),
+                    (2, 1),
+                    (3, 4),
+                    (4, 1),
+                    (5, 43),
+                    (6, 1),
+                    (7, 10),
+                    (8, 22),
+                    (9, 0),
+                ]
+            ),
+        )
+        self.assertDictEqual(
+            utils.sort_dict(val, by_keys=True, reverse=True),
+            OrderedDict(
+                [
+                    (9, 0),
+                    (8, 22),
+                    (7, 10),
+                    (6, 1),
+                    (5, 43),
+                    (4, 1),
+                    (3, 4),
+                    (2, 1),
+                    (1, 2),
+                    (0, 1),
+                ]
+            ),
+        )
 
     def test_dict_append(self):
         my_dict = {}
-        utils.dict_append(my_dict, 'key_eg', 1, 2, 3, 4, 5, 6)
-        self.assertDictEqual(my_dict, {'key_eg': [1, 2, 3, 4, 5, 6]})
-        my_dict = utils.dict_append(my_dict, 'key_eg', [1, 2])
+        utils.dict_append(my_dict, "key_eg", 1, 2, 3, 4, 5, 6)
+        self.assertDictEqual(my_dict, {"key_eg": [1, 2, 3, 4, 5, 6]})
+        my_dict = utils.dict_append(my_dict, "key_eg", [1, 2])
 
-        self.assertDictEqual(my_dict, {'key_eg': [1, 2, 3, 4, 5, 6, [1, 2]]})
+        self.assertDictEqual(my_dict, {"key_eg": [1, 2, 3, 4, 5, 6, [1, 2]]})
 
     def test_to_tuple(self):
-        data = [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
+        data = [
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+        ]
         expected = (
-            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)), ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
-            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)))
+            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+            ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+        )
 
         self.assertEqual(utils.to_tuple(data), expected)
 
-        data = {1: [1, 2, [3, 100, [1000, 30, [12, 3]]], {1: 2, 3: 4}, 4], 2: [1, 2, 3, 4], 3: {1, 2, 3}}
-        expected = ((1, (1, 2, (3, 100, (1000, 30, (12, 3))), ((1, 2), (3, 4)), 4)), (2, (1, 2, 3, 4)), (3, (1, 2, 3)))
+        data = {
+            1: [1, 2, [3, 100, [1000, 30, [12, 3]]], {1: 2, 3: 4}, 4],
+            2: [1, 2, 3, 4],
+            3: {1, 2, 3},
+        }
+        expected = (
+            (1, (1, 2, (3, 100, (1000, 30, (12, 3))), ((1, 2), (3, 4)), 4)),
+            (2, (1, 2, 3, 4)),
+            (3, (1, 2, 3)),
+        )
 
         self.assertEqual(utils.to_tuple(data), expected)
 
     def test_chunk(self):
-        tests = [([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
-                 ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
-                 ([1, 2, 3, 4, 5, 6], 0, [[1, 2, 3, 4, 5, 6]]),
-                 ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 0, 0]]),
-                 ({'oi': 'amigo', 'tudo': 'bem'}, 1, [{'oi': 'amigo'}, {'tudo': 'bem'}]),
-                 ({'eu': 'gosto', 'do': 'cereja'}.items(), 1, [[('eu', 'gosto')], [('do', 'cereja')]]),
-                 (('eu', 'gosto', 'do', 'cereja'), 2, [('eu', 'gosto'), ('do', 'cereja')])
-                 ]
+        tests = [
+            ([1, 2, 3, 4, 5, 6], 3, [[1, 2, 3], [4, 5, 6]]),
+            ([1, 2, 3, 4, 5, 6], 2, [[1, 2], [3, 4], [5, 6]]),
+            ([1, 2, 3, 4, 5, 6], 0, [[1, 2, 3, 4, 5, 6]]),
+            ([1, 2, 3, 4, 5, 6, 7], 3, [[1, 2, 3], [4, 5, 6], [7, 0, 0]]),
+            ({"oi": "amigo", "tudo": "bem"}, 1, [{"oi": "amigo"}, {"tudo": "bem"}]),
+            (
+                {"eu": "gosto", "do": "cereja"}.items(),
+                1,
+                [[("eu", "gosto")], [("do", "cereja")]],
+            ),
+            (("eu", "gosto", "do", "cereja"), 2, [("eu", "gosto"), ("do", "cereja")]),
+        ]
 
         for test_value, items_per_batch, expected_value in tests:
             print(test_value, items_per_batch, expected_value)
@@ -201,25 +431,46 @@ class UtilsTest(unittest.TestCase):
             result = utils.chunk(test_value, batch_size=items_per_batch, fill_with=0)
             self.assertEqual(result, expected_value, msg)
 
-        tests_raise = [
-            ([1, 2, 3, 4, 5, 6], 'sd', TypeError)
-        ]
+        tests_raise = [([1, 2, 3, 4, 5, 6], "sd", TypeError)]
         for test_value, items_per_batch, expected_error in tests_raise:
             self.assertRaises(expected_error, utils.chunk, test_value, items_per_batch)
 
     def test_get_batch_strides(self):
-        tests = [(range(1, 26), 5, 9, [[1, 2, 3, 4, 5], [10, 11, 12, 13, 14], [19, 20, 21, 22, 23]]),
-                 (range(1, 26), 5, 2,
-                  [[1, 2, 3, 4, 5], [3, 4, 5, 6, 7], [5, 6, 7, 8, 9], [7, 8, 9, 10, 11], [9, 10, 11, 12, 13],
-                   [11, 12, 13, 14, 15], [13, 14, 15, 16, 17], [15, 16, 17, 18, 19], [17, 18, 19, 20, 21],
-                   [19, 20, 21, 22, 23], [21, 22, 23, 24, 25], [23, 24, 25, 25, 25]]),
-                 ]
+        tests = [
+            (
+                range(1, 26),
+                5,
+                9,
+                [[1, 2, 3, 4, 5], [10, 11, 12, 13, 14], [19, 20, 21, 22, 23]],
+            ),
+            (
+                range(1, 26),
+                5,
+                2,
+                [
+                    [1, 2, 3, 4, 5],
+                    [3, 4, 5, 6, 7],
+                    [5, 6, 7, 8, 9],
+                    [7, 8, 9, 10, 11],
+                    [9, 10, 11, 12, 13],
+                    [11, 12, 13, 14, 15],
+                    [13, 14, 15, 16, 17],
+                    [15, 16, 17, 18, 19],
+                    [17, 18, 19, 20, 21],
+                    [19, 20, 21, 22, 23],
+                    [21, 22, 23, 24, 25],
+                    [23, 24, 25, 25, 25],
+                ],
+            ),
+        ]
         for test_value, kernel_size, strides, expected in tests:
-            self.assertEqual(list(utils.get_batch_strides(test_value, kernel_size, strides)), expected)
+            self.assertEqual(
+                list(utils.get_batch_strides(test_value, kernel_size, strides)),
+                expected,
+            )
 
 
 class CjTestTest(unittest.TestCase):
-
     def test_add_check(self):
         pass
 
@@ -240,13 +491,11 @@ class CjTestTest(unittest.TestCase):
 
 
 class SourceTest(unittest.TestCase):
-
     def test_save(self):
         pass
 
 
 class DecoratorTest(unittest.TestCase):
-
     def test_depreciation(self):
         pass
 
@@ -272,5 +521,5 @@ class DecoratorTest(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

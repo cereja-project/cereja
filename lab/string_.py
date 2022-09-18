@@ -31,5 +31,5 @@ def str_gen(pattern: AnyStr) -> Sequence[AnyStr]:
     return regex.findall(string.printable)
 
 
-if __name__ == '__main__':
-    print(str_gen('[0-9]'))
+if __name__ == "__main__":
+    print(str_gen("[0-9]"))

@@ -30,10 +30,28 @@ import copy
 from cereja.config.cj_types import Number, Shape
 import logging
 
-__all__ = ['Matrix', 'array_gen', 'array_randn', 'flatten', 'get_cols', 'get_shape',
-           'get_shape_recursive', 'group_items_in_batches', 'is_empty', 'rand_n', 'rand_uniform',
-           'remove_duplicate_items', 'reshape', 'shape_is_ok', 'dot', 'dotproduct', 'div',
-           'sub', 'prod', 'reshape']
+__all__ = [
+    "Matrix",
+    "array_gen",
+    "array_randn",
+    "flatten",
+    "get_cols",
+    "get_shape",
+    "get_shape_recursive",
+    "group_items_in_batches",
+    "is_empty",
+    "rand_n",
+    "rand_uniform",
+    "remove_duplicate_items",
+    "reshape",
+    "shape_is_ok",
+    "dot",
+    "dotproduct",
+    "div",
+    "sub",
+    "prod",
+    "reshape",
+]
 
 
 from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, dict_to_tuple
@@ -42,7 +60,9 @@ from ..utils.decorators import depreciation
 logger = logging.getLogger(__name__)
 
 
-def shape_is_ok(sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, ...]) -> bool:
+def shape_is_ok(
+    sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, ...]
+) -> bool:
     """
     Check the number of items the array has and compare it with the shape product
     """
@@ -71,7 +91,7 @@ def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
     :return: number of dimensions
     """
     if is_empty(sequence):
-        return None,
+        return (None,)
     wkij = []
     while True:
         if is_sequence(sequence) and not is_empty(sequence):
@@ -82,7 +102,9 @@ def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
     return tuple(wkij)
 
 
-def get_shape_recursive(sequence: Sequence[Any], wki: Tuple[int, ...] = None) -> Tuple[int, ...]:
+def get_shape_recursive(
+    sequence: Sequence[Any], wki: Tuple[int, ...] = None
+) -> Tuple[int, ...]:
     """
     [!] Never use recursion in python if it is possible to exceed 997 calls [!]
 
@@ -105,13 +127,17 @@ def reshape(sequence: Sequence, shape):
     expected_size = prod(shape)
     current_size = len(sequence)
 
-    assert current_size == expected_size, f'cannot reshape array of size {current_size} into shape {shape}'
+    assert (
+        current_size == expected_size
+    ), f"cannot reshape array of size {current_size} into shape {shape}"
     for batch in shape[::-1]:
         sequence = chunk(sequence, batch_size=batch)
     return sequence[0]
 
 
-def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> List[Union[float, Any]]:
+def array_gen(
+    shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None
+) -> List[Union[float, Any]]:
     """
     Generates array based on passed shape
 
@@ -139,7 +165,7 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     allow_reshape = shape_is_ok(v, shape) and is_seq
 
     if not is_seq:
-        v = [v if v else 0.]
+        v = [v if v else 0.0]
 
     for k in shape[::-1]:
         if allow_reshape:
@@ -149,7 +175,12 @@ def array_gen(shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None) -> Li
     return v[0]
 
 
-def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1, return_shapes=False, **kwargs) -> Union[List[Any], Any]:
+def flatten(
+    sequence: Union[Sequence[Any], "Matrix"],
+    depth: Optional[int] = -1,
+    return_shapes=False,
+    **kwargs,
+) -> Union[List[Any], Any]:
     """
     Receives values, whether arrays of values, regardless of their shape and flatness
 
@@ -174,10 +205,12 @@ def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1,
     else:
         assert is_sequence(sequence), f"Invalid value {sequence}"
 
-    depth = kwargs.get('max_recursion') or depth
+    depth = kwargs.get("max_recursion") or depth
 
     if not isinstance(depth, int):
-        raise TypeError(f"Type {type(depth)} is not valid for max depth. Please send integer.")
+        raise TypeError(
+            f"Type {type(depth)} is not valid for max depth. Please send integer."
+        )
 
     flattened = []
     i = 0
@@ -192,7 +225,7 @@ def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1,
             deep += 1
             deep_counter[deep] = deep_counter.get(deep, 0) + jump
             shapes[deep] = shapes.get(deep, []) + [jump]
-            sequence = list(element) + list(sequence[i + 1:])
+            sequence = list(element) + list(sequence[i + 1 :])
             if jump == 0:
                 deep -= 1
             i = 0
@@ -203,7 +236,7 @@ def flatten(sequence: Union[Sequence[Any], 'Matrix'], depth: Optional[int] = -1,
             if i >= jump:
                 for d in range(deep, 0, -1):
                     if deep_counter[d] == 0:
-                        deep_counter[d-1] -= 1
+                        deep_counter[d - 1] -= 1
                         deep -= 1
                     else:
                         break
@@ -217,7 +250,9 @@ def rand_uniform(_from: Number, to: Number):
     return _from + (to - _from) * random.random()
 
 
-def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List[float]]:
+def rand_n(
+    _from: Number = 0.0, to: Number = 1.0, n: int = 1
+) -> Union[float, List[float]]:
     """
     All values ​​are random and their sum is equal to 1 (default) or the value sent in parameter (to)
 
@@ -233,7 +268,9 @@ def rand_n(_from: Number = 0., to: Number = 1., n: int = 1) -> Union[float, List
     15
     """
     assert isinstance(n, int) is True, "ValueError: n: int is a integer value."
-    assert _from < to, "please send a valid range. The first value must not be greater than the second"
+    assert (
+        _from < to
+    ), "please send a valid range. The first value must not be greater than the second"
 
     _to = to
     values = [rand_uniform(_from, to) / n]
@@ -293,8 +330,10 @@ def array_randn(shape: Tuple[int, ...], *args, **kwargs) -> List[Union[float, An
     return array_gen(shape=shape, v=rand_n_values)
 
 
-@depreciation(alternative='cereja.utils.chunk')
-def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any = None) -> List[List[Any]]:
+@depreciation(alternative="cereja.utils.chunk")
+def group_items_in_batches(
+    items: List[Any], items_per_batch: int = 0, fill: Any = None
+) -> List[List[Any]]:
     """
     Responsible for grouping items in batch taking into account the quantity of items per batch
 
@@ -310,6 +349,7 @@ def group_items_in_batches(items: List[Any], items_per_batch: int = 0, fill: Any
     :return:
     """
     from cereja.utils import chunk
+
     return chunk(data=items, batch_size=items_per_batch, fill_with=fill)
 
 
@@ -335,10 +375,12 @@ def remove_duplicate_items(items: Optional[list]) -> Any:
     try:
         return list(dict.fromkeys(items))
     except TypeError:
-        return sorted([list(item) for item in set(tuple(x) for x in items)], key=items.index)
+        return sorted(
+            [list(item) for item in set(tuple(x) for x in items)], key=items.index
+        )
 
 
-def get_cols(sequence: Union[Sequence, 'Matrix']):
+def get_cols(sequence: Union[Sequence, "Matrix"]):
     return list(zip(*sequence))
 
 
@@ -353,14 +395,18 @@ def prod(sequence: Sequence[Number]) -> Number:
     :return:
     """
     if not is_sequence(sequence):
-        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+        raise TypeError(
+            f"Value of {sequence} is not valid. Please send a numeric list."
+        )
 
     return reduce((lambda x, y: x * y), sequence)
 
 
 def sub(sequence: Sequence[Number]) -> Number:
     if not is_sequence(sequence):
-        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+        raise TypeError(
+            f"Value of {sequence} is not valid. Please send a numeric list."
+        )
 
     return reduce((lambda x, y: x - y), sequence)
 
@@ -376,7 +422,9 @@ def _div(a, b):
 
 def div(sequence: Sequence[Number]) -> Number:
     if not is_sequence(sequence):
-        raise TypeError(f"Value of {sequence} is not valid. Please send a numeric list.")
+        raise TypeError(
+            f"Value of {sequence} is not valid. Please send a numeric list."
+        )
 
     return reduce(_div, sequence)
 
@@ -430,10 +478,14 @@ class Matrix(object):
                 return Matrix([sub(t) for t in zip(self, other)])
             else:
                 return Matrix([list(map(sub, zip(*t))) for t in zip(self, other)])
-        return Matrix(array_gen(self.shape, list(map(lambda x: x - other, self.flatten()))))
+        return Matrix(
+            array_gen(self.shape, list(map(lambda x: x - other, self.flatten())))
+        )
 
     def __mul__(self, other):
-        return Matrix(array_gen(self.shape, list(map(lambda x: x * other, self.flatten()))))
+        return Matrix(
+            array_gen(self.shape, list(map(lambda x: x * other, self.flatten())))
+        )
 
     def __rmul__(self, other):
         return self.__mul__(other)
@@ -465,7 +517,10 @@ class Matrix(object):
                 if len(values.shape) <= 1:
                     return values[slice_2]
                 return values.cols[slice_2]
-            if not any((slice_2.start, slice_2.step, slice_2.stop)) or len(values.shape) <= 1:
+            if (
+                not any((slice_2.start, slice_2.step, slice_2.stop))
+                or len(values.shape) <= 1
+            ):
                 return values[slice_2]
             if values.cols:
                 return values.cols[slice_2].cols
@@ -479,10 +534,12 @@ class Matrix(object):
             .
             .
             """
-            msg_max_display = f"\n\ndisplaying {self._n_max_repr} of {len(self.values)} lines"
+            msg_max_display = (
+                f"\n\ndisplaying {self._n_max_repr} of {len(self.values)} lines"
+            )
         else:
-            msg_max_display = ''
-            dott = ''
+            msg_max_display = ""
+            dott = ""
         return f"{self.__class__.__name__}({self.__repr()}{dott}){msg_max_display}"
 
     def __getattribute__(self, item):
@@ -501,14 +558,15 @@ class Matrix(object):
         return copy.copy(self)
 
     def __repr(self):
-        values = self.to_list()[:self._n_max_repr]
+        values = self.to_list()[: self._n_max_repr]
         if len(self.shape) <= 1:
             return values
-        return '\n      '.join(
-                f'{val}' for i, val in enumerate(values) if i <= self._n_max_repr)
+        return "\n      ".join(
+            f"{val}" for i, val in enumerate(values) if i <= self._n_max_repr
+        )
 
     def to_list(self):
-        return object.__getattribute__(self, 'values')
+        return object.__getattribute__(self, "values")
 
     def _get_cols(self):
         if len(self.shape) > 1:
@@ -518,8 +576,9 @@ class Matrix(object):
     def dot(self, b):
         b = Matrix(b)
         n_cols = -1 if len(b.shape) == 1 else -2
-        assert self.shape[-1] == b.shape[
-            n_cols], f'Number of columns {self.shape[-1]} != number of rows {b.shape[n_cols]}'
+        assert (
+            self.shape[-1] == b.shape[n_cols]
+        ), f"Number of columns {self.shape[-1]} != number of rows {b.shape[n_cols]}"
         if not len(b.shape) == 1:
             return Matrix([[dotproduct(line, col) for col in b.cols] for line in self])
         return Matrix([dotproduct(line, col) for col in b.cols for line in self])

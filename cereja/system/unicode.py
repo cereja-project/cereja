@@ -20,7 +20,7 @@ import sys
 from typing import Union, AnyStr
 import unicodedata
 
-__all__ = ['Unicode']
+__all__ = ["Unicode"]
 
 
 class Unicode(object):
@@ -50,6 +50,7 @@ class Unicode(object):
     :param value: you can sent strings and integers
     :return: Type Unicode
     """
+
     __max_unicode = sys.maxunicode
 
     def __init__(self, value: Union[str, int]):
@@ -81,14 +82,14 @@ class Unicode(object):
 
     @classmethod
     def __parse_ord(cls, value: str) -> int:
-        value = value.encode('ascii', 'backslashreplace').lower()
+        value = value.encode("ascii", "backslashreplace").lower()
 
-        if value.startswith(b'\u') or value.startswith(b'\\u'):
-            value = value.replace(b'\u', b'')
+        if value.startswith(b"\u") or value.startswith(b"\\u"):
+            value = value.replace(b"\u", b"")
 
-        value = value.decode('unicode_escape').lower()
+        value = value.decode("unicode_escape").lower()
         if value.startswith("u"):
-            value = value.replace("u+", "").replace('u', '')
+            value = value.replace("u+", "").replace("u", "")
 
         if value.startswith("0x"):
             value = int(value, 16)
@@ -114,7 +115,7 @@ class Unicode(object):
             raise ValueError(msg_error) from err
 
     @classmethod
-    def parse(cls, value: Union[str, int]) -> 'Unicode':
+    def parse(cls, value: Union[str, int]) -> "Unicode":
         """
         Copyright (c) 2019 The Cereja Project
         source: https://github.com/jlsneto/cereja

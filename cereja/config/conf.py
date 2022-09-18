@@ -26,7 +26,7 @@ import logging
 from abc import abstractmethod, ABCMeta
 import os
 
-__all__ = ['BasicConfig', 'BASE_DIR']
+__all__ = ["BasicConfig", "BASE_DIR"]
 
 # using by utils.module_references
 _exclude = ["console_logger", "cj_modules_dotted_path"]
@@ -41,21 +41,21 @@ class BasicConfig(metaclass=ABCMeta):
         self.set_config(**kwargs)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.get()})'
+        return f"{self.__class__.__name__}({self.get()})"
 
     def __setattr__(self, key, value):
-        if hasattr(self, '_locked'):
+        if hasattr(self, "_locked"):
             if self._locked is True:
-                er = 'This is a critical config. You can use <set_config> method.'
+                er = "This is a critical config. You can use <set_config> method."
                 raise ValueError(er)
         super().__setattr__(key, value)
 
     def __unlock(self):
-        super().__setattr__('_locked', False)
+        super().__setattr__("_locked", False)
 
     def __lock(self):
         self._fields = tuple(self.get().keys())
-        super().__setattr__('_locked', True)
+        super().__setattr__("_locked", True)
 
     def set_config(self, **kwargs) -> None:
         self._before(kwargs)
@@ -76,7 +76,7 @@ class BasicConfig(metaclass=ABCMeta):
         config = {}
         if item is None:
             for attr_ in dir(self):
-                if attr_.startswith('_'):
+                if attr_.startswith("_"):
                     continue
                 obj = self.__getattribute__(attr_)
                 if callable(obj):
@@ -91,9 +91,20 @@ class BasicConfig(metaclass=ABCMeta):
 
 
 # Used to add the functions of each module at the root
-cj_modules_dotted_path = ['cereja.array', 'cereja.conf', 'cereja.decorators', 'cereja.path',
-                          'cereja.utils', 'cereja.concurrently', 'cereja.display', 'cereja.filetools', 'cereja.unicode',
-                          'cereja.datatools.split_data', 'cereja.datatools.pln', 'cereja.datatools.data']
+cj_modules_dotted_path = [
+    "cereja.array",
+    "cereja.conf",
+    "cereja.decorators",
+    "cereja.path",
+    "cereja.utils",
+    "cereja.concurrently",
+    "cereja.display",
+    "cereja.filetools",
+    "cereja.unicode",
+    "cereja.datatools.split_data",
+    "cereja.datatools.pln",
+    "cereja.datatools.data",
+]
 
 console_logger = logging.StreamHandler(sys.stdout)
 logging.basicConfig(handlers=(console_logger,), level=logging.WARNING)

@@ -24,7 +24,9 @@ class Process:
     def run_on(self, values, **kwargs):
         self._stop_on = len(values)
         for n, value in enumerate(values, 1):
-            th = threading.Thread(target=self._wrap, args=(value,), kwargs={'id_': n, **kwargs})
+            th = threading.Thread(
+                target=self._wrap, args=(value,), kwargs={"id_": n, **kwargs}
+            )
             th.start()
             self._ths[n] = th
         while self._current < self._stop_on:

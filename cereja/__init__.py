@@ -59,5 +59,10 @@ if NON_BMP_SUPPORTED is None:
         unicode_ = f"\033[31m\U0001F352\033[0;0m"
         print(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\r")
         NON_BMP_SUPPORTED = True
-    except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
+    except (
+        UnicodeEncodeError,
+        UnicodeDecodeError,
+        UnicodeError,
+        UnicodeTranslateError,
+    ):
         NON_BMP_SUPPORTED = False

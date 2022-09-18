@@ -33,11 +33,11 @@ from typing import Sequence, Any
 
 from cereja.config.cj_types import FunctionType
 
-__all__ = ['TaskList', 'AsyncToSync', 'SyncToAsync', 'sync_to_async', 'async_to_sync']
+__all__ = ["TaskList", "AsyncToSync", "SyncToAsync", "sync_to_async", "async_to_sync"]
 logger = logging.getLogger(__name__)
 
 # intern
-_exclude = ['AsyncToSync', 'SyncToAsync', 'TaskList', 'sync_to_async', 'async_to_sync']
+_exclude = ["AsyncToSync", "SyncToAsync", "TaskList", "sync_to_async", "async_to_sync"]
 
 try:
     import contextvars  # Python 3.7+ only.
@@ -67,7 +67,7 @@ class AsyncToSync:
                 # There's no event loop in this thread. Look for the threadlocal if
                 # we're inside SyncToAsync
                 self.main_event_loop = getattr(
-                        SyncToAsync.threadlocal, "main_event_loop", None
+                    SyncToAsync.threadlocal, "main_event_loop", None
                 )
 
     def __call__(self, *args, **kwargs):
@@ -79,8 +79,8 @@ class AsyncToSync:
         else:
             if event_loop.is_running():
                 raise RuntimeError(
-                        "You cannot use AsyncToSync in the same thread as an async event loop - "
-                        "just await the async function directly."
+                    "You cannot use AsyncToSync in the same thread as an async event loop - "
+                    "just await the async function directly."
                 )
         # Make a future for the return information
         call_result = Future()
@@ -95,7 +95,7 @@ class AsyncToSync:
             asyncio.set_event_loop(loop)
             try:
                 loop.run_until_complete(
-                        self.main_wrap(args, kwargs, call_result, source_thread)
+                    self.main_wrap(args, kwargs, call_result, source_thread)
                 )
             finally:
                 try:
@@ -106,8 +106,8 @@ class AsyncToSync:
                     asyncio.set_event_loop(self.main_event_loop)
         else:
             self.main_event_loop.call_soon_threadsafe(
-                    self.main_event_loop.create_task,
-                    self.main_wrap(args, kwargs, call_result, source_thread),
+                self.main_event_loop.create_task,
+                self.main_wrap(args, kwargs, call_result, source_thread),
             )
         # Wait for results from the future.
         return call_result.result()
@@ -146,7 +146,7 @@ class SyncToAsync:
     if "ASGI_THREADS" in os.environ:
         loop = asyncio.get_event_loop()
         loop.set_default_executor(
-                ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"]))
+            ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"]))
         )
 
     # Maps launched threads to the coroutines that spawned them
@@ -171,15 +171,15 @@ class SyncToAsync:
             func = self.func
 
         future = loop.run_in_executor(
-                None,
-                functools.partial(
-                        self.thread_handler,
-                        loop,
-                        self.get_current_task(),
-                        func,
-                        *args,
-                        **kwargs
-                ),
+            None,
+            functools.partial(
+                self.thread_handler,
+                loop,
+                self.get_current_task(),
+                func,
+                *args,
+                **kwargs,
+            ),
         )
         return await asyncio.wait_for(future, timeout=None)
 
@@ -248,6 +248,7 @@ class TaskList:
 
     def __init__(self, func: FunctionType, sequence: Sequence[Any]):
         from ..utils import is_sequence
+
         if not isinstance(func, Callable):
             raise TypeError(f"{func} is not callable.")
 
@@ -274,9 +275,11 @@ class TaskList:
         return await asyncio.gather(*map(self._wrapper, self.sequence))
 
     def run(self):
-        if hasattr(asyncio, 'run'):  # Only python 3.7
+        if hasattr(asyncio, "run"):  # Only python 3.7
             return asyncio.run(self._run())
-        return self.loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
+        return self.loop.run_until_complete(
+            asyncio.gather(*map(self._wrapper, self.sequence))
+        )
 
     def _run_functional(self):
         return list(map(self.func, self.sequence))

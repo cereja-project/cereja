@@ -27,25 +27,36 @@ from ..array import flatten, get_shape
 from ..utils import is_sequence, chunk
 from cereja.config.cj_types import Number
 
-__all__ = ['imc', 'proportional', 'estimate', 'percent', 'theta_angle', 'distance_between_points', 'theta_from_array',
-           'greatest_common_multiple', 'least_common_multiple', 'degrees_to_radian', 'radian_to_degrees']
+__all__ = [
+    "imc",
+    "proportional",
+    "estimate",
+    "percent",
+    "theta_angle",
+    "distance_between_points",
+    "theta_from_array",
+    "greatest_common_multiple",
+    "least_common_multiple",
+    "degrees_to_radian",
+    "radian_to_degrees",
+]
 
 
 def imc(weight: float, height: float) -> Tuple[float, str]:
-    _imc = weight / (height ** 2)
+    _imc = weight / (height**2)
     _imc = _imc if _imc > 0.1 else _imc * 10000  # convert if send in meters.
     if _imc < 18.5:
-        grade = 'Underweight'
+        grade = "Underweight"
     elif 18.5 <= _imc <= 24.9:
-        grade = 'Normal weight'
+        grade = "Normal weight"
     elif 25 <= _imc <= 29.9:
-        grade = 'Overweight'
+        grade = "Overweight"
     elif 30 <= _imc <= 34.9:
-        grade = 'Obesity grade 1'
+        grade = "Obesity grade 1"
     elif 35 <= _imc <= 39.9:
-        grade = 'Obesity grade 2'
+        grade = "Obesity grade 2"
     else:
-        grade = 'Obesity grade 3'
+        grade = "Obesity grade 3"
     return _imc, grade
 
 
@@ -57,7 +68,9 @@ def least_common_multiple(values):
     return reduce((lambda x, y: int(x * y / math.gcd(x, y))), values)
 
 
-def proportional(value, old_max_value: Union[float, int], new_max_value: Union[float, int] = 100):
+def proportional(
+    value, old_max_value: Union[float, int], new_max_value: Union[float, int] = 100
+):
     return (new_max_value / old_max_value) * value
 
 
@@ -65,7 +78,7 @@ def estimate(from_: Number, to: Number, based: Number, ndigits=2) -> Number:
     if from_ > 0:
         based = based or 1
         return round((based / from_) * to - based, ndigits)
-    return float('NaN')
+    return float("NaN")
 
 
 def percent(from_: Number, to: Number, ndigits=2) -> Number:
@@ -90,9 +103,12 @@ def theta_angle(u: Tuple[float, float], v: Tuple[float, float], degrees=True) ->
     135.0
     """
     try:
-        acos = math.acos(sum(an * vn for an, vn in zip(u, v)) / (math.sqrt(sum(pow_(u))) * math.sqrt(sum(pow_(v)))))
+        acos = math.acos(
+            sum(an * vn for an, vn in zip(u, v))
+            / (math.sqrt(sum(pow_(u))) * math.sqrt(sum(pow_(v))))
+        )
     except ValueError:
-        acos = float('NaN')
+        acos = float("NaN")
     return math.degrees(acos) if degrees else acos
 
 

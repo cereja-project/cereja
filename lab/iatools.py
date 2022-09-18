@@ -34,10 +34,12 @@ class HyperParam(object):
         self.learning_rate = 0.02
         self.n_directions = 16
         self.n_best_directions = 16
-        assert self.n_best_directions <= self.n_directions, "n_best_directions > n_directions"
+        assert (
+            self.n_best_directions <= self.n_directions
+        ), "n_best_directions > n_directions"
         self.noise = 0.03
         self.seed = 1
-        self.env_name = 'HalfCheetahBulletEnv-v0'
+        self.env_name = "HalfCheetahBulletEnv-v0"
 
 
 hp = HyperParam()
@@ -51,11 +53,11 @@ class Normalizer(object):
         self.var = Matrix(array_gen((n_inputs,), 0.0))
 
     def observe(self, state):
-        self.n += 1.
+        self.n += 1.0
         last_mean = self.mean.copy()
         self.mean += (state - self.mean) / self.n
         self.mean_diff += (state - last_mean) * (state - self.mean)
-        self.var = (self.mean_diff / self.n)  # 1e-2 need clip
+        self.var = self.mean_diff / self.n  # 1e-2 need clip
 
     def normalize(self, inputs):
         observe_mean = self.mean
@@ -70,7 +72,7 @@ class Policy(object):
     def evaluate(self, input_, delta=None, direction=None):
         if direction is None:
             return self.weights.dot(input_)
-        elif direction == 'posittive':
+        elif direction == "posittive":
             return cereja.mathtools.dot(input_)
         else:
             return cereja.mathtools.dot(input_)
@@ -88,7 +90,7 @@ class Policy(object):
 def explore(env, normalizer, policy, direction=None, delta=None):
     state = env.reset()
     done = False
-    num_plays = 0.
+    num_plays = 0.0
     sum_rewards = 0
     while not done and num_plays < hp.episode_length:
         normalizer.observe(state)
@@ -107,19 +109,30 @@ def train(env, policy: Policy, normalizer, hp: HyperParam):
         positive_rewards = [0] * hp.n_directions
         negative_rewards = [0] * hp.n_directions
         for k in range(hp.n_directions):
-            positive_rewards[k] = explore(env, normalizer, policy, direction='positive', delta=deltas[k])
+            positive_rewards[k] = explore(
+                env, normalizer, policy, direction="positive", delta=deltas[k]
+            )
 
         for k in range(hp.n_directions):
-            negative_rewards[k] = explore(env, normalizer, policy, direction='negattive', delta=deltas[k])
+            negative_rewards[k] = explore(
+                env, normalizer, policy, direction="negattive", delta=deltas[k]
+            )
 
         all_rewards = Matrix((positive_rewards + negative_rewards))
         sigma_r = all_rewards.std()
-        score = {k: max(r_pos, r_neg) for k, (r_pos, r_neg) in enumerate(zip(positive_rewards, negative_rewards))}
-        order = sorted(score.keys(), key=lambda x: score[x], reverse=True)[:hp.n_best_directions]
-        rollouts = [(positive_rewards[k], negative_rewards[k], deltas[k]) for k in order]
+        score = {
+            k: max(r_pos, r_neg)
+            for k, (r_pos, r_neg) in enumerate(zip(positive_rewards, negative_rewards))
+        }
+        order = sorted(score.keys(), key=lambda x: score[x], reverse=True)[
+            : hp.n_best_directions
+        ]
+        rollouts = [
+            (positive_rewards[k], negative_rewards[k], deltas[k]) for k in order
+        ]
         policy.update(rollouts, sigma_r)
         reward_evaluation = explore(env, normalizer, policy)
-        print(f'Step: {step} - Reward: {reward_evaluation}')
+        print(f"Step: {step} - Reward: {reward_evaluation}")
 
 
 random.seed(hp.seed)

@@ -26,7 +26,7 @@ import json
 import io
 from ..config import PROXIES_URL
 
-__all__ = ['HttpRequest', 'HttpResponse']
+__all__ = ["HttpRequest", "HttpResponse"]
 
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -35,10 +35,11 @@ from cereja import Progress
 
 
 class _Http:
-
     def __init__(self, url, data=None, headers=None, port=None):
         self.headers = headers or {}
-        self._protocol, self._port, self._domains, self._endpoint = self.parse_url(url=url, port=port)
+        self._protocol, self._port, self._domains, self._endpoint = self.parse_url(
+            url=url, port=port
+        )
         self._data = data or None
 
     @staticmethod
@@ -71,36 +72,36 @@ class _Http:
 
     @property
     def url(self):
-        port = f':{self._port}' if self._port else self._port
+        port = f":{self._port}" if self._port else self._port
         endpoint = f"/{self._endpoint}" if self._endpoint else self._endpoint
-        return f'{self._protocol}://{self._domains}{port}{endpoint}'
+        return f"{self._protocol}://{self._domains}{port}{endpoint}"
 
     @property
     def content_type(self):
-        return self.headers.get('Content-type')
+        return self.headers.get("Content-type")
 
     @property
     def content_length(self):
-        return self.headers.get('Content-length')
+        return self.headers.get("Content-length")
 
     @classmethod
     def parse_url(cls, url: str, port=None):
 
-        url = url.replace('://', '.')
-        url = url.split('/', maxsplit=1)
+        url = url.replace("://", ".")
+        url = url.split("/", maxsplit=1)
 
-        domains = url.pop(0).split('.')
-        if ':' in domains[-1]:
-            domain, port = domains[-1].split(':')
+        domains = url.pop(0).split(".")
+        if ":" in domains[-1]:
+            domain, port = domains[-1].split(":")
             domains[-1] = domain
 
-        protocol = domains.pop(0) if domains[0].startswith('http') else 'https'
+        protocol = domains.pop(0) if domains[0].startswith("http") else "https"
 
         if not port:
-            port = ''
+            port = ""
 
-        domains = '.'.join(domains)
-        endpoint = '/'.join(url) if url else ''
+        domains = ".".join(domains)
+        endpoint = "/".join(url) if url else ""
 
         return protocol, port, domains, endpoint
 
@@ -108,7 +109,7 @@ class _Http:
 class HttpResponse:
     CHUNK_SIZE = 1024 * 1024 * 1  # 1MB
 
-    def __init__(self, request: 'HttpRequest', save_on_path=None, timeout=None):
+    def __init__(self, request: "HttpRequest", save_on_path=None, timeout=None):
         self._finished = False
         self._timeout = timeout
         self._code = None
@@ -117,7 +118,7 @@ class HttpResponse:
         self._headers = {}
         self._request = request
         self._save_on_path = save_on_path
-        self._total_completed = '0.0%'
+        self._total_completed = "0.0%"
         self._th_request = threading.Thread(target=self.__request)
         self._th_request.start()
         while not self.headers and not self._finished:
@@ -126,18 +127,27 @@ class HttpResponse:
     def __request(self):
         # TODO: send to HttpRequest ?
         try:
-            with urllib_req.urlopen(self._request.urllib_req, timeout=self._timeout) as req_file:
+            with urllib_req.urlopen(
+                self._request.urllib_req, timeout=self._timeout
+            ) as req_file:
                 self._code = req_file.status
                 self._status = req_file.reason
-                if hasattr(req_file, 'headers'):
+                if hasattr(req_file, "headers"):
                     self._headers = dict(req_file.headers.items())
                 if self.CHUNK_SIZE * 3 > (req_file.length or 0):
                     self._data = req_file.read()
                 else:
-                    with Progress(name=f'Fetching data', max_value=int(req_file.getheader('Content-Length')),
-                                  states=('download', 'time')) as prog:
+                    with Progress(
+                        name=f"Fetching data",
+                        max_value=int(req_file.getheader("Content-Length")),
+                        states=("download", "time"),
+                    ) as prog:
 
-                        with (open(self._save_on_path, 'wb') if self._save_on_path else io.BytesIO()) as f:
+                        with (
+                            open(self._save_on_path, "wb")
+                            if self._save_on_path
+                            else io.BytesIO()
+                        ) as f:
                             total_downloaded = 0
                             while True:
                                 chunk = req_file.read(self.CHUNK_SIZE)
@@ -153,7 +163,7 @@ class HttpResponse:
             self._data = err.read()
             self._code = err.code
             self._status = err.reason
-            if hasattr(err, 'headers'):
+            if hasattr(err, "headers"):
                 self._headers = dict(err.headers.items())
         except URLError as err:
             msg = f"{err.reason}: {self._request.url}"
@@ -164,13 +174,13 @@ class HttpResponse:
     def __repr__(self):
         if not self._finished:
             return f"<HttpResponse: Fetching data {self._total_completed}>"
-        return f'<HttpResponse: code={self.code}, status={self._status}>'
+        return f"<HttpResponse: code={self.code}, status={self._status}>"
 
     @property
     def content_type(self):
         if not self._finished:
             self._th_request.join()
-        return self._headers.get('Content-Type')
+        return self._headers.get("Content-Type")
 
     @property
     def headers(self):
@@ -210,7 +220,7 @@ class HttpResponse:
     @property
     def data(self):
         self._th_request.join()  # await for request
-        if self.content_type == 'application/json':
+        if self.content_type == "application/json":
             if not self._data:
                 return {}
             return self.json()
@@ -223,40 +233,46 @@ class HttpRequest(_Http):
     def __init__(self, method, url, *args, **kwargs):
         super().__init__(url=url, *args, **kwargs)
         if isinstance(self.data, dict):
-            self.headers.update({'Content-type': 'application/json'})
+            self.headers.update({"Content-type": "application/json"})
         self._count = 0
         self._method = method
         self._req = None
 
     def __repr__(self):
-        return f'Request(url={self.url}, method={self._method})'
+        return f"Request(url={self.url}, method={self._method})"
 
     @classmethod
     def get_proxies_list(cls):
         if cls.PROXIES:
-            print('já tem proxies')
+            print("já tem proxies")
             return cls.PROXIES
         try:
-            cls.PROXIES = json.loads(cls('GET', PROXIES_URL).send_request().data)
+            cls.PROXIES = json.loads(cls("GET", PROXIES_URL).send_request().data)
         except:
             pass
         return cls.PROXIES
 
     def send_request(self, save_on=None, timeout=None, **kwargs):
-        if 'data' in kwargs:
-            self._data = self.parser(kwargs.pop('data'))
+        if "data" in kwargs:
+            self._data = self.parser(kwargs.pop("data"))
 
-        if 'headers' in kwargs:
-            headers = kwargs.pop('headers')
-            assert isinstance(headers, dict), TypeError("Headers type is invalid. send a dict")
+        if "headers" in kwargs:
+            headers = kwargs.pop("headers")
+            assert isinstance(headers, dict), TypeError(
+                "Headers type is invalid. send a dict"
+            )
             self.headers.update(headers)
         self._count += 1
         return HttpResponse(request=self, save_on_path=save_on, timeout=timeout)
 
     @property
     def urllib_req(self):
-        return urllib_req.Request(url=self.url, data=self.parser(self.data), headers=self.headers,
-                                  method=self._method)
+        return urllib_req.Request(
+            url=self.url,
+            data=self.parser(self.data),
+            headers=self.headers,
+            method=self._method,
+        )
 
     @property
     def total_request(self):
@@ -271,8 +287,10 @@ class HttpRequest(_Http):
         if isinstance(data, dict):
             return json.dumps(data).encode()
 
-        return str(data).encode() if data else b''
+        return str(data).encode() if data else b""
 
     @classmethod
     def build_and_send(cls, method, url, data=None, port=None, headers=None, **kwargs):
-        return cls(method=method, url=url, data=data, port=port, headers=headers).send_request(**kwargs)
+        return cls(
+            method=method, url=url, data=data, port=port, headers=headers
+        ).send_request(**kwargs)

@@ -26,8 +26,15 @@ import time
 import unittest
 import logging
 
-from cereja.array import group_items_in_batches, remove_duplicate_items, flatten, \
-    array_gen, get_shape, Matrix, reshape
+from cereja.array import (
+    group_items_in_batches,
+    remove_duplicate_items,
+    flatten,
+    array_gen,
+    get_shape,
+    Matrix,
+    reshape,
+)
 from cereja.utils import is_iterable, is_sequence, chunk
 from cereja.array import prod
 from cereja.mathtools import theta_angle
@@ -44,20 +51,17 @@ logger = logging.getLogger(__name__)
 
 
 class UtilsTestCase(unittest.TestCase):
-
     def setUp(self) -> None:
         self.shapes = (2, 2, 3), (1, 3, 2, 1, 1), (2, 1, 1)
         self.sequences = [
             [[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]],
-
             [[[[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]], [[[0.0]], [[0.0]]]]],
-
-            [[[0.]], [[0.]]]
+            [[[0.0]], [[0.0]]],
         ]
 
     def test_is_iterable(self):
         self.assertFalse(is_iterable(1))
-        self.assertTrue(is_iterable('hi'))
+        self.assertTrue(is_iterable("hi"))
         self.assertTrue(is_iterable([]))
 
     def test_theta_angle(self):
@@ -66,13 +70,17 @@ class UtilsTestCase(unittest.TestCase):
         self.assertEqual(theta_angle(u, v), 135.0)
 
     def test_remove_duplicate_items(self):
-        test_values_sample_list = [([1, 2, 1, 2, 1], [1, 2]),
-                                   (['hi', 'hi', 'ih'], ['hi', 'ih']),
-                                   ]
-        test_values_list_of_list = [([['hi'], ['hi'], ['ih']], [['hi'], ['ih']]),
-                                    ([[1, 2, 1, 2, 1], [1, 2, 1, 2, 1], [1, 2, 1, 2, 3]],
-                                     [[1, 2, 1, 2, 1], [1, 2, 1, 2, 3]])
-                                    ]
+        test_values_sample_list = [
+            ([1, 2, 1, 2, 1], [1, 2]),
+            (["hi", "hi", "ih"], ["hi", "ih"]),
+        ]
+        test_values_list_of_list = [
+            ([["hi"], ["hi"], ["ih"]], [["hi"], ["ih"]]),
+            (
+                [[1, 2, 1, 2, 1], [1, 2, 1, 2, 1], [1, 2, 1, 2, 3]],
+                [[1, 2, 1, 2, 1], [1, 2, 1, 2, 3]],
+            ),
+        ]
 
         for test_value, expected_value in test_values_sample_list:
             self.assertEqual(remove_duplicate_items(test_value), expected_value)
@@ -93,16 +101,20 @@ class UtilsTestCase(unittest.TestCase):
         sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
         self.assertTrue(is_sequence(sequence))
 
-        self.assertFalse(is_sequence('hi cereja'))
-        self.assertTrue(is_sequence(dict({'k1': 1, 'k2': 2}).keys()))
+        self.assertFalse(is_sequence("hi cereja"))
+        self.assertTrue(is_sequence(dict({"k1": 1, "k2": 2}).keys()))
 
     def test_array_gen(self):
         for args, expected in zip(self.shapes, self.sequences):
             data = array_gen(args)
             self.assertEqual(data, expected)
 
-        with_kwargs = [({"shape": (2, 1, 1), "v": ['hail', 'pythonics!']}, [[['hail']], [['pythonics!']]])
-                       ]
+        with_kwargs = [
+            (
+                {"shape": (2, 1, 1), "v": ["hail", "pythonics!"]},
+                [[["hail"]], [["pythonics!"]]],
+            )
+        ]
 
         for kwargs, expecteds in with_kwargs:
             result = array_gen(**kwargs)
@@ -112,12 +124,21 @@ class UtilsTestCase(unittest.TestCase):
         for expected_shape, seq in zip(self.shapes, self.sequences):
             shape_received = get_shape(seq)
             sequence_length = len(flatten(seq))
-            self.assertEqual(sequence_length, prod(shape_received), msg=f"array shape {shape_received} is inconsistent")
+            self.assertEqual(
+                sequence_length,
+                prod(shape_received),
+                msg=f"array shape {shape_received} is inconsistent",
+            )
             self.assertEqual(shape_received, expected_shape)
 
     def test_reshape(self):
         data = [[1, 2, 3]] * 4
-        expected = [[[[1], [2], [3]]], [[[1], [2], [3]]], [[[1], [2], [3]]], [[[1], [2], [3]]]]
+        expected = [
+            [[[1], [2], [3]]],
+            [[[1], [2], [3]]],
+            [[[1], [2], [3]]],
+            [[[1], [2], [3]]],
+        ]
         self.assertListEqual(reshape(data, (4, 1, 3, 1)), expected)
 
     def test_randn(self):
@@ -126,33 +147,34 @@ class UtilsTestCase(unittest.TestCase):
     def test_matrix(self):
         a = Matrix([[1, 2, 3], [1, 2, 3]])
         b = Matrix([[1, 2, 3], [1, 2, 3]])
-        expected = Matrix([[1.0, 1.0, 1.0],
-                           [1.0, 1.0, 1.0]])
+        expected = Matrix([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
         self.assertTrue((a / b) == expected)
 
 
 class PathTest(unittest.TestCase):
     def test_sanity(self):
         self.assertEqual(Path(__file__).parent, Path(os.path.realpath(__file__)).parent)
-        p_test = 'cereja/test/sanity'
+        p_test = "cereja/test/sanity"
         p = Path(p_test)
-        self.assertTrue(p.name, 'sanity')
-        self.assertTrue(p.parent.name, 'test')
+        self.assertTrue(p.name, "sanity")
+        self.assertTrue(p.parent.name, "test")
         self.assertTrue(p == p_test)
-        self.assertTrue('sanity' in p)
-        p = p + ['/con/', 'cat']
-        p_test = Path('cereja/test/sanity').join('con', 'cat')
-        self.assertEqual(p_test.parts[-2:], ('con', 'cat'))
+        self.assertTrue("sanity" in p)
+        p = p + ["/con/", "cat"]
+        p_test = Path("cereja/test/sanity").join("con", "cat")
+        self.assertEqual(p_test.parts[-2:], ("con", "cat"))
         self.assertTrue(p == p_test)
-        self.assertListEqual(Path(__file__).parent.list_dir(only_name=True),
-                             list(map(lambda x: x.rsplit('.')[0], os.listdir(Path(__file__).parent))))
+        self.assertListEqual(
+            Path(__file__).parent.list_dir(only_name=True),
+            list(map(lambda x: x.rsplit(".")[0], os.listdir(Path(__file__).parent))),
+        )
 
         with TempDir() as tmp_dir:
             tmp_dir = Path(tmp_dir)
-            suffix_case = tmp_dir.join('test.suffix')
-            self.assertEqual(suffix_case.suffix, '.suffix')
+            suffix_case = tmp_dir.join("test.suffix")
+            self.assertEqual(suffix_case.suffix, ".suffix")
             mkdir(suffix_case)
-            self.assertEqual(suffix_case.suffix, '')
+            self.assertEqual(suffix_case.suffix, "")
 
 
 class UnicodeToolTestCase(unittest.TestCase):
@@ -162,41 +184,112 @@ class UnicodeToolTestCase(unittest.TestCase):
         instance_ = Unicode.parse(unicode_)
         # expected
         test_ = CjTest(instance_)
-        test_.add_check(test_.name == "CHERRIES",
-                        test_.value == '\U0001F352',
-                        test_.decimal == 127826,
-                        test_.bin == "0b11111001101010010",
-                        test_.hex == "0x1f352",
-                        test_.oct == '0o371522'
-                        )
+        test_.add_check(
+            test_.name == "CHERRIES",
+            test_.value == "\U0001F352",
+            test_.decimal == 127826,
+            test_.bin == "0b11111001101010010",
+            test_.hex == "0x1f352",
+            test_.oct == "0o371522",
+        )
 
         test_.check_all()
 
 
 class CorpusTestCase(unittest.TestCase):
     def test_sanity(self):
-        source = ['how are you?', 'my name is Joab', 'I like coffee', 'how are you joab?', 'how', 'we are the world']
-        target = ['como você está?', 'meu nome é Joab', 'Eu gosto de café', 'Como você está joab?', 'como',
-                  'Nós somos o mundo']
+        source = [
+            "how are you?",
+            "my name is Joab",
+            "I like coffee",
+            "how are you joab?",
+            "how",
+            "we are the world",
+        ]
+        target = [
+            "como você está?",
+            "meu nome é Joab",
+            "Eu gosto de café",
+            "Como você está joab?",
+            "como",
+            "Nós somos o mundo",
+        ]
 
-        corpus = Corpus(source_data=source, target_data=target, source_name='en', target_name='pt')
-        self.assertEqual(str(corpus), 'Corpus(examples: 6 - source_vocab_size: 13 - target_vocab_size:15)')
-        self.assertEqual(str(corpus.source), 'LanguageData(examples: 6 - vocab_size: 13)')
-        self.assertEqual(str(corpus.target), 'LanguageData(examples: 6 - vocab_size: 15)')
+        corpus = Corpus(
+            source_data=source, target_data=target, source_name="en", target_name="pt"
+        )
+        self.assertEqual(
+            str(corpus),
+            "Corpus(examples: 6 - source_vocab_size: 13 - target_vocab_size:15)",
+        )
+        self.assertEqual(
+            str(corpus.source), "LanguageData(examples: 6 - vocab_size: 13)"
+        )
+        self.assertEqual(
+            str(corpus.target), "LanguageData(examples: 6 - vocab_size: 15)"
+        )
 
-        self.assertDictEqual(dict(corpus.source.phrases_freq.items()),
-                             {'how are you': 1, 'my name is joab': 1, 'i like coffee': 1, 'how are you joab': 1,
-                              'how':         1, 'we are the world': 1})
+        self.assertDictEqual(
+            dict(corpus.source.phrases_freq.items()),
+            {
+                "how are you": 1,
+                "my name is joab": 1,
+                "i like coffee": 1,
+                "how are you joab": 1,
+                "how": 1,
+                "we are the world": 1,
+            },
+        )
 
-        self.assertDictEqual(dict(corpus.source.words_freq.items()),
-                             {'how':  3, 'are': 3, 'you': 2, 'joab': 2, 'my': 1, 'name': 1, 'is': 1, 'i': 1,
-                              'like': 1, 'coffee': 1, 'we': 1, 'the': 1, 'world': 1})
-        self.assertDictEqual(dict(corpus.target.phrases_freq.items()),
-                             {'como você está':      1, 'meu nome é joab': 1, 'eu gosto de café': 1,
-                              'como você está joab': 1, 'como': 1, 'nós somos o mundo': 1})
-        self.assertDictEqual(dict(corpus.target.words_freq.items()),
-                             {'como':  3, 'você': 2, 'está': 2, 'joab': 2, 'meu': 1, 'nome': 1, 'é': 1, 'eu': 1,
-                              'gosto': 1, 'de': 1, 'café': 1, 'nós': 1, 'somos': 1, 'o': 1, 'mundo': 1})
+        self.assertDictEqual(
+            dict(corpus.source.words_freq.items()),
+            {
+                "how": 3,
+                "are": 3,
+                "you": 2,
+                "joab": 2,
+                "my": 1,
+                "name": 1,
+                "is": 1,
+                "i": 1,
+                "like": 1,
+                "coffee": 1,
+                "we": 1,
+                "the": 1,
+                "world": 1,
+            },
+        )
+        self.assertDictEqual(
+            dict(corpus.target.phrases_freq.items()),
+            {
+                "como você está": 1,
+                "meu nome é joab": 1,
+                "eu gosto de café": 1,
+                "como você está joab": 1,
+                "como": 1,
+                "nós somos o mundo": 1,
+            },
+        )
+        self.assertDictEqual(
+            dict(corpus.target.words_freq.items()),
+            {
+                "como": 3,
+                "você": 2,
+                "está": 2,
+                "joab": 2,
+                "meu": 1,
+                "nome": 1,
+                "é": 1,
+                "eu": 1,
+                "gosto": 1,
+                "de": 1,
+                "café": 1,
+                "nós": 1,
+                "somos": 1,
+                "o": 1,
+                "mundo": 1,
+            },
+        )
 
 
 class ProgressTestCase:
@@ -205,37 +298,49 @@ class ProgressTestCase:
         progress_test = CjTest(progress)
 
         class MyCustomSate(State):
-
-            def display(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
-                        n_times: int) -> str:
+            def display(
+                self,
+                current_value: Number,
+                max_value: Number,
+                current_percent: Number,
+                time_it: Number,
+                n_times: int,
+            ) -> str:
                 return "RUNNING"
 
-            def done(self, current_value: Number, max_value: Number, current_percent: Number, time_it: Number,
-                     n_times: int) -> str:
+            def done(
+                self,
+                current_value: Number,
+                max_value: Number,
+                current_percent: Number,
+                time_it: Number,
+                n_times: int,
+            ) -> str:
                 return "FINISHED"
 
         state = MyCustomSate()
         progress.add_state(state)
 
         progress_test.add_check(
-                progress_test.name == "Cereja Progress Test",
-                progress_test._awaiting_update == True,
-                progress_test._show == False,
-                progress_test.started_time == None,
-                progress_test._err == False,
-                progress_test._was_done == False,
-                progress_test._with_context == False
+            progress_test.name == "Cereja Progress Test",
+            progress_test._awaiting_update == True,
+            progress_test._show == False,
+            progress_test.started_time == None,
+            progress_test._err == False,
+            progress_test._was_done == False,
+            progress_test._with_context == False,
         )
         progress_test.check_all()
 
         with Progress("p") as p:
             test_p = CjTest(p)
-            test_p.add_check(test_p.name == 'p',
-                             test_p._with_context == True,
-                             test_p.started == True,
-                             test_p._awaiting_update == True,
-                             test_p.max_value == 100
-                             )
+            test_p.add_check(
+                test_p.name == "p",
+                test_p._with_context == True,
+                test_p.started == True,
+                test_p._awaiting_update == True,
+                test_p.max_value == 100,
+            )
             test_p.check_all()
             time.sleep(3)
             p_iterator = p(range(1, 500))
@@ -245,9 +350,9 @@ class ProgressTestCase:
                 time.sleep(1 / i)
                 if i == 1:
                     test_p.add_check(
-                            test_p._awaiting_update == False,
-                            test_p.max_value == 499,
-                            test_p._current_value == 2
+                        test_p._awaiting_update == False,
+                        test_p.max_value == 499,
+                        test_p._current_value == 2,
                     )
                     test_p.check_all()
 
@@ -260,26 +365,35 @@ class ProgressTestCase:
 
 class LanguageDataTestCase(unittest.TestCase):
     def test_sanity(self):
-        data = LanguageData(['how are you?', 'I like it', 'cereja', 'cherry'], to_lower=True)
-        self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja', 'cherry']), 1)
-        self.assertEqual(data.synergy(['how are you?', 'I like it', 'cereja']), 0.889)
+        data = LanguageData(
+            ["how are you?", "I like it", "cereja", "cherry"], to_lower=True
+        )
+        self.assertEqual(
+            data.synergy(["how are you?", "I like it", "cereja", "cherry"]), 1
+        )
+        self.assertEqual(data.synergy(["how are you?", "I like it", "cereja"]), 0.889)
 
 
 class HashToolsTestCase(unittest.TestCase):
     def test_sanity(self):
-        vals = ([1, 2, '3'],
-                (1, '2', '1'),
-                {'hi': 1, 'hello': 3, 'deep': {'oi'}},
-                1,
-                2,
-                'a')
+        vals = (
+            [1, 2, "3"],
+            (1, "2", "1"),
+            {"hi": 1, "hello": 3, "deep": {"oi"}},
+            1,
+            2,
+            "a",
+        )
         for val in vals:
             res = base64_encode(val)
             self.assertTrue(is_base64(res))
             self.assertEqual(val, base64_decode(res, eval_str=True))
 
-        self.assertEqual('fc4d5dcfe7146d09b7fbad980fb90797', md5('set the alarm clock for seven of the clock .'))
+        self.assertEqual(
+            "fc4d5dcfe7146d09b7fbad980fb90797",
+            md5("set the alarm clock for seven of the clock ."),
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
