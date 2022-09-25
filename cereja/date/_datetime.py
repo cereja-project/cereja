@@ -22,7 +22,7 @@ SOFTWARE.
 from datetime import datetime
 from typing import Union
 
-__all__ = ['DateTime']
+__all__ = ["DateTime"]
 
 
 class DateTime(datetime):
@@ -47,19 +47,31 @@ class DateTime(datetime):
         return days + min_ + cls._validate_timestamp(sec)
 
     def add(self, days=0, min_=0, sec=0):
-        return self.fromtimestamp(self.timestamp() + self.into_timestamp(days, min_, sec))
+        return self.fromtimestamp(
+                self.timestamp() + self.into_timestamp(days, min_, sec)
+        )
 
     def sub(self, days=0, min_=0, sec=0):
-        return self.fromtimestamp(abs(self.timestamp() - self.into_timestamp(days, min_, sec)))
+        return self.fromtimestamp(
+                abs(self.timestamp() - self.into_timestamp(days, min_, sec))
+        )
 
     def days_between(self, other):
-        return self.days_from_timestamp(abs(self.timestamp() - self._validate_date(other).timestamp()))
+        return self.days_from_timestamp(
+                abs(self.timestamp() - self._validate_date(other).timestamp())
+        )
 
     def compare(self, other):
-        '''
-        compares date time and 
-        returns 1 if the instantiated date is greater, 
+        """
+        compares date time and
+        returns 1 if the instantiated date is greater,
         -1 if the instantiated date is less than,
         and 0 if they are equal.
-        '''
-        return 1 if self.timestamp() > self._validate_date(other).timestamp() else -1 if self.timestamp() < self._validate_date(other).timestamp() else 0
+        """
+        return (
+            1
+            if self.timestamp() > self._validate_date(other).timestamp()
+            else -1
+            if self.timestamp() < self._validate_date(other).timestamp()
+            else 0
+        )

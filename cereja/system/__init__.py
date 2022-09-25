@@ -22,6 +22,3 @@ SOFTWARE.
 
 from ._path import *
 from ..system.commons import *
-
-
-

@@ -37,8 +37,17 @@ from ..utils.decorators import on_except
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['Path', 'change_date_from_path', 'clean_dir', 'file_name', 'get_base_dir', 'group_path_from_dir',
-           'mkdir', 'normalize_path', 'TempDir']
+__all__ = [
+    "Path",
+    "change_date_from_path",
+    "clean_dir",
+    "file_name",
+    "get_base_dir",
+    "group_path_from_dir",
+    "mkdir",
+    "normalize_path",
+    "TempDir",
+]
 
 
 def mkdir(path_dir: str):
@@ -69,8 +78,13 @@ def mkdir(path_dir: str):
         os.mkdir(path_dir)
 
 
-def group_path_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, to_random: bool = False,
-                        key_sort_function=None):
+def group_path_from_dir(
+        dir_path: str,
+        num_items_on_tuple: int,
+        ext_file: str,
+        to_random: bool = False,
+        key_sort_function=None,
+):
     """
     returns data tuples based on the number of items entered for each tuple, follows the default order
     if no sort function is sent
@@ -83,12 +97,18 @@ def group_path_from_dir(dir_path: str, num_items_on_tuple: int, ext_file: str, t
     :return:
     """
 
-    if '.' not in ext_file:
-        ext_file = '.' + ext_file
+    if "." not in ext_file:
+        ext_file = "." + ext_file
 
     key_sort_function = {"key": key_sort_function} if key_sort_function else {}
-    paths = sorted([os.path.join(dir_path, i) for i in os.listdir(dir_path) if ext_file == os.path.splitext(i)[1]],
-                   **key_sort_function)
+    paths = sorted(
+            [
+                os.path.join(dir_path, i)
+                for i in os.listdir(dir_path)
+                if ext_file == os.path.splitext(i)[1]
+            ],
+            **key_sort_function,
+    )
 
     batches = group_items_in_batches(items=paths, items_per_batch=num_items_on_tuple)
 
@@ -112,7 +132,7 @@ def file_name(file_path: str, with_ext: bool = False) -> str:
     """
 
     if not isinstance(file_path, str):
-        raise TypeError('Path must be a string')
+        raise TypeError("Path must be a string")
 
     base_name = os.path.basename(file_path)
     if with_ext:
@@ -121,7 +141,7 @@ def file_name(file_path: str, with_ext: bool = False) -> str:
     return f_name
 
 
-def change_date_from_path(path_: str, format_: str = '%d-%m-%Y %H:%M:%S'):
+def change_date_from_path(path_: str, format_: str = "%d-%m-%Y %H:%M:%S"):
     m_time = os.path.getctime(path_)
     return time.strftime(format_, time.localtime(m_time))
 
@@ -143,7 +163,7 @@ class Path(os.PathLike):
     __sep = os.sep
     _verified = set()
 
-    def __init__(self, initial: Union[str, os.PathLike] = '.', *pathsegments: str):
+    def __init__(self, initial: Union[str, os.PathLike] = ".", *pathsegments: str):
         self.__path = Path_(_norm_path(str(initial)), *pathsegments)
         self.__parent = self.__path.parent.as_posix()
         self._parent_name = self.__path.parent.name
@@ -177,14 +197,14 @@ class Path(os.PathLike):
 
     def __getitem__(self, item):
         if item < 0:
-            raise ValueError(f'index < 0 is not possible.')
+            raise ValueError(f"index < 0 is not possible.")
         if isinstance(item, int):
             item = slice(item + 1)
-        return self.__class__('/'.join(self.parts[item]))
+        return self.__class__("/".join(self.parts[item]))
 
-    def __value_err(self, details=''):
+    def __value_err(self, details=""):
         if details:
-            details = f'details {details}'
+            details = f"details {details}"
         raise ValueError(f"Path <{self.path}> isn't valid. {details}")
 
     def _verify(self):
@@ -192,12 +212,16 @@ class Path(os.PathLike):
         for i in range(len(self.__path.parts)):
             if str(part) in self._verified:
                 return
-            part_split = part.name.split('.')
-            if part_split[-1] == '.':
-                logger.info(f'It is not common to use dot <{part.name}> in the end of name.')
+            part_split = part.name.split(".")
+            if part_split[-1] == ".":
+                logger.info(
+                        f"It is not common to use dot <{part.name}> in the end of name."
+                )
                 break
-            if (part.suffix or part_split[-1] == '.') and i > 0:
-                logger.info(f'It is not common to use dot in the middle or end of directory name <{part.name}>')
+            if (part.suffix or part_split[-1] == ".") and i > 0:
+                logger.info(
+                        f"It is not common to use dot in the middle or end of directory name <{part.name}>"
+                )
                 break
             if len(part_split) > 2:
                 logger.info(f"<{part.name}> has more dot than usual.")
@@ -209,7 +233,7 @@ class Path(os.PathLike):
         return self.__path.name
 
     @property
-    @on_except(return_value=False, warn_text='Path is not valid.')
+    @on_except(return_value=False, warn_text="Path is not valid.")
     def exists(self):
         return self.__path.exists()
 
@@ -229,7 +253,7 @@ class Path(os.PathLike):
     def suffix(self):
         if self.exists and self.__path.is_dir():
             # is a dir
-            return ''
+            return ""
         return self.__path.suffix
 
     @property
@@ -252,7 +276,7 @@ class Path(os.PathLike):
         return self._parent_name
 
     @property
-    @on_except(return_value='', warn_text='Error on parser path in uri')
+    @on_except(return_value="", warn_text="Error on parser path in uri")
     def uri(self):
         return self.__path.as_uri()
 
@@ -261,13 +285,13 @@ class Path(os.PathLike):
         if self.exists:
             return self.__path.is_dir()
         else:
-            return self.ext == ''
+            return self.ext == ""
 
     @property
     def is_file(self):
         if self.exists:
             return self.__path.is_file()
-        return self.ext != ''
+        return self.ext != ""
 
     @property
     @on_except(return_value=False)
@@ -276,18 +300,33 @@ class Path(os.PathLike):
 
     @property
     def updated_at(self):
-        return datetime.fromtimestamp(os.stat(str(self.path)).st_mtime).strftime(
-                self._date_format) if self.exists else None
+        return (
+            datetime.fromtimestamp(os.stat(str(self.path)).st_mtime).strftime(
+                    self._date_format
+            )
+            if self.exists
+            else None
+        )
 
     @property
     def created_at(self):
-        return datetime.fromtimestamp(os.stat(str(self.path)).st_ctime).strftime(
-                self._date_format) if self.exists else None
+        return (
+            datetime.fromtimestamp(os.stat(str(self.path)).st_ctime).strftime(
+                    self._date_format
+            )
+            if self.exists
+            else None
+        )
 
     @property
     def last_access(self):
-        return datetime.fromtimestamp(os.stat(str(self.path)).st_atime).strftime(
-                self._date_format) if self.exists else None
+        return (
+            datetime.fromtimestamp(os.stat(str(self.path)).st_atime).strftime(
+                    self._date_format
+            )
+            if self.exists
+            else None
+        )
 
     @property
     @on_except(return_value=False)
@@ -303,7 +342,7 @@ class Path(os.PathLike):
 
         :return: bool
         """
-        return self.name.startswith('.') or self.__path.is_reserved()
+        return self.name.startswith(".") or self.__path.is_reserved()
 
     @property
     def parts(self):
@@ -314,7 +353,7 @@ class Path(os.PathLike):
         return self.__sep
 
     @classmethod
-    def work_dir(cls) -> 'Path':
+    def work_dir(cls) -> "Path":
         """
         Get current working directory
         @return:
@@ -326,18 +365,22 @@ class Path(os.PathLike):
         os.chdir(to_)
 
     def join(self, part, *others):
-        assert self.suffix == '', f"join operation is only dir. full path received {self.path}"
+        assert (
+                self.suffix == ""
+        ), f"join operation is only dir. full path received {self.path}"
         if isinstance(part, str):
             args = (part, *others)
         else:
             args = (*part, *others)
-        return self.__class__(self.__path.joinpath(*map(lambda p: p.lstrip('/\\'), args)).as_posix())
+        return self.__class__(
+                self.__path.joinpath(*map(lambda p: p.lstrip("/\\"), args)).as_posix()
+        )
 
     def _shutil(self, command: str, **kwargs):
         if not self.exists:
-            raise Exception(f'Not Found <{self.uri}>')
-        if command == 'rm':
-            rm_tree = kwargs.get('rm_tree')
+            raise Exception(f"Not Found <{self.uri}>")
+        if command == "rm":
+            rm_tree = kwargs.get("rm_tree")
             if self.is_file:
                 os.remove(self.path)
                 logger.info(f"<{self}> has been removed")
@@ -349,12 +392,14 @@ class Path(os.PathLike):
                     try:
                         os.rmdir(str(self))
                     except OSError as err:
-                        raise Exception(f'{err}.\n Use rm_tree=True to DELETE {self.uri}.')
-        elif command == 'mv':
-            to = kwargs.get('to')
+                        raise Exception(
+                                f"{err}.\n Use rm_tree=True to DELETE {self.uri}."
+                        )
+        elif command == "mv":
+            to = kwargs.get("to")
             return self.__class__(shutil.move(str(self), str(to)))
-        elif command == 'cp':
-            to = kwargs.get('to')
+        elif command == "cp":
+            to = kwargs.get("to")
             if self.is_dir:
                 return self.__class__(shutil.copytree(str(self), str(to)))
             elif self.is_file:
@@ -366,15 +411,15 @@ class Path(os.PathLike):
 
         If it is a directory you can DELETE the entire tree, for that flag `rm_tree=True`
         """
-        return self._shutil('rm', rm_tree=rm_tree)
+        return self._shutil("rm", rm_tree=rm_tree)
 
     def mv(self, to):
         to = self.__class__(to)
-        return self._shutil('mv', to=to)
+        return self._shutil("mv", to=to)
 
     def cp(self, to):
         to = self.__class__(to)
-        return self._shutil('cp', to=to)
+        return self._shutil("cp", to=to)
 
     def rsplit(self, sep=None, max_split=-1):
         return self.path.rsplit(sep, max_split)
@@ -382,7 +427,9 @@ class Path(os.PathLike):
     def split(self, sep=None, max_split=-1):
         return self.path.rsplit(sep, max_split)
 
-    def list_dir(self, search_match='*', only_name=False, recursive=False) -> List['Path']:
+    def list_dir(
+            self, search_match="*", only_name=False, recursive=False
+    ) -> List["Path"]:
         """
         Extension of the listdir function of module os.
 
@@ -390,19 +437,27 @@ class Path(os.PathLike):
         path by setting only_relative_path to True.
 
         """
-        assert isinstance(self, Path), f'{self} is not an instance of Path'
+        assert isinstance(self, Path), f"{self} is not an instance of Path"
         if not self.is_dir:
             raise NotADirectoryError(f"check that the path '{self.path}' is correct")
         try:
-            return [self.__class__(p).stem if only_name else self.__class__(p) for p in
-                    glob.glob(self.join(search_match).path, recursive=recursive)]
+            return [
+                self.__class__(p).stem if only_name else self.__class__(p)
+                for p in glob.glob(self.join(search_match).path, recursive=recursive)
+            ]
         except PermissionError as err:
             logger.error(f"{err}")
             return []
 
-    def list_files(self, ext: str = None, contains_in_name: List = (),
-                   not_contains_in_name=(),
-                   recursive=False, only_name=False, ignore_dirs=()) -> List['Path']:
+    def list_files(
+            self,
+            ext: str = None,
+            contains_in_name: List = (),
+            not_contains_in_name=(),
+            recursive=False,
+            only_name=False,
+            ignore_dirs=(),
+    ) -> List["Path"]:
         """
         List files on an dir or in dir tree for this use recursive=True
 
@@ -415,19 +470,27 @@ class Path(os.PathLike):
         @param ignore_dirs: name list of prohibited directories
         @return: Path object list
         """
-        assert isinstance(self, Path), f'{self} is not an instance of Path'
-        ignore_dirs = (ignore_dirs,) if isinstance(ignore_dirs, str) else tuple(ignore_dirs)
+        assert isinstance(self, Path), f"{self} is not an instance of Path"
+        ignore_dirs = (
+            (ignore_dirs,) if isinstance(ignore_dirs, str) else tuple(ignore_dirs)
+        )
 
-        ext = ext or ''
+        ext = ext or ""
         files = []
         for p in self.list_dir():
             try:
                 if p.is_dir and recursive and p.name not in ignore_dirs:
                     _self = Path(p)  # because exceeded recursion Error
                     files.extend(
-                            _self.list_files(ext=ext, contains_in_name=contains_in_name,
-                                             not_contains_in_name=not_contains_in_name,
-                                             recursive=recursive, only_name=only_name, ignore_dirs=ignore_dirs))
+                            _self.list_files(
+                                    ext=ext,
+                                    contains_in_name=contains_in_name,
+                                    not_contains_in_name=not_contains_in_name,
+                                    recursive=recursive,
+                                    only_name=only_name,
+                                    ignore_dirs=ignore_dirs,
+                            )
+                    )
                     continue
 
                 if not p.is_file:
@@ -448,8 +511,10 @@ class Path(os.PathLike):
 
 
 class TempDir:
-    def __init__(self, start_name='cj_', end_name='_temp', create_on=None):
-        self._tmpdir = tempfile.TemporaryDirectory(suffix=end_name, prefix=start_name, dir=create_on)
+    def __init__(self, start_name="cj_", end_name="_temp", create_on=None):
+        self._tmpdir = tempfile.TemporaryDirectory(
+                suffix=end_name, prefix=start_name, dir=create_on
+        )
         self._path = Path(self._tmpdir.name)
 
     def __del__(self):

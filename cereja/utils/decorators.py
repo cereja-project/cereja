@@ -29,15 +29,22 @@ import abc
 import logging
 import warnings
 
-__all__ = ['depreciation', 'synchronized', 'time_exec', 'thread_safe_generator',
-           'singleton', 'on_except', 'use_thread']
+__all__ = [
+    "depreciation",
+    "synchronized",
+    "time_exec",
+    "thread_safe_generator",
+    "singleton",
+    "on_except",
+    "use_thread",
+]
 
 from ..config.cj_types import PEP440
 
 logger = logging.getLogger(__name__)
 
 # exclude from the root import
-_exclude = ['BaseDecorator', 'Decorator', 'logger']
+_exclude = ["BaseDecorator", "Decorator", "logger"]
 
 
 def synchronized(func):
@@ -125,12 +132,14 @@ class __Deprecated(Decorator):
     __warn = "This function will be deprecated in future versions"
     __alternative_template = "You can use {dotted_path}."
 
-    def __call__(self, alternative: str, from_version: PEP440 = None, more_info: str = None):
+    def __call__(
+            self, alternative: str, from_version: PEP440 = None, more_info: str = None
+    ):
         logger.warning("[!] It's still under development [!]")
         if more_info is not None:
             more_info = f" {more_info}."
         else:
-            more_info = ''
+            more_info = ""
         self.warn = f"{self.__warn}. {self.__alternative_template.format(dotted_path=alternative)}{more_info}"
         self.from_version = from_version
         return super().__call__()
@@ -146,12 +155,18 @@ __deprecated = __Deprecated()
 
 # Function version
 def depreciation(alternative: str = None):
-    alternative = f"You can use {alternative}" or "There is no alternative to this function"
+    alternative = (
+            f"You can use {alternative}" or "There is no alternative to this function"
+    )
 
     def register(func):
         def wrapper(*args, **kwargs):
-            warnings.warn(f"This function will be deprecated in future versions. "
-                          f"{alternative}", DeprecationWarning, 2)
+            warnings.warn(
+                    f"This function will be deprecated in future versions. "
+                    f"{alternative}",
+                    DeprecationWarning,
+                    2,
+            )
             result = func(*args, **kwargs)
             return result
 
@@ -167,7 +182,7 @@ def on_except(return_value=None, warn_text=None):
                 return func(*args, **kwargs)
             except Exception as e:
                 if warn_text:
-                    warnings.warn(f'{e}: {warn_text}')
+                    warnings.warn(f"{e}: {warn_text}")
                 return return_value
 
         return wrapper

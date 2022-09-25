@@ -3,7 +3,7 @@ import random
 
 from cereja.utils import invert_dict, obj_repr
 
-__all__ = ['CJOrderedDict', 'CJDict', 'CJMeta', 'Multiprocess']
+__all__ = ["CJOrderedDict", "CJDict", "CJMeta", "Multiprocess"]
 
 
 class CJMeta(type):
@@ -16,7 +16,6 @@ class CJMeta(type):
 
 
 class CJOrderedDict(_OrderedDict):
-
     @property
     def first(self):
         k = next(iter(self))
@@ -33,6 +32,7 @@ class CJDict(dict, metaclass=CJMeta):
     - item: get a item
 
     """
+
     __black_attr_list = dir(dict)
 
     def __init__(self, *args, **kwargs):
@@ -96,16 +96,26 @@ if __name__ == '__main__':
 
     def run(self, sequence):
         import sys
+
         with cj.TempDir() as temp_dir:
             func_code = cj.Source(self.function)
-            code = self._template.format(path=temp_dir.path, func_code=func_code.source_code, func_name=func_code.name, n_proc=self.n_proc)
-            global_scope = self.global_scope if isinstance(self.global_scope, dict) else {}
+            code = self._template.format(
+                    path=temp_dir.path,
+                    func_code=func_code.source_code,
+                    func_name=func_code.name,
+                    n_proc=self.n_proc,
+            )
+            global_scope = (
+                self.global_scope if isinstance(self.global_scope, dict) else {}
+            )
 
-            code_path = temp_dir.path.join('code.py')
+            code_path = temp_dir.path.join("code.py")
             cj.FileIO.create(code_path, code).save()
-            cj.FileIO.create(temp_dir.path.join('global_scope.pkl'), global_scope).save()
-            cj.FileIO.create(temp_dir.path.join('sequence.pkl'), sequence).save()
-            cj.run_on_terminal(f'{sys.executable} {code_path.path}')
-            result = cj.FileIO.load(temp_dir.path.join('result.pkl')).data
+            cj.FileIO.create(
+                    temp_dir.path.join("global_scope.pkl"), global_scope
+            ).save()
+            cj.FileIO.create(temp_dir.path.join("sequence.pkl"), sequence).save()
+            cj.run_on_terminal(f"{sys.executable} {code_path.path}")
+            result = cj.FileIO.load(temp_dir.path.join("result.pkl")).data
 
         return result

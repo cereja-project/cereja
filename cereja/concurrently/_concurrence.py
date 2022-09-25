@@ -33,11 +33,11 @@ from typing import Sequence, Any
 
 from cereja.config.cj_types import FunctionType
 
-__all__ = ['TaskList', 'AsyncToSync', 'SyncToAsync', 'sync_to_async', 'async_to_sync']
+__all__ = ["TaskList", "AsyncToSync", "SyncToAsync", "sync_to_async", "async_to_sync"]
 logger = logging.getLogger(__name__)
 
 # intern
-_exclude = ['AsyncToSync', 'SyncToAsync', 'TaskList', 'sync_to_async', 'async_to_sync']
+_exclude = ["AsyncToSync", "SyncToAsync", "TaskList", "sync_to_async", "async_to_sync"]
 
 try:
     import contextvars  # Python 3.7+ only.
@@ -178,7 +178,7 @@ class SyncToAsync:
                         self.get_current_task(),
                         func,
                         *args,
-                        **kwargs
+                        **kwargs,
                 ),
         )
         return await asyncio.wait_for(future, timeout=None)
@@ -248,6 +248,7 @@ class TaskList:
 
     def __init__(self, func: FunctionType, sequence: Sequence[Any]):
         from ..utils import is_sequence
+
         if not isinstance(func, Callable):
             raise TypeError(f"{func} is not callable.")
 
@@ -274,9 +275,11 @@ class TaskList:
         return await asyncio.gather(*map(self._wrapper, self.sequence))
 
     def run(self):
-        if hasattr(asyncio, 'run'):  # Only python 3.7
+        if hasattr(asyncio, "run"):  # Only python 3.7
             return asyncio.run(self._run())
-        return self.loop.run_until_complete(asyncio.gather(*map(self._wrapper, self.sequence)))
+        return self.loop.run_until_complete(
+                asyncio.gather(*map(self._wrapper, self.sequence))
+        )
 
     def _run_functional(self):
         return list(map(self.func, self.sequence))

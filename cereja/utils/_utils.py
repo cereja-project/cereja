@@ -37,15 +37,51 @@ import inspect
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
 
-__all__ = ['CjTest', 'camel_to_snake', 'combine_with_all', 'fill', 'get_attr_if_exists',
-           'get_implements', 'get_instances_of', 'import_string',
-           'install_if_not', 'invert_dict', 'logger_level', 'module_references', 'set_log_level', 'time_format',
-           'string_to_literal', 'rescale_values', 'Source', 'sample', 'obj_repr', 'truncate', 'type_table_of',
-           'list_methods', 'can_do', 'chunk', 'is_iterable', 'is_indexable', 'is_sequence', 'is_numeric_sequence',
-           'clipboard',
-           'sort_dict', 'dict_append', 'to_tuple', 'dict_to_tuple', 'list_to_tuple', 'group_by', 'dict_values_len',
-           'dict_max_value', 'dict_min_value', 'dict_filter_value', 'get_zero_mask', 'get_batch_strides', 'Thread',
-           'prune_values']
+__all__ = [
+    "CjTest",
+    "camel_to_snake",
+    "combine_with_all",
+    "fill",
+    "get_attr_if_exists",
+    "get_implements",
+    "get_instances_of",
+    "import_string",
+    "install_if_not",
+    "invert_dict",
+    "logger_level",
+    "module_references",
+    "set_log_level",
+    "time_format",
+    "string_to_literal",
+    "rescale_values",
+    "Source",
+    "sample",
+    "obj_repr",
+    "truncate",
+    "type_table_of",
+    "list_methods",
+    "can_do",
+    "chunk",
+    "is_iterable",
+    "is_indexable",
+    "is_sequence",
+    "is_numeric_sequence",
+    "clipboard",
+    "sort_dict",
+    "dict_append",
+    "to_tuple",
+    "dict_to_tuple",
+    "list_to_tuple",
+    "group_by",
+    "dict_values_len",
+    "dict_max_value",
+    "dict_min_value",
+    "dict_filter_value",
+    "get_zero_mask",
+    "get_batch_strides",
+    "Thread",
+    "prune_values",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +89,9 @@ _DICT_ITEMS_TYPE = type({}.items())
 
 
 class Thread(threading.Thread):
-
-    def __init__(self, target, args=None, kwargs=None, name=None, daemon=None, callback=None):
+    def __init__(
+            self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
+    ):
         while threading.active_count() > os.cpu_count() * 2:
             time.sleep(0.1)
         super().__init__(daemon=daemon, name=name)
@@ -74,11 +111,16 @@ class Thread(threading.Thread):
 
 
 def is_indexable(v):
-    return hasattr(v, '__getitem__')
+    return hasattr(v, "__getitem__")
 
 
-def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_random: bool = False,
-          max_batches: int = None) -> List[Union[Sequence, List, Tuple, Dict]]:
+def chunk(
+        data: Sequence,
+        batch_size: int = None,
+        fill_with: Any = None,
+        is_random: bool = False,
+        max_batches: int = None,
+) -> List[Union[Sequence, List, Tuple, Dict]]:
     """
 
     e.g:
@@ -106,7 +148,9 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
     @return: list of batches
     """
 
-    assert is_iterable(data) and len(data) > 0, f"Chunk isn't possible, because value {data} isn't valid."
+    assert (
+            is_iterable(data) and len(data) > 0
+    ), f"Chunk isn't possible, because value {data} isn't valid."
     if batch_size is None and max_batches is None:
         return [data]
 
@@ -117,7 +161,11 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
         __parser = type(data)
         data = data.items() if isinstance(data, dict) else data
 
-    data = list(data) if isinstance(data, (set, tuple, str, bytes, bytearray, _DICT_ITEMS_TYPE)) else copy(data)
+    data = (
+        list(data)
+        if isinstance(data, (set, tuple, str, bytes, bytearray, _DICT_ITEMS_TYPE))
+        else copy(data)
+    )
     if not batch_size or batch_size > len(data) or batch_size < 1:
         if isinstance(max_batches, (int, float)) and max_batches > 0:
             batch_size = math.ceil(len(data) / max_batches)
@@ -128,12 +176,16 @@ def chunk(data: Sequence, batch_size: int = None, fill_with: Any = None, is_rand
         random.shuffle(data)
 
     if max_batches is None:
-        max_batches = len(data) // batch_size if len(data) % batch_size == 0 else len(data) // batch_size + 1
+        max_batches = (
+            len(data) // batch_size
+            if len(data) % batch_size == 0
+            else len(data) // batch_size + 1
+        )
 
     batches = []
     for i in range(0, len(data), batch_size):
 
-        result = data[i:i + batch_size]
+        result = data[i: i + batch_size]
         if fill_with is not None and len(result) < batch_size:
             result += [fill_with] * (batch_size - len(result))
         batches.append(__parser(result) if __parser is not None else result)
@@ -166,15 +218,21 @@ def truncate(text: Union[str, bytes], k=15):
     @param text: string or bytes
     @param k: natural numbers, default is 4
     """
-    assert isinstance(text, (str, bytes)), TypeError(f"{type(text)} isn't valid. Expected str or bytes")
+    assert isinstance(text, (str, bytes)), TypeError(
+            f"{type(text)} isn't valid. Expected str or bytes"
+    )
     if k > len(text) or k <= 4:
         return text
-    n = int((k - 4) / 2)  # k is the max length of text, 4 is the length of truncate symbol
-    trunc_chars = '....' if isinstance(text, str) else b'....'
+    n = int(
+            (k - 4) / 2
+    )  # k is the max length of text, 4 is the length of truncate symbol
+    trunc_chars = "...." if isinstance(text, str) else b"...."
     return text[:n] + trunc_chars + text[-n:]
 
 
-def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=False, deep=3):
+def obj_repr(
+        obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=False, deep=3
+):
     try:
         if isinstance(obj_, (str, bytes)):
             return truncate(obj_, k=attr_limit)
@@ -183,12 +241,12 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
         rep_ = []
         if deep > 0:
             for attr_ in dir(obj_):
-                if attr_.startswith('_') and not show_private:
+                if attr_.startswith("_") and not show_private:
                     continue
                 obj = obj_.__getattribute__(attr_)
 
                 if isinstance(obj, (str, bool, float, int, complex, bytes, bytearray)):
-                    rep_.append(f'{attr_} = {obj_repr(obj)}')
+                    rep_.append(f"{attr_} = {obj_repr(obj)}")
                     continue
                 if callable(obj) and not show_methods:
                     continue
@@ -197,7 +255,7 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
                     temp_v = []
                     for k in obj:
                         if isinstance(obj, dict):
-                            k = f'{k}:{type(obj[k])}'
+                            k = f"{k}:{type(obj[k])}"
                         elif is_iterable(k):
                             k = obj_repr(k, deep=deep)
                             deep -= 1
@@ -206,11 +264,11 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
                         temp_v.append(k)
                         if len(temp_v) == val_limit:
                             break
-                    temp_v = ', '.join(temp_v)  # fix me, if bytes ...
-                    obj = f'{obj.__class__.__name__}({temp_v} ...)'
-                rep_.append(f'{attr_} = {obj}')
+                    temp_v = ", ".join(temp_v)  # fix me, if bytes ...
+                    obj = f"{obj.__class__.__name__}({temp_v} ...)"
+                rep_.append(f"{attr_} = {obj}")
                 if len(rep_) >= attr_limit:
-                    rep_.append('...')
+                    rep_.append("...")
                     break
         else:
             return repr(obj_)
@@ -218,7 +276,7 @@ def obj_repr(obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=
     except Exception as err:
         logger.error(err)
         rep_ = []
-    rep_ = ',\n    '.join(rep_)
+    rep_ = ",\n    ".join(rep_)
     __repr_template = f"""
     {rep_}
     """
@@ -234,10 +292,12 @@ def can_do(obj: Any) -> List[str]:
     @param obj: Any
     @return: list of attr names sorted by name
     """
-    return sorted([i for i in filter(lambda attr: not attr.startswith('_'), dir(obj))])
+    return sorted([i for i in filter(lambda attr: not attr.startswith("_"), dir(obj))])
 
 
-def sample(v: Sequence, k: int = None, is_random: bool = False) -> Union[list, dict, set, Any]:
+def sample(
+        v: Sequence, k: int = None, is_random: bool = False
+) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
 
@@ -246,7 +306,10 @@ def sample(v: Sequence, k: int = None, is_random: bool = False) -> Union[list, d
     @param is_random: default False
     @return: sample iterable
     """
-    return chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
+    result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
+    if len(v) > 1 and k == 1 and len(result) > 1:
+        return result[0]
+    return result
 
 
 def type_table_of(o: Union[list, tuple, dict]):
@@ -268,9 +331,9 @@ def camel_to_snake(value: str):
     snaked_ = []
     for i, char in enumerate(value):
         if not i == 0 and char.isupper():
-            char = f'_{char}'
+            char = f"_{char}"
         snaked_.append(char)
-    return ''.join(snaked_).lower()
+    return "".join(snaked_).lower()
 
 
 def get_implements(klass: type):
@@ -280,7 +343,7 @@ def get_implements(klass: type):
         k_classes = k.__subclasses__()
         if k_classes:
             collected_classes += get_implements(k)
-        if not k.__name__.startswith('_'):
+        if not k.__name__.startswith("_"):
             collected_classes.append(k)
     return collected_classes
 
@@ -361,7 +424,7 @@ def import_string(dotted_path):
     last name in the path. Raise ImportError if the import failed.
     """
     try:
-        module_path, class_name = dotted_path.rsplit('.', 1)
+        module_path, class_name = dotted_path.rsplit(".", 1)
     except ValueError as err:
         raise ImportError(f"{dotted_path} doesn't look like a module path") from err
 
@@ -370,7 +433,9 @@ def import_string(dotted_path):
     try:
         return getattr(module, class_name)
     except AttributeError as err:
-        raise ImportError(f'Module {module_path} does not define a {class_name} attribute/class') from err
+        raise ImportError(
+                f"Module {module_path} does not define a {class_name} attribute/class"
+        ) from err
 
 
 def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
@@ -379,7 +444,7 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
     return None
 
 
-def time_format(seconds: float, format_='%H:%M:%S') -> Union[str, float]:
+def time_format(seconds: float, format_="%H:%M:%S") -> Union[str, float]:
     """
     Default format is '%H:%M:%S'
 
@@ -396,13 +461,13 @@ def time_format(seconds: float, format_='%H:%M:%S') -> Union[str, float]:
     return seconds  # NaN
 
 
-def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
+def fill(value: Union[list, str, tuple], max_size, with_=" ") -> Any:
     """
     Calculates and adds value
     """
     fill_values = [with_] * (max_size - len(value))
     if isinstance(value, str):
-        fill_values = ' '.join(fill_values)
+        fill_values = " ".join(fill_values)
         value = f"{value}{fill_values}"
     elif isinstance(value, list):
         value += fill_values
@@ -414,7 +479,7 @@ def fill(value: Union[list, str, tuple], max_size, with_=' ') -> Any:
 def list_methods(klass) -> List[str]:
     methods = []
     for i in dir(klass):
-        if i.startswith('_') or not callable(getattr(klass, i)):
+        if i.startswith("_") or not callable(getattr(klass, i)):
             continue
         methods.append(i)
     return methods
@@ -440,14 +505,20 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     :param instance:
     :return: List[str]
     """
-    assert isinstance(instance, types.ModuleType), "You need to submit a module instance."
+    assert isinstance(
+            instance, types.ModuleType
+    ), "You need to submit a module instance."
     logger.debug(f"Checking module {instance.__name__}")
     definitions = {}
     for i in dir(instance):
-        if i.startswith('_'):
+        if i.startswith("_"):
             continue
-        exclude = get_attr_if_exists(instance, "_exclude") or kwargs.get("_exclude") or []
-        include = get_attr_if_exists(instance, "_include") or kwargs.get("_include") or []
+        exclude = (
+                get_attr_if_exists(instance, "_exclude") or kwargs.get("_exclude") or []
+        )
+        include = (
+                get_attr_if_exists(instance, "_include") or kwargs.get("_include") or []
+        )
 
         obj = get_attr_if_exists(instance, i)
 
@@ -463,9 +534,10 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
 
 def install_if_not(lib_name: str):
     from ..display import console
+
     try:
         importlib.import_module(lib_name)
-        output = 'Alredy Installed'
+        output = "Alredy Installed"
     except ImportError:
         from ..system.commons import run_on_terminal
 
@@ -493,10 +565,13 @@ def set_log_level(level: Union[int, str]):
 
 def logger_level():
     import logging
+
     return logging.getLogger().level
 
 
-def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: bool = False) -> List[Tuple[Any, ...]]:
+def combine_with_all(
+        a: list, b: list, n_a_combinations: int = 1, is_random: bool = False
+) -> List[Tuple[Any, ...]]:
     """
     >>> a = [1, 2, 3]
     >>> b = ['anything_a', 'anything_b']
@@ -511,7 +586,9 @@ def combine_with_all(a: list, b: list, n_a_combinations: int = 1, is_random: boo
         raise TypeError(f"Please send {int}.")
     n_a_combinations = len(a) if n_a_combinations > len(a) else abs(n_a_combinations)
 
-    combination = itertools.combinations(a, n_a_combinations) if n_a_combinations > 1 else a
+    combination = (
+        itertools.combinations(a, n_a_combinations) if n_a_combinations > 1 else a
+    )
     product_with_b = list(itertools.product(combination, b))
     if is_random:
         random.shuffle(product_with_b)
@@ -556,7 +633,9 @@ if __name__ == '__main__':
 
     @property
     def _instance_obj_attrs(self):
-        return filter(lambda attr_: attr_.__contains__('__') is False, dir(self._instance_obj))
+        return filter(
+                lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
+        )
 
     def _get_attr_obj(self, attr_: str):
         if not hasattr(self._instance_obj, attr_):
@@ -572,7 +651,7 @@ if __name__ == '__main__':
 
     def parse_attr(self, attr_: str):
         attr_ = self._valid_attr(attr_)
-        return f'{self._prefix_attr}{attr_}'
+        return f"{self._prefix_attr}{attr_}"
 
     def __getattr__(self, item):
         return self.__getattribute__(self.parse_attr(item))
@@ -581,7 +660,7 @@ if __name__ == '__main__':
         def __init__(self, name: str, value: Any):
             self.name = name
             self.is_callable = callable(value)
-            self.is_private = self.name.startswith('_')
+            self.is_private = self.name.startswith("_")
             self.is_bool = value is True or value is False
             self.is_class = isinstance(value, ClassType)
             self.is_function = isinstance(value, FunctionType)
@@ -599,45 +678,45 @@ if __name__ == '__main__':
             return len(self.tests_case)
 
         def __eq__(self, other):
-            """ ==value """
+            """==value"""
             if isinstance(other, self.__class__):
                 return NotImplemented
-            self.tests_case = (other, self.class_of_attr.__eq__, '==')
+            self.tests_case = (other, self.class_of_attr.__eq__, "==")
             return self
 
         def __ge__(self, other):
-            """>=value """
+            """>=value"""
             if isinstance(other, self.__class__):
                 return NotImplemented
-            self.tests_case = (other, self.class_of_attr.__ge__, '>=')
+            self.tests_case = (other, self.class_of_attr.__ge__, ">=")
             return self
 
         def __gt__(self, other):
-            """>value """
+            """>value"""
             if isinstance(other, self.__class__):
                 return NotImplemented
-            self.tests_case = (other, self.class_of_attr.__gt__, '>')
+            self.tests_case = (other, self.class_of_attr.__gt__, ">")
             return self
 
         def __le__(self, other):
-            """ <=value. """
+            """<=value."""
             if isinstance(other, self.__class__):
                 return NotImplemented
-            self.tests_case = (other, self.class_of_attr.__le__, '<=')
+            self.tests_case = (other, self.class_of_attr.__le__, "<=")
             return self
 
         def __lt__(self, other):
-            """ <value. """
+            """<value."""
             if isinstance(other, self.__class__):
                 return NotImplemented
-            self.tests_case = (other, self.class_of_attr.__lt__, '<')
+            self.tests_case = (other, self.class_of_attr.__lt__, "<")
             return self
 
         def __ne__(self, other):
-            """ !=value. """
+            """!=value."""
             if isinstance(other, self.__class__):
                 return NotImplemented
-            self.tests_case = (other, self.class_of_attr.__ne__, '!=')
+            self.tests_case = (other, self.class_of_attr.__ne__, "!=")
             return self
 
         def copy(self):
@@ -651,8 +730,9 @@ if __name__ == '__main__':
             return []
 
     def _valid_attr(self, attr_name: str):
-        assert hasattr(self._instance_obj,
-                       attr_name), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
+        assert hasattr(
+                self._instance_obj, attr_name
+        ), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
         return attr_name
 
     def add_check(self, *check_: _Attr):
@@ -682,8 +762,13 @@ if __name__ == '__main__':
 
     @classmethod
     def _get_class_test(cls, ref):
-        func_tests = ''.join(cls.__template_unittest_function.format(func_name=i) for i in list_methods(ref))
-        return cls.__template_unittest_class.format(class_name=ref.__name__, func_tests=func_tests)
+        func_tests = "".join(
+                cls.__template_unittest_function.format(func_name=i)
+                for i in list_methods(ref)
+        )
+        return cls.__template_unittest_class.format(
+                class_name=ref.__name__, func_tests=func_tests
+        )
 
     @classmethod
     def _get_func_test(cls, ref):
@@ -713,24 +798,29 @@ if __name__ == '__main__':
             else:
                 module_func_test.append(cls._get_test(reference))
         if module_func_test:
-            module_func_test = ''.join(module_func_test)
-            tests = [cls.__template_unittest_class.format(class_name='Module', func_tests=module_func_test)] + tests
-        return cls.__template_unittest.format(tests='\n'.join(tests))
+            module_func_test = "".join(module_func_test)
+            tests = [
+                        cls.__template_unittest_class.format(
+                                class_name="Module", func_tests=module_func_test
+                        )
+                    ] + tests
+        return cls.__template_unittest.format(tests="\n".join(tests))
 
 
-def _add_license(base_dir, ext='.py'):
+def _add_license(base_dir, ext=".py"):
     from cereja.file import FileIO
     from cereja.config import BASE_DIR
+
     licence_file = FileIO.load(BASE_DIR)
     for file in FileIO.load_files(base_dir, ext=ext, recursive=True):
-        if 'Copyright (c) 2019 The Cereja Project' in file.string:
+        if "Copyright (c) 2019 The Cereja Project" in file.string:
             continue
         file.insert('"""\n' + licence_file.string + '\n"""')
         file.save(exist_ok=True)
 
 
 def _rescale_down(input_list, size):
-    assert len(input_list) >= size, f'{len(input_list), size}'
+    assert len(input_list) >= size, f"{len(input_list), size}"
 
     skip = len(input_list) // size
     for n, i in enumerate(range(0, len(input_list), skip), start=1):
@@ -739,13 +829,13 @@ def _rescale_down(input_list, size):
         yield input_list[i]
 
 
-def _rescale_up(values, k, fill_with=None, filling='inner'):
+def _rescale_up(values, k, fill_with=None, filling="inner"):
     size = len(values)
-    assert size <= k, f'Error while resizing: {size} < {k}'
+    assert size <= k, f"Error while resizing: {size} < {k}"
 
-    clones = (math.ceil(abs(size - k) / size))
+    clones = math.ceil(abs(size - k) / size)
     refill_values = abs(k - size * clones)
-    if filling == 'pre':
+    if filling == "pre":
         for i in range(abs(k - size)):
             yield fill_with if fill_with is not None else values[0]
 
@@ -753,7 +843,7 @@ def _rescale_up(values, k, fill_with=None, filling='inner'):
         # guarantees that the original value will be returned
         yield value
 
-        if filling != 'inner':
+        if filling != "inner":
             continue
 
         for i in range(clones - 1):  # -1 because last line.
@@ -765,7 +855,7 @@ def _rescale_up(values, k, fill_with=None, filling='inner'):
         k -= 1
         if k < 0:
             break
-    if filling == 'post':
+    if filling == "post":
         for i in range(abs(k - size)):
             yield fill_with if fill_with is not None else values[-1]
 
@@ -773,6 +863,7 @@ def _rescale_up(values, k, fill_with=None, filling='inner'):
 def _interpolate(values, k):
     if isinstance(values, list):
         from ..array import Matrix
+
         # because true_div ...
         values = Matrix(values)
     size = len(values)
@@ -795,12 +886,18 @@ def _interpolate(values, k):
             yield values[previous_position]
         else:
             delta = position - previous_position
-            yield values[previous_position] + (values[next_position] - values[previous_position]) / (
-                    next_position - previous_position) * delta
+            yield values[previous_position] + (
+                    values[next_position] - values[previous_position]
+            ) / (next_position - previous_position) * delta
 
 
-def rescale_values(values: List[Any], granularity: int, interpolation: bool = False, fill_with=None, filling='inner') -> \
-        List[Any]:
+def rescale_values(
+        values: List[Any],
+        granularity: int,
+        interpolation: bool = False,
+        fill_with=None,
+        filling="inner",
+) -> List[Any]:
     """
     Resizes a list of values
     eg.
@@ -816,7 +913,7 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
 
         @note if you don't send any value for filling a value will be chosen arbitrarily depending on the filling type.
 
-    If interpolation is set to True, then the resized values are calculated by interpolation, 
+    If interpolation is set to True, then the resized values are calculated by interpolation,
     otherwise they are sub- ou upsampled from the original list
 
 
@@ -834,19 +931,22 @@ def rescale_values(values: List[Any], granularity: int, interpolation: bool = Fa
         if len(values) >= granularity:
             result = list(_rescale_down(values, granularity))
         else:
-            result = list(_rescale_up(values, granularity, fill_with=fill_with, filling=filling))
+            result = list(
+                    _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
+            )
 
-    assert len(result) == granularity, f"Error while resizing the list size {len(result)} != {granularity}"
+    assert (
+            len(result) == granularity
+    ), f"Error while resizing the list size {len(result)} != {granularity}"
     return result
 
 
 class Source:
-
     def __init__(self, reference: Any):
         self._name = None
         self._doc = inspect.getdoc(reference)
         self._source_code = inspect.getsource(reference)
-        if hasattr(reference, '__name__'):
+        if hasattr(reference, "__name__"):
             self._name = reference.__name__
 
     @property
@@ -863,10 +963,11 @@ class Source:
 
     def save(self, path_, **kwargs):
         from cereja import FileIO, Path
+
         path_ = Path(path_)
         if path_.is_dir:
-            path_ = path_.join(f'{self.name}.py')
-        assert path_.suffix == '.py', "Only python source code."
+            path_ = path_.join(f"{self.name}.py")
+        assert path_.suffix == ".py", "Only python source code."
         FileIO.create(path_, self._source_code).save(**kwargs)
 
 
@@ -891,29 +992,43 @@ def is_sequence(obj: Any) -> bool:
 def is_numeric_sequence(obj: Sequence[Number]) -> bool:
     try:
         from cereja.array import flatten
+
         sum(flatten(obj))
     except (TypeError, ValueError):
         return False
     return True
 
 
-def sort_dict(obj: dict, by_keys=False, by_values=False, reverse=False, by_len_values=False, func_values=None,
-              func_keys=None) -> OrderedDict:
-    func_values = (lambda v: len(v) if by_len_values else v) if func_values is None else func_values
+def sort_dict(
+        obj: dict,
+        by_keys=False,
+        by_values=False,
+        reverse=False,
+        by_len_values=False,
+        func_values=None,
+        func_keys=None,
+) -> OrderedDict:
+    func_values = (
+        (lambda v: len(v) if by_len_values else v)
+        if func_values is None
+        else func_values
+    )
     func_keys = (lambda k: k) if func_keys is None else func_keys
 
     key_func = None
     if (by_keys and by_values) or (not by_keys and not by_values):
-        key_func = (lambda x: (func_keys(x[0]), func_values(x[1])))
+        key_func = lambda x: (func_keys(x[0]), func_values(x[1]))
     elif by_keys:
-        key_func = (lambda x: func_keys(x[0]))
+        key_func = lambda x: func_keys(x[0])
     elif by_values:
-        key_func = (lambda x: func_values(x[1]))
+        key_func = lambda x: func_values(x[1])
     return OrderedDict(sorted(obj.items(), key=key_func, reverse=reverse))
 
 
 def list_to_tuple(obj):
-    assert isinstance(obj, (list, set, tuple)), f"Isn't possible convert {type(obj)} into {tuple}"
+    assert isinstance(
+            obj, (list, set, tuple)
+    ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     for i in obj:
         if isinstance(i, list):
@@ -925,12 +1040,18 @@ def list_to_tuple(obj):
 
 
 def dict_values_len(obj, max_len=None, min_len=None, take_len=False):
-    return {i: len(obj[i]) if take_len else obj[i] for i in obj if
-            (max_len is None or len(obj[i]) <= max_len) and (min_len is None or len(obj[i]) >= min_len)}
+    return {
+        i: len(obj[i]) if take_len else obj[i]
+        for i in obj
+        if (max_len is None or len(obj[i]) <= max_len)
+           and (min_len is None or len(obj[i]) >= min_len)
+    }
 
 
 def dict_to_tuple(obj):
-    assert isinstance(obj, (dict, set)), f"Isn't possible convert {type(obj)} into {tuple}"
+    assert isinstance(
+            obj, (dict, set)
+    ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     if isinstance(obj, set):
         return tuple(obj)
@@ -969,14 +1090,17 @@ def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
     @param v: all values after key
     @return:
     """
-    assert isinstance(obj, dict), 'Error on append values. Please send a dict object.'
+    assert isinstance(obj, dict), "Error on append values. Please send a dict object."
     if key not in obj:
         obj[key] = []
 
     if not isinstance(obj[key], (list, tuple)):
         obj[key] = [obj[key]]
     if isinstance(obj[key], tuple):
-        obj[key] = (*obj[key], *v,)
+        obj[key] = (
+            *obj[key],
+            *v,
+        )
     else:
         for i in v:
             obj[key].append(i)
@@ -1038,7 +1162,7 @@ def get_zero_mask(number: int, max_len: int = 3) -> str:
     >>> get_zero_mask(101, 4)
     '0101'
     """
-    return f'%0.{max_len}d' % number
+    return f"%0.{max_len}d" % number
 
 
 def get_batch_strides(data, kernel_size, strides=1, fill_=True, take_index=False):
@@ -1057,16 +1181,18 @@ def get_batch_strides(data, kernel_size, strides=1, fill_=True, take_index=False
             yield batches[:kernel_size]
             batches = batches[strides:]
     if len(batches):
-        yield rescale_values(batches, granularity=kernel_size, filling='post') if fill_ else batches
+        yield rescale_values(
+                batches, granularity=kernel_size, filling="post"
+        ) if fill_ else batches
 
 
 def prune_values(values: Sequence, factor=2):
-    assert is_indexable(values), TypeError('object is not subscriptable')
+    assert is_indexable(values), TypeError("object is not subscriptable")
     if len(values) <= factor:
         return values
     w = round(len(values) / 2)
     k = int(round(w / factor))
-    res = values[w - k:w + k]
+    res = values[w - k: w + k]
 
     if len(res) == 0:
         return values[k]

@@ -25,11 +25,12 @@ import setuptools
 
 import cereja
 
-long_description = b''.join(cereja.file.FileIO.load('README.md').data).decode()
+long_description = b"".join(cereja.file.FileIO.load("README.md").data).decode()
 
-EXCLUDE_FROM_PACKAGES = ('cereja.tests',
-                         'cereja.lab',
-                         )
+EXCLUDE_FROM_PACKAGES = (
+    "tests",
+    "lab",
+)
 
 setuptools.setup(
     name="cereja",
@@ -46,5 +47,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
 )

@@ -46,9 +46,7 @@ from .mathtools import *
 from . import experimental
 from ._requests import request
 
-
-VERSION = "1.7.7.final.0"
-
+VERSION = "1.7.8.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
@@ -59,5 +57,10 @@ if NON_BMP_SUPPORTED is None:
         unicode_ = f"\033[31m\U0001F352\033[0;0m"
         print(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\r")
         NON_BMP_SUPPORTED = True
-    except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
+    except (
+            UnicodeEncodeError,
+            UnicodeDecodeError,
+            UnicodeError,
+            UnicodeTranslateError,
+    ):
         NON_BMP_SUPPORTED = False

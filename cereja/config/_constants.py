@@ -141,25 +141,64 @@ ENG_CONTRACTIONS = {
     "you'll":       "you shall,you will",
     "you'll've":    "you shall have,you will have",
     "you're":       "you are",
-    "you've":       "you have"
+    "you've":       "you have",
 }
-PUNCTUATION = [',', '!', '#', '$', '%', "'", '*', '+', '-', '.', '/', '?', '@', '\\', '^', '_', '~']
+PUNCTUATION = [
+    ",",
+    "!",
+    "#",
+    "$",
+    "%",
+    "'",
+    "*",
+    "+",
+    "-",
+    ".",
+    "/",
+    "?",
+    "@",
+    "\\",
+    "^",
+    "_",
+    "~",
+]
 STOP_WORDS = {
-    'english':    ['is', 'are', 'am', 'at', 'a', 'an', 'of', 'the'],
-    'portuguese': ['em', 'do', 'da', 'de', 'pro', 'pra', 'no', 'dos', 'na', 'os', 'à', 'pela', 'nas', 'num',
-                   'das', 'numa', 'nos', 'às', 'pelas', 'as', 'uns', 'umas', 'lhe', 'é', 'o', 'a']
+    "english":    ["is", "are", "am", "at", "a", "an", "of", "the"],
+    "portuguese": [
+        "em",
+        "do",
+        "da",
+        "de",
+        "pro",
+        "pra",
+        "no",
+        "dos",
+        "na",
+        "os",
+        "à",
+        "pela",
+        "nas",
+        "num",
+        "das",
+        "numa",
+        "nos",
+        "às",
+        "pelas",
+        "as",
+        "uns",
+        "umas",
+        "lhe",
+        "é",
+        "o",
+        "a",
+    ],
 }
-LANGUAGES = {'english', 'portuguese'}
-VALID_LANGUAGE_CHAR = {chr(i) for i in range(10000) if 'LETTER' in Unicode(i).name}
+LANGUAGES = {"english", "portuguese"}
+VALID_LANGUAGE_CHAR = {chr(i) for i in range(10000) if "LETTER" in Unicode(i).name}
 VALID_LANGUAGE_CHAR.update(string.digits)
-VALID_LANGUAGE_CHAR.update(',!%$?-.')
-VALID_LANGUAGE_CHAR.update(' ')
+VALID_LANGUAGE_CHAR.update(",!%$?-.")
+VALID_LANGUAGE_CHAR.update(" ")
 
-DATA_UNIT_MAP = {"B":  1.e0,
-                 "KB": 1.e3,
-                 "MB": 1.e6,
-                 "GB": 1.e9,
-                 "TB": 1.e12
-                 }
+DATA_UNIT_MAP = {"B": 1.0e0, "KB": 1.0e3, "MB": 1.0e6, "GB": 1.0e9, "TB": 1.0e12}
 
-PROXIES_URL = 'https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/json/proxies.json'
+PROXIES_URL = "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/json/proxies.json"

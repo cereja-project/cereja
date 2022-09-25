@@ -30,10 +30,12 @@ https://www.python.org/dev/peps/pep-0484/
 """
 
 
-def _f(*args, **kwargs): pass
+def _f(*args, **kwargs):
+    pass
 
 
-class _C: pass
+class _C:
+    pass
 
 
 T_number = Union[float, int, complex]

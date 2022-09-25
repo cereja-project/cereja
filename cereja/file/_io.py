@@ -7,7 +7,18 @@ import pickle
 import tempfile
 from abc import ABCMeta, abstractmethod, ABC
 from io import BytesIO
-from typing import Any, List, Union, Type, TextIO, Iterable, Tuple, KeysView, ItemsView, ValuesView
+from typing import (
+    Any,
+    List,
+    Union,
+    Type,
+    TextIO,
+    Iterable,
+    Tuple,
+    KeysView,
+    ItemsView,
+    ValuesView,
+)
 import json
 
 from .._requests import request
@@ -23,7 +34,7 @@ from ..utils import string_to_literal, sample, fill
 
 logger = logging.Logger(__name__)
 
-__all__ = ['FileIO']
+__all__ = ["FileIO"]
 
 
 class _IFileIO(metaclass=ABCMeta):
@@ -36,25 +47,26 @@ class _IFileIO(metaclass=ABCMeta):
     _only_read = None
     _newline = True
     _ext_allowed = None
-    _need_implement = {'_is_byte':     """
+    _need_implement = {
+        "_is_byte":     """
     Define the configuration of the file in the class {class_name}:
     e.g:
     class {class_name}:
         _is_byte: bool = True # or False
     """,
-                       '_only_read':   """Define the configuration of the file in the class {class_name}:
+        "_only_read":   """Define the configuration of the file in the class {class_name}:
     e.g:
     class {class_name}:
         _only_read: bool = True # or False
 
     """,
-                       '_ext_allowed': """Define the configuration of the file in the class {class_name}:
+        "_ext_allowed": """Define the configuration of the file in the class {class_name}:
                        e.g:
                        class {class_name}:
                            _ext_allowed: bool = '.txt' # or ''
 
-                       """
-                       }
+                       """,
+    }
 
     def __init__(self):
         self._built = False
@@ -146,7 +158,13 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def save(self, on_new_path: Union[str, Path] = None, exist_ok=False, overwrite=False, **kwargs):
+    def save(
+            self,
+            on_new_path: Union[str, Path] = None,
+            exist_ok=False,
+            overwrite=False,
+            **kwargs,
+    ):
         pass
 
     @abstractmethod
@@ -191,8 +209,9 @@ class _IFileIO(metaclass=ABCMeta):
 
 
 class _FileIO(_IFileIO, ABC):
-
-    def __init__(self, path_: Path, data=None, creation_mode=False, is_byte=None, **kwargs):
+    def __init__(
+            self, path_: Path, data=None, creation_mode=False, is_byte=None, **kwargs
+    ):
         super().__init__()
         if is_byte is not None:
             self._is_byte = bool(is_byte)
@@ -204,7 +223,9 @@ class _FileIO(_IFileIO, ABC):
             msg_assert_err = f'{path_.suffix} != {self._ext_allowed}. Force with support_ext = ".xyz" '
             assert self._path.suffix in self._ext_allowed, msg_assert_err
         self._ext_without_point = self._path.suffix.strip(".").upper()
-        self._built = True  # next setattr will be saved in history to be future recovery
+        self._built = (
+            True  # next setattr will be saved in history to be future recovery
+        )
         if creation_mode:
             self._data = self.parse(data)
         else:
@@ -213,17 +234,30 @@ class _FileIO(_IFileIO, ABC):
     def __init_subclass__(cls, **kwargs):
         for attr in cls._need_implement:
             if getattr(cls, attr) is None:
-                raise NotImplementedError(cls._need_implement.get(attr).format(class_name=cls.__name__))
+                raise NotImplementedError(
+                        cls._need_implement.get(attr).format(class_name=cls.__name__)
+                )
 
     def __repr__(self):
         return f"File{self.__class__.__name__.replace('_', '')}({self._path.name})"
 
     def __setattr__(self, key, value):
         object.__setattr__(self, key, copy.copy(value))
-        if hasattr(self, '_change_history') and key not in (
-                '_current_change', '_max_history_length', '_change_history', '_built',
-                '_last_update') and self._built is True:
-            self._set_change(key, copy.copy(object.__getattribute__(self, key)))  # append last_value of attr
+        if (
+                hasattr(self, "_change_history")
+                and key
+                not in (
+                "_current_change",
+                "_max_history_length",
+                "_change_history",
+                "_built",
+                "_last_update",
+        )
+                and self._built is True
+        ):
+            self._set_change(
+                    key, copy.copy(object.__getattribute__(self, key))
+            )  # append last_value of attr
 
     def __getitem__(self, item):
         try:
@@ -235,12 +269,12 @@ class _FileIO(_IFileIO, ABC):
         # TODO: save only the index that has been changed
         try:
             self._data[key] = value
-            self._set_change('_data', copy.copy(self._data))
+            self._set_change("_data", copy.copy(self._data))
         except TypeError:
             raise TypeError(f"'{self.__class__.__name__}' object is not subscriptable")
 
     def _set_change(self, key, value):
-        self._change_history = self._change_history[:self._current_change + 1]
+        self._change_history = self._change_history[: self._current_change + 1]
         if len(self._change_history) >= self._max_history_length:
             self._change_history.pop(0)
         self._change_history.append((key, value))
@@ -252,7 +286,7 @@ class _FileIO(_IFileIO, ABC):
             key, value = self._change_history[self._current_change + index]
             object.__setattr__(self, key, copy.copy(value))
             self._current_change += index
-            logger.warning(f'You selected amendment {self._current_change + 1}')
+            logger.warning(f"You selected amendment {self._current_change + 1}")
         except IndexError:
             logger.info("It's not possible")
 
@@ -339,14 +373,14 @@ class _FileIO(_IFileIO, ABC):
     @classmethod
     def parse_ext(cls, ext: str) -> str:
         if not isinstance(ext, str):
-            raise TypeError('Error during parsing ext. Send a string.')
-        return '.' + ext.replace('.', '')
+            raise TypeError("Error during parsing ext. Send a string.")
+        return "." + ext.replace(".", "")
 
     def _get_mode(self, mode) -> str:
         """
         if mode is 'r' return 'r+' or 'r+b' else mode is 'w' return 'w+' or 'w+b'
         """
-        return f'{mode}+b' if self._is_byte else f'{mode}+'
+        return f"{mode}+b" if self._is_byte else f"{mode}+"
 
     def size(self, unit: str = "KB"):
         """
@@ -355,21 +389,29 @@ class _FileIO(_IFileIO, ABC):
         :param unit: choose anyone in ('B', 'KB', 'MB', 'GB', 'TB')
 
         """
-        assert isinstance(unit, str), f"expected {str.__name__} not {type(unit).__name__}."
+        assert isinstance(
+                unit, str
+        ), f"expected {str.__name__} not {type(unit).__name__}."
 
         unit = unit.upper()
 
-        assert unit in self._size_map, f"{repr(unit)} is'nt valid. Choose anyone in {tuple(self._size_map)}"
+        assert (
+                unit in self._size_map
+        ), f"{repr(unit)} is'nt valid. Choose anyone in {tuple(self._size_map)}"
         # subtracts the size of the python object
-        return (memory_of_this(self._data) - self._data.__class__().__sizeof__()) / self._size_map[unit]
+        return (
+                       memory_of_this(self._data) - self._data.__class__().__sizeof__()
+               ) / self._size_map[unit]
 
     def _load(self, mode=None, **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
-            logger.warning(f"I can't read this file. See class attribute <{self.__class__.__name__}._dont_read>")
+            logger.warning(
+                    f"I can't read this file. See class attribute <{self.__class__.__name__}._dont_read>"
+            )
             return
-        mode = mode or self._get_mode('r')
-        encoding = None if self._is_byte else 'utf-8'
-        assert 'r' in mode, f"{mode} for read isn't valid."
+        mode = mode or self._get_mode("r")
+        encoding = None if self._is_byte else "utf-8"
+        assert "r" in mode, f"{mode} for read isn't valid."
         try:
             with open(self._path.path, mode=mode, encoding=encoding, **kwargs) as fp:
                 parsed = self._parse_fp(fp)
@@ -381,9 +423,16 @@ class _FileIO(_IFileIO, ABC):
         except Exception as err:
             raise IOError(f"Error when trying to read the file {self._path}\n{err}")
 
-    def save(self, on_new_path: Union[str, Path] = None, mode=None, exist_ok=False, overwrite=False, force=False,
-             encoding=None,
-             **kwargs):
+    def save(
+            self,
+            on_new_path: Union[str, Path] = None,
+            mode=None,
+            exist_ok=False,
+            overwrite=False,
+            force=False,
+            encoding=None,
+            **kwargs,
+    ):
 
         if not force:
             assert self._only_read is False, f"{self.name} is only read."
@@ -394,23 +443,27 @@ class _FileIO(_IFileIO, ABC):
             if self.was_changed:
                 assert overwrite is True, AssertionError(
                         f"File change detected (last change {self.updated_at}), if you want to "
-                        + f"overwrite set overwrite=True")
+                        + f"overwrite set overwrite=True"
+                )
 
-            assert (exist_ok or not self.path.exists) or overwrite is True or force is True, FileExistsError(
-                    "File exists. If you want override, please send 'exist_ok=True'")
+            assert (
+                    (exist_ok or not self.path.exists) or overwrite is True or force is True
+            ), FileExistsError(
+                    "File exists. If you want override, please send 'exist_ok=True'"
+            )
 
-        mode = mode or self._get_mode('w')
-        assert 'w' in mode, f"{mode} for write isn't valid."
-        encoding = None if self._is_byte else 'utf-8'
+        mode = mode or self._get_mode("w")
+        assert "w" in mode, f"{mode} for write isn't valid."
+        encoding = None if self._is_byte else "utf-8"
         with tempfile.TemporaryDirectory() as tmpdirname:
             tmp_file = Path(tmpdirname).join(self.name)
             if not self._newline and not self._is_byte:
-                kwargs.update({'newline': ''})
+                kwargs.update({"newline": ""})
             try:
                 with open(tmp_file, mode=mode, encoding=encoding, **kwargs) as fp:
                     self._save_fp(fp)
             except Exception as err:
-                raise IOError(f'Error writing to the file system file: {err}')
+                raise IOError(f"Error writing to the file system file: {err}")
             tmp_file.cp(self.path)
             self._last_update = self.updated_at
 
@@ -477,7 +530,11 @@ class _Generic(_FileIO):
         return self.parse(data)
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
-        fp.write(self._convert('\n').join(i if isinstance(i, (str, bytes)) else str(i) for i in self._data))
+        fp.write(
+                self._convert("\n").join(
+                        i if isinstance(i, (str, bytes)) else str(i) for i in self._data
+                )
+        )
 
     def _convert(self, val):
         if self._is_byte and not isinstance(val, bytes):
@@ -490,7 +547,7 @@ class _Generic(_FileIO):
         if isinstance(data, (bytes, str, int, float, complex)):
             return [self._convert(data)]
         if not data:
-            return [self._convert('')]
+            return [self._convert("")]
         if isinstance(data, (list, tuple)):
             return [self._convert(i) for i in data]
         raise ValueError(f"{type(data)} isn't valid.")
@@ -503,11 +560,11 @@ class _Generic(_FileIO):
         else:
             self._data += data
             return
-        self._set_change('_data', self._data.copy())
+        self._set_change("_data", self._data.copy())
 
     def remove(self, line: Union[int, str]):
         self._data.pop(line)
-        self._set_change('_data', self._data.copy())
+        self._set_change("_data", self._data.copy())
 
 
 class _TxtIO(_Generic):
@@ -520,15 +577,15 @@ class _TxtIO(_Generic):
 class _JsonIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
-    _ext_allowed = ('.json',)
+    _ext_allowed = (".json",)
     indent = False
     ensure_ascii = False
 
     def __init__(self, path_: Path, indent=False, string_eval=True, **kwargs):
         self.indent = indent
         self.string_eval = string_eval
-        if 'ensure_ascii' in kwargs:
-            self.ensure_ascii = kwargs.pop('ensure_ascii')
+        if "ensure_ascii" in kwargs:
+            self.ensure_ascii = kwargs.pop("ensure_ascii")
         super().__init__(path_, **kwargs)
 
     @staticmethod
@@ -536,10 +593,17 @@ class _JsonIO(_FileIO):
         return {string_to_literal(k): string_to_literal(v) for k, v in obj.items()}
 
     def _parse_fp(self, fp: TextIO) -> dict:
-        return json.load(fp, object_hook=self._object_hook if self.string_eval else None)
+        return json.load(
+                fp, object_hook=self._object_hook if self.string_eval else None
+        )
 
     def _save_fp(self, fp):
-        json.dump(self._data, fp, indent=4 if self.indent else None, ensure_ascii=self.ensure_ascii)
+        json.dump(
+                self._data,
+                fp,
+                indent=4 if self.indent else None,
+                ensure_ascii=self.ensure_ascii,
+        )
 
     def items(self) -> ItemsView:
         return self._data.items()
@@ -554,7 +618,9 @@ class _JsonIO(_FileIO):
         if isinstance(data, (dict, list)):
             return data
         elif isinstance(data, (str, bytes)):
-            return json.loads(data, object_hook=self._object_hook if self.string_eval else None)
+            return json.loads(
+                    data, object_hook=self._object_hook if self.string_eval else None
+            )
         else:
             raise TypeError(f"{type(data)} isn't valid.")
 
@@ -587,7 +653,7 @@ class _JsonIO(_FileIO):
 class _Mp4IO(_FileIO, ABC):
     _is_byte: bool = True
     _only_read = True
-    _ext_allowed = ('.mp4',)
+    _ext_allowed = (".mp4",)
 
     def _save_fp(self, fp):
         fp.write(self._data)
@@ -603,10 +669,17 @@ class _CsvIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
     _newline = False
-    _ext_allowed = ('.csv',)
+    _ext_allowed = (".csv",)
 
-    def __init__(self, *args, cols: Union[Tuple[str], List[str]] = (), fill_with=None,
-                 str_to_literal=True, has_col=False, **kwargs):
+    def __init__(
+            self,
+            *args,
+            cols: Union[Tuple[str], List[str]] = (),
+            fill_with=None,
+            str_to_literal=True,
+            has_col=False,
+            **kwargs,
+    ):
         """
         :param data: expected row or list of rows with `n` elements equal to `k` cols, if not it will be fill with
         `fill_with` value.
@@ -623,8 +696,10 @@ class _CsvIO(_FileIO):
 
     @property
     def cols(self):
-        return tuple(value if value is not None else f'unamed_col_{i}' for i, value in
-                     enumerate(self._cols))
+        return tuple(
+                value if value is not None else f"unamed_col_{i}"
+                for i, value in enumerate(self._cols)
+        )
 
     @property
     def n_cols(self):
@@ -659,10 +734,22 @@ class _CsvIO(_FileIO):
         if not is_sequence(row):
             row = [row]
         if self._cols:
-            row = fill(value=list(row), max_size=len(self.cols), with_=fill_with) if len(row) < len(self.cols) else row
-        return [string_to_literal(item) if isinstance(item, str) else item for item in row if literal_values]
+            row = (
+                fill(value=list(row), max_size=len(self.cols), with_=fill_with)
+                if len(row) < len(self.cols)
+                else row
+            )
+        return [
+            string_to_literal(item) if isinstance(item, str) else item
+            for item in row
+            if literal_values
+        ]
 
-    def parse(self, data: Union[Iterable[Iterable[Any]], str, int, float, complex], fill_with=None) -> List[List[Any]]:
+    def parse(
+            self,
+            data: Union[Iterable[Iterable[Any]], str, int, float, complex],
+            fill_with=None,
+    ) -> List[List[Any]]:
         if fill_with is None:
             fill_with = self._fill_with
         normalized_data = []
@@ -676,7 +763,9 @@ class _CsvIO(_FileIO):
                 # set cols on first iter
                 self._cols = fill(value=list(row), max_size=len(row), with_=fill_with)
                 continue
-            row_normalized = self._normalize_row(row, fill_with=fill_with, literal_values=self._str_to_literal)
+            row_normalized = self._normalize_row(
+                    row, fill_with=fill_with, literal_values=self._str_to_literal
+            )
             self._n_values += len(row_normalized)
             normalized_data.append(row_normalized)
         return normalized_data
@@ -711,14 +800,15 @@ class _CsvIO(_FileIO):
     def __getitem__(self, item):
         if isinstance(item, str):
             if item not in self.cols:
-                raise ValueError(f'Column name <{item}> not in {self.cols}')
+                raise ValueError(f"Column name <{item}> not in {self.cols}")
             return get_cols(self.data)[self.cols.index(item)]
         if isinstance(item, tuple):
             lines, col = item
             if isinstance(col, tuple):
                 raise ValueError("Isn't Possible.")
             assert col <= self.n_cols - 1, ValueError(
-                    f"Invalid Column. Choice available index {list(range(self.n_cols))}")
+                    f"Invalid Column. Choice available index {list(range(self.n_cols))}"
+            )
             return get_cols(self.data)[col][lines]
         return super().__getitem__(item)
 
@@ -727,7 +817,7 @@ class _PyObj(_FileIO):
     _is_byte: bool = True
     _only_read = False
     _newline = False
-    _ext_allowed = ('.pkl',)
+    _ext_allowed = (".pkl",)
 
     def _parse_fp(self, fp: TextIO, **kwargs) -> List[List[Any]]:
         loaded_obj = pickle.load(fp, **kwargs)
@@ -744,7 +834,7 @@ class _ZipFileIO(_FileIO):
     _is_byte: bool = False
     _only_read = False
     _newline = False
-    _ext_allowed = ('.zip',)
+    _ext_allowed = (".zip",)
 
     def __init__(self, path_: Path, **kwargs):
 
@@ -758,30 +848,49 @@ class _ZipFileIO(_FileIO):
         return self.unzip(fp.name)
 
     @classmethod
-    def unzip(cls, file_path, save_on: str = None, members: List = None, k=None, is_random=False):
-        with ZipFile(file_path, mode='r') as myzip:
+    def unzip(
+            cls,
+            file_path,
+            save_on: str = None,
+            members: List = None,
+            k=None,
+            is_random=False,
+    ):
+        with ZipFile(file_path, mode="r") as myzip:
             members = members or sample(myzip.namelist(), k, is_random)
             if save_on:
                 mkdir(save_on)
-            myzip.extractall(save_on, members=Progress.prog(list(members), name='Extracting'))
+            myzip.extractall(
+                    save_on, members=Progress.prog(list(members), name="Extracting")
+            )
 
     def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
         raise NotImplementedError
 
     @classmethod
     def load(cls, path_, load_on_memory=False, **kwargs):
-        return cls(path_=path_, creation_mode=False, load_on_memory=load_on_memory, **kwargs)
+        return cls(
+                path_=path_, creation_mode=False, load_on_memory=load_on_memory, **kwargs
+        )
 
-    def save(self, on_new_path: Union[str, Path] = None, exist_ok=False, overwrite=False, force=False,
-             **kwargs):
+    def save(
+            self,
+            on_new_path: Union[str, Path] = None,
+            exist_ok=False,
+            overwrite=False,
+            force=False,
+            **kwargs,
+    ):
         with tempfile.TemporaryDirectory() as tmpdirname:
             tmp_file = Path(tmpdirname).join(self.name)
             try:
-                with ZipFile(tmp_file.path, mode='w', compression=ZIP_DEFLATED) as myzip:
+                with ZipFile(
+                        tmp_file.path, mode="w", compression=ZIP_DEFLATED
+                ) as myzip:
                     for i in self.data:
                         myzip.write(i)
             except Exception as err:
-                raise IOError(f'Error writing to the file system file: {err}')
+                raise IOError(f"Error writing to the file system file: {err}")
             tmp_file.cp(self.path)
             self._last_update = self.updated_at
 
@@ -798,18 +907,20 @@ class _ZipFileIO(_FileIO):
         for p in data:
             p = Path(p)
             if not p.exists:
-                raise ValueError(f'{p.path} not Found.')
+                raise ValueError(f"{p.path} not Found.")
             res.append(p)
         return res
 
 
 class _SrtFile(_TxtIO):
     _only_read = False
-    _ext_allowed = ('.srt', '.vtt')
+    _ext_allowed = (".srt", ".vtt")
 
     @classmethod
     def is_block_start(cls, line) -> bool:
-        return bool(re.match(r'\d{2}:\d{2}:\d{2}[.,]\d+\s-->\s\d{2}:\d{2}:\d{2}[.,]\d+', line))
+        return bool(
+                re.match(r"\d{2}:\d{2}:\d{2}[.,]\d+\s-->\s\d{2}:\d{2}:\d{2}[.,]\d+", line)
+        )
 
     def parse(self, data):
         data = super().parse(data)
@@ -833,7 +944,9 @@ class _SrtFile(_TxtIO):
 
     @property
     def string(self):
-        return '\n'.join([str(block_item) for block in self.data for block_item in block])
+        return "\n".join(
+                [str(block_item) for block in self.data for block_item in block]
+        )
 
     def add(self, data, line=-1):
         raise NotImplementedError
@@ -843,11 +956,16 @@ class _SrtFile(_TxtIO):
         # TODO: need improves
         resp = request.get(url, *args, **kwargs)
         if resp.code == 200:
-            return cls(Path('./subtitle.srt'), resp.data, creation_mode=True)
+            return cls(Path("./subtitle.srt"), resp.data, creation_mode=True)
 
     @property
     def text(self):
-        return [content.strip() for block in self.data for content in block.content if content]
+        return [
+            content.strip()
+            for block in self.data
+            for content in block.content
+            if content
+        ]
 
     class Block:
         def __init__(self, number, *content):
@@ -877,7 +995,7 @@ class _SrtFile(_TxtIO):
             return self._values[item]
 
         def __repr__(self):
-            return f'{self._values}'
+            return f"{self._values}"
 
 
 class FileIO:
@@ -891,7 +1009,9 @@ class FileIO:
     _generic = _Generic
 
     def __new__(cls, path_, data=None, **kwargs):
-        raise Exception(f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']")
+        raise Exception(
+                f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']"
+        )
 
     @classmethod
     def create(cls, path_: Union[Type[Path], str], data: Any, **kwargs) -> _FileIO:
@@ -900,7 +1020,7 @@ class FileIO:
 
     @classmethod
     def lookup(cls, ext: str) -> Type[_FileIO]:
-        ext = ext.replace('.', '')
+        ext = ext.replace(".", "")
         if hasattr(cls, ext):
             return getattr(cls, ext)
         return cls._generic
@@ -917,15 +1037,25 @@ class FileIO:
         return cls.load(Path(clipboard()))
 
     @classmethod
-    def load_files(cls, path_, ext=None, contains_in_name: List = (), not_contains_in_name=(), take_empty=True,
-                   recursive=False, ignore_dirs=()):
+    def load_files(
+            cls,
+            path_,
+            ext=None,
+            contains_in_name: List = (),
+            not_contains_in_name=(),
+            take_empty=True,
+            recursive=False,
+            ignore_dirs=(),
+    ):
 
-        ext = ext or ''
-        f_paths = Path(path_).list_files(ext=ext,
-                                         contains_in_name=contains_in_name,
-                                         not_contains_in_name=not_contains_in_name,
-                                         recursive=recursive,
-                                         ignore_dirs=ignore_dirs)
+        ext = ext or ""
+        f_paths = Path(path_).list_files(
+                ext=ext,
+                contains_in_name=contains_in_name,
+                not_contains_in_name=not_contains_in_name,
+                recursive=recursive,
+                ignore_dirs=ignore_dirs,
+        )
         loaded = []
         for p in f_paths:
             file_ = cls.load(path_=p)
