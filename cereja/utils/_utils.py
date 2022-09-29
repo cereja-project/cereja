@@ -92,8 +92,8 @@ class Thread(threading.Thread):
     def __init__(
             self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
     ):
-        while threading.active_count() > os.cpu_count() * 2:
-            time.sleep(0.1)
+        # while threading.active_count() > os.cpu_count() * 2:
+        #    time.sleep(0.1)
         super().__init__(daemon=daemon, name=name)
         if args is None:
             args = ()
