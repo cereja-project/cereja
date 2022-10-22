@@ -58,5 +58,8 @@ class ProcessSequence:
             self._workers.append(worker)
         for worker in self._workers:
             worker.join()
+        result = list(self._result.values())
+        self._workers = []
+        self._result = OrderedDict()
         self._running = False
-        return list(self._result.values())
+        return result

@@ -19,7 +19,6 @@ SOFTWARE.
 import ast
 import gc
 import math
-import os
 import threading
 import time
 from collections import OrderedDict, defaultdict
@@ -28,7 +27,7 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict
+from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView
 import logging
 import itertools
 from copy import copy
@@ -85,15 +84,13 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_DICT_ITEMS_TYPE = type({}.items())
-
 
 class Thread(threading.Thread):
     def __init__(
             self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
     ):
-        while threading.active_count() > os.cpu_count() * 2:
-            time.sleep(0.1)
+        # while threading.active_count() > os.cpu_count() * 2:
+        #    time.sleep(0.1)
         super().__init__(daemon=daemon, name=name)
         if args is None:
             args = ()
@@ -163,7 +160,7 @@ def chunk(
 
     data = (
         list(data)
-        if isinstance(data, (set, tuple, str, bytes, bytearray, _DICT_ITEMS_TYPE))
+        if isinstance(data, (set, tuple, str, bytes, bytearray, MappingView))
         else copy(data)
     )
     if not batch_size or batch_size > len(data) or batch_size < 1:
@@ -307,8 +304,10 @@ def sample(
     @return: sample iterable
     """
     result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
-    if len(v) > 1 and k == 1 and len(result) > 1:
-        return result[0]
+    if k == 1 and len(result) == 1:
+        if isinstance(result, dict):
+            return result
+        return next(iter(result))
     return result
 
 
@@ -977,7 +976,11 @@ def is_iterable(obj: Any) -> bool:
 
     :param obj: Any object for check
     """
-    return isinstance(obj, Iterable)
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    return True
 
 
 def is_sequence(obj: Any) -> bool:
@@ -986,7 +989,9 @@ def is_sequence(obj: Any) -> bool:
 
     :param obj: Any object for check
     """
-    return not isinstance(obj, (str, dict, bytes)) and is_iterable(obj)
+    if isinstance(obj, (str, dict, bytes, int, float)):
+        return False
+    return is_iterable(obj)
 
 
 def is_numeric_sequence(obj: Sequence[Number]) -> bool:

@@ -25,6 +25,7 @@ import random
 import statistics
 import math
 from functools import reduce
+from itertools import chain
 from typing import Any, Sequence, Tuple, Union, List, Optional
 import copy
 from cereja.config.cj_types import Number, Shape
@@ -54,7 +55,7 @@ __all__ = [
 ]
 
 from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, dict_to_tuple
-from ..utils.decorators import depreciation
+from ..utils.decorators import depreciation, time_exec
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +175,7 @@ def array_gen(
     return v[0]
 
 
-def flatten(
+def flatten2(
         sequence: Union[Sequence[Any], "Matrix"],
         depth: Optional[int] = -1,
         return_shapes=False,
@@ -243,6 +244,75 @@ def flatten(
     if return_shapes:
         return flattened, shapes
     return flattened
+
+
+def flatten(
+        sequence: Union[Sequence[Any], "Matrix"],
+        depth: Optional[int] = -1,
+        return_shapes=False,
+        **kwargs,
+) -> Union[List[Any], Any]:
+    """
+    Receives values, whether arrays of values, regardless of their shape and flatness
+
+    :param return_shapes: should return the shapes of the original values?
+    :param sequence: Is sequence of values.
+    :param depth: allows you to control a max depth, for example if you send a
+    sequence=[1,2, [[3]]] and depth=1 your return will be [1, 2, [3]].
+    :return: flattened array
+
+    # thanks https://github.com/rickards
+
+    e.g usage:
+
+    >>> sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
+    >>> flatten(sequence)
+    [1, 2, 3, 2, 3, 4, 6]
+    >>> flatten(sequence, depth=2)
+    [1, 2, 3, 2, [3], 4, 6]
+    """
+    if isinstance(sequence, dict):
+        sequence = list(dict_to_tuple(sequence))
+    else:
+        assert is_sequence(sequence), f"Invalid value to sequence"
+
+    try:
+        sequence = sequence.copy()
+    except:
+        raise Exception(f"Invalid value to sequence")
+    depth = kwargs.get("max_recursion") or depth
+
+    if not isinstance(depth, int):
+        raise TypeError(
+                f"Type {type(depth)} is not valid for max depth. Please send integer."
+        )
+
+    def _iter(seq_, take_shapes=False):
+        _has_sequence = False
+        len_seqs = []
+        for n, i in enumerate(seq_):
+            if is_sequence(i):
+                _has_sequence = True
+                if take_shapes:
+                    len_seqs.append(len(i))
+                continue
+            else:
+                seq_[n] = [i]
+        return list(chain.from_iterable(seq_)), _has_sequence, len_seqs
+
+    deep = 0
+    shapes = {deep: [len(sequence)]}
+    while deep < depth or depth == -1:
+        try:
+            sequence, has_sequence, shape = _iter(sequence, take_shapes=return_shapes)
+        except TypeError:
+            sequence, has_sequence, shape = _iter(sequence, take_shapes=return_shapes)
+        if not has_sequence:
+            break
+        deep += 1
+        if return_shapes:
+            shapes[deep] = shape
+    return (sequence, shapes) if return_shapes else sequence
 
 
 def rand_uniform(_from: Number, to: Number):
