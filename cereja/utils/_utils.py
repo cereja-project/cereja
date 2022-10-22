@@ -976,7 +976,11 @@ def is_iterable(obj: Any) -> bool:
 
     :param obj: Any object for check
     """
-    return isinstance(obj, Iterable)
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    return True
 
 
 def is_sequence(obj: Any) -> bool:
@@ -985,7 +989,9 @@ def is_sequence(obj: Any) -> bool:
 
     :param obj: Any object for check
     """
-    return not isinstance(obj, (str, dict, bytes)) and is_iterable(obj)
+    if isinstance(obj, (str, dict, bytes, int, float)):
+        return False
+    return is_iterable(obj)
 
 
 def is_numeric_sequence(obj: Sequence[Number]) -> bool:

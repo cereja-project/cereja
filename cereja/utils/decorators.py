@@ -97,9 +97,10 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> Any:
+        from cereja import console
         first_time = time.time()
         result = func(*args, **kwargs)
-        logger.info(f"[{func.__name__}] performed {time.time() - first_time}")
+        console.log(f"[{func.__name__}] performed {time.time() - first_time}")
         return result
 
     return wrapper
