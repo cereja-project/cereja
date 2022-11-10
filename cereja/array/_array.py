@@ -307,11 +307,11 @@ def flatten(
             sequence, has_sequence, shape = _iter(sequence, take_shapes=return_shapes)
         except TypeError:
             sequence, has_sequence, shape = _iter(sequence, take_shapes=return_shapes)
-        if not has_sequence:
-            break
         deep += 1
         if return_shapes:
             shapes[deep] = shape
+        if not any(map(is_sequence, sequence)):
+            break
     return (sequence, shapes) if return_shapes else sequence
 
 
