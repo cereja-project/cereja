@@ -35,7 +35,11 @@ import inspect
 
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
-
+try:
+    import numpy as np
+    _has_numpy = True
+except:
+    _has_numpy = False
 __all__ = [
     "CjTest",
     "camel_to_snake",
@@ -861,10 +865,14 @@ def _rescale_up(values, k, fill_with=None, filling="inner"):
 
 def _interpolate(values, k):
     if isinstance(values, list):
-        from ..array import Matrix
+        # TODO: need fix Matrix.
+        if _has_numpy:
+            values = np.array(values)
+        else:
+            from ..array import Matrix
 
-        # because true_div ...
-        values = Matrix(values)
+            # because true_div ...
+            values = Matrix(values)
     size = len(values)
 
     first_position = 0
@@ -896,7 +904,7 @@ def rescale_values(
         interpolation: bool = False,
         fill_with=None,
         filling="inner",
-) -> List[Any]:
+) -> Union[List[Any], 'numpy.ndarray']:
     """
     Resizes a list of values
     eg.
@@ -923,14 +931,15 @@ def rescale_values(
     @param filling: in case of scale up, you can define how the filling will be (pre, inner, post). 'inner' is default.
     @return: rescaled list of values.
     """
+    _type = type(values)
 
     if interpolation:
-        result = list(_interpolate(values, granularity))
+        result = _type(_interpolate(values, granularity))
     else:
         if len(values) >= granularity:
-            result = list(_rescale_down(values, granularity))
+            result = _type(_rescale_down(values, granularity))
         else:
-            result = list(
+            result = _type(
                     _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
             )
 
