@@ -253,7 +253,7 @@ class _FileIO(_IFileIO, ABC):
                 "_built",
                 "_last_update",
         )
-                and self._built is True
+                and self._built is True and not self._only_read
         ):
             self._set_change(
                     key, copy.copy(object.__getattribute__(self, key))

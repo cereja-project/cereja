@@ -2,6 +2,8 @@ import threading
 import time
 
 import random
+from queue import Queue
+Queue(10)
 
 
 def test(value):
