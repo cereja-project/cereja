@@ -21,3 +21,4 @@ SOFTWARE.
 """
 from .version import *
 from ._utils import *
+import colab
