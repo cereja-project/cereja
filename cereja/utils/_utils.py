@@ -936,13 +936,13 @@ def rescale_values(
     _type = type(values)
 
     if interpolation:
-        result = _type(_interpolate(values, granularity))
+        result = _type(list(_interpolate(values, granularity)))
     else:
         if len(values) >= granularity:
-            result = _type(_rescale_down(values, granularity))
+            result = _type(list(_rescale_down(values, granularity)))
         else:
             result = _type(
-                _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
+                list(_rescale_up(values, granularity, fill_with=fill_with, filling=filling))
             )
 
     assert (
