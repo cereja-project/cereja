@@ -1,4 +1,3 @@
-from cereja import FileIO, Path
 import base64
 
 __all__ = ['ColabMediaOutput']
@@ -51,6 +50,8 @@ class ColabMediaOutput:
         self._content_data = []
 
     def add_item(self, type_, data, caption=''):
+        from cereja.file import FileIO
+        from cereja.system import Path
         assert type_ in self._types, f'Only accepted types {tuple(self._types)}'
         if type_ == 'video':
             if isinstance(data, str):
