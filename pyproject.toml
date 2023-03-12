@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["cereja*"]
+exclude = ["docs*", "tests*", "lab*"]
+
+[project]
+name = "cereja"
+dynamic = ["version"]
+authors = [
+    { name="Joab Leite", email="leitejoab@gmail.com" },
+]
+description = "Cereja is a bundle of useful functions that I don't want to rewrite."
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["progress bar", "utils", "array", "pln", "file utils"]
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "cereja.__version__"}
+
+[project.urls]
+"Homepage" = "https://github.com/cereja-project/cereja"
+"Bug Tracker" = "https://github.com/cereja-project/cereja/issues/new/choose"
+
+
