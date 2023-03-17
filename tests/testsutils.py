@@ -33,6 +33,14 @@ class UtilsTest(unittest.TestCase):
     def test_install_if_not(self):
         pass
 
+    def test_split_sequence(self):
+        val = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
+               130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142]
+        expected = [[10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+                    [117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136,
+                     137, 138, 139, 140, 141, 142]]
+        self.assertListEqual(utils.split_sequence(val, lambda x, y: x + 1 != y), expected)
+
     def test_invert_dict(self):
         data = {
             "s": 0,
@@ -63,16 +71,16 @@ class UtilsTest(unittest.TestCase):
             "q": 25,
         }
         expected = {
-            0: "s",
-            1: "y",
-            2: "v",
-            3: "l",
-            4: "i",
-            5: "p",
-            6: "b",
-            7: "z",
-            8: "c",
-            9: "a",
+            0:  "s",
+            1:  "y",
+            2:  "v",
+            3:  "l",
+            4:  "i",
+            5:  "p",
+            6:  "b",
+            7:  "z",
+            8:  "c",
+            9:  "a",
             10: "k",
             11: "e",
             12: "d",
@@ -173,7 +181,7 @@ class UtilsTest(unittest.TestCase):
         ]
 
         self.assertEqual(
-            rescale_values(value, 22, fill_with="joab", filling="post"), expected
+                rescale_values(value, 22, fill_with="joab", filling="post"), expected
         )
 
         expected = [
@@ -202,7 +210,7 @@ class UtilsTest(unittest.TestCase):
         ]
 
         self.assertEqual(
-            rescale_values(value, 22, fill_with="joab", filling="pre"), expected
+                rescale_values(value, 22, fill_with="joab", filling="pre"), expected
         )
 
         expected = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -289,90 +297,90 @@ class UtilsTest(unittest.TestCase):
     def test_sort_dict(self):
         val = {0: 1, 1: 2, 2: 1, 3: 4, 4: 1, 5: 43, 6: 1, 7: 10, 8: 22, 9: 0}
         self.assertDictEqual(
-            utils.sort_dict(val),
-            OrderedDict(
-                [
-                    (0, 1),
-                    (1, 2),
-                    (2, 1),
-                    (3, 4),
-                    (4, 1),
-                    (5, 43),
-                    (6, 1),
-                    (7, 10),
-                    (8, 22),
-                    (9, 0),
-                ]
-            ),
+                utils.sort_dict(val),
+                OrderedDict(
+                        [
+                            (0, 1),
+                            (1, 2),
+                            (2, 1),
+                            (3, 4),
+                            (4, 1),
+                            (5, 43),
+                            (6, 1),
+                            (7, 10),
+                            (8, 22),
+                            (9, 0),
+                        ]
+                ),
         )
         self.assertDictEqual(
-            utils.sort_dict(val, by_values=True),
-            OrderedDict(
-                [
-                    (9, 0),
-                    (0, 1),
-                    (2, 1),
-                    (4, 1),
-                    (6, 1),
-                    (1, 2),
-                    (3, 4),
-                    (7, 10),
-                    (8, 22),
-                    (5, 43),
-                ]
-            ),
+                utils.sort_dict(val, by_values=True),
+                OrderedDict(
+                        [
+                            (9, 0),
+                            (0, 1),
+                            (2, 1),
+                            (4, 1),
+                            (6, 1),
+                            (1, 2),
+                            (3, 4),
+                            (7, 10),
+                            (8, 22),
+                            (5, 43),
+                        ]
+                ),
         )
         self.assertDictEqual(
-            utils.sort_dict(val, by_values=True, reverse=True),
-            OrderedDict(
-                [
-                    (5, 43),
-                    (8, 22),
-                    (7, 10),
-                    (3, 4),
-                    (1, 2),
-                    (0, 1),
-                    (2, 1),
-                    (4, 1),
-                    (6, 1),
-                    (9, 0),
-                ]
-            ),
+                utils.sort_dict(val, by_values=True, reverse=True),
+                OrderedDict(
+                        [
+                            (5, 43),
+                            (8, 22),
+                            (7, 10),
+                            (3, 4),
+                            (1, 2),
+                            (0, 1),
+                            (2, 1),
+                            (4, 1),
+                            (6, 1),
+                            (9, 0),
+                        ]
+                ),
         )
 
         self.assertDictEqual(
-            utils.sort_dict(val, by_keys=True),
-            OrderedDict(
-                [
-                    (0, 1),
-                    (1, 2),
-                    (2, 1),
-                    (3, 4),
-                    (4, 1),
-                    (5, 43),
-                    (6, 1),
-                    (7, 10),
-                    (8, 22),
-                    (9, 0),
-                ]
-            ),
+                utils.sort_dict(val, by_keys=True),
+                OrderedDict(
+                        [
+                            (0, 1),
+                            (1, 2),
+                            (2, 1),
+                            (3, 4),
+                            (4, 1),
+                            (5, 43),
+                            (6, 1),
+                            (7, 10),
+                            (8, 22),
+                            (9, 0),
+                        ]
+                ),
         )
         self.assertDictEqual(
-            utils.sort_dict(val, by_keys=True, reverse=True),
-            OrderedDict(
-                [
-                    (9, 0),
-                    (8, 22),
-                    (7, 10),
-                    (6, 1),
-                    (5, 43),
-                    (4, 1),
-                    (3, 4),
-                    (2, 1),
-                    (1, 2),
-                    (0, 1),
-                ]
-            ),
+                utils.sort_dict(val, by_keys=True, reverse=True),
+                OrderedDict(
+                        [
+                            (9, 0),
+                            (8, 22),
+                            (7, 10),
+                            (6, 1),
+                            (5, 43),
+                            (4, 1),
+                            (3, 4),
+                            (2, 1),
+                            (1, 2),
+                            (0, 1),
+                        ]
+                ),
         )
 
     def test_dict_append(self):
@@ -465,8 +473,8 @@ class UtilsTest(unittest.TestCase):
         ]
         for test_value, kernel_size, strides, expected in tests:
             self.assertEqual(
-                list(utils.get_batch_strides(test_value, kernel_size, strides)),
-                expected,
+                    list(utils.get_batch_strides(test_value, kernel_size, strides)),
+                    expected,
             )
 
 

@@ -80,6 +80,7 @@ __all__ = [
     "get_batch_strides",
     "Thread",
     "prune_values",
+    "split_sequence"
 ]
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,36 @@ class Thread(threading.Thread):
 
 def is_indexable(v):
     return hasattr(v, "__getitem__")
+
+
+def split_sequence(seq, is_break_fn):
+    """
+    Divide a sequence into sub-sequences at the point defined by a given is_break_fn function.
+
+    Args:
+        seq (list): The sequence to be divided into sub-sequences.
+        is_break_fn (callable): A function that takes two elements from the sequence and
+            returns True if there is a break between them and False otherwise.
+
+    Returns:
+        list: A list of sub-sequences, each containing a sequence of consecutive elements.
+
+    Examples:
+        >>> seq = [1, 2, 3, 4, 5, 2, 3, 4, 5, 6, 7, 8]
+        >>> is_even = lambda x, y: x % 2 == 0 and y % 2 == 0
+        >>> sub_seqs = split_sequence(seq, is_even)
+        >>> sub_seqs
+        [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6, 7, 8]]
+    """
+    sub_seqs = []
+    sub_seq = [seq[0]]
+    for i in range(1, len(seq)):
+        if is_break_fn(seq[i-1], seq[i]):
+            sub_seqs.append(sub_seq)
+            sub_seq = []
+        sub_seq.append(seq[i])
+    sub_seqs.append(sub_seq)
+    return sub_seqs
 
 
 def chunk(
