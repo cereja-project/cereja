@@ -36,6 +36,21 @@ from ..config import (
 _NORMALIZE_VALUES = "".join(PUNCTUATION)
 
 
+def split_by_punct(text: str, punct: str = '.!?') -> list:
+    """
+    split text by periods.
+
+    :param text: any string
+    :param punct: string of chars
+    :return:
+    """
+    assert isinstance(punct, str), 'Send punct send the strings in string format: "!.?"'
+    # Regular expression to split text by periods
+    pattern = r'(?<=[%s])\s+' % punct
+    texts = re.split(pattern, text)
+    return texts
+
+
 def separate(
         text: AnyStr, sep: Union[AnyStr, Sequence[AnyStr]] = PUNCTUATION, between_char=False
 ) -> str:
