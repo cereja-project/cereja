@@ -22,7 +22,7 @@ SOFTWARE.
 """
 
 import re
-from typing import AnyStr, Sequence, Union, List
+from typing import AnyStr, Sequence, Union, List, Tuple
 from unicodedata import normalize as _normalize
 
 from ..config import (
@@ -49,6 +49,29 @@ def split_by_punct(text: str, punct: str = '.!?') -> list:
     pattern = r'(?<=[%s])\s+' % punct
     texts = re.split(pattern, text)
     return texts
+
+
+def remove_delimited_text(text, delimiters: Sequence[Tuple[AnyStr, AnyStr]] = (("*", '*'), ("(", ")"), ("[", "]"))):
+    """
+    Remove words or phrases delimited by bullets from the provided text.
+
+    Arguments:
+      text(str): The text to be processed.
+      delimiters (Sequence[Tuple[AnyStr, AnyStr]], optional): A sequence of tuples that specify the start and end markers of the delimited words or phrases.
+          The default is (("*", '*'), ("(", ")"), ("[", "]")).
+
+    Returns:
+      str: The rendered text, without the delimited words or phrases.
+
+    Example:
+      >>> text = "Hello world of *options*! [shows options] How are you (walks out and says)?"
+      >>> clear_text = remove_delimited_text(text)
+      >>> print(clear_text)
+      "Hello world! How are you?"
+    """
+    pattern = '|'.join(f'({re.escape(start)}{r".*?"}{re.escape(end)})' for start, end in delimiters)
+    text = re.sub(pattern, "", text)
+    return text
 
 
 def separate(
