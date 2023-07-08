@@ -1,10 +1,11 @@
 import threading
-
-__all__ = ["Buffer", "ProcessSequence"]
-
+import time
 from collections import OrderedDict
 
+from .. import Progress
 from ..utils.decorators import synchronized
+
+__all__ = ["Buffer", "ProcessSequence"]
 
 
 class Buffer:
@@ -63,3 +64,37 @@ class ProcessSequence:
         self._result = OrderedDict()
         self._running = False
         return result
+
+
+class ThreadController:
+    def __init__(self, max_threads):
+        self.max_threads = max_threads
+        self.active_threads = 0
+        self.lock = threading.Lock()
+        self.terminate = False
+        self._threads = {}
+
+    def execute_function(self, function, values):
+        for indx, value in enumerate(Progress.prog(values, custom_state_func=lambda: f'TH: {self.active_threads}')):
+            self.wait_for_available_thread()
+            if self.terminate:
+                break
+            thread = threading.Thread(target=self._execute_function_thread, name=f'Thread-{indx}',
+                                      args=(function, value))
+            thread.start()
+            self.active_threads += 1
+
+    def wait_for_available_thread(self):
+        while self.active_threads >= self.max_threads:
+            time.sleep(0)
+
+    def _execute_function_thread(self, function, value):
+        try:
+            if not self.terminate:
+                function(value)
+        except Exception as e:
+            self.terminate = True
+        finally:
+            with self.lock:
+                self.active_threads -= 1
+                threading.Event().set()
