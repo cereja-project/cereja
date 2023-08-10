@@ -30,7 +30,7 @@ import random
 from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView
 import logging
 import itertools
-from copy import copy
+from copy import copy, deepcopy
 import inspect
 
 # Needed init configs
@@ -323,8 +323,46 @@ def can_do(obj: Any) -> List[str]:
     return sorted([i for i in filter(lambda attr: not attr.startswith("_"), dir(obj))])
 
 
+def truncate_recursive(data: Union[Sequence, dict, set], to: int = 1) -> Union[Sequence, dict, set]:
+    """
+    Truncates the last datatype in a recursive datatype to this length, filling with '...'
+    Ex.:
+    # truncate_recursive(data = {'a': '0, 1, 2',
+    #                            'b': [0, 1, 2],
+    #                            'c': {0, 1, 2},
+    #                            'd': {'e': [0, 1, 2]}},
+    #                      to = 1)
+    # outputs:
+    # {'a': '0...',
+    #  'b': [0, '...'],
+    #  'c': {0, '...'},
+    #  'd': {'e': [0, '...]}}
+
+    Args:
+        data: data in native Python datatype to be truncated
+        to: size of truncated elements
+
+    Returns:
+        truncated data
+    """
+
+    if type(data) == dict:
+        for k, v in data.items():
+            data[k] = truncate_recursive(v, to)
+    if type(data) == str:
+        filler = '...' if len(data) > to else ''
+    else:
+        filler = ['...'] if len(data) > to else []
+    if type(data) == str or type(data) == list:
+        return data[:to] + filler
+    elif type(data) == set:
+        return set([dt for dt in data][:to] + filler)
+    else:
+        return data
+
+
 def sample(
-        v: Sequence, k: int = None, is_random: bool = False
+        v: Sequence, k: int = None, is_random: bool = False, truncate_to: int = 0,
 ) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
@@ -332,9 +370,16 @@ def sample(
     @param v: Any
     @param k: int
     @param is_random: default False
+    @param truncate_to: int default 0 (False)
+                        Truncates the last datatype in a recursive datatype to this length.
+                        Helpful for visualizations
     @return: sample iterable
     """
     result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
+
+    if truncate_to:
+        result = truncate_recursive(deepcopy(result), truncate_to)
+
     if k == 1 and len(result) == 1:
         if isinstance(result, dict):
             return result
