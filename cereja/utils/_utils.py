@@ -248,17 +248,19 @@ def truncate(data: Union[Sequence], k: int):
     Returns:
         truncated data
     """
+    assert(k > 0), 'k should be an integer larger than 0'
 
-    n = k//2
+    k = min(k, len(data))
+    n = k // 2
     if isinstance(data, dict):
         for key, value in data.items():
             data[key] = truncate(value, k)
     if isinstance(data, str):
-        filler = '...' if len(data) > k else ''
+        filler = '…' if len(data) > k else ''
     elif isinstance(data, bytes):
         filler = b'...' if len(data) > k else b''
     else:
-        filler = ['...'] if len(data) > k else []
+        filler = ['…'] if len(data) > k else []
     if isinstance(data, (str, list, bytes)):
         return data[:(k-n)] + filler + data[-n:]
     elif isinstance(data, set):
