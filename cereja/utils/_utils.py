@@ -254,19 +254,22 @@ def truncate(data: Union[Sequence], k: int):
         for key, value in data.items():
             data[key] = truncate(value, k)
 
-    k = min(k, len(data))
-    n = k // 2
+    if is_iterable(data):
+        k = min(k, len(data))
+        n = k // 2
 
-    if isinstance(data, str):
-        filler = '…' if len(data) > k else ''
-    elif isinstance(data, bytes):
-        filler = b'...' if len(data) > k else b''
-    else:
-        filler = ['…'] if len(data) > k else []
-    if isinstance(data, (str, list, bytes)):
-        return data[:(k-n)] + filler + data[-n:] if n else data[:(k-n)] + filler
-    elif isinstance(data, set):
-        return set(list(data)[:(k-n)] + filler + list(data)[-n:]) if n else set(list(data)[:(k-n)] + filler)
+        if isinstance(data, str):
+            filler = '…' if len(data) > k else ''
+        elif isinstance(data, bytes):
+            filler = b'...' if len(data) > k else b''
+        else:
+            filler = ['…'] if len(data) > k else []
+        if isinstance(data, (str, list, bytes)):
+            return data[:(k-n)] + filler + data[-n:] if n else data[:(k-n)] + filler
+        elif isinstance(data, set):
+            return set(list(data)[:(k-n)] + filler + list(data)[-n:]) if n else set(list(data)[:(k-n)] + filler)
+        else:
+            return data
     else:
         return data
 
@@ -355,7 +358,7 @@ def sample(
     return result
 
 
-def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 10, p_print: bool = True):
+def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 5, p_print: bool = True):
     """
     Samples then (p)prints a truncated version of the sample. Helpful for visualizing data structures.
     Args:
