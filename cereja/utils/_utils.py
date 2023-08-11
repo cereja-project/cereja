@@ -237,24 +237,30 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(data: Union[Sequence], k: int):
+def truncate(data: Union[Sequence], k: int, k_str_mult: int):
     """
     Truncates the data to the specified number of elements in half(+1 if odd) + half, adding a filler in between.
     If the data is a dictionary, then truncates recursively until data is "truncatable".
+    Allows to apply a multiplier to k in the case of strings.
     Args:
         data: sequence
         k: number of elements of original data to return
-
+        k_str_mult: multiplier to k to apply for strings
     Returns:
         truncated data
     """
-    assert(k > 0), 'k should be an integer larger than 0'
+    assert all([k >= 0, k_str_mult >= 0]), 'k/k_str_mult should be an integer equal to or larger than 0'
+
+    if k == 0:
+        return data
 
     if isinstance(data, dict):
         for key, value in data.items():
-            data[key] = truncate(value, k)
+            data[key] = truncate(value, k, k_str_mult)
 
     if is_iterable(data):
+        if isinstance(data, str):
+            k *= k_str_mult
         k = min(k, len(data))
         n = k // 2
 
@@ -356,7 +362,7 @@ def sample(
     return result
 
 
-def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 5, p_print: bool = True):
+def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 5, truncate_k_str_multiplier: int = 10, p_print: bool = True):
     """
     Samples then (p)prints a truncated version of the sample. Helpful for visualizing data structures.
     Args:
@@ -364,11 +370,12 @@ def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, trunca
         k: number of samples
         is_random: should shuffle
         truncate_k: how many items to keep in the truncated version of the sample
+        truncate_k_str_multiplier: k multiplier for string data
         p_print: should pprint or print
     """
 
     obj_sample = sample(v=v, k=k, is_random=is_random)
-    truncated_sample = truncate(obj_sample, truncate_k)
+    truncated_sample = truncate(obj_sample, truncate_k, truncate_k_str_multiplier)
     if p_print:
         pprint(truncated_sample)
     else:
