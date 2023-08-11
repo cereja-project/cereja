@@ -355,7 +355,7 @@ def sample(
     return result
 
 
-def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 10, p_print: bool = True):
+def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 6, p_print: bool = True):
     """
     Samples then (p)prints a truncated version of the sample. Helpful for visualizing data structures.
     Args:
