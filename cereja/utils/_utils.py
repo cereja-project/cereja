@@ -268,10 +268,8 @@ def truncate(data: Union[Sequence], k: int):
             return data[:(k-n)] + filler + data[-n:] if n else data[:(k-n)] + filler
         elif isinstance(data, set):
             return set(list(data)[:(k-n)] + filler + list(data)[-n:]) if n else set(list(data)[:(k-n)] + filler)
-        else:
-            return data
-    else:
         return data
+    return data
 
 
 def obj_repr(
