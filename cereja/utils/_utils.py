@@ -250,11 +250,13 @@ def truncate(data: Union[Sequence], k: int):
     """
     assert(k > 0), 'k should be an integer larger than 0'
 
-    k = min(k, len(data))
-    n = k // 2
     if isinstance(data, dict):
         for key, value in data.items():
             data[key] = truncate(value, k)
+
+    k = min(k, len(data))
+    n = k // 2
+
     if isinstance(data, str):
         filler = '…' if len(data) > k else ''
     elif isinstance(data, bytes):
@@ -262,9 +264,9 @@ def truncate(data: Union[Sequence], k: int):
     else:
         filler = ['…'] if len(data) > k else []
     if isinstance(data, (str, list, bytes)):
-        return data[:(k-n)] + filler + data[-n:]
+        return data[:(k-n)] + filler + data[-n:] if n else data[:(k-n)] + filler
     elif isinstance(data, set):
-        return set(list(data)[:(k-n)] + filler + list(data)[-n:])
+        return set(list(data)[:(k-n)] + filler + list(data)[-n:]) if n else set(list(data)[:(k-n)] + filler)
     else:
         return data
 
