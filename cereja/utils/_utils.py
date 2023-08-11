@@ -237,7 +237,7 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(data: Union[Sequence], k: int, k_str_mult: int):
+def truncate(data: Union[Sequence], k: int, k_str_mult: int = 1):
     """
     Truncates the data to the specified number of elements in half(+1 if odd) + half, adding a filler in between.
     If the data is a dictionary, then truncates recursively until data is "truncatable".
