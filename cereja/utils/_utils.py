@@ -32,6 +32,7 @@ import logging
 import itertools
 from copy import copy
 import inspect
+from pprint import pprint
 
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
@@ -55,6 +56,7 @@ __all__ = [
     "rescale_values",
     "Source",
     "sample",
+    "visualize_sample",
     "obj_repr",
     "truncate",
     "type_table_of",
@@ -235,27 +237,36 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(text: Union[str, bytes], k=15):
+def truncate(data: Union[Sequence], k: int):
     """
-    Truncate text.
-    eg.:
-    >>> import cereja as cj
-    >>> cj.utils.truncate("Cereja is fun.", k=3)
-    'Cer...'
+    Truncates the data to the specified number of elements in half(+1 if odd) + half, adding a filler in between.
+    If the data is a dictionary, then truncates recursively until data is "truncatable".
+    Args:
+        data: sequence
+        k: number of elements of original data to return
 
-    @param text: string or bytes
-    @param k: natural numbers, default is 4
+    Returns:
+        truncated data
     """
-    assert isinstance(text, (str, bytes)), TypeError(
-            f"{type(text)} isn't valid. Expected str or bytes"
-    )
-    if k > len(text) or k <= 4:
-        return text
-    n = int(
-            (k - 4) / 2
-    )  # k is the max length of text, 4 is the length of truncate symbol
-    trunc_chars = "...." if isinstance(text, str) else b"...."
-    return text[:n] + trunc_chars + text[-n:]
+    assert(k > 0), 'k should be an integer larger than 0'
+
+    k = min(k, len(data))
+    n = k // 2
+    if isinstance(data, dict):
+        for key, value in data.items():
+            data[key] = truncate(value, k)
+    if isinstance(data, str):
+        filler = '…' if len(data) > k else ''
+    elif isinstance(data, bytes):
+        filler = b'...' if len(data) > k else b''
+    else:
+        filler = ['…'] if len(data) > k else []
+    if isinstance(data, (str, list, bytes)):
+        return data[:(k-n)] + filler + data[-n:]
+    elif isinstance(data, set):
+        return set(list(data)[:(k-n)] + filler + list(data)[-n:])
+    else:
+        return data
 
 
 def obj_repr(
@@ -324,8 +335,7 @@ def can_do(obj: Any) -> List[str]:
 
 
 def sample(
-        v: Sequence, k: int = None, is_random: bool = False
-) -> Union[list, dict, set, Any]:
+        v: Sequence, k: int = None, is_random: bool = False) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
 
@@ -335,11 +345,31 @@ def sample(
     @return: sample iterable
     """
     result = chunk(v, batch_size=k, is_random=is_random, max_batches=1)[0]
+
     if k == 1 and len(result) == 1:
         if isinstance(result, dict):
             return result
         return next(iter(result))
     return result
+
+
+def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 10, p_print: bool = True):
+    """
+    Samples then (p)prints a truncated version of the sample. Helpful for visualizing data structures.
+    Args:
+        v: sequence
+        k: number of samples
+        is_random: should shuffle
+        truncate_k: how many items to keep in the truncated version of the sample
+        p_print: should pprint or print
+    """
+
+    obj_sample = sample(v=v, k=k, is_random=is_random)
+    truncated_sample = truncate(obj_sample, truncate_k)
+    if p_print:
+        pprint(truncated_sample)
+    else:
+        print(truncated_sample)
 
 
 def type_table_of(o: Union[list, tuple, dict]):
