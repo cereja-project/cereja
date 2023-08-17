@@ -237,27 +237,29 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(data: Union[Sequence], k: int = 0, k_str: int = 0, k_dict_keys: int = 0):
+def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys: int = 0):
     """
     Truncates the data to the specified number of elements in half(+1 if odd) + half, adding a filler in between.
     If the data is a dictionary, then truncates recursively until data is "truncatable".
-    Allows to specify a different to k to strings.
+    Allows to specify a different to k to strings and number of dictionary keys.
     Args:
         data: sequence
-        k: number of elements of original data to return
+        k_iter: number of elements of iterable data to return
         k_str: number of elements of strings to return
+        k_dict_keys: number of dictionary keys to return
     Returns:
         truncated data
     """
-    assert all([k >= 0, k_str >= 0]), 'k/k_str should be an integer equal to or larger than 0'
+    assert all(isinstance(k, int) and k >= 0 for k in
+               (k_iter, k_str, k_dict_keys)), 'k parameters should be an integer equal to or larger than 0'
 
     if isinstance(data, dict):
         if k_dict_keys:
             data = {key: data.get(key, '<…>') for key in truncate(list(data.keys()), k_dict_keys)}
-            if k or k_str:
-                data = {truncate(key, k, k_str): value for key, value in data.items()}
+            if k_iter or k_str:
+                data = {truncate(key, k_iter, k_str): value for key, value in data.items()}
         for key, value in data.items():
-            data[key] = truncate(value, k, k_str, k_dict_keys)
+            data[key] = truncate(value, k_iter, k_str, k_dict_keys)
     elif isinstance(data, str):
         if k_str == 0:
             return data
@@ -266,25 +268,25 @@ def truncate(data: Union[Sequence], k: int = 0, k_str: int = 0, k_dict_keys: int
         filler = '…' if len(data) > k_str else ''
         return data[:(k_str - n)] + filler + data[-n:] if n else data[:(k_str - n)] + filler
     elif is_iterable(data):
-        if k == 0:
+        if k_iter == 0:
             return data
-        k_iter = min(k, len(data))
+        k_iter = min(k_iter, len(data))
         n = k_iter // 2
         if isinstance(data, bytes):
-            filler = b'...' if len(data) > k else b''
+            filler = b'...' if len(data) > k_iter else b''
             return data[:(k_iter - n)] + filler + data[-n:] if n else data[:(k_iter - n)] + filler
         else:
-            filler = ['<…>'] if len(data) > k else []
+            filler = ['<…>'] if len(data) > k_iter else []
         if isinstance(data, list):
             if n:
-                return [truncate(dt, k, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler + \
-                    [truncate(dt, k, k_str, k_dict_keys) for dt in data[-n:]]
-            return [truncate(dt, k, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler
+                return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler + \
+                    [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[-n:]]
+            return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler
         elif isinstance(data, set):
             if n:
-                return set([truncate(dt, k, k_str, k_dict_keys) for dt in list(data)[:(k_iter - n)]] + filler + \
-                           [truncate(dt, k, k_str, k_dict_keys) for dt in list(data)[-n:]])
-            return set([truncate(dt, k, k_str, k_dict_keys) for dt in list(data)[:(k_iter - n)]] + filler)
+                return set([truncate(dt, k_iter, k_str, k_dict_keys) for dt in list(data)[:(k_iter - n)]] + filler + \
+                           [truncate(dt, k_iter, k_str, k_dict_keys) for dt in list(data)[-n:]])
+            return set([truncate(dt, k_iter, k_str, k_dict_keys) for dt in list(data)[:(k_iter - n)]] + filler)
         return data
     return data
 
@@ -294,7 +296,7 @@ def obj_repr(
 ):
     try:
         if isinstance(obj_, (str, bytes)):
-            return truncate(obj_, k=attr_limit)
+            return truncate(obj_, k_iter=attr_limit)
         if isinstance(obj_, (bool, float, int, complex)):
             return obj_
         rep_ = []
@@ -373,21 +375,22 @@ def sample(
     return result
 
 
-def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, tr_k: int = 6, tr_k_str: int = 20, tr_k_dict_keys: int = 20,
-                     p_print: bool = True):
+def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, tr_k_iter: int = 6, tr_k_str: int = 20,
+                     tr_k_dict_keys: int = 20, p_print: bool = True):
     """
-    Samples then (p)prints a truncated version of the sample. Helpful for visualizing data structures.
+    Samples then (p)prints a (truncated) version of the sample. Helpful for visualizing data structures.
     Args:
         v: sequence
         k: number of samples
         is_random: should shuffle
-        truncate_k: how many items to keep in the truncated version of the sample
-        truncate_k_str_multiplier: k multiplier for string data; if you do not want to truncate strings, use `0`
+        tr_k_iter: how many items of iterables to keep in the truncated version of the sample, `0` to disable
+        tr_k_str: truncated length of strings, `0` to disable
+        tr_k_dict_keys: truncated number of dictionary keys, `0` to disable
         p_print: should pprint or print
     """
 
     obj_sample = sample(v=copy(v), k=k, is_random=is_random)
-    truncated_sample = truncate(obj_sample, tr_k, tr_k_str, tr_k_dict_keys)
+    truncated_sample = truncate(data=obj_sample, k_iter=tr_k_iter, k_str=tr_k_str, k_dict_keys=tr_k_dict_keys)
     if p_print:
         pprint(truncated_sample)
     else:
