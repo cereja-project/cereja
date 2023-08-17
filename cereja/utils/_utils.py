@@ -237,7 +237,7 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(data: Union[Sequence], k: int = 0, k_str: int = 0):
+def truncate(data: Union[Sequence], k: int = 0, k_str: int = 0, k_dict_keys: int = 0):
     """
     Truncates the data to the specified number of elements in half(+1 if odd) + half, adding a filler in between.
     If the data is a dictionary, then truncates recursively until data is "truncatable".
@@ -252,8 +252,12 @@ def truncate(data: Union[Sequence], k: int = 0, k_str: int = 0):
     assert all([k >= 0, k_str >= 0]), 'k/k_str should be an integer equal to or larger than 0'
 
     if isinstance(data, dict):
+        if k_dict_keys:
+            data = {key: data.get(key, '<…>') for key in truncate(list(data.keys()), k_dict_keys)}
+            if k or k_str:
+                data = {truncate(key, k, k_str): value for key, value in data.items()}
         for key, value in data.items():
-            data[key] = truncate(value, k, k_str)
+            data[key] = truncate(value, k, k_str, k_dict_keys)
     elif isinstance(data, str):
         if k_str == 0:
             return data
@@ -273,14 +277,14 @@ def truncate(data: Union[Sequence], k: int = 0, k_str: int = 0):
             filler = ['<…>'] if len(data) > k else []
         if isinstance(data, list):
             if n:
-                return [truncate(dt, k, k_str) for dt in data[:(k_iter - n)]] + filler + \
-                    [truncate(dt, k, k_str) for dt in data[-n:]]
-            return [truncate(dt, k, k_str) for dt in data[:(k_iter - n)]] + filler
+                return [truncate(dt, k, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler + \
+                    [truncate(dt, k, k_str, k_dict_keys) for dt in data[-n:]]
+            return [truncate(dt, k, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler
         elif isinstance(data, set):
             if n:
-                return set([truncate(dt, k, k_str) for dt in list(data)[:(k_iter - n)]] + filler + \
-                           [truncate(dt, k, k_str) for dt in list(data)[-n:]])
-            return set([truncate(dt, k, k_str) for dt in list(data)[:(k_iter - n)]] + filler)
+                return set([truncate(dt, k, k_str, k_dict_keys) for dt in list(data)[:(k_iter - n)]] + filler + \
+                           [truncate(dt, k, k_str, k_dict_keys) for dt in list(data)[-n:]])
+            return set([truncate(dt, k, k_str, k_dict_keys) for dt in list(data)[:(k_iter - n)]] + filler)
         return data
     return data
 
@@ -369,7 +373,7 @@ def sample(
     return result
 
 
-def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 6, truncate_k_str: int = 20,
+def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, tr_k: int = 6, tr_k_str: int = 20, tr_k_dict_keys: int = 20,
                      p_print: bool = True):
     """
     Samples then (p)prints a truncated version of the sample. Helpful for visualizing data structures.
@@ -383,7 +387,7 @@ def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, trunca
     """
 
     obj_sample = sample(v=copy(v), k=k, is_random=is_random)
-    truncated_sample = truncate(obj_sample, truncate_k, truncate_k_str)
+    truncated_sample = truncate(obj_sample, tr_k, tr_k_str, tr_k_dict_keys)
     if p_print:
         pprint(truncated_sample)
     else:
