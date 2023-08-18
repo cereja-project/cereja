@@ -136,7 +136,7 @@ def split_sequence(seq, is_break_fn):
     sub_seqs = []
     sub_seq = [seq[0]]
     for i in range(1, len(seq)):
-        if is_break_fn(seq[i-1], seq[i]):
+        if is_break_fn(seq[i - 1], seq[i]):
             sub_seqs.append(sub_seq)
             sub_seq = []
         sub_seq.append(seq[i])
@@ -237,43 +237,56 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(data: Union[Sequence], k: int, k_str_mult: int = 1):
+def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys: int = 0):
     """
     Truncates the data to the specified number of elements in half(+1 if odd) + half, adding a filler in between.
     If the data is a dictionary, then truncates recursively until data is "truncatable".
-    Allows to apply a multiplier to k in the case of strings.
+    Allows to specify a different to k to strings and number of dictionary keys.
     Args:
         data: sequence
-        k: number of elements of original data to return
-        k_str_mult: multiplier to k to apply for strings
+        k_iter: number of elements of iterable data to return
+        k_str: number of elements of strings to return
+        k_dict_keys: number of dictionary keys to return
     Returns:
         truncated data
     """
-    assert all([k >= 0, k_str_mult >= 0]), 'k/k_str_mult should be an integer equal to or larger than 0'
-
-    if k == 0:
-        return data
+    assert all(isinstance(k, int) and k >= 0 for k in
+               (k_iter, k_str, k_dict_keys)), 'k parameters should be an integer equal to or larger than 0'
 
     if isinstance(data, dict):
+        if k_dict_keys:
+            data = {key: data.get(key, '<…>') for key in truncate(list(data.keys()), k_dict_keys)}
+            if k_iter or k_str:
+                data = {truncate(key, k_iter, k_str): value for key, value in data.items()}
         for key, value in data.items():
-            data[key] = truncate(value, k, k_str_mult)
-
-    if is_iterable(data):
-        if isinstance(data, str):
-            k *= k_str_mult
-        k = min(k, len(data))
-        n = k // 2
-
-        if isinstance(data, str):
-            filler = '…' if len(data) > k else ''
-        elif isinstance(data, bytes):
-            filler = b'...' if len(data) > k else b''
+            data[key] = truncate(value, k_iter, k_str, k_dict_keys)
+    elif isinstance(data, str):
+        if k_str == 0:
+            return data
+        k_str = min(k_str, len(data))
+        n = k_str // 2
+        filler = '…' if len(data) > k_str else ''
+        return data[:(k_str - n)] + filler + data[-n:] if n else data[:(k_str - n)] + filler
+    elif is_iterable(data):
+        if k_iter == 0:
+            return data
+        k_iter = min(k_iter, len(data))
+        n = k_iter // 2
+        if isinstance(data, bytes):
+            filler = b'...' if len(data) > k_iter else b''
+            return data[:(k_iter - n)] + filler + data[-n:] if n else data[:(k_iter - n)] + filler
         else:
-            filler = ['…'] if len(data) > k else []
-        if isinstance(data, (str, list, bytes)):
-            return data[:(k-n)] + filler + data[-n:] if n else data[:(k-n)] + filler
+            filler = ['<…>'] if len(data) > k_iter else []
+        if isinstance(data, list):
+            if n:
+                return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler + \
+                    [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[-n:]]
+            return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler
         elif isinstance(data, set):
-            return set(list(data)[:(k-n)] + filler + list(data)[-n:]) if n else set(list(data)[:(k-n)] + filler)
+            if n:
+                return set([truncate(dt, k_iter, k_str, k_dict_keys) for dt in list(data)[:(k_iter - n)]] + filler + \
+                           [truncate(dt, k_iter, k_str, k_dict_keys) for dt in list(data)[-n:]])
+            return set([truncate(dt, k_iter, k_str, k_dict_keys) for dt in list(data)[:(k_iter - n)]] + filler)
         return data
     return data
 
@@ -283,7 +296,7 @@ def obj_repr(
 ):
     try:
         if isinstance(obj_, (str, bytes)):
-            return truncate(obj_, k=attr_limit)
+            return truncate(obj_, k_iter=attr_limit)
         if isinstance(obj_, (bool, float, int, complex)):
             return obj_
         rep_ = []
@@ -362,20 +375,22 @@ def sample(
     return result
 
 
-def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, truncate_k: int = 5, truncate_k_str_multiplier: int = 10, p_print: bool = True):
+def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, tr_k_iter: int = 6, tr_k_str: int = 20,
+                     tr_k_dict_keys: int = 20, p_print: bool = True):
     """
-    Samples then (p)prints a truncated version of the sample. Helpful for visualizing data structures.
+    Samples then (p)prints a (truncated) version of the sample. Helpful for visualizing data structures.
     Args:
         v: sequence
         k: number of samples
         is_random: should shuffle
-        truncate_k: how many items to keep in the truncated version of the sample
-        truncate_k_str_multiplier: k multiplier for string data
+        tr_k_iter: how many items of iterables to keep in the truncated version of the sample, `0` to disable
+        tr_k_str: truncated length of strings, `0` to disable
+        tr_k_dict_keys: truncated number of dictionary keys, `0` to disable
         p_print: should pprint or print
     """
 
-    obj_sample = sample(v=v, k=k, is_random=is_random)
-    truncated_sample = truncate(obj_sample, truncate_k, truncate_k_str_multiplier)
+    obj_sample = sample(v=copy(v), k=k, is_random=is_random)
+    truncated_sample = truncate(data=obj_sample, k_iter=tr_k_iter, k_str=tr_k_str, k_dict_keys=tr_k_dict_keys)
     if p_print:
         pprint(truncated_sample)
     else:
@@ -504,7 +519,7 @@ def import_string(dotted_path):
         return getattr(module, class_name)
     except AttributeError as err:
         raise ImportError(
-                f"Module {module_path} does not define a {class_name} attribute/class"
+            f"Module {module_path} does not define a {class_name} attribute/class"
         ) from err
 
 
@@ -576,7 +591,7 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     :return: List[str]
     """
     assert isinstance(
-            instance, types.ModuleType
+        instance, types.ModuleType
     ), "You need to submit a module instance."
     logger.debug(f"Checking module {instance.__name__}")
     definitions = {}
@@ -704,7 +719,7 @@ if __name__ == '__main__':
     @property
     def _instance_obj_attrs(self):
         return filter(
-                lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
+            lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
         )
 
     def _get_attr_obj(self, attr_: str):
@@ -801,7 +816,7 @@ if __name__ == '__main__':
 
     def _valid_attr(self, attr_name: str):
         assert hasattr(
-                self._instance_obj, attr_name
+            self._instance_obj, attr_name
         ), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
         return attr_name
 
@@ -833,11 +848,11 @@ if __name__ == '__main__':
     @classmethod
     def _get_class_test(cls, ref):
         func_tests = "".join(
-                cls.__template_unittest_function.format(func_name=i)
-                for i in list_methods(ref)
+            cls.__template_unittest_function.format(func_name=i)
+            for i in list_methods(ref)
         )
         return cls.__template_unittest_class.format(
-                class_name=ref.__name__, func_tests=func_tests
+            class_name=ref.__name__, func_tests=func_tests
         )
 
     @classmethod
@@ -871,7 +886,7 @@ if __name__ == '__main__':
             module_func_test = "".join(module_func_test)
             tests = [
                         cls.__template_unittest_class.format(
-                                class_name="Module", func_tests=module_func_test
+                            class_name="Module", func_tests=module_func_test
                         )
                     ] + tests
         return cls.__template_unittest.format(tests="\n".join(tests))
@@ -1002,7 +1017,7 @@ def rescale_values(
             result = list(_rescale_down(values, granularity))
         else:
             result = list(
-                    _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
+                _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
             )
 
     assert (
@@ -1103,7 +1118,7 @@ def sort_dict(
 
 def list_to_tuple(obj):
     assert isinstance(
-            obj, (list, set, tuple)
+        obj, (list, set, tuple)
     ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     for i in obj:
@@ -1126,7 +1141,7 @@ def dict_values_len(obj, max_len=None, min_len=None, take_len=False):
 
 def dict_to_tuple(obj):
     assert isinstance(
-            obj, (dict, set)
+        obj, (dict, set)
     ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     if isinstance(obj, set):
@@ -1258,7 +1273,7 @@ def get_batch_strides(data, kernel_size, strides=1, fill_=True, take_index=False
             batches = batches[strides:]
     if len(batches):
         yield rescale_values(
-                batches, granularity=kernel_size, filling="post"
+            batches, granularity=kernel_size, filling="post"
         ) if fill_ else batches
 
 
