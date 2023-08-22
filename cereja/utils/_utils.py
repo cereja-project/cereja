@@ -267,7 +267,7 @@ def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys
         n = k_str // 2
         filler = '…' if len(data) > k_str else ''
         return data[:(k_str - n)] + filler + data[-n:] if n else data[:(k_str - n)] + filler
-    elif is_iterable(data):
+    elif isinstance(data, Iterable):
         if k_iter == 0:
             return data
         k_iter = min(k_iter, len(data))
