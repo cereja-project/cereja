@@ -280,7 +280,7 @@ def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys
         if isinstance(data, list):
             if n:
                 return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler + \
-                    [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[-n:]]
+                       [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[-n:]]
             return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler
         elif isinstance(data, set):
             if n:
@@ -519,7 +519,7 @@ def import_string(dotted_path):
         return getattr(module, class_name)
     except AttributeError as err:
         raise ImportError(
-            f"Module {module_path} does not define a {class_name} attribute/class"
+                f"Module {module_path} does not define a {class_name} attribute/class"
         ) from err
 
 
@@ -591,7 +591,7 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     :return: List[str]
     """
     assert isinstance(
-        instance, types.ModuleType
+            instance, types.ModuleType
     ), "You need to submit a module instance."
     logger.debug(f"Checking module {instance.__name__}")
     definitions = {}
@@ -617,8 +617,28 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     return definitions
 
 
+def get_python_executable():
+    import cereja as cj
+    if sys.platform == 'win32':
+        exec_paths = ['python.exe',
+                      'Scripts/python.exe',
+                      'bin/python.exe']
+        exec_python = None
+        for p in exec_paths:
+            _exec_python = cj.Path(f'{sys.exec_prefix}/{p}')
+            if _exec_python.exists:
+                exec_python = _exec_python
+                break
+        assert exec_python is not None, 'Error to install dependences: Python executable not founded.'
+
+    else:
+        exec_python = sys.executable
+
+    return exec_python
+
+
 def install_if_not(lib_name: str):
-    from ..display import console
+    from cereja.display import console
 
     try:
         importlib.import_module(lib_name)
@@ -626,7 +646,7 @@ def install_if_not(lib_name: str):
     except ImportError:
         from ..system.commons import run_on_terminal
 
-        command_ = f"{sys.executable} -m pip install {lib_name}"
+        command_ = f'"{get_python_executable()}" -m pip install {lib_name}'
         output = run_on_terminal(command_)
     console.log(output)
 
@@ -719,7 +739,7 @@ if __name__ == '__main__':
     @property
     def _instance_obj_attrs(self):
         return filter(
-            lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
+                lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
         )
 
     def _get_attr_obj(self, attr_: str):
@@ -816,7 +836,7 @@ if __name__ == '__main__':
 
     def _valid_attr(self, attr_name: str):
         assert hasattr(
-            self._instance_obj, attr_name
+                self._instance_obj, attr_name
         ), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
         return attr_name
 
@@ -848,11 +868,11 @@ if __name__ == '__main__':
     @classmethod
     def _get_class_test(cls, ref):
         func_tests = "".join(
-            cls.__template_unittest_function.format(func_name=i)
-            for i in list_methods(ref)
+                cls.__template_unittest_function.format(func_name=i)
+                for i in list_methods(ref)
         )
         return cls.__template_unittest_class.format(
-            class_name=ref.__name__, func_tests=func_tests
+                class_name=ref.__name__, func_tests=func_tests
         )
 
     @classmethod
@@ -886,7 +906,7 @@ if __name__ == '__main__':
             module_func_test = "".join(module_func_test)
             tests = [
                         cls.__template_unittest_class.format(
-                            class_name="Module", func_tests=module_func_test
+                                class_name="Module", func_tests=module_func_test
                         )
                     ] + tests
         return cls.__template_unittest.format(tests="\n".join(tests))
@@ -1017,7 +1037,7 @@ def rescale_values(
             result = list(_rescale_down(values, granularity))
         else:
             result = list(
-                _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
+                    _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
             )
 
     assert (
@@ -1118,7 +1138,7 @@ def sort_dict(
 
 def list_to_tuple(obj):
     assert isinstance(
-        obj, (list, set, tuple)
+            obj, (list, set, tuple)
     ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     for i in obj:
@@ -1141,7 +1161,7 @@ def dict_values_len(obj, max_len=None, min_len=None, take_len=False):
 
 def dict_to_tuple(obj):
     assert isinstance(
-        obj, (dict, set)
+            obj, (dict, set)
     ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     if isinstance(obj, set):
@@ -1273,7 +1293,7 @@ def get_batch_strides(data, kernel_size, strides=1, fill_=True, take_index=False
             batches = batches[strides:]
     if len(batches):
         yield rescale_values(
-            batches, granularity=kernel_size, filling="post"
+                batches, granularity=kernel_size, filling="post"
         ) if fill_ else batches
 
 
