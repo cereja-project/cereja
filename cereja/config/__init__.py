@@ -7,4 +7,5 @@ from ._constants import (
     STOP_WORDS,
     DATA_UNIT_MAP,
     PROXIES_URL,
+    NUMBER_WORDS,
 )

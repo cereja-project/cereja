@@ -31,6 +31,7 @@ from ..config import (
     VALID_LANGUAGE_CHAR,
     LANGUAGES,
     STOP_WORDS,
+    NUMBER_WORDS
 )
 
 _NORMALIZE_VALUES = "".join(PUNCTUATION)
@@ -51,45 +52,29 @@ def split_by_punct(text: str, punct: str = '.!?') -> list:
     return texts
 
 
-def decimal_por_extenso(extenso):
-    unidades = {
-        'um': 1, 'dois': 2, 'três': 3, 'quatro': 4, 'cinco': 5, 'seis': 6, 'sete': 7, 'oito': 8, 'nove': 9,
-        'dez': 10, 'onze': 11, 'doze': 12, 'treze': 13, 'catorze': 14, 'quinze': 15, 'dezesseis': 16, 'dezessete': 17, 'dezoito': 18, 'dezenove': 19
-    }
-    dezenas = {
-        'dez': 10, 'vinte': 20, 'trinta': 30, 'quarenta': 40, 'cinquenta': 50, 'sessenta': 60, 'setenta': 70, 'oitenta': 80, 'noventa': 90
-    }
-    centenas = {
-        'cento': 100, 'duzentos': 200, 'trezentos': 300, 'quatrocentos': 400, 'quinhentos': 500, 'seiscentos': 600, 'setecentos': 700, 'oitocentos': 800, 'novecentos': 900
-    }
-    milhares = {
-        'mil': 1000, 'milhão': 1000000, 'bilhão': 1000000000, 'trilhão': 1000000000000, 'quatrilhão': 1000000000000000,
-        'quintilhão': 1000000000000000000, 'sextilhão': 1000000000000000000000
-        # Adicione mais valores para números maiores, se necessário
-    }
+def convert_spelled_to_number(text, lang='pt'):
+    words = NUMBER_WORDS.get(lang.lower())
+    if words is None:
+        raise ValueError("Unsupported language")
 
-    def por_extenso_para_decimal(extenso):
-        partes = extenso.split()
-        resultado = 0
-        soma_parcial = 0
-        for palavra in partes:
-            if palavra in unidades:
-                soma_parcial += unidades[palavra]
-            elif palavra in dezenas:
-                soma_parcial += dezenas[palavra]
-            elif palavra in centenas:
-                soma_parcial += centenas[palavra]
-            elif palavra in milhares:
-                resultado += soma_parcial * milhares[palavra]
-                soma_parcial = 0
-        resultado += soma_parcial
-        return resultado
+    text = text.replace(',', '')
+    text = text.replace(' e ', ' ')
+    text = text.replace('-', ' ')
 
-    extenso = extenso.replace('vírgula', '')  # Remover 'vírgula', caso esteja presente
-    extenso = extenso.replace(' e ', ' ')  # Remover ' e ' entre palavras
-    extenso = extenso.replace('-', ' ')  # Remover hífens, se houver
-
-    return por_extenso_para_decimal(extenso)
+    parts = text.split()
+    result = []
+    sum_values = []
+    for n, word in enumerate(parts, start=1):
+        if word in words:
+            sum_values.append(words[word])
+            if n == len(parts):
+                result.append(str(sum(sum_values)))
+            continue
+        if len(sum_values):
+            result.append(str(sum(sum_values)))
+            sum_values = []
+        result.append(word)
+    return ' '.join(result)
 
 
 def remove_delimited_text(text, delimiters: Sequence[Tuple[AnyStr, AnyStr]] = (("*", '*'), ("(", ")"), ("[", "]"))):
