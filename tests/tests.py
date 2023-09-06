@@ -97,6 +97,10 @@ class UtilsTestCase(unittest.TestCase):
         expected_value = [1, 2, 3, 2, [3], 4, 6]
         self.assertEqual(flatten(sequence, max_recursion=max_recursion), expected_value)
 
+        sequence = (1, 2, 3)
+        expected_value = [1, 2, 3]
+        self.assertEqual(flatten(sequence), expected_value)
+
     def test_is_sequence(self):
         sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
         self.assertTrue(is_sequence(sequence))
@@ -125,9 +129,9 @@ class UtilsTestCase(unittest.TestCase):
             shape_received = get_shape(seq)
             sequence_length = len(flatten(seq))
             self.assertEqual(
-                sequence_length,
-                prod(shape_received),
-                msg=f"array shape {shape_received} is inconsistent",
+                    sequence_length,
+                    prod(shape_received),
+                    msg=f"array shape {shape_received} is inconsistent",
             )
             self.assertEqual(shape_received, expected_shape)
 
@@ -165,8 +169,8 @@ class PathTest(unittest.TestCase):
         self.assertEqual(p_test.parts[-2:], ("con", "cat"))
         self.assertTrue(p == p_test)
         self.assertListEqual(
-            Path(__file__).parent.list_dir(only_name=True),
-            list(map(lambda x: x.rsplit(".")[0], os.listdir(Path(__file__).parent))),
+                Path(__file__).parent.list_dir(only_name=True),
+                list(map(lambda x: x.rsplit(".")[0], os.listdir(Path(__file__).parent))),
         )
 
         with TempDir() as tmp_dir:
@@ -185,12 +189,12 @@ class UnicodeToolTestCase(unittest.TestCase):
         # expected
         test_ = CjTest(instance_)
         test_.add_check(
-            test_.name == "CHERRIES",
-            test_.value == "\U0001F352",
-            test_.decimal == 127826,
-            test_.bin == "0b11111001101010010",
-            test_.hex == "0x1f352",
-            test_.oct == "0o371522",
+                test_.name == "CHERRIES",
+                test_.value == "\U0001F352",
+                test_.decimal == 127826,
+                test_.bin == "0b11111001101010010",
+                test_.hex == "0x1f352",
+                test_.oct == "0o371522",
         )
 
         test_.check_all()
@@ -216,79 +220,79 @@ class CorpusTestCase(unittest.TestCase):
         ]
 
         corpus = Corpus(
-            source_data=source, target_data=target, source_name="en", target_name="pt"
+                source_data=source, target_data=target, source_name="en", target_name="pt"
         )
         self.assertEqual(
-            str(corpus),
-            "Corpus(examples: 6 - source_vocab_size: 13 - target_vocab_size:15)",
+                str(corpus),
+                "Corpus(examples: 6 - source_vocab_size: 13 - target_vocab_size:15)",
         )
         self.assertEqual(
-            str(corpus.source), "LanguageData(examples: 6 - vocab_size: 13)"
+                str(corpus.source), "LanguageData(examples: 6 - vocab_size: 13)"
         )
         self.assertEqual(
-            str(corpus.target), "LanguageData(examples: 6 - vocab_size: 15)"
+                str(corpus.target), "LanguageData(examples: 6 - vocab_size: 15)"
         )
 
         self.assertDictEqual(
-            dict(corpus.source.phrases_freq.items()),
-            {
-                "how are you": 1,
-                "my name is joab": 1,
-                "i like coffee": 1,
-                "how are you joab": 1,
-                "how": 1,
-                "we are the world": 1,
-            },
+                dict(corpus.source.phrases_freq.items()),
+                {
+                    "how are you":      1,
+                    "my name is joab":  1,
+                    "i like coffee":    1,
+                    "how are you joab": 1,
+                    "how":              1,
+                    "we are the world": 1,
+                },
         )
 
         self.assertDictEqual(
-            dict(corpus.source.words_freq.items()),
-            {
-                "how": 3,
-                "are": 3,
-                "you": 2,
-                "joab": 2,
-                "my": 1,
-                "name": 1,
-                "is": 1,
-                "i": 1,
-                "like": 1,
-                "coffee": 1,
-                "we": 1,
-                "the": 1,
-                "world": 1,
-            },
+                dict(corpus.source.words_freq.items()),
+                {
+                    "how":    3,
+                    "are":    3,
+                    "you":    2,
+                    "joab":   2,
+                    "my":     1,
+                    "name":   1,
+                    "is":     1,
+                    "i":      1,
+                    "like":   1,
+                    "coffee": 1,
+                    "we":     1,
+                    "the":    1,
+                    "world":  1,
+                },
         )
         self.assertDictEqual(
-            dict(corpus.target.phrases_freq.items()),
-            {
-                "como você está": 1,
-                "meu nome é joab": 1,
-                "eu gosto de café": 1,
-                "como você está joab": 1,
-                "como": 1,
-                "nós somos o mundo": 1,
-            },
+                dict(corpus.target.phrases_freq.items()),
+                {
+                    "como você está":      1,
+                    "meu nome é joab":     1,
+                    "eu gosto de café":    1,
+                    "como você está joab": 1,
+                    "como":                1,
+                    "nós somos o mundo":   1,
+                },
         )
         self.assertDictEqual(
-            dict(corpus.target.words_freq.items()),
-            {
-                "como": 3,
-                "você": 2,
-                "está": 2,
-                "joab": 2,
-                "meu": 1,
-                "nome": 1,
-                "é": 1,
-                "eu": 1,
-                "gosto": 1,
-                "de": 1,
-                "café": 1,
-                "nós": 1,
-                "somos": 1,
-                "o": 1,
-                "mundo": 1,
-            },
+                dict(corpus.target.words_freq.items()),
+                {
+                    "como":  3,
+                    "você":  2,
+                    "está":  2,
+                    "joab":  2,
+                    "meu":   1,
+                    "nome":  1,
+                    "é":     1,
+                    "eu":    1,
+                    "gosto": 1,
+                    "de":    1,
+                    "café":  1,
+                    "nós":   1,
+                    "somos": 1,
+                    "o":     1,
+                    "mundo": 1,
+                },
         )
 
 
@@ -299,22 +303,22 @@ class ProgressTestCase:
 
         class MyCustomSate(State):
             def display(
-                self,
-                current_value: Number,
-                max_value: Number,
-                current_percent: Number,
-                time_it: Number,
-                n_times: int,
+                    self,
+                    current_value: Number,
+                    max_value: Number,
+                    current_percent: Number,
+                    time_it: Number,
+                    n_times: int,
             ) -> str:
                 return "RUNNING"
 
             def done(
-                self,
-                current_value: Number,
-                max_value: Number,
-                current_percent: Number,
-                time_it: Number,
-                n_times: int,
+                    self,
+                    current_value: Number,
+                    max_value: Number,
+                    current_percent: Number,
+                    time_it: Number,
+                    n_times: int,
             ) -> str:
                 return "FINISHED"
 
@@ -322,24 +326,24 @@ class ProgressTestCase:
         progress.add_state(state)
 
         progress_test.add_check(
-            progress_test.name == "Cereja Progress Test",
-            progress_test._awaiting_update == True,
-            progress_test._show == False,
-            progress_test.started_time == None,
-            progress_test._err == False,
-            progress_test._was_done == False,
-            progress_test._with_context == False,
+                progress_test.name == "Cereja Progress Test",
+                progress_test._awaiting_update == True,
+                progress_test._show == False,
+                progress_test.started_time == None,
+                progress_test._err == False,
+                progress_test._was_done == False,
+                progress_test._with_context == False,
         )
         progress_test.check_all()
 
         with Progress("p") as p:
             test_p = CjTest(p)
             test_p.add_check(
-                test_p.name == "p",
-                test_p._with_context == True,
-                test_p.started == True,
-                test_p._awaiting_update == True,
-                test_p.max_value == 100,
+                    test_p.name == "p",
+                    test_p._with_context == True,
+                    test_p.started == True,
+                    test_p._awaiting_update == True,
+                    test_p.max_value == 100,
             )
             test_p.check_all()
             time.sleep(3)
@@ -350,9 +354,9 @@ class ProgressTestCase:
                 time.sleep(1 / i)
                 if i == 1:
                     test_p.add_check(
-                        test_p._awaiting_update == False,
-                        test_p.max_value == 499,
-                        test_p._current_value == 2,
+                            test_p._awaiting_update == False,
+                            test_p.max_value == 499,
+                            test_p._current_value == 2,
                     )
                     test_p.check_all()
 
@@ -366,10 +370,10 @@ class ProgressTestCase:
 class LanguageDataTestCase(unittest.TestCase):
     def test_sanity(self):
         data = LanguageData(
-            ["how are you?", "I like it", "cereja", "cherry"], to_lower=True
+                ["how are you?", "I like it", "cereja", "cherry"], to_lower=True
         )
         self.assertEqual(
-            data.synergy(["how are you?", "I like it", "cereja", "cherry"]), 1
+                data.synergy(["how are you?", "I like it", "cereja", "cherry"]), 1
         )
         self.assertEqual(data.synergy(["how are you?", "I like it", "cereja"]), 0.889)
 
@@ -390,8 +394,8 @@ class HashToolsTestCase(unittest.TestCase):
             self.assertEqual(val, base64_decode(res, eval_str=True))
 
         self.assertEqual(
-            "fc4d5dcfe7146d09b7fbad980fb90797",
-            md5("set the alarm clock for seven of the clock ."),
+                "fc4d5dcfe7146d09b7fbad980fb90797",
+                md5("set the alarm clock for seven of the clock ."),
         )
 
 
