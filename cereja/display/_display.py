@@ -836,7 +836,7 @@ class Progress:
         else:
             _state_msg = " - ".join(self._get_state(**kwargs)) + extra_
             if self._err:
-                error_msg = f"Error! {self.__err_unicode}"
+                error_msg = f"Interrupted!"
                 error_msg = self._console.format(error_msg, "red")
                 _state_msg = f"{_state_msg} {error_msg}"
             elif self._iter_finaly:
@@ -1036,6 +1036,8 @@ class Progress:
             for n, obj in enumerate(self.sequence):
                 self._update_value(n + 1)
                 yield obj
+        except:
+            self._err = True
         finally:
             if self._is_generator:
                 self.update_max_value(self._current_value)
@@ -1043,7 +1045,6 @@ class Progress:
             if not self._with_context:
                 self.stop()
             self._iter_finaly = True
-
             self._show_progress(self._current_value)
 
         self._console.set_prefix(self.name)
