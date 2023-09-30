@@ -394,6 +394,10 @@ class UtilsTest(unittest.TestCase):
 
         self.assertDictEqual(my_dict, {"key_eg": [1, 2, 3, 4, 5, 6, [1, 2]]})
 
+        my_dict = {}
+        utils.dict_append(my_dict, "key_eg", 1, 2, 3, 4, 5, 6, 5, unique_values=True)
+        self.assertDictEqual(my_dict, {"key_eg": [1, 2, 3, 4, 5, 6]})
+
     def test_to_tuple(self):
         data = [
             [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],

@@ -27,7 +27,7 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView
+from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable
 import logging
 import itertools
 from copy import copy
@@ -82,7 +82,8 @@ __all__ = [
     "get_batch_strides",
     "Thread",
     "prune_values",
-    "split_sequence"
+    "split_sequence",
+    "has_length"
 ]
 
 logger = logging.getLogger(__name__)
@@ -280,7 +281,7 @@ def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys
         if isinstance(data, list):
             if n:
                 return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler + \
-                       [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[-n:]]
+                    [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[-n:]]
             return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler
         elif isinstance(data, set):
             if n:
@@ -1089,6 +1090,14 @@ def is_iterable(obj: Any) -> bool:
     return True
 
 
+def has_length(seq):
+    try:
+        _ = len(seq)
+        return True
+    except TypeError:
+        return False
+
+
 def is_sequence(obj: Any) -> bool:
     """
     Return whether an object a Sequence or not, exclude strings and empty obj.
@@ -1183,29 +1192,36 @@ def to_tuple(obj):
     return tuple(obj)
 
 
-def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
+def dict_append(obj: Dict[Any, Union[List, Tuple]],
+                key: Any,
+                *v,
+                unique_values: bool = False,
+                sort_values_by: Optional[Callable] = None,
+                reverse: bool = False) -> Dict:
     """
-    Add items to a key, if the key is not in the dictionary it will be created with a list and the value sent.
+    Add items to a key in the dictionary. If the key doesn't exist, it's created with a list and the given values.
 
     e.g:
 
-    >>> import cereja as cj
     >>> my_dict = {}
-    >>> cj.utils.dict_append(my_dict, 'key_eg', 1,2,3,4,5,6)
+    >>> dict_append(my_dict, 'key_eg', 1,2,3,4,5,6)
     {'key_eg': [1, 2, 3, 4, 5, 6]}
-    >>> cj.utils.dict_append(my_dict, 'key_eg', [1,2])
+    >>> dict_append(my_dict, 'key_eg', [1,2])
     {'key_eg': [1, 2, 3, 4, 5, 6, [1, 2]]}
 
-    @param obj: Any dict of list values
-    @param key: dict key
-    @param v: all values after key
-    @return:
-    """
-    assert isinstance(obj, dict), "Error on append values. Please send a dict object."
-    if key not in obj:
-        obj[key] = []
+    Parameters:
+    - obj: A dictionary with list or tuple values.
+    - key: The key to which the values should be added.
+    - v: The values to be added.
+    - unique_values: Whether to ensure the values are unique.
+    - sort_values_by: Optional function to sort the values.
+    - reverse: Used if sort_values_by is passed.
 
-    if not isinstance(obj[key], (list, tuple)):
+    Returns:
+    Updated dictionary.
+    """
+    """
+        if not isinstance(obj[key], (list, tuple)):
         obj[key] = [obj[key]]
     if isinstance(obj[key], tuple):
         obj[key] = (
@@ -1215,6 +1231,38 @@ def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
     else:
         for i in v:
             obj[key].append(i)
+    """
+
+    # Ensure we're working with a dictionary
+    if not isinstance(obj, dict):
+        raise TypeError("Error on append values. Please provide a dictionary object.")
+
+    # Append values to existing list or tuple, or create a new list if key doesn't exist
+    if key not in obj:
+        obj[key] = []
+
+    if not isinstance(obj[key], (list, tuple)):
+        obj[key] = [obj[key]]
+
+    if isinstance(obj[key], tuple):
+        obj[key] = obj[key] + tuple(v)
+    else:
+        obj[key].extend(v)
+
+    # Ensure unique values if requested
+    if unique_values:
+        if isinstance(obj[key], tuple):
+            obj[key] = tuple(sorted(set(obj[key]), key=obj[key].index))
+        else:
+            obj[key] = sorted(set(obj[key]), key=obj[key].index)
+
+    # Sort by given function if provided
+    if sort_values_by:
+        if isinstance(obj[key], tuple):
+            obj[key] = tuple(sorted(obj[key], key=sort_values_by, reverse=reverse))
+        else:
+            obj[key].sort(key=sort_values_by, reverse=reverse)
+
     return obj
 
 

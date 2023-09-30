@@ -31,6 +31,7 @@ from typing import List
 from abc import ABCMeta, abstractmethod
 from typing import Sequence, Any, Union, AnyStr
 
+from cereja import has_length
 from cereja.utils import is_iterable
 from cereja.config.cj_types import Number
 from cereja.system.unicode import Unicode
@@ -516,6 +517,8 @@ class _StateAwaiting(_StateLoading):
                         n_times=n_times,
                 )
         )
+        if kwargs.get("is_generator"):
+            return f"{time_format(time_it)} - Total: {current_value} - Processing{result}"
         return f"{time_format(time_it)} - Awaiting{result}"
 
     def done(
@@ -720,6 +723,7 @@ class Progress:
             custom_state_func=None,
             custom_state_name=None,
     ):
+        self._is_generator = False
         self._n_times = 0
         self._name = name or "Progress"
         self._task_count = 0
@@ -832,7 +836,7 @@ class Progress:
         else:
             _state_msg = " - ".join(self._get_state(**kwargs)) + extra_
             if self._err:
-                error_msg = f"Error! {self.__err_unicode}"
+                error_msg = f"Interrupted!"
                 error_msg = self._console.format(error_msg, "red")
                 _state_msg = f"{_state_msg} {error_msg}"
             elif self._iter_finaly:
@@ -909,7 +913,7 @@ class Progress:
                 n_times += 1
                 self._console.replace_last_msg(
                         self.__awaiting_state.display(
-                                0, 0, 0, time_it=self.time_it, n_times=n_times
+                                self._current_value, 0, 0, time_it=self.time_it, n_times=n_times, is_generator=self._is_generator
                         )
                 )
                 time.sleep(0.5)
@@ -926,7 +930,7 @@ class Progress:
         )
 
     def _update_value(self, value):
-        self._awaiting_update = False
+        self._awaiting_update = self._is_generator  # if is generator awaiting state is default.
         self._show = True
         self._current_value = value
 
@@ -1012,7 +1016,10 @@ class Progress:
     def __call__(self, sequence: Sequence, name=None) -> "Progress":
         if not is_iterable(sequence):
             raise ValueError("Send a sequence.")
-        self.update_max_value(len(sequence))
+        if has_length(sequence):
+            self.update_max_value(len(sequence))
+        else:
+            self._is_generator = True
         self.sequence = sequence
         if name is not None:
             self._console.set_prefix(f"{self.name}({name})")
@@ -1029,12 +1036,15 @@ class Progress:
             for n, obj in enumerate(self.sequence):
                 self._update_value(n + 1)
                 yield obj
+        except:
+            self._err = True
         finally:
-            self._iter_finaly = True
-
+            if self._is_generator:
+                self.update_max_value(self._current_value)
+            self._was_done = (self._current_value >= self._max_value) and not self._err
             if not self._with_context:
                 self.stop()
-            self._was_done = (self._current_value >= self._max_value) and not self._err
+            self._iter_finaly = True
             self._show_progress(self._current_value)
 
         self._console.set_prefix(self.name)

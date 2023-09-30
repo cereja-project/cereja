@@ -273,6 +273,8 @@ def flatten(
     """
     if isinstance(sequence, dict):
         sequence = list(dict_to_tuple(sequence))
+    elif isinstance(sequence, (tuple, set)):
+        sequence = list(sequence)
     else:
         assert is_sequence(sequence), f"Invalid value to sequence"
 
