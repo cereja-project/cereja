@@ -27,7 +27,7 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView
+from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable
 import logging
 import itertools
 from copy import copy
@@ -1183,38 +1183,62 @@ def to_tuple(obj):
     return tuple(obj)
 
 
-def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
+def dict_append(obj: Dict[Any, Union[List, Tuple]],
+                key: Any,
+                *v,
+                unique_values: bool = False,
+                sort_values_by: Optional[Callable] = None,
+                reverse: bool = False) -> Dict:
     """
-    Add items to a key, if the key is not in the dictionary it will be created with a list and the value sent.
+    Add items to a key in the dictionary. If the key doesn't exist, it's created with a list and the given values.
 
     e.g:
 
-    >>> import cereja as cj
     >>> my_dict = {}
-    >>> cj.utils.dict_append(my_dict, 'key_eg', 1,2,3,4,5,6)
+    >>> dict_append(my_dict, 'key_eg', 1,2,3,4,5,6)
     {'key_eg': [1, 2, 3, 4, 5, 6]}
-    >>> cj.utils.dict_append(my_dict, 'key_eg', [1,2])
+    >>> dict_append(my_dict, 'key_eg', [1,2])
     {'key_eg': [1, 2, 3, 4, 5, 6, [1, 2]]}
 
-    @param obj: Any dict of list values
-    @param key: dict key
-    @param v: all values after key
-    @return:
+    Parameters:
+    - obj: A dictionary with list or tuple values.
+    - key: The key to which the values should be added.
+    - v: The values to be added.
+    - unique_values: Whether to ensure the values are unique.
+    - sort_values_by: Optional function to sort the values.
+    - reverse: Used if sort_values_by is passed.
+
+    Returns:
+    Updated dictionary.
     """
-    assert isinstance(obj, dict), "Error on append values. Please send a dict object."
-    if key not in obj:
+
+    # Ensure we're working with a dictionary
+    if not isinstance(obj, dict):
+        raise TypeError("Error on append values. Please provide a dictionary object.")
+
+    # Append values to existing list or tuple, or create a new list if key doesn't exist
+    if key not in obj or not isinstance(obj[key], (list, tuple)):
         obj[key] = []
 
-    if not isinstance(obj[key], (list, tuple)):
-        obj[key] = [obj[key]]
     if isinstance(obj[key], tuple):
-        obj[key] = (
-            *obj[key],
-            *v,
-        )
+        obj[key] = obj[key] + tuple(v)
     else:
-        for i in v:
-            obj[key].append(i)
+        obj[key].extend(v)
+
+    # Ensure unique values if requested
+    if unique_values:
+        if isinstance(obj[key], tuple):
+            obj[key] = tuple(sorted(set(obj[key]), key=obj[key].index))
+        else:
+            obj[key] = sorted(set(obj[key]), key=obj[key].index)
+
+    # Sort by given function if provided
+    if sort_values_by:
+        if isinstance(obj[key], tuple):
+            obj[key] = tuple(sorted(obj[key], key=sort_values_by, reverse=reverse))
+        else:
+            obj[key].sort(key=sort_values_by, reverse=reverse)
+
     return obj
 
 
