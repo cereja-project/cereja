@@ -82,7 +82,8 @@ __all__ = [
     "get_batch_strides",
     "Thread",
     "prune_values",
-    "split_sequence"
+    "split_sequence",
+    "has_length"
 ]
 
 logger = logging.getLogger(__name__)
@@ -280,7 +281,7 @@ def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys
         if isinstance(data, list):
             if n:
                 return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler + \
-                       [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[-n:]]
+                    [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[-n:]]
             return [truncate(dt, k_iter, k_str, k_dict_keys) for dt in data[:(k_iter - n)]] + filler
         elif isinstance(data, set):
             if n:
@@ -1087,6 +1088,14 @@ def is_iterable(obj: Any) -> bool:
     except TypeError:
         return False
     return True
+
+
+def has_length(seq):
+    try:
+        _ = len(seq)
+        return True
+    except TypeError:
+        return False
 
 
 def is_sequence(obj: Any) -> bool:
