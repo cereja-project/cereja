@@ -1220,14 +1220,29 @@ def dict_append(obj: Dict[Any, Union[List, Tuple]],
     Returns:
     Updated dictionary.
     """
+    """
+        if not isinstance(obj[key], (list, tuple)):
+        obj[key] = [obj[key]]
+    if isinstance(obj[key], tuple):
+        obj[key] = (
+            *obj[key],
+            *v,
+        )
+    else:
+        for i in v:
+            obj[key].append(i)
+    """
 
     # Ensure we're working with a dictionary
     if not isinstance(obj, dict):
         raise TypeError("Error on append values. Please provide a dictionary object.")
 
     # Append values to existing list or tuple, or create a new list if key doesn't exist
-    if key not in obj or not isinstance(obj[key], (list, tuple)):
+    if key not in obj:
         obj[key] = []
+
+    if not isinstance(obj[key], (list, tuple)):
+        obj[key] = [obj[key]]
 
     if isinstance(obj[key], tuple):
         obj[key] = obj[key] + tuple(v)
