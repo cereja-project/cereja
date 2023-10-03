@@ -20,4 +20,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 from ._concurrence import TaskList, sync_to_async, async_to_sync
-from .process import ProcessSequence, Buffer
+from .process import MultiProcess
