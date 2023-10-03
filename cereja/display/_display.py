@@ -156,9 +156,9 @@ class _Stdout:
                 return
             self._stdout_original.write(msg)
             self._stdout_original.flush()
-        except UnicodeError:
+        except (UnicodeError, UnicodeEncodeError):
             msg = self.console.translate_non_bmp(msg)
-            self._stdout_original.write(msg)
+            self._stdout_original.write(msg.encode("ascii", errors="replace").decode())
             self._stdout_original.flush()
 
     def cj_msg(self, msg: str, line_sep=None, replace_last=False):
