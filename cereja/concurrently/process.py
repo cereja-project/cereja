@@ -30,13 +30,15 @@ class MultiProcess:
         self._terminate = False
         self._results = []
 
-    def execute(self, function, values):
+    def execute(self, function, values) -> list:
         """
         Execute the given function using multiple threads on the provided values.
 
         Args:
             function (Callable): The function to be executed.
             values (Iterable): A list or other iterable of values on which the function will be executed.
+
+        @return: ordered each given function returns
         """
         for indx, value in enumerate(
                 Progress.prog(values, custom_state_func=lambda: f'Threads Running: {self._active_threads}')):
