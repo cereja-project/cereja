@@ -42,7 +42,7 @@ class MultiProcess:
                 Progress.prog(values, custom_state_func=lambda: f'Threads Running: {self._active_threads}')):
             self.wait_for_available_thread()
             if self._terminate:
-                print("Terminating due to an exception in one of the threads.")
+                print("Terminating due to an exception in one of the threads. Returning processed data...")
                 break
             thread = threading.Thread(target=self._execute_function_thread, name=f'Thread-{indx}',
                                       args=(function, value, indx))
