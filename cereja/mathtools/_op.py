@@ -21,7 +21,7 @@ SOFTWARE.
 """
 import math
 from functools import reduce
-from typing import Tuple, Union
+from typing import Tuple, Union, Sequence
 
 from ..array import flatten, get_shape
 from ..utils import is_sequence, chunk
@@ -92,7 +92,7 @@ def pow_(x, y=2):
     return [math.pow(i, y) for i in x]
 
 
-def theta_angle(u: Tuple[float, float], v: Tuple[float, float], degrees=True) -> float:
+def theta_angle(u: Sequence[Number], v: Sequence[Number], degrees=True) -> float:
     """
     Calculates and returns theta angle between two vectors
 
@@ -103,10 +103,9 @@ def theta_angle(u: Tuple[float, float], v: Tuple[float, float], degrees=True) ->
     135.0
     """
     try:
-        acos = math.acos(
-                sum(an * vn for an, vn in zip(u, v))
-                / (math.sqrt(sum(pow_(u))) * math.sqrt(sum(pow_(v))))
-        )
+        cos_theta = sum(an * vn for an, vn in zip(u, v)) / (math.sqrt(sum(pow_(u))) * math.sqrt(sum(pow_(v))))
+
+        acos = math.acos(max(-1., min(1., cos_theta)))
     except ValueError:
         acos = float("NaN")
     return math.degrees(acos) if degrees else acos
