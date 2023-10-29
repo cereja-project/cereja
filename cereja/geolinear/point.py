@@ -117,7 +117,7 @@ class Point:
         Returns:
             float: The distance between the two points.
         """
-        return math.sqrt(sum((a - b) ** 2 for a, b in zip(self, other)))
+        return (self - other).magnitude
 
     def angle_theta(self, other: 'Point', degrees=False) -> float:
         """
@@ -128,12 +128,49 @@ class Point:
             degrees (bool): if true returns the angle in degrees, default is False.
 
         Returns:
-            float: The angle in radians.
+            float: The angle in radians or degress.
         """
+        other = Point(other)
         dot_product = self.dot(other)
         magnitudes_product = self.magnitude * other.magnitude
         acos = math.acos(max(-1., min(1., dot_product / magnitudes_product)))
         return math.degrees(acos) if degrees else acos
+
+    def rotate(self, angle: float, center=(0, 0, 0), axis: str = 'z') -> 'Point':
+        """
+        Rotates the point around the specified axis by the given angle.
+
+        Args:
+            angle (float): The rotation angle in degrees.
+            center (Point): The rotation origin.
+            axis (str, optional): The axis around which the point is rotated.
+                                  Can be 'x', 'y', or 'z'. Default is 'z'.
+
+        Returns:
+            Point: A new point representing the rotated position.
+        """
+        angle = math.radians(angle)  # Convert angle to radians
+
+        translated_point = self - center
+        if axis == 'z':
+            x_new = translated_point.x * math.cos(angle) - translated_point.y * math.sin(angle)
+            y_new = translated_point.x * math.sin(angle) + translated_point.y * math.cos(angle)
+            return Point(x_new, y_new, translated_point.z) + center
+
+        elif axis == 'y':
+            # Rotation around the Y axis
+            x_new = translated_point.x * math.cos(angle) + translated_point.z * math.sin(angle)
+            z_new = -translated_point.x * math.sin(angle) + translated_point.z * math.cos(angle)
+            return Point(x_new, translated_point.y, z_new) + center
+
+        elif axis == 'x':
+            # Rotation around the X axis
+            y_new = translated_point.y * math.cos(angle) - translated_point.z * math.sin(angle)
+            z_new = translated_point.y * math.sin(angle) + translated_point.z * math.cos(angle)
+            return Point(translated_point.x, y_new, z_new) + center
+
+        else:
+            raise ValueError(f"Invalid axis: {axis}. Axis should be 'x', 'y', or 'z'.")
 
     def __getitem__(self, item: Union[int, str]) -> Union[int, float]:
         """Allows indexing into the point to retrieve its coordinates."""
