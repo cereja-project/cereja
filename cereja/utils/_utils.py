@@ -83,12 +83,13 @@ __all__ = [
     "Thread",
     "prune_values",
     "split_sequence",
-    "has_length"
+    "has_length",
 ]
 
 logger = logging.getLogger(__name__)
 
 
+# TODO: Remove Thread class, check cereja.concurrently.process.MultiProcess implementation
 class Thread(threading.Thread):
     def __init__(
             self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
