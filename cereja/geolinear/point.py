@@ -136,6 +136,22 @@ class Point:
         acos = math.acos(max(-1., min(1., dot_product / magnitudes_product)))
         return math.degrees(acos) if degrees else acos
 
+    def rotation_angle(self, point, axis=0):
+        if self > point:
+            v1 = self - point
+        else:
+            v1 = point - self
+
+        if axis == 0:
+            v2 = Point(1, 0, 0)  # Horizontal
+        elif axis == 1:
+            v2 = Point(0, 1, 0)  # Vertical
+        else:
+            v2 = Point(0, 0, 1)  # depth
+
+        angle = v1.angle_theta(v2, True)
+        return angle
+
     def rotate(self, angle: float, center=(0, 0, 0), axis: str = 'z') -> 'Point':
         """
         Rotates the point around the specified axis by the given angle.
