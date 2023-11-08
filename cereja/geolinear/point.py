@@ -19,7 +19,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from typing import Union, Sequence
+from typing import Union, Sequence, Optional, Tuple
 import math
 
 __all__ = ["Point"]
@@ -36,8 +36,8 @@ class Point:
         _is_3d (bool): A private attribute indicating if the point is 3D.
     """
 
-    def __init__(self, x: Union['Point', Sequence, int, float], y: Union[int, float] = None,
-                 z: Union[int, float] = None):
+    def __init__(self, x: Union['Point', Sequence, float], y: Optional[float] = None,
+                 z: Optional[float] = None):
         """
         Initializes a Point object with x, y, and optionally z coordinates.
 
@@ -151,6 +151,45 @@ class Point:
 
         angle = v1.angle_theta(v2, True)
         return angle
+
+    def bounding_box(self, w: int, h: int, position: str = "center") -> Tuple['Point', 'Point', 'Point', 'Point']:
+        """
+        Calculate the coordinates of a bounding box based on the given width, height, and position relative to a point.
+
+        Args:
+            w (int): Width of the bounding box.
+            h (int): Height of the bounding box.
+            position (str, optional): Position of the bounding box relative to the point.
+                Valid positions: "center", "left-top", "left-bottom", "right_top", "right_bottom".
+                Defaults to "center".
+
+        Raises:
+            ValueError: Raised when an invalid position is provided.
+
+        Returns:
+            Tuple[Point, Point, Point, Point]: A tuple containing four Point instances representing the
+                coordinates of the bounding box in the order (start_x, start_y), (end_x, start_y),
+                (end_x, end_y), and (start_x, end_y).
+        """
+        match position:
+            case "center":
+                start_x, start_y = self.x - (w // 2), self.y - (h // 2)
+            case "left-top":
+                start_x, start_y = self.x, self.y
+            case "left-bottom":
+                start_x, start_y = self.x, self.y - (h // 2)
+            case "right_top":
+                start_x, start_y = self.x - w, self.y
+            case "right_bottom":
+                start_x, start_y = self.x - w, self.y - h
+            case _:
+                raise ValueError('Invalid position. Enter a valid position for the point. Valid positions: ('
+                                 '"center", "left-top", "left-bottom", "right_top", "right_bottom")')
+
+        end_x = start_x + w
+        end_y = start_y + h
+
+        return Point(start_x, start_y), Point(end_x, start_y), Point(end_x, end_y), Point(start_x, end_y)
 
     def rotate(self, angle: float, center=(0, 0, 0), axis: str = 'z') -> 'Point':
         """

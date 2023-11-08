@@ -14,6 +14,8 @@ class TestPoint(unittest.TestCase):
         self.p4 = Point(0, 0, 0)
         self.p5 = Point(self.p1)
 
+        self.point = Point(10, 20)
+
     def test_point_equality(self):
         """Test the equality comparison method."""
         self.assertEqual(self.p1, self.p2)
@@ -81,6 +83,21 @@ class TestPoint(unittest.TestCase):
         """Test scalar division."""
         result = self.p1 / 2
         self.assertEqual(result, Point(0.5, 1, 1.5))
+
+    def test_center_position(self):
+        # Testar a posição central da bounding box
+        bbox = self.point.bounding_box(4, 6, position="center")
+        self.assertEqual(bbox, (Point(8, 17), Point(12, 17), Point(12, 23), Point(8, 23)))
+
+    def test_left_top_position(self):
+        # Testar a posição left-top da bounding box
+        bbox = self.point.bounding_box(4, 6, position="left-top")
+        self.assertEqual(bbox, (Point(10, 20), Point(14, 20), Point(14, 26), Point(10, 26)))
+
+    def test_invalid_position(self):
+        # Testar posição inválida da bounding box
+        with self.assertRaises(ValueError):
+            self.point.bounding_box(4, 6, position="invalid_position")
 
 
 if __name__ == '__main__':
