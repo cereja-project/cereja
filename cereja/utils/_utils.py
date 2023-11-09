@@ -17,6 +17,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import ast
+import ctypes
 import gc
 import math
 import threading
@@ -84,6 +85,9 @@ __all__ = [
     "prune_values",
     "split_sequence",
     "has_length",
+    "combinations",
+    "combinations_sizes",
+    "value_from_memory"
 ]
 
 logger = logging.getLogger(__name__)
@@ -700,6 +704,28 @@ def combine_with_all(
     if is_random:
         random.shuffle(product_with_b)
     return product_with_b
+
+
+def value_from_memory(memory_id):
+    return ctypes.cast(memory_id, ctypes.py_object).value
+
+
+def combinations(iterable, size):
+    pool = tuple(set(map(id, iterable)))
+    n = len(pool)
+    combinations_result = []
+    for indices in itertools.permutations(range(n), size):
+        if sorted(indices) == list(indices):
+            combinations_result.append(tuple(value_from_memory(pool[i]) for i in indices))
+    return combinations_result
+
+
+def combinations_sizes(iterable, min_size, max_size):
+    res = []
+    for n in range(min_size, max_size + 1):
+        for i in combinations(iterable, size=n):
+            res.append(i)
+    return res
 
 
 class CjTest(object):
