@@ -30,7 +30,7 @@ class MultiProcess:
         self._terminate = False
         self._results = []
 
-    def execute(self, function, values) -> list:
+    def execute(self, function, values, args, kwargs) -> list:
         """
         Execute the given function using multiple threads on the provided values.
 
@@ -47,10 +47,11 @@ class MultiProcess:
                 print("Terminating due to an exception in one of the threads. Returning processed data...")
                 break
             thread = threading.Thread(target=self._execute_function_thread, name=f'Thread-{indx}',
-                                      args=(function, value, indx))
+                                      args=(function, value, indx, args[indx] if args else args, kwargs[indx] if kwargs else kwargs))
             with self._lock:
                 self._active_threads += 1
             thread.start()
+        self._terminate = False
         return self._get_results()
 
     def _get_results(self):
@@ -69,7 +70,7 @@ class MultiProcess:
             while self._active_threads >= self.max_threads:
                 self._thread_available.wait()
 
-    def _execute_function_thread(self, function, value, indx):
+    def _execute_function_thread(self, function, value, indx, args, kwargs):
         """
         Internal method to execute the function on the given value. Handles exceptions and manages the active thread count.
 
@@ -79,7 +80,11 @@ class MultiProcess:
         """
         try:
             if not self._terminate:
-                self._results.append((indx, function(value)))
+                if args or kwargs:
+                    self._results.append((indx, function(value, *args, **kwargs)))
+                else:
+                    self._results.append((indx, function(value)))
+
         except Exception as e:
             print(f"Error encountered in thread: {e}")
             self._terminate = True

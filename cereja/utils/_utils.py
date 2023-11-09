@@ -35,6 +35,7 @@ from copy import copy
 import inspect
 from pprint import pprint
 
+from .decorators import time_exec
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
 
@@ -710,20 +711,23 @@ def value_from_memory(memory_id):
     return ctypes.cast(memory_id, ctypes.py_object).value
 
 
-def combinations(iterable, size):
+def combinations(iterable, size, is_sorted=False):
     pool = tuple(set(map(id, iterable)))
     n = len(pool)
     combinations_result = []
     for indices in itertools.permutations(range(n), size):
         if sorted(indices) == list(indices):
-            combinations_result.append(tuple(value_from_memory(pool[i]) for i in indices))
+            if is_sorted:
+                combinations_result.append(tuple(sorted(value_from_memory(pool[i]) for i in indices)))
+            else:
+                combinations_result.append(tuple(value_from_memory(pool[i]) for i in indices))
     return combinations_result
 
 
-def combinations_sizes(iterable, min_size, max_size):
+def combinations_sizes(iterable, min_size, max_size, is_sorted=False):
     res = []
     for n in range(min_size, max_size + 1):
-        for i in combinations(iterable, size=n):
+        for i in combinations(iterable, size=n, is_sorted=is_sorted):
             res.append(i)
     return res
 
