@@ -506,13 +506,13 @@ class UtilsTest(unittest.TestCase):
         test_iterable = [3, 2, 1, 4]
         min_size = 2
         max_size = 3
-        expected_output = [(1, 3), (2, 3), (3, 4), (1, 2), (1, 4), (2, 4), (1, 2, 3), (1, 3, 4), (2, 3, 4), (1, 2, 4)]
+        expected_output = [(2, 3), (1, 3), (3, 4), (1, 2), (2, 4), (1, 4), (1, 2, 3), (2, 3, 4), (1, 3, 4), (1, 2, 4)]
         actual_output = utils.combinations_sizes(test_iterable, min_size, max_size, is_sorted=True)
         # Check if the output includes all combinations for sizes in the given range
         self.assertListEqual(actual_output, expected_output)
 
-        expected_output_unsorted = [(3, 1), (3, 2), (3, 4), (1, 2), (1, 4), (2, 4), (3, 1, 2), (3, 1, 4), (3, 2, 4),
-                                    (1, 2, 4)]
+        expected_output_unsorted = [(3, 2), (3, 1), (3, 4), (2, 1), (2, 4), (1, 4), (3, 2, 1), (3, 2, 4), (3, 1, 4),
+                                    (2, 1, 4)]
         actual_output = utils.combinations_sizes(test_iterable, min_size, max_size, is_sorted=False)
         # Check if the output includes all combinations for sizes in the given range
         self.assertListEqual(actual_output, expected_output_unsorted)

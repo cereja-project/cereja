@@ -38,6 +38,7 @@ from pprint import pprint
 from .decorators import time_exec
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
+from itertools import combinations as itertools_combinations
 
 __all__ = [
     "CjTest",
@@ -715,34 +716,54 @@ def value_from_memory(memory_id):
     memory_id (int): The memory address of the object.
 
     Returns:
-    object: The Python object stored at the given memory address.
+    object: The Python object stored at the given memory address, or None if the retrieval fails.
     """
-    return ctypes.cast(memory_id, ctypes.py_object).value
+    try:
+        return ctypes.cast(memory_id, ctypes.py_object).value
+    except (ValueError, ctypes.ArgumentError):
+        raise ValueError(f"Memory ID {memory_id} isn't valid.")
+
+
+def sort(iterable, reverse=False):
+    """
+    Sort a list that may contain a mix of different types including other lists or tuples.
+
+    Args:
+    iterable (list): A list which may contain mixed types.
+
+    Returns:
+    list: A sorted list.
+    """
+
+    def sort_key(elem):
+        """
+        A key function for sorting which handles elements of different types.
+        Converts the element to a string for comparison purposes.
+        """
+        if isinstance(elem, (list, tuple)):
+            return str([sort_key(e) for e in elem])
+        return str(elem)
+
+    return sorted(iterable, key=sort_key, reverse=reverse)
 
 
 def combinations(iterable, size, is_sorted=False):
     """
     Generate all possible combinations of a certain size from an iterable.
-    The combinations are generated using the unique object IDs to ensure distinctness.
 
     Args:
     iterable (iterable): An iterable of Python objects.
     size (int): The size of each combination.
-    is_sorted (bool, optional): If True, returns combinations in sorted order based on the values. Defaults to False.
 
     Returns:
     list of tuples: A list containing tuples of the combinations generated.
     """
-    pool = tuple(set(map(id, iterable)))
-    n = len(pool)
-    combinations_result = []
-    for indices in itertools.permutations(range(n), size):
-        if sorted(indices) == list(indices):
-            if is_sorted:
-                combinations_result.append(tuple(sorted(value_from_memory(pool[i]) for i in indices)))
-            else:
-                combinations_result.append(tuple(value_from_memory(pool[i]) for i in indices))
-    return combinations_result
+    if not is_sorted:
+        return list(itertools_combinations(iterable, size))
+    try:
+        return list(map(lambda x: tuple(sort(x)), itertools_combinations(iterable, size)))
+    except Exception as err:
+        raise Exception(f"Can't sort the pairs. {err}")
 
 
 def combinations_sizes(iterable, min_size, max_size, is_sorted=False):
@@ -753,15 +774,13 @@ def combinations_sizes(iterable, min_size, max_size, is_sorted=False):
     iterable (iterable): An iterable of Python objects.
     min_size (int): The minimum size of the combinations.
     max_size (int): The maximum size of the combinations.
-    is_sorted (bool, optional): If True, each combination is sorted. Defaults to False.
 
     Returns:
     list of tuples: A list containing tuples of all combinations for sizes between min_size and max_size.
     """
     res = []
     for n in range(min_size, max_size + 1):
-        for i in combinations(iterable, size=n, is_sorted=is_sorted):
-            res.append(i)
+        res.extend(combinations(iterable, n, is_sorted=is_sorted))
     return res
 
 
