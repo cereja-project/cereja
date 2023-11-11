@@ -171,20 +171,20 @@ class Point:
                 coordinates of the bounding box in the order (start_x, start_y), (end_x, start_y),
                 (end_x, end_y), and (start_x, end_y).
         """
-        match position:
-            case "center":
-                start_x, start_y = self.x - (w // 2), self.y - (h // 2)
-            case "left-top":
-                start_x, start_y = self.x, self.y
-            case "left-bottom":
-                start_x, start_y = self.x, self.y - (h // 2)
-            case "right_top":
-                start_x, start_y = self.x - w, self.y
-            case "right_bottom":
-                start_x, start_y = self.x - w, self.y - h
-            case _:
-                raise ValueError('Invalid position. Enter a valid position for the point. Valid positions: ('
-                                 '"center", "left-top", "left-bottom", "right_top", "right_bottom")')
+        position = position.lower().strip()
+        if position == "center":
+            start_x, start_y = self.x - (w // 2), self.y - (h // 2)
+        elif position == "left-top":
+            start_x, start_y = self.x, self.y
+        elif position == "left-bottom":
+            start_x, start_y = self.x, self.y - (h // 2)
+        elif position == "right_top":
+            start_x, start_y = self.x - w, self.y
+        elif position == "right_bottom":
+            start_x, start_y = self.x - w, self.y - h
+        else:
+            raise ValueError('Invalid position. Enter a valid position for the point. Valid positions: ('
+                             '"center", "left-top", "left-bottom", "right_top", "right_bottom")')
 
         end_x = start_x + w
         end_y = start_y + h
