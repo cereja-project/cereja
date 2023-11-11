@@ -708,10 +708,31 @@ def combine_with_all(
 
 
 def value_from_memory(memory_id):
+    """
+    Retrieve the Python object stored at a specific memory address.
+
+    Args:
+    memory_id (int): The memory address of the object.
+
+    Returns:
+    object: The Python object stored at the given memory address.
+    """
     return ctypes.cast(memory_id, ctypes.py_object).value
 
 
 def combinations(iterable, size, is_sorted=False):
+    """
+    Generate all possible combinations of a certain size from an iterable.
+    The combinations are generated using the unique object IDs to ensure distinctness.
+
+    Args:
+    iterable (iterable): An iterable of Python objects.
+    size (int): The size of each combination.
+    is_sorted (bool, optional): If True, returns combinations in sorted order based on the values. Defaults to False.
+
+    Returns:
+    list of tuples: A list containing tuples of the combinations generated.
+    """
     pool = tuple(set(map(id, iterable)))
     n = len(pool)
     combinations_result = []
@@ -725,6 +746,18 @@ def combinations(iterable, size, is_sorted=False):
 
 
 def combinations_sizes(iterable, min_size, max_size, is_sorted=False):
+    """
+    Generate all possible combinations for all sizes within the specified range from an iterable.
+
+    Args:
+    iterable (iterable): An iterable of Python objects.
+    min_size (int): The minimum size of the combinations.
+    max_size (int): The maximum size of the combinations.
+    is_sorted (bool, optional): If True, each combination is sorted. Defaults to False.
+
+    Returns:
+    list of tuples: A list containing tuples of all combinations for sizes between min_size and max_size.
+    """
     res = []
     for n in range(min_size, max_size + 1):
         for i in combinations(iterable, size=n, is_sorted=is_sorted):

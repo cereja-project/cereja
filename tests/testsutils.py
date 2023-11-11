@@ -484,6 +484,39 @@ class UtilsTest(unittest.TestCase):
                     expected,
             )
 
+    def test_value_from_memory(self):
+        # Create a test object
+        test_object = "Hello, world!"
+        # Get the memory ID of the object
+        memory_id = id(test_object)
+        # Retrieve the object from memory
+        retrieved_object = utils.value_from_memory(memory_id)
+        # Check if the retrieved object is the same as the original
+        self.assertEqual(retrieved_object, test_object)
+
+    def test_combinations(self):
+        test_iterable = [1, 2, 3]
+        size = 2
+        expected_output = [(1, 2), (1, 3), (2, 3)]
+        actual_output = utils.combinations(test_iterable, size)
+        # Check if the output matches the expected combinations
+        self.assertListEqual(sorted(actual_output), sorted(expected_output))
+
+    def test_combinations_sizes(self):
+        test_iterable = [3, 2, 1, 4]
+        min_size = 2
+        max_size = 3
+        expected_output = [(1, 3), (2, 3), (3, 4), (1, 2), (1, 4), (2, 4), (1, 2, 3), (1, 3, 4), (2, 3, 4), (1, 2, 4)]
+        actual_output = utils.combinations_sizes(test_iterable, min_size, max_size, is_sorted=True)
+        # Check if the output includes all combinations for sizes in the given range
+        self.assertListEqual(actual_output, expected_output)
+
+        expected_output_unsorted = [(3, 1), (3, 2), (3, 4), (1, 2), (1, 4), (2, 4), (3, 1, 2), (3, 1, 4), (3, 2, 4),
+                                    (1, 2, 4)]
+        actual_output = utils.combinations_sizes(test_iterable, min_size, max_size, is_sorted=False)
+        # Check if the output includes all combinations for sizes in the given range
+        self.assertListEqual(actual_output, expected_output_unsorted)
+
 
 class CjTestTest(unittest.TestCase):
     def test_add_check(self):
