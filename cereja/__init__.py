@@ -20,6 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from . import geolinear
 from .config import conf
 from .utils import *
 from . import utils
@@ -46,7 +47,7 @@ from .mathtools import *
 from . import experimental
 from ._requests import request
 
-VERSION = "1.9.1.final.0"
+VERSION = "1.9.2.final.0"
 __version__ = get_version_pep440_compliant(VERSION)
 
 

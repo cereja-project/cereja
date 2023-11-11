@@ -17,6 +17,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import ast
+import ctypes
 import gc
 import math
 import threading
@@ -34,8 +35,10 @@ from copy import copy
 import inspect
 from pprint import pprint
 
+from .decorators import time_exec
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
+from itertools import combinations as itertools_combinations
 
 __all__ = [
     "CjTest",
@@ -83,12 +86,16 @@ __all__ = [
     "Thread",
     "prune_values",
     "split_sequence",
-    "has_length"
+    "has_length",
+    "combinations",
+    "combinations_sizes",
+    "value_from_memory"
 ]
 
 logger = logging.getLogger(__name__)
 
 
+# TODO: Remove Thread class, check cereja.concurrently.process.MultiProcess implementation
 class Thread(threading.Thread):
     def __init__(
             self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
@@ -699,6 +706,82 @@ def combine_with_all(
     if is_random:
         random.shuffle(product_with_b)
     return product_with_b
+
+
+def value_from_memory(memory_id):
+    """
+    Retrieve the Python object stored at a specific memory address.
+
+    Args:
+    memory_id (int): The memory address of the object.
+
+    Returns:
+    object: The Python object stored at the given memory address, or None if the retrieval fails.
+    """
+    try:
+        return ctypes.cast(memory_id, ctypes.py_object).value
+    except (ValueError, ctypes.ArgumentError):
+        raise ValueError(f"Memory ID {memory_id} isn't valid.")
+
+
+def sort(iterable, reverse=False):
+    """
+    Sort a list that may contain a mix of different types including other lists or tuples.
+
+    Args:
+    iterable (list): A list which may contain mixed types.
+
+    Returns:
+    list: A sorted list.
+    """
+
+    def sort_key(elem):
+        """
+        A key function for sorting which handles elements of different types.
+        Converts the element to a string for comparison purposes.
+        """
+        if isinstance(elem, (list, tuple)):
+            return str([sort_key(e) for e in elem])
+        return str(elem)
+
+    return sorted(iterable, key=sort_key, reverse=reverse)
+
+
+def combinations(iterable, size, is_sorted=False):
+    """
+    Generate all possible combinations of a certain size from an iterable.
+
+    Args:
+    iterable (iterable): An iterable of Python objects.
+    size (int): The size of each combination.
+
+    Returns:
+    list of tuples: A list containing tuples of the combinations generated.
+    """
+    if not is_sorted:
+        return list(itertools_combinations(iterable, size))
+    try:
+        return list(map(lambda x: tuple(sort(x)), itertools_combinations(iterable, size)))
+    except Exception as err:
+        raise Exception(f"Can't sort the pairs. {err}")
+
+
+def combinations_sizes(iterable, min_size, max_size, is_sorted=False):
+    """
+    Generate all possible combinations for all sizes within the specified range from an iterable.
+
+    Args:
+    iterable (iterable): An iterable of Python objects.
+    min_size (int): The minimum size of the combinations.
+    max_size (int): The maximum size of the combinations.
+
+    Returns:
+    list of tuples: A list containing tuples of all combinations for sizes between min_size and max_size.
+    """
+    res = []
+    for n in range(min_size, max_size + 1):
+        res.extend(combinations(iterable, n, is_sorted=is_sorted))
+    return res
 
 
 class CjTest(object):
