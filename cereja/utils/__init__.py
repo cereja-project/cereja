@@ -22,3 +22,5 @@ SOFTWARE.
 from .version import *
 from ._utils import *
 from . import colab
+# Aliases here
+from ._utils import get_batch_strides as stride_values
