@@ -492,7 +492,7 @@ def invert_dict(dict_: Union[dict, set]) -> dict:
     return new_dict
 
 
-def group_by(values, fn) -> dict:
+def group_by(values, fn, get_freq: bool = False) -> Union[dict, Tuple[dict, dict]]:
     """
     group items by result of fn (function)
 
@@ -501,14 +501,22 @@ def group_by(values, fn) -> dict:
     >>> values = ['joab', 'leite', 'da', 'silva', 'Neto', 'você']
     >>> cj.group_by(values, lambda x: 'N' if x.lower().startswith('n') else 'OTHER')
     # {'OTHER': ['joab', 'leite', 'da', 'silva', 'você'], 'N': ['Neto']}
+    >>> cj.group_by(values, lambda x: 'N' if x.lower().startswith('n') else 'OTHER', get_freq=True)
+    # ({'OTHER': ['joab', 'leite', 'da', 'silva', 'você'], 'N': ['Neto']},
+    #  {'OTHER': 5, 'N': 1})
 
     @param values: list of values
     @param fn: a function
+    @param get_freq: if True, returns a tuple containing the main result of the function followed by the frequency
+    distribution of the groups, respectively
     """
     d = defaultdict(list)
     for el in values:
         d[fn(el)].append(el)
-    return dict(d)
+
+    d = dict(d)
+    result = (d, dict(map(lambda t: (t[0], len(t[1])), d.items()))) if get_freq else d
+    return result
 
 
 def import_string(dotted_path):
