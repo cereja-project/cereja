@@ -1172,13 +1172,16 @@ def is_iterable(obj: Any) -> bool:
     """
     Return whether an object is iterable or not.
 
-    :param obj: Any object for check
+    This function checks if the object has an __iter__ method or supports
+    sequence-like indexing via __getitem__.
+
+    Parameters:
+    obj (Any): Any object to check for iterability.
+
+    Returns:
+    bool: True if the object is iterable, False otherwise.
     """
-    try:
-        iter(obj)
-    except TypeError:
-        return False
-    return True
+    return hasattr(obj, '__iter__') or hasattr(obj, '__getitem__')
 
 
 def has_length(seq):
