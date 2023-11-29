@@ -51,7 +51,7 @@ class Point:
 
         try:
             if y is None:
-                if len(x) in [2, 3] and sum(x) >= 0:
+                if len(x) in [2, 3]:
                     x, y, z = (*x, z) if len(x) == 2 else x
             elif not (isinstance(x, (int, float))
                       and isinstance(y, (int, float))
@@ -137,10 +137,13 @@ class Point:
         return math.degrees(acos) if degrees else acos
 
     def rotation_angle(self, point, axis=0):
-        if self > point:
-            v1 = self - point
-        else:
-            v1 = point - self
+        """
+        Creates vector v1 = self - point and calculates the angle of v1 with respect to an axis (x, y or z)
+        @param point: Another point
+        @param axis: x, y or z
+        @return: Degrees
+        """
+        v1 = self - point
 
         if axis == 0:
             v2 = Point(1, 0, 0)  # Horizontal

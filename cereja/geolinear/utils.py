@@ -9,6 +9,7 @@ class Rotation:
     __axis_map = {0: "x", 1: "y", 2: "z"}
 
     def __init__(self, degrees: Union[int, float]):
+        self._degress = degrees
         self._angle_rad = math.radians(degrees)
         self._cos_angle = math.cos(self._angle_rad)
         self._sin_angle = math.sin(self._angle_rad)
@@ -16,6 +17,9 @@ class Rotation:
         self._rot_y = [[self._cos_angle, 0, self._sin_angle], [0, 1, 0], [-self._sin_angle, 0, self._cos_angle]]
         self._rot_z = [[self._cos_angle, -self._sin_angle, 0], [self._sin_angle, self._cos_angle, 0], [0, 0, 1]]
         self._rot_2d = [[self._cos_angle, -self._sin_angle], [self._sin_angle, self._cos_angle]]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._degress}°)"
 
     @property
     def rot_3d_x(self):
