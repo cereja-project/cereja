@@ -35,7 +35,7 @@ from copy import copy
 import inspect
 from pprint import pprint
 
-from .decorators import time_exec
+from .decorators import time_exec, depreciation
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
 from itertools import combinations as itertools_combinations
@@ -43,6 +43,8 @@ from itertools import combinations as itertools_combinations
 __all__ = [
     "CjTest",
     "camel_to_snake",
+    "camel_case_to_snake",
+    "snake_case_to_camel",
     "combine_with_all",
     "fill",
     "get_attr_if_exists",
@@ -420,13 +422,35 @@ def type_table_of(o: Union[list, tuple, dict]):
     return type_table
 
 
-def camel_to_snake(value: str):
+def camel_case_to_snake(value: str):
     snaked_ = []
     for i, char in enumerate(value):
         if not i == 0 and char.isupper():
             char = f"_{char}"
         snaked_.append(char)
     return "".join(snaked_).lower()
+
+
+@depreciation(alternative="camel_case_to_snake")
+def camel_to_snake(value: str):
+    return camel_case_to_snake(value)
+
+
+def camel_case(value: str, sep: Union[str, None] = None, upper_first=False):
+    if sep is None:
+        sep = [" "]
+    elif isinstance(sep, (str, int, float)):
+        sep = [str(sep)]
+    value = value.lower().title()
+    for sp in sep:
+        value = value.replace(sp, '')
+    if upper_first:
+        return value
+    return value[0].lower() + value[1:]
+
+
+def snake_case_to_camel(value, upper_first=False):
+    return camel_case(value, sep="_", upper_first=upper_first)
 
 
 def get_implements(klass: type):
