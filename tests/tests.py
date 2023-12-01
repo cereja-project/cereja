@@ -27,7 +27,6 @@ import unittest
 import logging
 
 from cereja.array import (
-    group_items_in_batches,
     remove_duplicate_items,
     flatten,
     array_gen,

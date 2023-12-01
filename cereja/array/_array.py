@@ -38,8 +38,6 @@ __all__ = [
     "flatten",
     "get_cols",
     "get_shape",
-    "get_shape_recursive",
-    "group_items_in_batches",
     "is_empty",
     "rand_n",
     "rand_uniform",
@@ -55,18 +53,19 @@ __all__ = [
 ]
 
 from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, dict_to_tuple
-from ..utils.decorators import depreciation, time_exec
+from ..utils.decorators import time_exec
 
 logger = logging.getLogger(__name__)
 
 
 def shape_is_ok(
-        sequence: Union[Sequence[Any], Any], expected_shape: Tuple[int, ...]
+        sequence: Union[Sequence[Any], Any]
 ) -> bool:
     """
     Check the number of items the array has and compare it with the shape product
     """
     try:
+        expected_shape = get_shape(sequence)
         sequence_len = len(flatten(sequence))
     except Exception as err:
         logger.debug(f"Error when trying to compare shapes. {err}")
@@ -83,42 +82,28 @@ def is_empty(sequence: Sequence) -> bool:
     return False
 
 
-def get_shape(sequence: Sequence[Any]) -> Tuple[Union[int, None], ...]:
+def get_shape(sequence: Sequence) -> Tuple[Union[int, None], ...]:
     """
-    Responsible for analyzing the depth of a sequence
+    Get the shape (dimensions and sizes) of a nested sequence (like a list or tuple).
 
-    :param sequence: Is sequence of values.
-    :return: number of dimensions
+    If the sequence is empty or not uniform (e.g., sub-sequences have different lengths),
+    returns None for the dimension(s) where uniformity breaks.
+
+    Parameters:
+    sequence (Sequence): A sequence of values, possibly nested.
+
+    Returns:
+    Tuple[Union[int, None], ...]: A tuple representing the size of each dimension of the sequence.
     """
-    if is_empty(sequence):
+    if not sequence if not type(sequence).__name__ == "ndarray" else len(sequence) == 0:
         return (None,)
-    wkij = []
-    while True:
-        if is_sequence(sequence) and not is_empty(sequence):
-            wkij.append(len(sequence))
-            sequence = sequence[0]
-            continue
-        break
-    return tuple(wkij)
 
+    shape = []
+    while is_sequence(sequence) and not is_empty(sequence):
+        shape.append(len(sequence))
+        sequence = sequence[0] if len(sequence) else None
 
-def get_shape_recursive(
-        sequence: Sequence[Any], wki: Tuple[int, ...] = None
-) -> Tuple[int, ...]:
-    """
-    [!] Never use recursion in python if it is possible to exceed 997 calls [!]
-
-    [!] Function for teaching purposes [!]
-
-    :param sequence: Is sequence of values.
-    :param wki: stores value for each dimension
-    """
-    if wki is None:
-        wki = []
-    if is_sequence(sequence):
-        wki += [len(sequence)]
-        return get_shape_recursive(sequence[0], wki)
-    return tuple(wki)
+    return tuple(shape)
 
 
 def reshape(sequence: Sequence, shape):
@@ -162,7 +147,7 @@ def array_gen(
 
     is_seq = is_sequence(v)
 
-    allow_reshape = shape_is_ok(v, shape) and is_seq
+    allow_reshape = shape_is_ok(v) and is_seq
 
     if not is_seq:
         v = [v if v else 0.0]
@@ -401,29 +386,6 @@ def array_randn(shape: Tuple[int, ...], *args, **kwargs) -> List[Union[float, An
     return array_gen(shape=shape, v=rand_n_values)
 
 
-@depreciation(alternative="cereja.utils.chunk")
-def group_items_in_batches(
-        items: List[Any], items_per_batch: int = 0, fill: Any = None
-) -> List[List[Any]]:
-    """
-    Responsible for grouping items in batch taking into account the quantity of items per batch
-
-    e.g.
-    >>> group_items_in_batches(items=[1,2,3,4], items_per_batch=3)
-    [[1, 2, 3], [4]]
-    >>> group_items_in_batches(items=[1,2,3,4], items_per_batch=3, fill=0)
-    [[1, 2, 3], [4, 0, 0]]
-
-    :param items: list of any values
-    :param items_per_batch: number of items per batch
-    :param fill: fill examples when items is not divisible by items_per_batch, default is None
-    :return:
-    """
-    from cereja.utils import chunk
-
-    return chunk(data=items, batch_size=items_per_batch, fill_with=fill)
-
-
 def remove_duplicate_items(items: Optional[list]) -> Any:
     """
     remove duplicate items in an item list or duplicate items list of list
@@ -455,22 +417,29 @@ def get_cols(sequence: Union[Sequence, "Matrix"]):
     return list(zip(*sequence))
 
 
-def prod(sequence: Sequence[Number]) -> Number:
+def prod(sequence: Sequence[Number], start=1) -> Number:
     """
-    Calculates the product of the values.
+    Calculate the product of all the elements in the input iterable.
+
+    The default start value for the product is 1.
 
     This function is intended specifically for use with numeric values and may
     reject non-numeric types.
 
     :param sequence: Is a sequence of numbers.
+    :param start: is a number
     :return:
     """
+    if hasattr(math, "prod"):
+        # New in Python 3.8
+        return math.prod(sequence, start=start)
+    # alternative for Python < 3.8
     if not is_sequence(sequence):
         raise TypeError(
                 f"Value of {sequence} is not valid. Please send a numeric list."
         )
 
-    return reduce((lambda x, y: x * y), sequence)
+    return reduce((lambda x, y: x * y), [start, *sequence])
 
 
 def sub(sequence: Sequence[Number]) -> Number:
