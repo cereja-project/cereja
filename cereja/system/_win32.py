@@ -398,6 +398,19 @@ class Window:
         SetWindowPos(self.hwnd, 0, left, top, width, height, 0)
 
     @property
+    def dimensions_window_content(self):
+        client_rect = wintypes.RECT()
+        ctypes.windll.user32.GetClientRect(self.hwnd, ctypes.byref(client_rect))
+        return client_rect.left, client_rect.top, client_rect.right, client_rect.bottom
+
+    @property
+    def size_window_content(self):
+        left, top, right, bottom = self.dimensions_window_content
+        width = right - left
+        height = bottom - top
+        return width, height
+
+    @property
     def size(self):
         left, top, right, bottom = self.dimensions
         width = right - left
@@ -429,22 +442,25 @@ class Window:
         else:
             return "Normal"
 
-    def capture_image_bmp(self, filepath=None):
+    def capture_image_bmp(self, filepath=None, only_window_content=True):
         # Obtenha o DC da janela e crie um DC compatível
         window_dc = GetWindowDC(self.hwnd)
         mem_dc = CreateCompatibleDC(window_dc)
 
         # Obtenha as dimensões
         left, top, right, bottom = self.dimensions
-        width = right - left
-        height = bottom - top
+        if only_window_content:
+            width, height = self.size_window_content
+        else:
+            width = right - left
+            height = bottom - top
 
         # Crie um bitmap compatível e selecione-o no DC compatível
         screenshot = CreateCompatibleBitmap(window_dc, width, height)
         SelectObject(mem_dc, screenshot)
 
         # Copie o conteúdo da janela
-        PrintWindow(self.hwnd, mem_dc, 0)
+        PrintWindow(self.hwnd, mem_dc, int(only_window_content))
 
         # Cria uma imagem em memória a partir do bitmap capturado
         bitmap_info = BITMAPINFO()
