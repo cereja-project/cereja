@@ -213,6 +213,12 @@ class Mouse:
     def click_right(self, position: Tuple[int, int] = None, n_clicks=1):
         self._click("right", position=position, n_clicks=n_clicks)
 
+    def drag_to(self, from_, to):
+        self.set_position(from_[0], from_[1])
+        self.user32.mouse_event(self._button_envent_map["left_down"], from_[0], from_[1], 0, 0)
+        self.set_position(to[0], to[1])
+        self.user32.mouse_event(self._button_envent_map["left_up"], to[0], to[1], 0, 0)
+
     def move_to_center(self):
         self.set_position(*self.center_position)
 
