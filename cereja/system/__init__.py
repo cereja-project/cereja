@@ -22,3 +22,8 @@ SOFTWARE.
 
 from ._path import *
 from ..system.commons import *
+
+try:
+    from ._win32 import Window, Keyboard, Mouse
+except ImportError as err:
+    pass
