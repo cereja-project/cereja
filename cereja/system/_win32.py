@@ -238,6 +238,7 @@ PostMessage = user32.PostMessageW
 IsIconic = user32.IsIconic
 IsZoomed = user32.IsZoomed
 GetWindowDC = user32.GetWindowDC
+GetForegroundWindow = user32.GetForegroundWindow
 ReleaseDC = user32.ReleaseDC
 PrintWindow = user32.PrintWindow
 CreateCompatibleDC = ctypes.windll.gdi32.CreateCompatibleDC
@@ -377,6 +378,10 @@ class Window:
         Encontra janelas com o nome
         """
         return list(filter(lambda window: text.lower().strip() in window.title.lower(), cls.get_all_windows()))
+
+    @classmethod
+    def get_foreground_window(cls):
+        return cls(GetForegroundWindow())
 
     @property
     def dimensions(self):
