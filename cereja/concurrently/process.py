@@ -1,100 +1,90 @@
 import threading
-import time
-from collections import OrderedDict
-
 from .. import Progress
-from ..utils.decorators import synchronized
 
-__all__ = ["Buffer", "ProcessSequence"]
-
-
-class Buffer:
-    def __init__(self, data, size: int, stride=None, take_index=False):
-        self._size = size
-        self._total_taked = 0
-        self._data = iter(data)
-        self._take_index = take_index
-        self._stride = stride or size
-
-    def __iter__(self):
-        batch = []
-
-        while True:
-            try:
-                item = next(self._data)
-                self._total_taked += 1
-                batch.append(
-                        item if not self._take_index else [self._total_taked - 1, item]
-                )
-                if len(batch) == self._size:
-                    yield batch
-                    batch = batch[self._stride:]
-            except StopIteration:
-                if batch:
-                    yield batch
-                break
+__all__ = ["MultiProcess"]
 
 
-class ProcessSequence:
-    def __init__(self, func, num_workers: int = 1, args=None, kwargs=None):
-        self._num_workers = num_workers
-        self._args = args or ()
-        self._kwargs = kwargs or {}
-        self._func = func
-        self._workers = []
-        self._running = False
-        self._result = OrderedDict()
+class MultiProcess:
+    """
+    MultiProcess is a utility class designed to execute a given function in parallel using multiple threads.
 
-    @synchronized
-    def __func(self, buffer):
-        for idx, item in buffer:
-            self._result[idx] = self._func(item, *self._args, **self._kwargs)
+    Attributes:
+        max_threads (int): Maximum number of threads to be used for parallel processing.
+        _active_threads (int): The number of currently running threads.
+        _lock (threading.Lock): A lock to manage access to shared resources.
+        _thread_available (threading.Condition): A condition variable associated with `lock` to manage thread synchronization.
+        _terminate (bool): A flag indicating if the thread execution should be terminated prematurely.
+    """
 
-    def __call__(self, data):
-        assert self._running is False, "Process is already running"
-        self._running = True
-        for buffer in Buffer(data, self._num_workers, take_index=True):
-            worker = threading.Thread(target=self.__func, args=(buffer,))
-            worker.start()
-            self._workers.append(worker)
-        for worker in self._workers:
-            worker.join()
-        result = list(self._result.values())
-        self._workers = []
-        self._result = OrderedDict()
-        self._running = False
-        return result
+    def __init__(self, max_threads: int):
+        """
+        Initializes a new instance of the MultiProcess class.
 
-
-class ThreadController:
-    def __init__(self, max_threads):
+        Args:
+            max_threads (int): The maximum number of threads to be used.
+        """
         self.max_threads = max_threads
-        self.active_threads = 0
-        self.lock = threading.Lock()
-        self.terminate = False
-        self._threads = {}
+        self._active_threads = 0
+        self._lock = threading.Lock()
+        self._thread_available = threading.Condition(self._lock)
+        self._terminate = False
+        self._results = []
 
-    def execute_function(self, function, values):
-        for indx, value in enumerate(Progress.prog(values, custom_state_func=lambda: f'TH: {self.active_threads}')):
+    def execute(self, function, values, *args, **kwargs) -> list:
+        """
+        Execute the given function using multiple threads on the provided values.
+
+        Args:
+            function (Callable): The function to be executed.
+            values (Iterable): A list or other iterable of values on which the function will be executed.
+
+        @return: ordered each given function returns
+        """
+        for indx, value in enumerate(
+                Progress.prog(values, custom_state_func=lambda: f'Threads Running: {self._active_threads}')):
             self.wait_for_available_thread()
-            if self.terminate:
+            if self._terminate:
+                print("Terminating due to an exception in one of the threads. Returning processed data...")
                 break
             thread = threading.Thread(target=self._execute_function_thread, name=f'Thread-{indx}',
-                                      args=(function, value))
+                                      args=(function, value, indx, args, kwargs))
+            with self._lock:
+                self._active_threads += 1
             thread.start()
-            self.active_threads += 1
+        self._terminate = False
+        return self._get_results()
+
+    def _get_results(self):
+        with self._thread_available:
+            while self._active_threads > 0:
+                self._thread_available.wait()
+            results = [val[-1] for val in sorted(self._results, key=lambda val: val[0])]
+            self._results = []
+            return results
 
     def wait_for_available_thread(self):
-        while self.active_threads >= self.max_threads:
-            time.sleep(0)
+        """
+        Blocks the current thread until a thread becomes available or the maximum thread limit is not reached.
+        """
+        with self._thread_available:
+            while self._active_threads >= self.max_threads:
+                self._thread_available.wait()
 
-    def _execute_function_thread(self, function, value):
+    def _execute_function_thread(self, function, value, indx, args, kwargs):
+        """
+        Internal method to execute the function on the given value. Handles exceptions and manages the active thread count.
+
+        Args:
+            function (Callable): The function to be executed.
+            value: A single value from the values iterable.
+        """
         try:
-            if not self.terminate:
-                function(value)
+            if not self._terminate:
+                self._results.append((indx, function(value, *args, **kwargs)))
         except Exception as e:
-            self.terminate = True
+            print(f"Error encountered in thread: {e}")
+            self._terminate = True
         finally:
-            with self.lock:
-                self.active_threads -= 1
-                threading.Event().set()
+            with self._thread_available:
+                self._active_threads -= 1
+                self._thread_available.notify()

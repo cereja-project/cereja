@@ -120,6 +120,14 @@ class Freq(Counter):
         content = self.probability if probability else self.most_common()
         FileIO.create(path_=path_, data=content).save(**kwargs)
 
+    @property
+    def max_freq(self):
+        return self.sample(max(self.values()))
+
+    @property
+    def min_freq(self):
+        return self.sample(min(self.values()))
+
 
 class ConnectValues(dict):
     def __init__(self, name: str = None):

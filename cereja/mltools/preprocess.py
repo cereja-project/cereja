@@ -31,6 +31,7 @@ from ..config import (
     VALID_LANGUAGE_CHAR,
     LANGUAGES,
     STOP_WORDS,
+    NUMBER_WORDS
 )
 
 _NORMALIZE_VALUES = "".join(PUNCTUATION)
@@ -49,6 +50,31 @@ def split_by_punct(text: str, punct: str = '.!?') -> list:
     pattern = r'(?<=[%s])\s+' % punct
     texts = re.split(pattern, text)
     return texts
+
+
+def convert_spelled_to_number(text, lang='pt'):
+    words = NUMBER_WORDS.get(lang.lower())
+    if words is None:
+        raise ValueError("Unsupported language")
+
+    text = text.replace(',', '')
+    text = text.replace(' e ', ' ')
+    text = text.replace('-', ' ')
+
+    parts = text.split()
+    result = []
+    sum_values = []
+    for n, word in enumerate(parts, start=1):
+        if word in words:
+            sum_values.append(words[word])
+            if n == len(parts):
+                result.append(str(sum(sum_values)))
+            continue
+        if len(sum_values):
+            result.append(str(sum(sum_values)))
+            sum_values = []
+        result.append(word)
+    return ' '.join(result)
 
 
 def remove_delimited_text(text, delimiters: Sequence[Tuple[AnyStr, AnyStr]] = (("*", '*'), ("(", ")"), ("[", "]"))):

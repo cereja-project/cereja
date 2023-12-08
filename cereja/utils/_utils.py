@@ -17,6 +17,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import ast
+import ctypes
 import gc
 import math
 import threading
@@ -27,19 +28,23 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView
+from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable
 import logging
 import itertools
 from copy import copy
 import inspect
 from pprint import pprint
 
+from .decorators import time_exec, depreciation
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
+from itertools import combinations as itertools_combinations
 
 __all__ = [
     "CjTest",
     "camel_to_snake",
+    "camel_case_to_snake",
+    "snake_case_to_camel",
     "combine_with_all",
     "fill",
     "get_attr_if_exists",
@@ -82,12 +87,17 @@ __all__ = [
     "get_batch_strides",
     "Thread",
     "prune_values",
-    "split_sequence"
+    "split_sequence",
+    "has_length",
+    "combinations",
+    "combinations_sizes",
+    "value_from_memory"
 ]
 
 logger = logging.getLogger(__name__)
 
 
+# TODO: Remove Thread class, check cereja.concurrently.process.MultiProcess implementation
 class Thread(threading.Thread):
     def __init__(
             self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
@@ -412,13 +422,35 @@ def type_table_of(o: Union[list, tuple, dict]):
     return type_table
 
 
-def camel_to_snake(value: str):
+def camel_case_to_snake(value: str):
     snaked_ = []
     for i, char in enumerate(value):
         if not i == 0 and char.isupper():
             char = f"_{char}"
         snaked_.append(char)
     return "".join(snaked_).lower()
+
+
+@depreciation(alternative="camel_case_to_snake")
+def camel_to_snake(value: str):
+    return camel_case_to_snake(value)
+
+
+def camel_case(value: str, sep: Union[str, None] = None, upper_first=False):
+    if sep is None:
+        sep = [" "]
+    elif isinstance(sep, (str, int, float)):
+        sep = [str(sep)]
+    value = value.lower().title()
+    for sp in sep:
+        value = value.replace(sp, '')
+    if upper_first:
+        return value
+    return value[0].lower() + value[1:]
+
+
+def snake_case_to_camel(value, upper_first=False):
+    return camel_case(value, sep="_", upper_first=upper_first)
 
 
 def get_implements(klass: type):
@@ -484,7 +516,7 @@ def invert_dict(dict_: Union[dict, set]) -> dict:
     return new_dict
 
 
-def group_by(values, fn) -> dict:
+def group_by(values, fn, get_freq: bool = False) -> Union[dict, Tuple[dict, dict]]:
     """
     group items by result of fn (function)
 
@@ -493,14 +525,22 @@ def group_by(values, fn) -> dict:
     >>> values = ['joab', 'leite', 'da', 'silva', 'Neto', 'você']
     >>> cj.group_by(values, lambda x: 'N' if x.lower().startswith('n') else 'OTHER')
     # {'OTHER': ['joab', 'leite', 'da', 'silva', 'você'], 'N': ['Neto']}
+    >>> cj.group_by(values, lambda x: 'N' if x.lower().startswith('n') else 'OTHER', get_freq=True)
+    # ({'OTHER': ['joab', 'leite', 'da', 'silva', 'você'], 'N': ['Neto']},
+    #  {'OTHER': 5, 'N': 1})
 
     @param values: list of values
     @param fn: a function
+    @param get_freq: if True, returns a tuple containing the main result of the function followed by the frequency
+    distribution of the groups, respectively
     """
     d = defaultdict(list)
     for el in values:
         d[fn(el)].append(el)
-    return dict(d)
+
+    d = dict(d)
+    result = (d, dict(map(lambda t: (t[0], len(t[1])), d.items()))) if get_freq else d
+    return result
 
 
 def import_string(dotted_path):
@@ -519,7 +559,7 @@ def import_string(dotted_path):
         return getattr(module, class_name)
     except AttributeError as err:
         raise ImportError(
-            f"Module {module_path} does not define a {class_name} attribute/class"
+                f"Module {module_path} does not define a {class_name} attribute/class"
         ) from err
 
 
@@ -591,7 +631,7 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     :return: List[str]
     """
     assert isinstance(
-        instance, types.ModuleType
+            instance, types.ModuleType
     ), "You need to submit a module instance."
     logger.debug(f"Checking module {instance.__name__}")
     definitions = {}
@@ -617,8 +657,28 @@ def module_references(instance: types.ModuleType, **kwargs) -> dict:
     return definitions
 
 
+def get_python_executable():
+    import cereja as cj
+    if sys.platform == 'win32':
+        exec_paths = ['python.exe',
+                      'Scripts/python.exe',
+                      'bin/python.exe']
+        exec_python = None
+        for p in exec_paths:
+            _exec_python = cj.Path(f'{sys.exec_prefix}/{p}')
+            if _exec_python.exists:
+                exec_python = _exec_python
+                break
+        assert exec_python is not None, 'Error to install dependences: Python executable not founded.'
+
+    else:
+        exec_python = sys.executable
+
+    return exec_python
+
+
 def install_if_not(lib_name: str):
-    from ..display import console
+    from cereja.display import console
 
     try:
         importlib.import_module(lib_name)
@@ -626,7 +686,7 @@ def install_if_not(lib_name: str):
     except ImportError:
         from ..system.commons import run_on_terminal
 
-        command_ = f"{sys.executable} -m pip install {lib_name}"
+        command_ = f'"{get_python_executable()}" -m pip install {lib_name}'
         output = run_on_terminal(command_)
     console.log(output)
 
@@ -680,6 +740,82 @@ def combine_with_all(
     return product_with_b
 
 
+def value_from_memory(memory_id):
+    """
+    Retrieve the Python object stored at a specific memory address.
+
+    Args:
+    memory_id (int): The memory address of the object.
+
+    Returns:
+    object: The Python object stored at the given memory address, or None if the retrieval fails.
+    """
+    try:
+        return ctypes.cast(memory_id, ctypes.py_object).value
+    except (ValueError, ctypes.ArgumentError):
+        raise ValueError(f"Memory ID {memory_id} isn't valid.")
+
+
+def sort(iterable, reverse=False):
+    """
+    Sort a list that may contain a mix of different types including other lists or tuples.
+
+    Args:
+    iterable (list): A list which may contain mixed types.
+
+    Returns:
+    list: A sorted list.
+    """
+
+    def sort_key(elem):
+        """
+        A key function for sorting which handles elements of different types.
+        Converts the element to a string for comparison purposes.
+        """
+        if isinstance(elem, (list, tuple)):
+            return str([sort_key(e) for e in elem])
+        return str(elem)
+
+    return sorted(iterable, key=sort_key, reverse=reverse)
+
+
+def combinations(iterable, size, is_sorted=False):
+    """
+    Generate all possible combinations of a certain size from an iterable.
+
+    Args:
+    iterable (iterable): An iterable of Python objects.
+    size (int): The size of each combination.
+
+    Returns:
+    list of tuples: A list containing tuples of the combinations generated.
+    """
+    if not is_sorted:
+        return list(itertools_combinations(iterable, size))
+    try:
+        return list(map(lambda x: tuple(sort(x)), itertools_combinations(iterable, size)))
+    except Exception as err:
+        raise Exception(f"Can't sort the pairs. {err}")
+
+
+def combinations_sizes(iterable, min_size, max_size, is_sorted=False):
+    """
+    Generate all possible combinations for all sizes within the specified range from an iterable.
+
+    Args:
+    iterable (iterable): An iterable of Python objects.
+    min_size (int): The minimum size of the combinations.
+    max_size (int): The maximum size of the combinations.
+
+    Returns:
+    list of tuples: A list containing tuples of all combinations for sizes between min_size and max_size.
+    """
+    res = []
+    for n in range(min_size, max_size + 1):
+        res.extend(combinations(iterable, n, is_sorted=is_sorted))
+    return res
+
+
 class CjTest(object):
     __template_unittest_function = """
     def test_{func_name}(self):
@@ -719,7 +855,7 @@ if __name__ == '__main__':
     @property
     def _instance_obj_attrs(self):
         return filter(
-            lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
+                lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
         )
 
     def _get_attr_obj(self, attr_: str):
@@ -816,7 +952,7 @@ if __name__ == '__main__':
 
     def _valid_attr(self, attr_name: str):
         assert hasattr(
-            self._instance_obj, attr_name
+                self._instance_obj, attr_name
         ), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
         return attr_name
 
@@ -848,11 +984,11 @@ if __name__ == '__main__':
     @classmethod
     def _get_class_test(cls, ref):
         func_tests = "".join(
-            cls.__template_unittest_function.format(func_name=i)
-            for i in list_methods(ref)
+                cls.__template_unittest_function.format(func_name=i)
+                for i in list_methods(ref)
         )
         return cls.__template_unittest_class.format(
-            class_name=ref.__name__, func_tests=func_tests
+                class_name=ref.__name__, func_tests=func_tests
         )
 
     @classmethod
@@ -886,7 +1022,7 @@ if __name__ == '__main__':
             module_func_test = "".join(module_func_test)
             tests = [
                         cls.__template_unittest_class.format(
-                            class_name="Module", func_tests=module_func_test
+                                class_name="Module", func_tests=module_func_test
                         )
                     ] + tests
         return cls.__template_unittest.format(tests="\n".join(tests))
@@ -1017,7 +1153,7 @@ def rescale_values(
             result = list(_rescale_down(values, granularity))
         else:
             result = list(
-                _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
+                    _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
             )
 
     assert (
@@ -1060,13 +1196,24 @@ def is_iterable(obj: Any) -> bool:
     """
     Return whether an object is iterable or not.
 
-    :param obj: Any object for check
+    This function checks if the object has an __iter__ method or supports
+    sequence-like indexing via __getitem__.
+
+    Parameters:
+    obj (Any): Any object to check for iterability.
+
+    Returns:
+    bool: True if the object is iterable, False otherwise.
     """
+    return hasattr(obj, '__iter__') or hasattr(obj, '__getitem__')
+
+
+def has_length(seq):
     try:
-        iter(obj)
+        _ = len(seq)
+        return True
     except TypeError:
         return False
-    return True
 
 
 def is_sequence(obj: Any) -> bool:
@@ -1118,7 +1265,7 @@ def sort_dict(
 
 def list_to_tuple(obj):
     assert isinstance(
-        obj, (list, set, tuple)
+            obj, (list, set, tuple)
     ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     for i in obj:
@@ -1141,7 +1288,7 @@ def dict_values_len(obj, max_len=None, min_len=None, take_len=False):
 
 def dict_to_tuple(obj):
     assert isinstance(
-        obj, (dict, set)
+            obj, (dict, set)
     ), f"Isn't possible convert {type(obj)} into {tuple}"
     result = []
     if isinstance(obj, set):
@@ -1163,29 +1310,36 @@ def to_tuple(obj):
     return tuple(obj)
 
 
-def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
+def dict_append(obj: Dict[Any, Union[List, Tuple]],
+                key: Any,
+                *v,
+                unique_values: bool = False,
+                sort_values_by: Optional[Callable] = None,
+                reverse: bool = False) -> Dict:
     """
-    Add items to a key, if the key is not in the dictionary it will be created with a list and the value sent.
+    Add items to a key in the dictionary. If the key doesn't exist, it's created with a list and the given values.
 
     e.g:
 
-    >>> import cereja as cj
     >>> my_dict = {}
-    >>> cj.utils.dict_append(my_dict, 'key_eg', 1,2,3,4,5,6)
+    >>> dict_append(my_dict, 'key_eg', 1,2,3,4,5,6)
     {'key_eg': [1, 2, 3, 4, 5, 6]}
-    >>> cj.utils.dict_append(my_dict, 'key_eg', [1,2])
+    >>> dict_append(my_dict, 'key_eg', [1,2])
     {'key_eg': [1, 2, 3, 4, 5, 6, [1, 2]]}
 
-    @param obj: Any dict of list values
-    @param key: dict key
-    @param v: all values after key
-    @return:
-    """
-    assert isinstance(obj, dict), "Error on append values. Please send a dict object."
-    if key not in obj:
-        obj[key] = []
+    Parameters:
+    - obj: A dictionary with list or tuple values.
+    - key: The key to which the values should be added.
+    - v: The values to be added.
+    - unique_values: Whether to ensure the values are unique.
+    - sort_values_by: Optional function to sort the values.
+    - reverse: Used if sort_values_by is passed.
 
-    if not isinstance(obj[key], (list, tuple)):
+    Returns:
+    Updated dictionary.
+    """
+    """
+        if not isinstance(obj[key], (list, tuple)):
         obj[key] = [obj[key]]
     if isinstance(obj[key], tuple):
         obj[key] = (
@@ -1195,6 +1349,38 @@ def dict_append(obj: Dict[Any, Union[list, tuple]], key, *v):
     else:
         for i in v:
             obj[key].append(i)
+    """
+
+    # Ensure we're working with a dictionary
+    if not isinstance(obj, dict):
+        raise TypeError("Error on append values. Please provide a dictionary object.")
+
+    # Append values to existing list or tuple, or create a new list if key doesn't exist
+    if key not in obj:
+        obj[key] = []
+
+    if not isinstance(obj[key], (list, tuple)):
+        obj[key] = [obj[key]]
+
+    if isinstance(obj[key], tuple):
+        obj[key] = obj[key] + tuple(v)
+    else:
+        obj[key].extend(v)
+
+    # Ensure unique values if requested
+    if unique_values:
+        if isinstance(obj[key], tuple):
+            obj[key] = tuple(sorted(set(obj[key]), key=obj[key].index))
+        else:
+            obj[key] = sorted(set(obj[key]), key=obj[key].index)
+
+    # Sort by given function if provided
+    if sort_values_by:
+        if isinstance(obj[key], tuple):
+            obj[key] = tuple(sorted(obj[key], key=sort_values_by, reverse=reverse))
+        else:
+            obj[key].sort(key=sort_values_by, reverse=reverse)
+
     return obj
 
 
@@ -1273,7 +1459,7 @@ def get_batch_strides(data, kernel_size, strides=1, fill_=True, take_index=False
             batches = batches[strides:]
     if len(batches):
         yield rescale_values(
-            batches, granularity=kernel_size, filling="post"
+                batches, granularity=kernel_size, filling="post"
         ) if fill_ else batches
 
 

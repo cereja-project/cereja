@@ -20,6 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from . import geolinear
 from .config import conf
 from .utils import *
 from . import utils
@@ -46,21 +47,18 @@ from .mathtools import *
 from . import experimental
 from ._requests import request
 
-VERSION = "1.8.9.final.0"
-
+VERSION = "1.9.4.final.0"
 __version__ = get_version_pep440_compliant(VERSION)
 
-NON_BMP_SUPPORTED = None
-if NON_BMP_SUPPORTED is None:
+
+def print_cereja_version():
     # This is important, as there may be an exception if the terminal does not support unicode bmp
     try:
         unicode_ = f"\033[31m\U0001F352\033[0;0m"
-        print(f"{unicode_} Using Cereja v.{get_version_pep440_compliant()}\r")
-        NON_BMP_SUPPORTED = True
-    except (
-            UnicodeEncodeError,
-            UnicodeDecodeError,
-            UnicodeError,
-            UnicodeTranslateError,
-    ):
-        NON_BMP_SUPPORTED = False
+        print(f"{unicode_} Using Cereja v.{__version__}\r")
+        return True
+    except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
+        return False
+
+
+NON_BMP_SUPPORTED = print_cereja_version()

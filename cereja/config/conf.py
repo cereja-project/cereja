@@ -26,12 +26,14 @@ import logging
 from abc import abstractmethod, ABCMeta
 import os
 
-__all__ = ["BasicConfig", "BASE_DIR"]
+__all__ = ["BasicConfig", "BASE_DIR", "PYTHON_VERSION"]
 
 # using by utils.module_references
 _exclude = ["console_logger", "cj_modules_dotted_path"]
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+PYTHON_VERSION = sys.version_info[:3]
 
 
 class BasicConfig(metaclass=ABCMeta):

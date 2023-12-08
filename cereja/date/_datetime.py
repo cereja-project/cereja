@@ -19,6 +19,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import re
 from datetime import datetime
 from typing import Union
 
@@ -26,6 +27,17 @@ __all__ = ["DateTime"]
 
 
 class DateTime(datetime):
+    # Defining common date formats
+    __DATE_FORMATS = {
+        r'\d{4}-\d{2}-\d{2}':       '%Y-%m-%d',  # Format ISO 8601 (YYYY-MM-DD)
+        r'\d{4}/\d{2}/\d{2}':       '%Y/%m/%d',  # Format (YYYY/MM/DD)
+        r'\d{2}/\d{2}/\d{4}':       '%d/%m/%Y',  # Format (DD/MM/YYYY)
+        r'\d{2}-\d{2}-\d{4}':       '%d-%m-%Y',  # Format (DD-MM-YYYY)
+        r'\d{1,2}/\d{1,2}/\d{2,4}': '%m/%d/%Y',  # Format (MM/DD/YYYY)
+        r'\d{1,2}-\d{1,2}-\d{2,4}': '%m-%d-%Y',  # Format (MM-DD-YYYY)
+        # Other formats can be added here
+    }
+
     @classmethod
     def _validate_timestamp(cls, value) -> Union[int, float]:
         assert isinstance(value, (int, float)), f"{value} is not valid."
@@ -75,3 +87,18 @@ class DateTime(datetime):
             if self.timestamp() < self._validate_date(other).timestamp()
             else 0
         )
+
+    @classmethod
+    def parse_from_string(cls, date_string: str):
+        """
+        Parses a date string in various formats and returns a DateTime object.
+        """
+
+        for regex, date_format in cls.__DATE_FORMATS.items():
+            if re.match(regex, date_string):
+                try:
+                    return cls.strptime(date_string, date_format)
+                except ValueError:
+                    pass
+
+        raise ValueError(f"Unrecognized date format: {date_string}")

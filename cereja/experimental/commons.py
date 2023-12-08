@@ -3,7 +3,7 @@ import random
 
 from cereja.utils import invert_dict, obj_repr
 
-__all__ = ["CJOrderedDict", "CJDict", "CJMeta", "Multiprocess"]
+__all__ = ["CJOrderedDict", "CJDict", "CJMeta", "ParallelProcess"]
 
 
 class CJMeta(type):
@@ -71,7 +71,7 @@ class DictOfList(CJDict):
 import cereja as cj
 
 
-class Multiprocess:
+class ParallelProcess:
     _template = """
 from multiprocessing import Pool
 import cereja as cj

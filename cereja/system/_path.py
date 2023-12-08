@@ -30,7 +30,7 @@ import time
 from datetime import datetime
 from typing import List, Union
 
-from ..array import group_items_in_batches
+
 from pathlib import Path as Path_
 import glob
 from ..utils.decorators import on_except
@@ -96,6 +96,7 @@ def group_path_from_dir(
     :param key_sort_function: function order items
     :return:
     """
+    from ..utils import chunk
 
     if "." not in ext_file:
         ext_file = "." + ext_file
@@ -110,7 +111,8 @@ def group_path_from_dir(
             **key_sort_function,
     )
 
-    batches = group_items_in_batches(items=paths, items_per_batch=num_items_on_tuple)
+
+    batches = chunk(paths, batch_size=num_items_on_tuple)
 
     if to_random:
         random.shuffle(batches)
