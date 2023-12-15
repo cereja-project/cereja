@@ -2,6 +2,7 @@ import ctypes.wintypes
 import sys
 import time
 from ctypes import wintypes
+import random
 from typing import Tuple
 
 from ..utils import invert_dict, is_numeric_sequence, string_to_literal
@@ -18,6 +19,68 @@ try:
 except AttributeError:
     pass
 
+# Definições para a API do Windows
+SendMessage = ctypes.windll.user32.SendMessageW
+SendMessage.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+SendMessage.restype = ctypes.c_long  # Usando ctypes.c_long para LRESULT
+
+PostMessage = ctypes.windll.user32.PostMessageW
+PostMessage.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+PostMessage.restype = wintypes.BOOL
+
+GetWindowText = ctypes.windll.user32.GetWindowTextW
+GetWindowTextLength = ctypes.windll.user32.GetWindowTextLengthW
+SetWindowText = ctypes.windll.user32.SetWindowTextW
+IsWindowVisible = ctypes.windll.user32.IsWindowVisible
+ShowWindow = ctypes.windll.user32.ShowWindow
+EnumWindows = ctypes.windll.user32.EnumWindows
+EnumWindowsProc = ctypes.WINFUNCTYPE(BOOL, HWND, LPARAM)
+user32 = ctypes.windll.user32
+GetWindowRect = user32.GetWindowRect
+SetWindowPos = user32.SetWindowPos
+PostMessage = user32.PostMessageW
+IsIconic = user32.IsIconic
+IsZoomed = user32.IsZoomed
+GetWindowDC = user32.GetWindowDC
+GetForegroundWindow = user32.GetForegroundWindow
+ReleaseDC = user32.ReleaseDC
+PrintWindow = user32.PrintWindow
+CreateCompatibleDC = ctypes.windll.gdi32.CreateCompatibleDC
+CreateCompatibleBitmap = ctypes.windll.gdi32.CreateCompatibleBitmap
+SelectObject = ctypes.windll.gdi32.SelectObject
+BitBlt = ctypes.windll.gdi32.BitBlt
+DeleteObject = ctypes.windll.gdi32.DeleteObject
+DeleteDC = ctypes.windll.gdi32.DeleteDC
+GetWindowThreadProcessId = ctypes.windll.user32.GetWindowThreadProcessId
+
+BI_RGB = 0
+DIB_RGB_COLORS = 0
+SRCCOPY = 0xCC0020
+GetDIBits = ctypes.windll.gdi32.GetDIBits
+
+
+class BITMAPINFOHEADER(ctypes.Structure):
+    _fields_ = [
+        ("biSize", wintypes.DWORD),
+        ("biWidth", wintypes.LONG),
+        ("biHeight", wintypes.LONG),
+        ("biPlanes", wintypes.WORD),
+        ("biBitCount", wintypes.WORD),
+        ("biCompression", wintypes.DWORD),
+        ("biSizeImage", wintypes.DWORD),
+        ("biXPelsPerMeter", wintypes.LONG),
+        ("biYPelsPerMeter", wintypes.LONG),
+        ("biClrUsed", wintypes.DWORD),
+        ("biClrImportant", wintypes.DWORD),
+    ]
+
+
+class BITMAPINFO(ctypes.Structure):
+    _fields_ = [
+        ("bmiHeader", BITMAPINFOHEADER),
+        ("bmiColors", wintypes.DWORD * 3)
+    ]
+
 
 class Time:
     def __init__(self):
@@ -33,6 +96,8 @@ class Time:
 
     @property
     def time(self):
+        if self._t0 is None:
+            self.start()
         self._last_time_check = time.time()
         if self._stopped_on:
             return self._stopped_on - self._t0
@@ -91,9 +156,24 @@ class Keyboard:
         __KEY_NAME_TO_CODE[chr(c)] = ctypes.windll.user32.VkKeyScanA(ctypes.wintypes.WCHAR(chr(c)))
     __KEY_CODE_TO_NAME = invert_dict(__KEY_NAME_TO_CODE)
 
-    def __init__(self):
+    __WM_KEYDOWN = 0x0100
+    __WM_KEYUP = 0x0101
+    MAX_TIME_SIMULE_KEY_PRESS = 0.1
+
+    def __init__(self, hwnd=None, simule=False):
         self.user32 = ctypes.windll.user32
         self._stop_listen = True
+        self._hwnd = hwnd
+        self._simule = simule
+        self._max_time_simule_key_press = self.MAX_TIME_SIMULE_KEY_PRESS
+
+    @property
+    def max_time_key_press(self):
+        return self._max_time_simule_key_press
+
+    @max_time_key_press.setter
+    def max_time_key_press(self, v):
+        self._max_time_simule_key_press = v
 
     @property
     def key_map(self):
@@ -106,10 +186,10 @@ class Keyboard:
             if isinstance(v, str):
                 v = string_to_literal(v)
                 if isinstance(v, str):
-                    v = self.__KEY_NAME_TO_CODE[v]
+                    return [self.__KEY_NAME_TO_CODE[i] for i in v.split("+")]
         except (ValueError, Exception):
             raise ValueError(f"Value {v} in't valid to keyboard.")
-        return v
+        return [v]
 
     def _is_pressed(self, key_code):
         return self.user32.GetAsyncKeyState(key_code) & 0x8000 != 0
@@ -122,41 +202,69 @@ class Keyboard:
         """
         return self._is_pressed(self._parse_key(key))
 
-    def _key_press(self, key_code):
-        self.user32.keybd_event(key_code, 0, 0, 0)
+    def _key_down(self, key_code):
+        if self._hwnd is None:
+            # Simule
+            self.user32.keybd_event(key_code, 0, 0, 0)
+        else:
+            SendMessage(self._hwnd, self.__WM_KEYDOWN, key_code, 0)
 
-    def key_press(self, key):
+    def _key_up(self, key_code):
+        if self._hwnd is None:
+            # Simule
+            self.user32.keybd_event(key_code, 0, 2, 0)
+        else:
+            SendMessage(self._hwnd, self.__WM_KEYUP, key_code, 0)
+
+    def _press_and_wait(self, key, secs):
+        timer = Time()
+        while timer.time < secs:
+            self._key_down(key)
+        self._key_up(key)
+
+    def _press_n_times(self, key, n_times=1):
+        for _ in range(n_times):
+            self._key_down(key)
+            if self._simule:
+                time.sleep(self._max_time_simule_key_press - (random.random() * self._max_time_simule_key_press))
+        self._key_up(key)
+
+    def _key_press(self, key_code, n_times=1, secs=None):
+        key_code = self._parse_key(key_code)
+        if len(key_code) > 1:
+            key = key_code.pop(-1)
+            for key_comb in key_code:
+                self.user32.keybd_event(key_comb, 0, 0, 0)
+            if secs is not None:
+                self._press_and_wait(key, secs)
+            else:
+                self._press_n_times(key, n_times=n_times)
+            for key_comb in key_code:
+                self.user32.keybd_event(key_comb, 0, 2, 0)
+        else:
+            if secs is not None:
+                self._press_and_wait(key_code[0], secs)
+            else:
+                self._press_n_times(key_code[0], n_times=n_times)
+
+    def key_press(self, key, n_times=1, secs=None):
         """
         Simulates a key press.
         :param key: Key code of the key to press.
+        :param secs: time in seconds that the key will be pressed
+        :param n_times: number of repeat key press event
         """
-        self._key_press(self._parse_key(key))
-
-    def _key_release(self, key_code):
-        """
-        Simulates a key release.
-        :param key_code: Key code of the key to release.
-        """
-        if self._is_pressed(key_code):
-            self.user32.keybd_event(key_code, 0, 2, 0)
-
-    def key_release(self, key):
-        """
-        Simulates a key release.
-        :param key_code: Key code of the key to release.
-        """
-        self._key_release(self._parse_key(key))
+        self._key_press(key, n_times=n_times, secs=secs)
 
     def press_and_release(self, key, secs=None):
-        key = self._parse_key(key)
-        secs = secs or 0.0
-        self._key_press(key)
-        time.sleep(secs)
-        self._key_release(key)
+        self.key_press(key, secs=secs)
 
-    def write(self, text, interval=0.1):
+    def write(self, text):
+        simule_bkp = self._simule
+        self._simule = True
         for char in text:
-            self.press_and_release(char, secs=interval)
+            self.key_press(char)
+        self._simule = simule_bkp
 
 
 class Mouse:
@@ -170,8 +278,27 @@ class Mouse:
         "right_click": 24
     }
 
-    def __init__(self):
+    _mouse_messages_map = {
+        "move":             0x0200,
+        "left_down":        0x0201,
+        "left_up":          0x0202,
+        "WM_LBUTTONDBLCLK": 0x0203,
+        "right_down":       0x0204,
+        "right_up":         0x0205,
+        "WM_RBUTTONDBLCLK": 0x0206,
+        "WM_MBUTTONDOWN":   0x0207,
+        "WM_MBUTTONUP":     0x0208,
+        "WM_MBUTTONDBLCLK": 0x0209,
+        "WM_MOUSEWHEEL":    0x020A,
+        "WM_XBUTTONDOWN":   0x020B,
+        "WM_XBUTTONUP":     0x020C,
+        "WM_XBUTTONDBLCLK": 0x020D,
+        "WM_MOUSEHWHEEL":   0x020E
+    }
+
+    def __init__(self, hwnd=None):
         self.user32 = ctypes.windll.user32
+        self._hwnd = hwnd
 
     @property
     def window_size(self):
@@ -199,13 +326,22 @@ class Mouse:
     def _click(self, button: str, position=None, n_clicks=1, interval=0.0):
         if button not in ("left", "right"):
             raise ValueError(f"button {button} isn't valid")
-        if position is not None:
-            self.set_position(position[0], position[1])
+
+        if self._hwnd is None:
+            if position is not None:
+                self.set_position(position[0], position[1])
+            else:
+                position = self.position
+            for _ in range(n_clicks):
+                self.user32.mouse_event(self._button_envent_map[f"{button}_click"], position[0], position[1], 0, 0)
+                time.sleep(interval)
         else:
-            position = self.position
-        for _ in range(n_clicks):
-            self.user32.mouse_event(self._button_envent_map[f"{button}_click"], position[0], position[1], 0, 0)
-            time.sleep(interval)
+            if position is None:
+                position = self.position
+            l_param = (position[1] << 16) | position[0]
+
+            SendMessage(self._hwnd, self._mouse_messages_map[f"{button}_down"], 0, l_param)
+            SendMessage(self._hwnd, self._mouse_messages_map[f"{button}_up"], 0, l_param)
 
     def click_left(self, position: Tuple[int, int] = None, n_clicks=1):
         self._click("left", position=position, n_clicks=n_clicks)
@@ -214,68 +350,21 @@ class Mouse:
         self._click("right", position=position, n_clicks=n_clicks)
 
     def drag_to(self, from_, to):
-        self.set_position(from_[0], from_[1])
-        self.user32.mouse_event(self._button_envent_map["left_down"], from_[0], from_[1], 0, 0)
-        self.set_position(to[0], to[1])
-        self.user32.mouse_event(self._button_envent_map["left_up"], to[0], to[1], 0, 0)
+
+        if self._hwnd is not None:
+            from_l_param = (from_[1] << 16) | from_[0]
+            to_l_param = (to[1] << 16) | to[0]
+
+            SendMessage(self._hwnd, self._mouse_messages_map["left_down"], 0, from_l_param)
+            SendMessage(self._hwnd, self._mouse_messages_map["left_up"], 0, to_l_param)
+        else:
+            self.set_position(from_[0], from_[1])
+            self.user32.mouse_event(self._button_envent_map["left_down"], from_[0], from_[1], 0, 0)
+            self.set_position(to[0], to[1])
+            self.user32.mouse_event(self._button_envent_map["left_up"], to[0], to[1], 0, 0)
 
     def move_to_center(self):
         self.set_position(*self.center_position)
-
-
-# Definições para a API do Windows
-GetWindowText = ctypes.windll.user32.GetWindowTextW
-GetWindowTextLength = ctypes.windll.user32.GetWindowTextLengthW
-SetWindowText = ctypes.windll.user32.SetWindowTextW
-IsWindowVisible = ctypes.windll.user32.IsWindowVisible
-ShowWindow = ctypes.windll.user32.ShowWindow
-EnumWindows = ctypes.windll.user32.EnumWindows
-EnumWindowsProc = ctypes.WINFUNCTYPE(BOOL, HWND, LPARAM)
-user32 = ctypes.windll.user32
-GetWindowRect = user32.GetWindowRect
-SetWindowPos = user32.SetWindowPos
-PostMessage = user32.PostMessageW
-IsIconic = user32.IsIconic
-IsZoomed = user32.IsZoomed
-GetWindowDC = user32.GetWindowDC
-GetForegroundWindow = user32.GetForegroundWindow
-ReleaseDC = user32.ReleaseDC
-PrintWindow = user32.PrintWindow
-CreateCompatibleDC = ctypes.windll.gdi32.CreateCompatibleDC
-CreateCompatibleBitmap = ctypes.windll.gdi32.CreateCompatibleBitmap
-SelectObject = ctypes.windll.gdi32.SelectObject
-BitBlt = ctypes.windll.gdi32.BitBlt
-DeleteObject = ctypes.windll.gdi32.DeleteObject
-DeleteDC = ctypes.windll.gdi32.DeleteDC
-GetWindowThreadProcessId = ctypes.windll.user32.GetWindowThreadProcessId
-
-BI_RGB = 0
-DIB_RGB_COLORS = 0
-SRCCOPY = 0xCC0020
-GetDIBits = ctypes.windll.gdi32.GetDIBits
-
-
-class BITMAPINFOHEADER(ctypes.Structure):
-    _fields_ = [
-        ("biSize", wintypes.DWORD),
-        ("biWidth", wintypes.LONG),
-        ("biHeight", wintypes.LONG),
-        ("biPlanes", wintypes.WORD),
-        ("biBitCount", wintypes.WORD),
-        ("biCompression", wintypes.DWORD),
-        ("biSizeImage", wintypes.DWORD),
-        ("biXPelsPerMeter", wintypes.LONG),
-        ("biYPelsPerMeter", wintypes.LONG),
-        ("biClrUsed", wintypes.DWORD),
-        ("biClrImportant", wintypes.DWORD),
-    ]
-
-
-class BITMAPINFO(ctypes.Structure):
-    _fields_ = [
-        ("bmiHeader", BITMAPINFOHEADER),
-        ("bmiColors", wintypes.DWORD * 3)
-    ]
 
 
 class Window:
@@ -304,9 +393,23 @@ class Window:
             hwnd (ctypes.wintypes.HWND): Handle da janela.
         """
         self.hwnd = hwnd
+        self._keyboard = None
+        self._mouse = None
 
     def __repr__(self):
         return f"{self.__class__.__name__}<{self.title}>"
+
+    @property
+    def keyboard(self) -> Keyboard:
+        if self._keyboard is None:
+            self._keyboard = Keyboard(self.hwnd)
+        return self._keyboard
+
+    @property
+    def mouse(self) -> Mouse:
+        if self._mouse is None:
+            self._mouse = Mouse(self.hwnd)
+        return self._mouse
 
     @property
     def title(self) -> str:
