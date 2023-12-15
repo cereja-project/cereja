@@ -33,7 +33,7 @@ import logging
 import itertools
 from copy import copy
 import inspect
-from pprint import pprint
+from pprint import PrettyPrinter
 
 from .decorators import time_exec, depreciation
 # Needed init configs
@@ -95,6 +95,23 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+class NoStringWrappingPrettyPrinter(PrettyPrinter):
+    def __init__(self, str_width):
+        super().__init__()
+        self.str_width = str_width
+
+    def _format(self, object, *args):
+        if isinstance(object, str):
+            width = self._width
+            self._width = self.str_width
+            try:
+                super()._format(object, *args)
+            finally:
+                self._width = width
+        else:
+            super()._format(object, *args)
 
 
 # TODO: Remove Thread class, check cereja.concurrently.process.MultiProcess implementation
@@ -386,7 +403,7 @@ def sample(
 
 
 def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, tr_k_iter: int = 6, tr_k_str: int = 20,
-                     tr_k_dict_keys: int = 20, p_print: bool = True):
+                     tr_k_dict_keys: int = 20, p_print: bool = True, str_width: int = 200):
     """
     Samples then (p)prints a (truncated) version of the sample. Helpful for visualizing data structures.
     Args:
@@ -397,11 +414,13 @@ def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, tr_k_i
         tr_k_str: truncated length of strings, `0` to disable
         tr_k_dict_keys: truncated number of dictionary keys, `0` to disable
         p_print: should pprint or print
+        str_width: width of strings in the output, used if p_print
     """
 
     obj_sample = sample(v=copy(v), k=k, is_random=is_random)
     truncated_sample = truncate(data=obj_sample, k_iter=tr_k_iter, k_str=tr_k_str, k_dict_keys=tr_k_dict_keys)
     if p_print:
+        pprint = NoStringWrappingPrettyPrinter(str_width=str_width).pprint
         pprint(truncated_sample)
     else:
         print(truncated_sample)
