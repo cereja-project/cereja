@@ -32,6 +32,13 @@ from ..utils import is_sequence, clipboard
 from ..system import memory_of_this
 from ..utils import string_to_literal, sample, fill
 
+try:
+    import numpy as np
+
+    has_np = True
+except ImportError:
+    has_np = False
+
 logger = logging.Logger(__name__)
 
 __all__ = ["FileIO"]
@@ -400,8 +407,8 @@ class _FileIO(_IFileIO, ABC):
         ), f"{repr(unit)} is'nt valid. Choose anyone in {tuple(self._size_map)}"
         # subtracts the size of the python object
         return (
-                       memory_of_this(self._data) - self._data.__class__().__sizeof__()
-               ) / self._size_map[unit]
+                memory_of_this(self._data) - self._data.__class__().__sizeof__()
+        ) / self._size_map[unit]
 
     def _load(self, mode=None, **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
@@ -648,6 +655,79 @@ class _JsonIO(_FileIO):
     def __iter__(self):
         for i in self.data:
             yield i
+
+
+class _BmpIO(_FileIO, ABC):
+    _is_byte: bool = True
+    _only_read = True
+    _ext_allowed = (".bmp",)
+
+    def __init__(
+            self,
+            *args,
+            creation_mode=True,
+            width=None,
+            height=None,
+            **kwargs,
+    ):
+        if creation_mode and (width is None or height is None):
+            raise Exception("send width and height kwarg.")
+        self._header = None
+        self._width = width
+        self._height = height
+        super().__init__(*args, **kwargs)
+
+    @property
+    def header(self):
+        return self._header
+
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def height(self):
+        return self._height
+
+    def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
+        self._header = fp.read(54)  # Os primeiros 54 bytes são o cabeçalho BMP
+        self._width = abs(int.from_bytes(self.header[18:22], byteorder='little', signed=True))
+        self._height = abs(int.from_bytes(self.header[22:26], byteorder='little', signed=True))
+        return fp.read()  # Ler os dados da imagem
+
+    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+        if self.header is None:
+            file_header_size = 14
+            info_header_size = 40
+            header_size = file_header_size + info_header_size
+            image_size = self.width * self.height * 4
+            file_size = header_size + image_size
+            fp.write(b'BM')  # Tipo de arquivo
+            fp.write(file_size.to_bytes(4, byteorder='little'))  # Tamanho do arquivo
+            fp.write(b'\x00\x00')  # Reservado
+            fp.write(b'\x00\x00')  # Reservado
+            fp.write(header_size.to_bytes(4, byteorder='little'))  # Offset para início dos dados da imagem
+
+            # Escrevendo o cabeçalho de informações do BMP
+            fp.write(info_header_size.to_bytes(4, byteorder='little'))  # Tamanho do cabeçalho de informações
+            fp.write(self.width.to_bytes(4, byteorder='little'))  # Largura
+            fp.write(
+                    (-self.height).to_bytes(4,
+                                            byteorder='little'))  # Altura (negativo para indicar origem superior esquerda)
+            fp.write((1).to_bytes(2, byteorder='little'))  # Planos (deve ser 1)
+            fp.write((32).to_bytes(2, byteorder='little'))  # Bits por pixel
+            fp.write((0).to_bytes(4, byteorder='little'))  # Compressão (nenhuma)
+            fp.write(image_size.to_bytes(4, byteorder='little'))  # Tamanho da imagem
+            fp.write((0).to_bytes(4, byteorder='little'))  # Resolução horizontal (não especificada)
+            fp.write((0).to_bytes(4, byteorder='little'))  # Resolução vertical (não especificada)
+            fp.write((0).to_bytes(4, byteorder='little'))  # Cores na paleta (nenhuma)
+            fp.write((0).to_bytes(4, byteorder='little'))  # Cores importantes (todas)
+        else:
+            fp.write(self.header)
+        fp.write(self.data)
+
+    def parse(self, data):
+        return data
 
 
 class _Mp4IO(_FileIO, ABC):
@@ -1006,6 +1086,7 @@ class FileIO:
     pkl = _PyObj
     zip = _ZipFileIO
     srt = _SrtFile
+    bmp = _BmpIO
     _generic = _Generic
 
     def __new__(cls, path_, data=None, **kwargs):
