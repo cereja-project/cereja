@@ -38,7 +38,6 @@ EnumWindowsProc = ctypes.WINFUNCTYPE(BOOL, HWND, LPARAM)
 user32 = ctypes.windll.user32
 GetWindowRect = user32.GetWindowRect
 SetWindowPos = user32.SetWindowPos
-PostMessage = user32.PostMessageW
 IsIconic = user32.IsIconic
 IsZoomed = user32.IsZoomed
 GetWindowDC = user32.GetWindowDC
@@ -160,7 +159,8 @@ class Keyboard:
     __WM_KEYUP = 0x0101
     MAX_TIME_SIMULE_KEY_PRESS = 1
 
-    def __init__(self, hwnd=None):
+    def __init__(self, hwnd=None, is_async=False):
+        self.send_event = PostMessage if is_async else SendMessage
         self.user32 = ctypes.windll.user32
         self._stop_listen = True
         self._hwnd = hwnd
@@ -206,14 +206,14 @@ class Keyboard:
             # Simule
             self.user32.keybd_event(key_code, 0, 0, 0)
         else:
-            PostMessage(self._hwnd, self.__WM_KEYDOWN, key_code, 0)
+            self.send_event(self._hwnd, self.__WM_KEYDOWN, key_code, 0)
 
     def _key_up(self, key_code):
         if self._hwnd is None:
             # Simule
             self.user32.keybd_event(key_code, 0, 2, 0)
         else:
-            PostMessage(self._hwnd, self.__WM_KEYUP, key_code, 0)
+            self.send_event(self._hwnd, self.__WM_KEYUP, key_code, 0)
 
     def _press_and_wait(self, key, secs):
         timer = Time()
@@ -292,7 +292,8 @@ class Mouse:
         "WM_MOUSEHWHEEL":   0x020E
     }
 
-    def __init__(self, hwnd=None):
+    def __init__(self, hwnd=None, is_async=False):
+        self.send_event = PostMessage if is_async else SendMessage
         self.user32 = ctypes.windll.user32
         self._hwnd = hwnd
 
@@ -336,8 +337,8 @@ class Mouse:
                 position = self.position
             l_param = (position[1] << 16) | position[0]
 
-            PostMessage(self._hwnd, self._mouse_messages_map[f"{button}_down"], 0, l_param)
-            PostMessage(self._hwnd, self._mouse_messages_map[f"{button}_up"], 0, l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_down"], 0, l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_up"], 0, l_param)
 
     def click_left(self, position: Tuple[int, int] = None, n_clicks=1):
         self._click("left", position=position, n_clicks=n_clicks)
@@ -351,8 +352,8 @@ class Mouse:
             from_l_param = (from_[1] << 16) | from_[0]
             to_l_param = (to[1] << 16) | to[0]
 
-            PostMessage(self._hwnd, self._mouse_messages_map["left_down"], 0, from_l_param)
-            PostMessage(self._hwnd, self._mouse_messages_map["left_up"], 0, to_l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map["left_down"], 0, from_l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map["left_up"], 0, to_l_param)
         else:
             self.set_position(from_[0], from_[1])
             self.user32.mouse_event(self._button_envent_map["left_down"], from_[0], from_[1], 0, 0)
