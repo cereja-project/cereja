@@ -1,5 +1,6 @@
 import ctypes.wintypes
 import sys
+import threading
 import time
 from ctypes import wintypes
 import random
@@ -181,6 +182,7 @@ class Keyboard:
         self._stop_listen = True
         self._hwnd = hwnd
         self._max_time_simule_key_press = self.MAX_TIME_SIMULE_KEY_PRESS
+        self._key_press_callbacks = None
 
     @property
     def max_time_key_press(self):
@@ -215,7 +217,7 @@ class Keyboard:
         :param key: Key code to check.
         :return: True if the key is pressed, False otherwise.
         """
-        return self._is_pressed(self._parse_key(key))
+        return all(map(self._is_pressed, self._parse_key(key)))
 
     def _key_down(self, key_code):
         if self._hwnd is None:
@@ -277,6 +279,32 @@ class Keyboard:
     def write(self, text):
         for char in text:
             self.key_press(char)
+
+    def _on_key_press(self):
+        while self._key_press_callbacks is not None:
+            keys, callback = self._key_press_callbacks
+            for key in keys:
+                if self.is_pressed(key):
+                    try:
+                        callback(key)
+                    except Exception as err:
+                        raise ValueError(f"{err}. Error when calling callback for key event: {key}")
+            time.sleep(0.1)
+
+    def register_keypress_callback(self, keys, callback):
+        if isinstance(keys, str):
+            keys = [keys]
+        assert isinstance(keys, (list, tuple)) or len(keys), "Send list or str for keys."
+        try:
+            for key in keys:
+                self._parse_key(key)
+        except Exception as err:
+            raise ValueError(f"Error on keypress callback register, key value isn't valid. {err}")
+        self._key_press_callbacks = (keys, callback)
+        threading.Thread(target=self._on_key_press, daemon=True).start()
+
+    def clean_keypress_callbacks(self):
+        self._key_press_callbacks = None
 
 
 class Mouse:
