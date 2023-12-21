@@ -19,6 +19,18 @@ try:
 except AttributeError:
     pass
 
+# Definir MessageBeep
+MessageBeep = ctypes.windll.user32.MessageBeep
+MessageBeep.argtypes = [wintypes.UINT]
+MessageBeep.restype = wintypes.BOOL
+
+# Constantes para os tipos de sons de alerta
+MB_ICONASTERISK = 0x00000040
+MB_ICONEXCLAMATION = 0x00000030
+MB_ICONHAND = 0x00000010
+MB_ICONQUESTION = 0x00000020
+MB_OK = 0x00000000
+
 # Definições para a API do Windows
 SendMessage = ctypes.windll.user32.SendMessageW
 SendMessage.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
@@ -38,7 +50,6 @@ EnumWindowsProc = ctypes.WINFUNCTYPE(BOOL, HWND, LPARAM)
 user32 = ctypes.windll.user32
 GetWindowRect = user32.GetWindowRect
 SetWindowPos = user32.SetWindowPos
-PostMessage = user32.PostMessageW
 IsIconic = user32.IsIconic
 IsZoomed = user32.IsZoomed
 GetWindowDC = user32.GetWindowDC
@@ -119,6 +130,10 @@ class Time:
         raise Exception("Time counting has not started. Use Time.start method.")
 
 
+def play_alert_sound(sound_type=MB_ICONHAND):
+    MessageBeep(sound_type)
+
+
 class Keyboard:
     # Map of key names to virtual-key codes
     __KEY_NAME_TO_CODE = {'BACKSPACE':              8, 'TAB': 9, 'CLEAR': 12, 'ENTER': 13, 'SHIFT': 16, 'CTRL': 17,
@@ -158,13 +173,13 @@ class Keyboard:
 
     __WM_KEYDOWN = 0x0100
     __WM_KEYUP = 0x0101
-    MAX_TIME_SIMULE_KEY_PRESS = 0.1
+    MAX_TIME_SIMULE_KEY_PRESS = 1
 
-    def __init__(self, hwnd=None, simule=False):
+    def __init__(self, hwnd=None, is_async=False):
+        self.send_event = PostMessage if is_async else SendMessage
         self.user32 = ctypes.windll.user32
         self._stop_listen = True
         self._hwnd = hwnd
-        self._simule = simule
         self._max_time_simule_key_press = self.MAX_TIME_SIMULE_KEY_PRESS
 
     @property
@@ -207,26 +222,26 @@ class Keyboard:
             # Simule
             self.user32.keybd_event(key_code, 0, 0, 0)
         else:
-            SendMessage(self._hwnd, self.__WM_KEYDOWN, key_code, 0)
+            self.send_event(self._hwnd, self.__WM_KEYDOWN, key_code, 0)
 
     def _key_up(self, key_code):
         if self._hwnd is None:
             # Simule
             self.user32.keybd_event(key_code, 0, 2, 0)
         else:
-            SendMessage(self._hwnd, self.__WM_KEYUP, key_code, 0)
+            self.send_event(self._hwnd, self.__WM_KEYUP, key_code, 0)
 
     def _press_and_wait(self, key, secs):
         timer = Time()
         while timer.time < secs:
             self._key_down(key)
+            time.sleep(0.1)
         self._key_up(key)
 
     def _press_n_times(self, key, n_times=1):
         for _ in range(n_times):
             self._key_down(key)
-            if self._simule:
-                time.sleep(self._max_time_simule_key_press - (random.random() * self._max_time_simule_key_press))
+            time.sleep(0.1 + (self._max_time_simule_key_press - (random.random() * self._max_time_simule_key_press)))
         self._key_up(key)
 
     def _key_press(self, key_code, n_times=1, secs=None):
@@ -260,11 +275,8 @@ class Keyboard:
         self.key_press(key, secs=secs)
 
     def write(self, text):
-        simule_bkp = self._simule
-        self._simule = True
         for char in text:
             self.key_press(char)
-        self._simule = simule_bkp
 
 
 class Mouse:
@@ -296,7 +308,8 @@ class Mouse:
         "WM_MOUSEHWHEEL":   0x020E
     }
 
-    def __init__(self, hwnd=None):
+    def __init__(self, hwnd=None, is_async=False):
+        self.send_event = PostMessage if is_async else SendMessage
         self.user32 = ctypes.windll.user32
         self._hwnd = hwnd
 
@@ -340,8 +353,8 @@ class Mouse:
                 position = self.position
             l_param = (position[1] << 16) | position[0]
 
-            SendMessage(self._hwnd, self._mouse_messages_map[f"{button}_down"], 0, l_param)
-            SendMessage(self._hwnd, self._mouse_messages_map[f"{button}_up"], 0, l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_down"], 0, l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_up"], 0, l_param)
 
     def click_left(self, position: Tuple[int, int] = None, n_clicks=1):
         self._click("left", position=position, n_clicks=n_clicks)
@@ -355,8 +368,8 @@ class Mouse:
             from_l_param = (from_[1] << 16) | from_[0]
             to_l_param = (to[1] << 16) | to[0]
 
-            SendMessage(self._hwnd, self._mouse_messages_map["left_down"], 0, from_l_param)
-            SendMessage(self._hwnd, self._mouse_messages_map["left_up"], 0, to_l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map["left_down"], 0, from_l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map["left_up"], 0, to_l_param)
         else:
             self.set_position(from_[0], from_[1])
             self.user32.mouse_event(self._button_envent_map["left_down"], from_[0], from_[1], 0, 0)
