@@ -19,6 +19,18 @@ try:
 except AttributeError:
     pass
 
+# Definir MessageBeep
+MessageBeep = ctypes.windll.user32.MessageBeep
+MessageBeep.argtypes = [wintypes.UINT]
+MessageBeep.restype = wintypes.BOOL
+
+# Constantes para os tipos de sons de alerta
+MB_ICONASTERISK = 0x00000040
+MB_ICONEXCLAMATION = 0x00000030
+MB_ICONHAND = 0x00000010
+MB_ICONQUESTION = 0x00000020
+MB_OK = 0x00000000
+
 # Definições para a API do Windows
 SendMessage = ctypes.windll.user32.SendMessageW
 SendMessage.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
@@ -116,6 +128,10 @@ class Time:
             self._stopped_on = time.time()
             return
         raise Exception("Time counting has not started. Use Time.start method.")
+
+
+def play_alert_sound(sound_type=MB_ICONHAND):
+    MessageBeep(sound_type)
 
 
 class Keyboard:
