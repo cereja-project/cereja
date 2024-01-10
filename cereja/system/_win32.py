@@ -174,15 +174,27 @@ class Keyboard:
 
     __WM_KEYDOWN = 0x0100
     __WM_KEYUP = 0x0101
-    MAX_TIME_SIMULE_KEY_PRESS = 1
+    MAX_TIME_SIMULE_KEY_PRESS = 0.05
 
     def __init__(self, hwnd=None, is_async=False):
-        self.send_event = PostMessage if is_async else SendMessage
+        self._is_async = is_async
         self.user32 = ctypes.windll.user32
         self._stop_listen = True
         self._hwnd = hwnd
         self._max_time_simule_key_press = self.MAX_TIME_SIMULE_KEY_PRESS
         self._key_press_callbacks = None
+
+
+    @property
+    def is_async(self):
+        return self._is_async
+
+    @is_async.setter
+    def is_async(self, v):
+        self._is_async = bool(v)
+
+    def send_event(self, *args, **kwargs):
+        (PostMessage if self._is_async else SendMessage)(*args, **kwargs)
 
     @property
     def max_time_key_press(self):
@@ -243,7 +255,7 @@ class Keyboard:
     def _press_n_times(self, key, n_times=1):
         for _ in range(n_times):
             self._key_down(key)
-            time.sleep(0.1 + (self._max_time_simule_key_press - (random.random() * self._max_time_simule_key_press)))
+            time.sleep(0.05 + (self._max_time_simule_key_press - (random.random() * self._max_time_simule_key_press)))
         self._key_up(key)
 
     def _key_press(self, key_code, n_times=1, secs=None):

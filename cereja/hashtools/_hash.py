@@ -22,6 +22,7 @@ SOFTWARE.
 import binascii
 import hashlib
 import base64 as _b64
+import secrets
 from typing import Union
 
 from cereja import string_to_literal
@@ -54,3 +55,7 @@ def is_base64(content):
         return True
     except binascii.Error:
         return False
+
+
+def random_hash(n_bytes):
+    return secrets.token_hex(nbytes=n_bytes)
