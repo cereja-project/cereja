@@ -511,9 +511,12 @@ class Window:
 
     @staticmethod
     def _enum_windows_callback(hwnd, lParam):
-        if IsWindowVisible(hwnd):
-            windows = ctypes.cast(lParam, ctypes.py_object).value
-            windows.append(Window(hwnd))
+        try:
+            if IsWindowVisible(hwnd):
+                windows = ctypes.cast(lParam, ctypes.py_object).value
+                windows.append(Window(hwnd))
+        except:
+            return False
         return True
 
     @staticmethod
