@@ -1078,6 +1078,7 @@ class Progress:
             self._console.error(
                     f"{os.path.basename(exc_tb.tb_frame.f_code.co_filename)}:{exc_tb.tb_lineno}: {exc_val}"
             )
+        self._iter_finaly = True
         self.stop()
         self._task_count = 0
         self._with_context = False
