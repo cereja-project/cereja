@@ -18,6 +18,7 @@ if sys.platform != 'win32':
 try:
     ctypes.windll.user32.SetProcessDPIAware()
 except AttributeError:
+    print("ERRO")
     pass
 
 # Definir MessageBeep
@@ -617,11 +618,12 @@ class Window:
         window_dc = GetWindowDC(self.hwnd)
         mem_dc = CreateCompatibleDC(window_dc)
 
-        # Obtenha as dimensões
-        left, top, right, bottom = self.dimensions
+
         if only_window_content:
             width, height = self.size_window_content
         else:
+            # Obtenha as dimensões
+            left, top, right, bottom = self.dimensions
             width = right - left
             height = bottom - top
 
@@ -632,42 +634,41 @@ class Window:
         # Copie o conteúdo da janela
         PrintWindow(self.hwnd, mem_dc, int(only_window_content))
 
-        # Cria uma imagem em memória a partir do bitmap capturado
+        # Prepara a estrutura BITMAPINFO com os dados da imagem
         bitmap_info = BITMAPINFO()
         bitmap_info.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
         bitmap_info.bmiHeader.biWidth = width
-        bitmap_info.bmiHeader.biHeight = -height  # Negativo indica origem no topo esquerdo
+        bitmap_info.bmiHeader.biHeight = -height  # Negativo para origem no topo
         bitmap_info.bmiHeader.biPlanes = 1
         bitmap_info.bmiHeader.biBitCount = 32
         bitmap_info.bmiHeader.biCompression = BI_RGB
 
-        bitmap_data = ctypes.create_string_buffer(width * height * 4)
-        BitBlt(mem_dc, 0, 0, width, height, window_dc, left, top, SRCCOPY)
-        GetDIBits(mem_dc, screenshot, 0, height, bitmap_data, ctypes.byref(bitmap_info), 0)  # DIB_RGB_COLORS
+        # Cria buffer para os dados da imagem
+        bitmap_data = ctypes.create_string_buffer(abs(bitmap_info.bmiHeader.biWidth * bitmap_info.bmiHeader.biHeight * 4))
+        # Obtém os dados da imagem
+        GetDIBits(mem_dc, screenshot, 0, height, bitmap_data, ctypes.byref(bitmap_info), DIB_RGB_COLORS)
+
+        # Se um filepath foi fornecido, salva a imagem como um arquivo BMP
         if filepath:
-            # Escrevendo os dados em um arquivo BMP
             with open(filepath, 'wb') as bmp_file:
-                # Cabeçalho do arquivo
+                # Escreve o cabeçalho do arquivo BMP
                 bmp_file.write(b'BM')
                 size = 54 + len(bitmap_data.raw)  # 54 bytes para o cabeçalho BMP
-                bmp_file.write(ctypes.c_uint32(size).value.to_bytes(4, byteorder='little'))
-                bmp_file.write(b'\x00\x00')  # Reservado
-                bmp_file.write(b'\x00\x00')  # Reservado
-                bmp_file.write((54).to_bytes(4, byteorder='little'))  # Offset para início dos dados da imagem
-
-                # Cabeçalho da imagem
-                bmp_file.write(bitmap_info.bmiHeader)
-
-                # Dados da imagem
+                bmp_file.write(size.to_bytes(4, 'little'))
+                bmp_file.write((0).to_bytes(4, 'little'))  # Reservado
+                bmp_file.write((54).to_bytes(4, 'little'))  # Offset dos dados da imagem
+                # Escreve o cabeçalho da imagem
+                bmp_file.write(ctypes.string_at(ctypes.byref(bitmap_info.bmiHeader), ctypes.sizeof(BITMAPINFOHEADER)))
+                # Escreve os dados da imagem
                 bmp_file.write(bitmap_data.raw)
-        raw = bitmap_data.raw
+
         # Limpeza
         DeleteObject(screenshot)
         DeleteDC(mem_dc)
         ReleaseDC(self.hwnd, window_dc)
-        DeleteObject(bitmap_data)
 
-        return raw
+        return bitmap_data.raw
+
 
     # SHOW implements
     def hide(self):
