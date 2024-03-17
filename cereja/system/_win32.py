@@ -18,6 +18,7 @@ if sys.platform != 'win32':
 try:
     ctypes.windll.user32.SetProcessDPIAware()
 except AttributeError:
+    print("ERRO")
     pass
 
 # Definir MessageBeep
@@ -174,15 +175,27 @@ class Keyboard:
 
     __WM_KEYDOWN = 0x0100
     __WM_KEYUP = 0x0101
-    MAX_TIME_SIMULE_KEY_PRESS = 1
+    MAX_TIME_SIMULE_KEY_PRESS = 0.05
 
     def __init__(self, hwnd=None, is_async=False):
-        self.send_event = PostMessage if is_async else SendMessage
+        self._is_async = is_async
         self.user32 = ctypes.windll.user32
         self._stop_listen = True
         self._hwnd = hwnd
         self._max_time_simule_key_press = self.MAX_TIME_SIMULE_KEY_PRESS
         self._key_press_callbacks = None
+
+
+    @property
+    def is_async(self):
+        return self._is_async
+
+    @is_async.setter
+    def is_async(self, v):
+        self._is_async = bool(v)
+
+    def send_event(self, *args, **kwargs):
+        (PostMessage if self._is_async else SendMessage)(*args, **kwargs)
 
     @property
     def max_time_key_press(self):
@@ -243,7 +256,7 @@ class Keyboard:
     def _press_n_times(self, key, n_times=1):
         for _ in range(n_times):
             self._key_down(key)
-            time.sleep(0.1 + (self._max_time_simule_key_press - (random.random() * self._max_time_simule_key_press)))
+            time.sleep(0.05 + (self._max_time_simule_key_press - (random.random() * self._max_time_simule_key_press)))
         self._key_up(key)
 
     def _key_press(self, key_code, n_times=1, secs=None):
@@ -499,9 +512,12 @@ class Window:
 
     @staticmethod
     def _enum_windows_callback(hwnd, lParam):
-        if IsWindowVisible(hwnd):
-            windows = ctypes.cast(lParam, ctypes.py_object).value
-            windows.append(Window(hwnd))
+        try:
+            if IsWindowVisible(hwnd):
+                windows = ctypes.cast(lParam, ctypes.py_object).value
+                windows.append(Window(hwnd))
+        except:
+            return False
         return True
 
     @staticmethod
@@ -602,11 +618,12 @@ class Window:
         window_dc = GetWindowDC(self.hwnd)
         mem_dc = CreateCompatibleDC(window_dc)
 
-        # Obtenha as dimensões
-        left, top, right, bottom = self.dimensions
+
         if only_window_content:
             width, height = self.size_window_content
         else:
+            # Obtenha as dimensões
+            left, top, right, bottom = self.dimensions
             width = right - left
             height = bottom - top
 
@@ -617,42 +634,41 @@ class Window:
         # Copie o conteúdo da janela
         PrintWindow(self.hwnd, mem_dc, int(only_window_content))
 
-        # Cria uma imagem em memória a partir do bitmap capturado
+        # Prepara a estrutura BITMAPINFO com os dados da imagem
         bitmap_info = BITMAPINFO()
         bitmap_info.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
         bitmap_info.bmiHeader.biWidth = width
-        bitmap_info.bmiHeader.biHeight = -height  # Negativo indica origem no topo esquerdo
+        bitmap_info.bmiHeader.biHeight = -height  # Negativo para origem no topo
         bitmap_info.bmiHeader.biPlanes = 1
         bitmap_info.bmiHeader.biBitCount = 32
         bitmap_info.bmiHeader.biCompression = BI_RGB
 
-        bitmap_data = ctypes.create_string_buffer(width * height * 4)
-        BitBlt(mem_dc, 0, 0, width, height, window_dc, left, top, SRCCOPY)
-        GetDIBits(mem_dc, screenshot, 0, height, bitmap_data, ctypes.byref(bitmap_info), 0)  # DIB_RGB_COLORS
+        # Cria buffer para os dados da imagem
+        bitmap_data = ctypes.create_string_buffer(abs(bitmap_info.bmiHeader.biWidth * bitmap_info.bmiHeader.biHeight * 4))
+        # Obtém os dados da imagem
+        GetDIBits(mem_dc, screenshot, 0, height, bitmap_data, ctypes.byref(bitmap_info), DIB_RGB_COLORS)
+
+        # Se um filepath foi fornecido, salva a imagem como um arquivo BMP
         if filepath:
-            # Escrevendo os dados em um arquivo BMP
             with open(filepath, 'wb') as bmp_file:
-                # Cabeçalho do arquivo
+                # Escreve o cabeçalho do arquivo BMP
                 bmp_file.write(b'BM')
                 size = 54 + len(bitmap_data.raw)  # 54 bytes para o cabeçalho BMP
-                bmp_file.write(ctypes.c_uint32(size).value.to_bytes(4, byteorder='little'))
-                bmp_file.write(b'\x00\x00')  # Reservado
-                bmp_file.write(b'\x00\x00')  # Reservado
-                bmp_file.write((54).to_bytes(4, byteorder='little'))  # Offset para início dos dados da imagem
-
-                # Cabeçalho da imagem
-                bmp_file.write(bitmap_info.bmiHeader)
-
-                # Dados da imagem
+                bmp_file.write(size.to_bytes(4, 'little'))
+                bmp_file.write((0).to_bytes(4, 'little'))  # Reservado
+                bmp_file.write((54).to_bytes(4, 'little'))  # Offset dos dados da imagem
+                # Escreve o cabeçalho da imagem
+                bmp_file.write(ctypes.string_at(ctypes.byref(bitmap_info.bmiHeader), ctypes.sizeof(BITMAPINFOHEADER)))
+                # Escreve os dados da imagem
                 bmp_file.write(bitmap_data.raw)
-        raw = bitmap_data.raw
+
         # Limpeza
         DeleteObject(screenshot)
         DeleteDC(mem_dc)
         ReleaseDC(self.hwnd, window_dc)
-        DeleteObject(bitmap_data)
 
-        return raw
+        return bitmap_data.raw
+
 
     # SHOW implements
     def hide(self):
