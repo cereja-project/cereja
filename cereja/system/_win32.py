@@ -614,6 +614,8 @@ class Window:
             return "Normal"
 
     def capture_image_bmp(self, filepath=None, only_window_content=True):
+        if not user32.IsZoomed(self.hwnd):
+            ctypes.windll.user32.ShowWindow(self.hwnd, 4)
         # Obtenha o DC da janela e crie um DC compatível
         window_dc = GetWindowDC(self.hwnd) if only_window_content else GetDC(self.hwnd)
         mem_dc = CreateCompatibleDC(window_dc)
