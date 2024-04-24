@@ -20,7 +20,6 @@ import ast
 import ctypes
 import gc
 import math
-import threading
 import time
 from collections import OrderedDict, defaultdict
 from importlib import import_module
@@ -35,7 +34,7 @@ from copy import copy
 import inspect
 from pprint import PrettyPrinter
 
-from .decorators import time_exec, depreciation
+from .decorators import depreciation
 # Needed init configs
 from ..config.cj_types import ClassType, FunctionType, Number
 from itertools import combinations as itertools_combinations
@@ -85,7 +84,6 @@ __all__ = [
     "dict_filter_value",
     "get_zero_mask",
     "get_batch_strides",
-    "Thread",
     "prune_values",
     "split_sequence",
     "has_length",
@@ -113,28 +111,6 @@ class NoStringWrappingPrettyPrinter(PrettyPrinter):
         else:
             super()._format(object, *args)
 
-
-# TODO: Remove Thread class, check cereja.concurrently.process.MultiProcess implementation
-class Thread(threading.Thread):
-    def __init__(
-            self, target, args=None, kwargs=None, name=None, daemon=None, callback=None
-    ):
-        # while threading.active_count() > os.cpu_count() * 2:
-        #    time.sleep(0.1)
-        super().__init__(daemon=daemon, name=name)
-        if args is None:
-            args = ()
-        if kwargs is None:
-            kwargs = {}
-        self._func = target
-        self._args = args
-        self._kwargs = kwargs
-        self._callback = callback
-
-    def run(self):
-        res = self._func(*self._args, **self._kwargs)
-        if self._callback:
-            self._callback(res)
 
 
 def is_indexable(v):

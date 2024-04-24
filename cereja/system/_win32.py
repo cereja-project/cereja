@@ -55,6 +55,7 @@ SetWindowPos = user32.SetWindowPos
 IsIconic = user32.IsIconic
 IsZoomed = user32.IsZoomed
 GetWindowDC = user32.GetWindowDC
+GetDC = user32.GetDC
 GetForegroundWindow = user32.GetForegroundWindow
 ReleaseDC = user32.ReleaseDC
 PrintWindow = user32.PrintWindow
@@ -184,7 +185,6 @@ class Keyboard:
         self._hwnd = hwnd
         self._max_time_simule_key_press = self.MAX_TIME_SIMULE_KEY_PRESS
         self._key_press_callbacks = None
-
 
     @property
     def is_async(self):
@@ -614,10 +614,11 @@ class Window:
             return "Normal"
 
     def capture_image_bmp(self, filepath=None, only_window_content=True):
+        if not user32.IsZoomed(self.hwnd):
+            ctypes.windll.user32.ShowWindow(self.hwnd, 4)
         # Obtenha o DC da janela e crie um DC compatível
-        window_dc = GetWindowDC(self.hwnd)
+        window_dc = GetWindowDC(self.hwnd) if only_window_content else GetDC(self.hwnd)
         mem_dc = CreateCompatibleDC(window_dc)
-
 
         if only_window_content:
             width, height = self.size_window_content
@@ -644,7 +645,8 @@ class Window:
         bitmap_info.bmiHeader.biCompression = BI_RGB
 
         # Cria buffer para os dados da imagem
-        bitmap_data = ctypes.create_string_buffer(abs(bitmap_info.bmiHeader.biWidth * bitmap_info.bmiHeader.biHeight * 4))
+        bitmap_data = ctypes.create_string_buffer(
+            abs(bitmap_info.bmiHeader.biWidth * bitmap_info.bmiHeader.biHeight * 4))
         # Obtém os dados da imagem
         GetDIBits(mem_dc, screenshot, 0, height, bitmap_data, ctypes.byref(bitmap_info), DIB_RGB_COLORS)
 
@@ -668,7 +670,6 @@ class Window:
         ReleaseDC(self.hwnd, window_dc)
 
         return bitmap_data.raw
-
 
     # SHOW implements
     def hide(self):
@@ -719,3 +720,11 @@ class Window:
     def show_default(self):
         """Define o estado de exibição com base no valor SW_ especificado no STARTUPINFO."""
         ShowWindow(self.hwnd, 10)
+
+    def set_foreground(self):
+        """Tenta trazer a janela para o primeiro plano."""
+        ctypes.windll.user32.SetForegroundWindow(self.hwnd)
+
+    def bring_to_top(self):
+        """Move a janela para o topo do Z-Order sem necessariamente ativá-la."""
+        ctypes.windll.user32.BringWindowToTop(self.hwnd)
