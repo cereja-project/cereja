@@ -209,20 +209,22 @@ class Keyboard:
     def key_map(self):
         return self.__KEY_NAME_TO_CODE
 
-    def _parse_key(self, v):
+    @classmethod
+    def _parse_key(cls, v):
         try:
             if not isinstance(v, (str, int)):
                 raise ValueError
             if isinstance(v, str):
                 v = string_to_literal(v)
                 if isinstance(v, str):
-                    return [self.__KEY_NAME_TO_CODE[i] for i in v.split("+")]
+                    return [cls.__KEY_NAME_TO_CODE[i] for i in v.split("+")]
         except (ValueError, Exception):
             raise ValueError(f"Value {v} in't valid to keyboard.")
         return [v]
 
     def _is_pressed(self, key_code):
-        return self.user32.GetAsyncKeyState(key_code) & 0x8000 != 0
+        if user32.GetAsyncKeyState(key_code) & 0x8000 != 0:
+            return self._hwnd is None or self._hwnd == Window.get_foreground_window().hwnd
 
     def is_pressed(self, key):
         """
@@ -655,7 +657,7 @@ class Window:
 
         # Cria buffer para os dados da imagem
         bitmap_data = ctypes.create_string_buffer(
-            abs(bitmap_info.bmiHeader.biWidth * bitmap_info.bmiHeader.biHeight * 4))
+                abs(bitmap_info.bmiHeader.biWidth * bitmap_info.bmiHeader.biHeight * 4))
         # Obtém os dados da imagem
         GetDIBits(mem_dc, screenshot, 0, height, bitmap_data, ctypes.byref(bitmap_info), DIB_RGB_COLORS)
 
