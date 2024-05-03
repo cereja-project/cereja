@@ -2,7 +2,6 @@ import abc
 import os
 import queue
 import threading
-import time
 
 from ..utils import decorators
 

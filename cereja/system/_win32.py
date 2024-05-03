@@ -277,6 +277,15 @@ class Keyboard:
             else:
                 self._press_n_times(key_code[0], n_times=n_times)
 
+    def wait_key(self, key, delay=1):
+        start_time = time.time()
+        while True:
+            if time.time() - start_time > delay / 1000.0:
+                return False
+            if self.is_pressed(key):
+                return True
+            time.sleep(0.01)
+
     def key_press(self, key, n_times=1, secs=None):
         """
         Simulates a key press.
