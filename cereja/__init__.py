@@ -46,6 +46,7 @@ from . import mathtools
 from .mathtools import *
 from . import experimental
 from ._requests import request
+from . import scraping
 
 VERSION = "2.0.0.final.0"
 __version__ = get_version_pep440_compliant(VERSION)
