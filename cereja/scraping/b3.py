@@ -1,12 +1,15 @@
 from .._requests import request
 from ..hashtools import base64_encode
 from ..utils import get_zero_mask
+from ._financial import FinancialData
 
 __all__ = ["Share"]
 STOCK_EXCHANGES_CONFIG = {
     "B3": {"base_api_url":         "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall",
            "regist_info_endpoint": "GetInitialCompanies",
-           "head_lines_endpoint":  "GetListedHeadLines"}
+           "head_lines_endpoint":  "GetListedHeadLines",
+           "financial_endpoint":   "GetListedFinancial",
+           }
 }
 
 
@@ -33,13 +36,13 @@ class Share:
         self.trading_code = trading_code.upper()
         self.language = language
         self.config = StockExchangeConfig().get_config(exchange)
-        self._head_lines = []
+        self._head_lines = None
+        self._financial = None
 
         if not self.config:
             raise ValueError(f"Exchange {exchange} is currently not supported.")
 
-        self._initialize_share_info()
-        self._initialize_headlines()
+        self._get_share_info()
 
     def _get(self, url_parsed, timeout=30) -> dict:
         response = request.get(url_parsed, timeout=timeout)
@@ -47,7 +50,7 @@ class Share:
             return response.json()
         raise ConnectionRefusedError(response.data)
 
-    def _initialize_share_info(self):
+    def _get_share_info(self):
 
         try:
             # Fetches and processes the share information from the API
@@ -70,7 +73,7 @@ class Share:
         except Exception as err:
             raise Exception(f"Erro ao processar dados de registro. {err}")
 
-    def _initialize_headlines(self):
+    def _get_headlines(self):
 
         try:
             # Fetches and processes the headlines related to the share from the API
@@ -83,7 +86,7 @@ class Share:
             query_encoded = base64_encode(query).decode()
             url = f"{self.config['base_api_url']}/{self.config['head_lines_endpoint']}/{query_encoded}"
             response = self._get(url)
-
+            self._head_lines = []
             for headline in response:
                 self._head_lines.append({
                     "headline": headline["headline"],
@@ -93,6 +96,42 @@ class Share:
 
         except Exception as err:
             raise Exception(f"Erro ao processar dados de eventos. {err}")
+
+    def _get_financial(self):
+        try:
+            # Fetches and processes the headlines related to the share from the API
+            query = {"codeCVM":  self.code_cvm,
+                     "language": "pt-br"}
+            query_encoded = base64_encode(query).decode()
+            url = f"{self.config['base_api_url']}/{self.config['financial_endpoint']}/{query_encoded}"
+            response = self._get(url)
+            if response:
+                self._financial = FinancialData(
+                        share=self,
+                        title_initial=response.get("titleInitial", ''),
+                        consolidated=response.get("consolidated", {}),
+                        unconsolidated=response.get("consolidated", {}),
+                        free_float_result=response.get("freeFloatResult", {}),
+                        position_shareholders=response.get("positionShareholders", {}),
+                        outstanding_shares=response.get("outstandingShares", {}),
+                        capital_stock_composition=response.get("capitalStockComposition", {})
+                )
+            else:
+                self._financial = {}
+        except Exception as err:
+            raise Exception(f"Erro ao processar dados financeiros. {err}")
+
+    @property
+    def financial(self):
+        if self._financial is None:
+            self._get_financial()
+        return self._financial
+
+    @property
+    def headlines(self):
+        if self._head_lines is None:
+            self._get_headlines()
+        return self._head_lines
 
     @property
     def exchange(self):
