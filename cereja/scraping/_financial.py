@@ -1,5 +1,9 @@
 from ..utils import camel_to_snake
-
+try:
+    from .b3 import Share
+except ImportError:
+    # noinspection PyUnresolvedReferences
+    Share = None
 __all__ = ["FinancialData"]
 
 
