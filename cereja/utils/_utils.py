@@ -20,6 +20,8 @@ import ast
 import ctypes
 import gc
 import math
+import re
+import string
 import time
 from collections import OrderedDict, defaultdict
 from importlib import import_module
@@ -27,7 +29,7 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable
+from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable, AnyStr
 import logging
 import itertools
 from copy import copy
@@ -89,7 +91,8 @@ __all__ = [
     "has_length",
     "combinations",
     "combinations_sizes",
-    "value_from_memory"
+    "value_from_memory",
+    "str_gen"
 ]
 
 logger = logging.getLogger(__name__)
@@ -110,7 +113,6 @@ class NoStringWrappingPrettyPrinter(PrettyPrinter):
                 self._width = width
         else:
             super()._format(object, *args)
-
 
 
 def is_indexable(v):
@@ -1469,3 +1471,8 @@ def prune_values(values: Sequence, factor=2):
     if len(res) == 0:
         return values[k]
     return res
+
+
+def str_gen(pattern: AnyStr) -> Sequence[AnyStr]:
+    regex = re.compile(pattern)
+    return regex.findall(string.printable)
