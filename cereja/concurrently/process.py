@@ -3,12 +3,13 @@ import os
 import queue
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..utils import decorators
 
 from .. import Progress, console
 
-__all__ = ["MultiProcess"]
+__all__ = ["MultiProcess", "Processor"]
 
 
 class _IMultiProcess(abc.ABC):
@@ -219,3 +220,129 @@ class WorkerQueue(MultiProcess):
             )
         self._q.join()
         self._with_context = False
+
+
+class Processor:
+    def __init__(self, num_workers=None, max_in_progress=100, interval_seconds=None, use_progress=True,
+                 on_result=None):
+        self._num_workers = num_workers if num_workers is not None else 10
+        self._on_result = on_result
+        self._total_success = 0
+        self._max_in_progress = max_in_progress
+        self._interval_seconds = 0 if interval_seconds is None else interval_seconds
+        self._process_result_service = None
+        self._future_to_data = set()
+        self._failure_data = []
+        self._stopped = False
+        self._executor = None
+        self._started_at = 0
+        self._progress = Progress(name="Processor",
+                                  max_value=100,
+                                  states=("value", "percent", "time"),
+                                  custom_state_func=self.get_status,
+                                  custom_state_name="Tx") if use_progress else None
+
+    @property
+    def in_progress_count(self):
+        return len(self._future_to_data)
+
+    @property
+    def total_processed(self):
+        return len(self._failure_data) + self._total_success
+
+    @property
+    def interval_seconds(self):
+        return self._interval_seconds
+
+    @property
+    def total_active_threads(self):
+        return threading.active_count()
+
+    def _create_process_result_service(self):
+        if self._process_result_service is not None:
+            self._process_result_service.join()  # Espera terminar se estiver em execução
+        self._process_result_service = threading.Thread(target=self._process_result, daemon=False)
+        return self._process_result_service
+
+    def get_failure_data(self):
+        return self._failure_data
+
+    def _process_result(self):
+        # Roda enquanto tiver dados aguardando retorno do processo de validação e atualização do banco
+        while not self.stopped or self.in_progress_count > 0:
+            # list() é necessário call para criar cópia do objeto que está sendo manipulado em tempo de execução
+            for future in as_completed(list(self._future_to_data)):
+                result = future.result()
+                self._future_to_data.remove(future)
+
+                if self._on_result is not None:
+                    self._on_result(result)
+                if self._progress is not None:
+                    self._progress.show_progress(self.total_processed)
+
+    def _process(self, func, item, *args, **kwargs):
+        try:
+            result = func(item, *args, **kwargs)
+            self._total_success += 1
+            return result
+        except Exception as exc:
+            print(
+                    f"Falha ao processa dado, mas será armazenado para conferência.\n"
+                    f"Error: {exc}")
+            self._failure_data.append(item)
+
+    def get_status(self):
+        return f"{round(self.total_processed / (time.time() - self._started_at), 2)} cpf/s " \
+               f"- processing: {self.in_progress_count} " \
+               f"- success: {self._total_success} " \
+               f"- fail: {len(self._failure_data)} "
+
+    def process(self, func, data, *args, **kwargs):
+        """
+        Função principal, responsável por controlar o tempo de envio dos dados para processar.
+        """
+
+        self._stopped = False
+        # inicia thread para atualizar o banco com o resultado da validação.
+        self._create_process_result_service().start()
+        self._started_at = time.time()
+
+        if self._progress is not None:
+            self._progress.update_max_value(len(data))
+            self._progress.start()
+
+        with ThreadPoolExecutor(max_workers=self._num_workers,
+                                thread_name_prefix="CPF_PROCESS_WORKER") as self._executor:
+            for item in data:
+                start_time = time.time()
+
+                future = self._executor.submit(self._process, func, item, *args, **kwargs)
+                self._future_to_data.add(future)
+
+                elapsed_time = time.time() - start_time
+                # Verifica quanto tempo passou após enviar um dado, caso o tempo for menor que o intervalo
+                # configurado espera a diferença antes de enviar o próximo lote
+                if elapsed_time < self.interval_seconds:
+                    time.sleep(self.interval_seconds - elapsed_time)
+                if self.in_progress_count >= self._max_in_progress:
+                    print(f"O Total de dados sendo processado {self.in_progress_count} é maior que o predefinido {self._max_in_progress}")
+                    time.sleep(10)
+
+        self.stop_process()
+
+    @property
+    def stopped(self):
+        return self._stopped
+
+    def stop_process(self):
+        self._stopped = True
+        self._process_result_service.join()
+        self._progress.stop()
+
+    def restart_process(self):
+        self.stop_process()  # espera terminar execução do processo anterior
+        self._stopped = False
+        self._started_at = time.time()
+        self._failure_data = []
+        self._total_success = 0
+        self._create_process_result_service().start()

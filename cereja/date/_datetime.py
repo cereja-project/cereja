@@ -35,6 +35,9 @@ class DateTime(datetime):
         r'\d{2}-\d{2}-\d{4}':       '%d-%m-%Y',  # Format (DD-MM-YYYY)
         r'\d{1,2}/\d{1,2}/\d{2,4}': '%m/%d/%Y',  # Format (MM/DD/YYYY)
         r'\d{1,2}-\d{1,2}-\d{2,4}': '%m-%d-%Y',  # Format (MM-DD-YYYY)
+        r'\d{8}':                   '%Y%m%d',    # Format (YYYYMMDD)
+        r'\d{2}\d{2}\d{4}':         '%d%m%Y',    # Format (DDMMYYYY)
+        r'\d{4}\d{2}\d{2}':         '%Y%m%d',    # Format (YYYYMMDD) without separators
         # Other formats can be added here
     }
 
