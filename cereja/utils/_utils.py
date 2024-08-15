@@ -569,18 +569,28 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
 def time_format(seconds: float, format_="%H:%M:%S") -> Union[str, float]:
     """
     Default format is '%H:%M:%S'
+    If the time exceeds 24 hours, it will return a format like 'X days HH:MM:SS'
 
     >>> time_format(3600)
     '01:00:00'
+    >>> time_format(90000)
+    '1 days 01:00:00'
 
     """
-    # this because NaN
+    # Check if seconds is a valid number
     if seconds >= 0 or seconds < 0:
-        time_ = time.strftime(format_, time.gmtime(abs(seconds)))
+        # Calculate the absolute value of days
+        days = int(seconds // 86400)
+        # Format the time
+        time_ = time.strftime(format_, time.gmtime(abs(seconds) % 86400))
+        # Return with days if more than 24 hours
+        if days > 0:
+            return f"{days} days {time_}"
+        # Return the formatted time
         if seconds < 0:
             return f"-{time_}"
         return time_
-    return seconds  # NaN
+    return seconds  # Return NaN or any invalid input as it is
 
 
 def fill(value: Union[list, str, tuple], max_size, with_=" ") -> Any:
