@@ -208,6 +208,7 @@ class _Stdout:
 
 
 class _ConsoleBase(metaclass=ABC):
+    _instance = None
     NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xFFFD)
     DONE_UNICODE = "\U00002705"
     ERROR_UNICODE = "\U0000274C"
@@ -250,6 +251,11 @@ class _ConsoleBase(metaclass=ABC):
         self.__color_map = self._color_map  # get copy
         self.text_color = color_text
         self._stdout = _Stdout(self)
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(_ConsoleBase, cls).__new__(cls)
+        return cls._instance
 
     @property
     def non_bmp_supported(self):
@@ -718,7 +724,7 @@ class Progress:
             self,
             sequence=None,
             name="Progress",
-            max_value: int = 100,
+            max_value: int = None,
             states=("value", "bar", "percent", "time"),
             custom_state_func=None,
             custom_state_name=None,
@@ -757,10 +763,15 @@ class Progress:
     def name(self):
         return self._name
 
+    @property
+    def max_value(self):
+        return self._max_value or self._current_value + 1
+
     def set_name(self, value: str):
         if not isinstance(value, str):
             raise TypeError("Please send string.")
         self._name = value
+        self._console.set_prefix(f"{self._name}")
 
     def _create_progress_service(self):
         return threading.Thread(
@@ -768,7 +779,7 @@ class Progress:
         )
 
     def __repr__(self):
-        state = self._states_view(self._max_value)
+        state = self._states_view(self.max_value)
         progress_example_view = f"{state}"
         state_conf = f"{self.__class__.__name__}{self._parse_states()}"
         return f"{state_conf}\n{self._console.parse(progress_example_view, title='Example States View')}"
@@ -821,7 +832,7 @@ class Progress:
         self._n_times += 1
         kwargs = {
             "current_value":   for_value,
-            "max_value":       self._max_value,
+            "max_value":       self.max_value,
             "current_percent": self.percent_(for_value),
             "time_it":         self.time_it,
             "n_times":         self._n_times,
@@ -889,7 +900,7 @@ class Progress:
         return self._parse_states()
 
     def percent_(self, for_value: Number) -> Number:
-        return percent(for_value, self._max_value)
+        return percent(for_value, self.max_value)
 
     def update_max_value(self, max_value: int):
         """
@@ -900,7 +911,7 @@ class Progress:
         """
         if not isinstance(max_value, (int, float, complex)):
             raise Exception(f"Current value {max_value} isn't valid.")
-        if max_value != self._max_value:
+        if max_value != self.max_value:
             self._max_value = max_value
 
     def _progress_service(self):
@@ -917,14 +928,14 @@ class Progress:
                         )
                 )
                 time.sleep(0.5)
-            if not self._awaiting_update or self._show:
+            if not self._awaiting_update or (self._show and self._max_value is not None):
                 self._show_progress(self._current_value)
             last_value = self._current_value
             time.sleep(0.01)
 
     def _show_progress(self, for_value=None):
         self._awaiting_update = False
-        build_progress = self._states_view(for_value)
+        build_progress = self._states_view(for_value or self._current_value)
         self._console.replace_last_msg(
                 build_progress, end="\n" if self._iter_finaly else None
         )
@@ -986,16 +997,18 @@ class Progress:
             cls,
             sequence: Sequence[Any],
             name: str = None,
+            max_value: int = None,
             states=("value", "bar", "percent", "time"),
             custom_state_func=None,
             custom_state_name=None,
     ) -> "Progress":
         return cls(
                 name=name,
+                max_value=max_value,
                 states=states,
                 custom_state_func=custom_state_func,
                 custom_state_name=custom_state_name,
-        )(sequence)
+        )(sequence, name, max_value)
 
     def __len__(self):
         return len(self._states)
@@ -1013,11 +1026,13 @@ class Progress:
                 raise KeyError(f"Not exists {key}")
         return self._states[slice_]
 
-    def __call__(self, sequence: Sequence, name=None) -> "Progress":
+    def __call__(self, sequence: Sequence, name=None, max_value=None) -> "Progress":
         if not is_iterable(sequence):
             raise ValueError("Send a sequence.")
         if has_length(sequence):
             self.update_max_value(len(sequence))
+        elif max_value is not None:
+            self.update_max_value(max_value)
         else:
             self._is_generator = True
         self.sequence = sequence
@@ -1030,6 +1045,7 @@ class Progress:
         return self
 
     def __next__(self):
+        original_name = self._name
         if not self._with_context:
             self.start()
         try:
@@ -1041,13 +1057,13 @@ class Progress:
         finally:
             if self._is_generator:
                 self.update_max_value(self._current_value)
-            self._was_done = (self._current_value >= self._max_value) and not self._err
+            self._was_done = (self._current_value >= self.max_value) and not self._err
             if not self._with_context:
                 self.stop()
             self._iter_finaly = True
             self._show_progress(self._current_value)
 
-        self._console.set_prefix(self.name)
+        self._console.set_prefix(original_name)
         self.sequence = ()
 
     def __iter__(self):
