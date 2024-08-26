@@ -258,6 +258,7 @@ def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys
     assert all(isinstance(k, int) and k >= 0 for k in
                (k_iter, k_str, k_dict_keys)), 'k parameters should be an integer equal to or larger than 0'
 
+    data = copy(data)
     if isinstance(data, dict):
         if k_dict_keys:
             data = {key: data.get(key, '<…>') for key in truncate(list(data.keys()), k_dict_keys)}
