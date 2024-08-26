@@ -325,8 +325,12 @@ class Processor:
                 if elapsed_time < self.interval_seconds:
                     time.sleep(self.interval_seconds - elapsed_time)
                 if self.in_progress_count >= self._max_in_progress:
-                    print(f"O Total de dados sendo processado {self.in_progress_count} é maior que o predefinido {self._max_in_progress}")
-                    time.sleep(10)
+                    print(
+                        f"O Total de dados sendo processado {self.in_progress_count} é maior que o predefinido {self._max_in_progress}")
+                    while self.in_progress_count >= self._max_in_progress * 0.9:
+                        time.sleep(0.05)
+                        if self.stopped:
+                            break
 
         self.stop_process()
 

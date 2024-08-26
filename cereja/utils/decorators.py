@@ -37,6 +37,7 @@ __all__ = [
     "singleton",
     "on_except",
     "use_thread",
+    "on_elapsed",
 ]
 
 from ..config.cj_types import PEP440
@@ -58,13 +59,12 @@ def synchronized(func):
 
 
 def use_thread(func):
-    from .. import Thread
-
-    def wrapper(*args, **kwargs):
-        th = Thread(target=func, args=args, kwargs=kwargs, daemon=True)
+    def threaded_func(*args, **kws):
+        th = threading.Thread(target=func, args=args, kwargs=kws)
         th.start()
+        return th
 
-    return wrapper
+    return threaded_func
 
 
 class _ThreadSafeIterator:
@@ -201,3 +201,62 @@ def singleton(cls):
         return instances[cls]
 
     return instance
+
+
+def on_elapsed(interval: float = 1,
+               loop: bool = False,
+               use_threading: bool = False,
+               verbose: bool = False,
+               is_daemon: bool = False):
+    """
+    Run a function if the interval has elapsed
+
+    @param interval: Interval in seconds
+    @param loop: If True, the function will be executed in a loop
+    @param verbose: If True, the function name will be printed
+    @param use_threading: If True, the function will be executed in a thread
+    @param is_daemon: If True, the thread will be a daemon
+    """
+
+    def decorator(func: Callable):
+        last_time = 0.0
+
+        def wrapper(*args, **kwargs):
+            nonlocal last_time
+            if loop:
+                def run():
+                    nonlocal last_time
+                    while True:
+                        current_time = time.time()
+                        if current_time - last_time >= interval:
+                            if verbose:
+                                print(f"Running {func.__name__}")
+                            last_time = current_time
+                            func(*args, **kwargs)
+
+                if use_threading:
+                    import threading
+                    th = threading.Thread(target=run, daemon=is_daemon)
+                    th.start()
+                else:
+                    run()
+            else:
+                def run():
+                    nonlocal last_time
+                    current_time = time.time()
+                    if current_time - last_time >= interval:
+                        if verbose:
+                            print(f"Running {func.__name__}")
+                        last_time = current_time
+                        return func(*args, **kwargs)
+
+                if use_threading:
+                    import threading
+                    th = threading.Thread(target=run, daemon=is_daemon)
+                    th.start()
+                else:
+                    return run()
+
+        return wrapper
+
+    return decorator

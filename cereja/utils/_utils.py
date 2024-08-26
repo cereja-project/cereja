@@ -92,7 +92,8 @@ __all__ = [
     "combinations",
     "combinations_sizes",
     "value_from_memory",
-    "str_gen"
+    "str_gen",
+    "set_interval"
 ]
 
 logger = logging.getLogger(__name__)
@@ -1487,3 +1488,13 @@ def prune_values(values: Sequence, factor=2):
 def str_gen(pattern: AnyStr) -> Sequence[AnyStr]:
     regex = re.compile(pattern)
     return regex.findall(string.printable)
+
+
+def set_interval(func: Callable, sec: float):
+    """
+    Call a function every sec seconds
+    @param func: function
+    @param sec: seconds
+    """
+    from .decorators import on_elapsed
+    on_elapsed(sec, loop=True, use_threading=True)(func)()
