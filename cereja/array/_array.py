@@ -516,10 +516,10 @@ def apply_proportional_mask(
                                                    calculated based on positions.
 
     Returns:
-        List[List[int]]: Matriz resultante da aplicação proporcional da máscara, onde cada índice representa uma linha.
+        List[List[int]]: Matrix resulting from the proportional application of the mask, where each index represents a row.
     """
 
-    # Se original_size não for informado, calcular baseado nas posições
+    # If original_size is not given, calculate based on positions
     min_x, max_x, min_y, max_y = 0, 0, 0, 0
     if original_size is None:
         min_x, max_x, min_y, max_y = get_min_max(positions)
@@ -530,16 +530,16 @@ def apply_proportional_mask(
 
     mask_cols, mask_rows = mask_size
 
-    # Inicializar a matriz com zeros
+    # Initialize the array with zeros
     matrix = [[0 for _ in range(mask_cols)] for _ in range(mask_rows)]
 
-    # Calcular fatores de escala para colunas e linhas
+    # Calculate scale factors for columns and rows
     scale_x = mask_cols / original_width
     scale_y = mask_rows / original_height
 
-    # Preencher a matriz com base nas posições escaladas
+    # Fill the matrix based on the scaled positions
     for x, y in positions:
-        # Ajuste de posição para o novo sistema de coordenadas se necessário
+        # Adjust position to new coordinate system if necessary
         if original_size is None:
             x -= min_x
             y -= min_y
