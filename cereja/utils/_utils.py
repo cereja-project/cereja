@@ -93,7 +93,8 @@ __all__ = [
     "combinations_sizes",
     "value_from_memory",
     "str_gen",
-    "set_interval"
+    "set_interval",
+    "group_points_into_rows"
 ]
 
 logger = logging.getLogger(__name__)
@@ -1498,3 +1499,37 @@ def set_interval(func: Callable, sec: float):
     """
     from .decorators import on_elapsed
     on_elapsed(sec, loop=True, use_threading=True)(func)()
+
+
+def group_points_into_rows(points: List[Tuple[Number, Number]], filter_by_distance=None) -> List[List[Tuple[Number, Number]]]:
+    """
+    Sorts a list of 2D points by their y-coordinate and groups them into rows based on the x-coordinate.
+
+    Args:
+        points (List[Tuple[Number, Number]]): A list of 2D points represented as tuples of (x, y).
+        filter_by_distance (Number): The minimum distance required between consecutive points in the same row.
+
+    Returns:
+        List[List[Tuple[Number, Number]]]: A list of rows, where each row is a list of points that are close in the y-coordinate.
+    """
+    points = split_sequence(sorted(points, key=lambda x: x[-1]), lambda a, b: b[0] < a[0])
+    result = []
+    filter_by_distance = filter_by_distance or 0
+
+    for row in points:
+        # Check if the new row is close to the previous one, and replace if it's better aligned
+        if len(result) > 0 and (row[0][1] - result[-1][0][1] < filter_by_distance * 0.5 and len(result[-1]) < len(row)):
+            result[-1] = row
+            continue
+
+        # Add the row if it's sufficiently distant from the previous row
+        if len(result) == 0 or row[0][1] - result[-1][0][1] >= filter_by_distance:
+            row_filtered = [row[0]]
+
+            # Filter points within the row based on the specified distance
+            for point in get_batch_strides(row, 2, 1, False):
+                if len(point) == 2 and point[1][0] - point[0][0] >= filter_by_distance:
+                    row_filtered.append(point[-1])
+
+            result.append(row_filtered)
+    return result

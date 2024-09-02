@@ -522,7 +522,7 @@ def apply_proportional_mask(
     # If original_size is not given, calculate based on positions
     min_x, max_x, min_y, max_y = 0, 0, 0, 0
     if original_size is None:
-        min_x, max_x, min_y, max_y = get_min_max(positions)
+        (min_x, max_x), (min_y, max_y) = get_min_max(positions)
         original_width = max_x - min_x
         original_height = max_y - min_y
     else:
