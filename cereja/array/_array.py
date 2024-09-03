@@ -50,6 +50,8 @@ __all__ = [
     "sub",
     "prod",
     "reshape",
+    "get_min_max",
+    "apply_proportional_mask",
 ]
 
 from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, dict_to_tuple
@@ -478,6 +480,77 @@ def dot(a, b):
     shape_b = get_shape(b)
     assert shape_a[-2] == shape_b[-1]
     return [[dotproduct(line, col) for col in get_cols(b)] for line in a]
+
+
+def get_min_max(values: List[Any]) -> Tuple[Any, ...]:
+    if not values or len(values) == 0:
+        raise ValueError("values must have at least one element")
+
+    result = []
+    try:
+        shape = get_shape(values)
+        if len(shape) > 1:
+            values_ = flatten(values, depth=len(shape) - 2)
+            for i in range(shape[-1]):
+                result.append((min(values_, key=lambda val: val[i])[i], max(values_, key=lambda val: val[i])[i]))
+            return tuple(result)
+        return min(values), max(values)
+    except Exception as err:
+        raise ValueError(f"Error when trying to get min and max values. {err}")
+
+
+def apply_proportional_mask(
+        positions: List[Tuple[int, int]],
+        mask_size: Tuple[int, int],
+        original_size: Optional[Tuple[int, int]] = None
+) -> List[List[int]]:
+    """
+    Applies a proportional mask to a list of positions and returns an array (list of lists) representing the mask,
+    where each index of the main list corresponds to a row.
+
+    Args:
+        positions (List[Tuple[int, int]]): List of tuples representing positions (x, y) on the original scale.
+        mask_size (Tuple[int, int]): Mask size (columns, rows), where columns is the number of columns and rows is
+                                     the number of rows.
+        original_size (Optional[Tuple[int, int]]): Original image size (width, height). If not provided, it will be
+                                                   calculated based on positions.
+
+    Returns:
+        List[List[int]]: Matrix resulting from the proportional application of the mask, where each index represents a row.
+    """
+
+    # If original_size is not given, calculate based on positions
+    min_x, max_x, min_y, max_y = 0, 0, 0, 0
+    if original_size is None:
+        (min_x, max_x), (min_y, max_y) = get_min_max(positions)
+        original_width = max_x - min_x
+        original_height = max_y - min_y
+    else:
+        original_width, original_height = original_size
+
+    mask_cols, mask_rows = mask_size
+
+    # Initialize the array with zeros
+    matrix = [[0 for _ in range(mask_cols)] for _ in range(mask_rows)]
+
+    # Calculate scale factors for columns and rows
+    scale_x = mask_cols / original_width
+    scale_y = mask_rows / original_height
+
+    # Fill the matrix based on the scaled positions
+    for x, y in positions:
+        # Adjust position to new coordinate system if necessary
+        if original_size is None:
+            x -= min_x
+            y -= min_y
+
+        scaled_x = int(x * scale_x)
+        scaled_y = int(y * scale_y)
+
+        if 0 <= scaled_x < mask_cols and 0 <= scaled_y < mask_rows:
+            matrix[scaled_y][scaled_x] = 1
+
+    return matrix
 
 
 class Matrix(object):

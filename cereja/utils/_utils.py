@@ -92,7 +92,9 @@ __all__ = [
     "combinations",
     "combinations_sizes",
     "value_from_memory",
-    "str_gen"
+    "str_gen",
+    "set_interval",
+    "SourceCodeAnalyzer"
 ]
 
 logger = logging.getLogger(__name__)
@@ -119,33 +121,49 @@ def is_indexable(v):
     return hasattr(v, "__getitem__")
 
 
-def split_sequence(seq, is_break_fn):
+def split_sequence(seq: List[Any], is_break_fn: Callable) -> List[List[Any]]:
     """
-    Divide a sequence into sub-sequences at the point defined by a given is_break_fn function.
-
-    Args:
-        seq (list): The sequence to be divided into sub-sequences.
-        is_break_fn (callable): A function that takes two elements from the sequence and
-            returns True if there is a break between them and False otherwise.
-
-    Returns:
-        list: A list of sub-sequences, each containing a sequence of consecutive elements.
-
-    Examples:
-        >>> seq = [1, 2, 3, 4, 5, 2, 3, 4, 5, 6, 7, 8]
-        >>> is_even = lambda x, y: x % 2 == 0 and y % 2 == 0
-        >>> sub_seqs = split_sequence(seq, is_even)
-        >>> sub_seqs
-        [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6, 7, 8]]
+    Split a sequence into subsequences based on a break function.
+    @param seq: sequence to split
+    @param is_break_fn: function that returns True if the sequence should be split at the current index
+    e.g:
+    >>> import cereja as cj
+    >>> seq = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    >>> cj.split_sequence(seq, lambda current_val: current_val % 3 == 0)
+    [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    >>> cj.split_sequence(seq, lambda current_val, next_val: current_val % 2 == 0 and next_val % 3 == 0)
+    [[1, 2], [3, 4, 5, 6, 7, 8], [9]]
+    >>> cj.split_sequence(seq, lambda: True)
+    [[1], [2], [3], [4], [5], [6], [7], [8], [9]]
+    >>> cj.split_sequence(seq, lambda current_val, next_val, index: seq[index-1] % 2 == 0 and current_val % 3 == 0)
+    [[1, 2, 3], [4, 5, 6, 7, 8, 9]]
+    @return: list of subsequences
     """
+    if not isinstance(seq, list) or not seq:
+        raise ValueError("A sequência deve ser uma lista não vazia.")
+
+    if not callable(is_break_fn):
+        raise TypeError("is_break_fn deve ser uma função.")
+
+    # Inicializa com a primeira subsequência
     sub_seqs = []
-    sub_seq = [seq[0]]
-    for i in range(1, len(seq)):
-        if is_break_fn(seq[i - 1], seq[i]):
-            sub_seqs.append(sub_seq)
-            sub_seq = []
-        sub_seq.append(seq[i])
-    sub_seqs.append(sub_seq)
+    start_idx = 0
+    break_fn_arg_count = SourceCodeAnalyzer(is_break_fn).argument_count
+    for indx, val in enumerate(seq):
+        _args = None
+        if indx + 1 == len(seq):
+            sub_seqs.append(seq[start_idx:])
+            break
+        if break_fn_arg_count == 1:
+            _args = (val,)
+        elif break_fn_arg_count == 2:
+            _args = (val, seq[indx + 1])
+        elif break_fn_arg_count == 3:
+            _args = (val, seq[indx + 1], indx)
+
+        if is_break_fn(*_args) if _args else is_break_fn():
+            sub_seqs.append(seq[start_idx:indx+1])
+            start_idx = indx+1
     return sub_seqs
 
 
@@ -258,6 +276,7 @@ def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys
     assert all(isinstance(k, int) and k >= 0 for k in
                (k_iter, k_str, k_dict_keys)), 'k parameters should be an integer equal to or larger than 0'
 
+    data = copy(data)
     if isinstance(data, dict):
         if k_dict_keys:
             data = {key: data.get(key, '<…>') for key in truncate(list(data.keys()), k_dict_keys)}
@@ -1169,34 +1188,84 @@ def rescale_values(
     return result
 
 
-class Source:
+class SourceCodeAnalyzer:
     def __init__(self, reference: Any):
-        self._name = None
-        self._doc = inspect.getdoc(reference)
-        self._source_code = inspect.getsource(reference)
-        if hasattr(reference, "__name__"):
-            self._name = reference.__name__
+        self._reference = reference
+        self._name: Optional[str] = None
+        self._doc: Optional[str] = None
+        self._source_code: Optional[str] = None
 
     @property
-    def source_code(self):
-        return self._source_code.lstrip()
+    def source_code(self) -> str:
+        if self._source_code is None:
+            self._source_code = inspect.getsource(self._reference).lstrip()
+        return self._source_code
 
     @property
-    def name(self):
+    def name(self) -> str:
+        if self._name is None:
+            if hasattr(self._reference, "__name__"):
+                self._name = self._reference.__name__
+            else:
+                self._name = self._reference.__class__.__name__
         return self._name
 
     @property
-    def doc(self):
+    def has_arguments(self) -> bool:
+        return bool(inspect.signature(self._reference).parameters)
+
+    @property
+    def arguments(self):
+        return inspect.signature(self._reference).parameters
+
+    @property
+    def argument_names(self) -> list:
+        return list(self.arguments.keys())
+
+    @property
+    def argument_defaults(self) -> dict:
+        return {k: v.default for k, v in self.arguments.items() if v.default != inspect.Parameter.empty}
+
+    @property
+    def argument_count(self) -> int:
+        return len(self.arguments)
+
+    @property
+    def required_arguments(self) -> list:
+        return [k for k, v in self.arguments.items() if v.default == inspect.Parameter.empty]
+
+    @property
+    def optional_arguments(self) -> list:
+        return [k for k, v in self.arguments.items() if v.default != inspect.Parameter.empty]
+
+    @property
+    def has_kwargs(self) -> bool:
+        return any(v.kind == inspect.Parameter.VAR_KEYWORD for v in self.arguments.values())
+
+    @property
+    def has_varargs(self) -> bool:
+        return any(v.kind == inspect.Parameter.VAR_POSITIONAL for v in self.arguments.values())
+
+    @property
+    def docstring(self) -> Optional[str]:
+        if self._doc is None:
+            self._doc = inspect.getdoc(self._reference)
         return self._doc
 
-    def save(self, path_, **kwargs):
+    def save_source_code(self, path: str, **kwargs):
         from cereja import FileIO, Path
 
-        path_ = Path(path_)
-        if path_.is_dir:
-            path_ = path_.join(f"{self.name}.py")
-        assert path_.suffix == ".py", "Only python source code."
-        FileIO.create(path_, self._source_code).save(**kwargs)
+        path = Path(path)
+        if path.is_dir:
+            path = path.join(f"{self.name}.py")
+        assert path.suffix == ".py", "Only Python source code is allowed."
+        FileIO.create(path, self.source_code).save(**kwargs)
+
+
+@depreciation(alternative="SourceCodeAnalyzer")
+class Source(SourceCodeAnalyzer):
+    def __init__(self, reference: Any):
+        super().__init__(reference)
 
 
 def is_iterable(obj: Any) -> bool:
@@ -1486,3 +1555,13 @@ def prune_values(values: Sequence, factor=2):
 def str_gen(pattern: AnyStr) -> Sequence[AnyStr]:
     regex = re.compile(pattern)
     return regex.findall(string.printable)
+
+
+def set_interval(func: Callable, sec: float):
+    """
+    Call a function every sec seconds
+    @param func: function
+    @param sec: seconds
+    """
+    from .decorators import on_elapsed
+    on_elapsed(sec, loop=True, use_threading=True)(func)()

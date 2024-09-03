@@ -569,5 +569,69 @@ class DecoratorTest(unittest.TestCase):
         pass
 
 
+class TestSplitSequence(unittest.TestCase):
+
+    def test_basic_case(self):
+        seq = [1, 2, 3, 4, 5, 2, 2, 3, 4, 5, 6, 7, 8]
+        is_even = lambda x, y: x % 2 == 0 and y % 2 == 0
+        result = utils.split_sequence(seq, is_even)
+        expected = [[1, 2, 3, 4, 5, 2], [2, 3, 4, 5, 6, 7, 8]]
+        self.assertEqual(result, expected)
+
+    def test_no_breaks(self):
+        seq = [1, 2, 3, 4, 5]
+        is_never_break = lambda x, y: False
+        result = utils.split_sequence(seq, is_never_break)
+        expected = [seq]  # Should return the entire sequence as a single list
+        self.assertEqual(result, expected)
+
+    def test_all_breaks(self):
+        seq = [1, 2, 3, 4, 5]
+        is_always_break = lambda x, y: True
+        result = utils.split_sequence(seq, is_always_break)
+        expected = [[1], [2], [3], [4], [5]]  # Each element should be its own subsequence
+        self.assertEqual(result, expected)
+
+    def test_single_element(self):
+        seq = [42]
+        is_even = lambda x, y: x % 2 == 0 and y % 2 == 0
+        result = utils.split_sequence(seq, is_even)
+        expected = [[42]]  # A single element should return as a single subsequence
+        self.assertEqual(result, expected)
+
+    def test_empty_sequence(self):
+        with self.assertRaises(ValueError):
+            utils.split_sequence([], lambda x, y: x < y)
+
+    def test_non_callable_is_break_fn(self):
+        with self.assertRaises(TypeError):
+            utils.split_sequence([1, 2, 3], "not_a_function")
+
+    def test_non_numeric_sequence(self):
+        seq = ["apple", "banana", "cherry", "date", "elderberry"]
+        # A quebra ocorre quando o segundo elemento (y) começa com uma vogal,
+        # e o primeiro elemento (x) não começa com uma vogal.
+        is_vowel_break = lambda x, y: y[0] in "aeiou" and x[0] not in "aeiou"
+        result = utils.split_sequence(seq, is_vowel_break)
+        expected = [["apple", "banana", "cherry", "date"], ["elderberry"]]
+        self.assertEqual(result, expected)
+
+    def test_subsequences_with_custom_objects(self):
+        class Point:
+            def __init__(self, x, y):
+                self.x = x
+                self.y = y
+
+            def __eq__(self, other):
+                return self.x == other.x and self.y == other.y
+
+        seq = [Point(1, 2), Point(1, 3), Point(4, 4), Point(4, 8)]
+        is_same_x = lambda p1, p2: p1.x == p2.x
+        result = utils.split_sequence(seq, is_same_x)
+        # The expected result should be split based on x coordinate equality
+        expected = [[seq[0]], [seq[1], seq[2]], [seq[3]]]
+        self.assertEqual(result, expected)
+
+
 if __name__ == "__main__":
     unittest.main()

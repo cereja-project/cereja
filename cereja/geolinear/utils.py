@@ -1,6 +1,6 @@
 import math
 
-__all__ = ["Rotation"]
+__all__ = ["Rotation", "find_best_locations"]
 
 from typing import Union
 
@@ -74,3 +74,61 @@ class Rotation:
 
         return reshape(list(map(lambda point: self.rotate_point(point, axis=axis), flatten(val, depth=len(shape) - 2))),
                        shape)
+
+
+def find_best_locations(locations, min_distance=1):
+    """
+    Finds the best locations that respect a minimum distance between points.
+
+    Args:
+    locations (list of tuple): A list of (x, y) tuples representing the locations.
+    min_distance (int, optional): The minimum distance in pixels between each point. Default is 1.
+
+    Returns:
+    list of tuple: A list of (x, y) tuples representing the best locations.
+    """
+
+    min_distance_squared = min_distance ** 2
+    selected_locations = []
+
+    for current_location in locations:
+        is_valid = True
+        for existing_location in selected_locations:
+            distance_squared = (
+                    (current_location[0] - existing_location[0]) ** 2 +
+                    (current_location[1] - existing_location[1]) ** 2
+            )
+            if distance_squared < min_distance_squared:
+                is_valid = False
+                break
+        if is_valid:
+            selected_locations.append(current_location)
+
+    return selected_locations
+
+
+def group_locations_into_rows(locations, max_distance=1):
+    """
+    Groups locations into rows based on their y-coordinates.
+
+    Args:
+    locations (list of tuple): A list of (x, y) tuples representing the locations.
+    max_distance (int, optional): The maximum distance in pixels between each point. Default is 1.
+
+    Returns:
+    list of list of tuple: A list of lists of (x, y) tuples representing the grouped locations.
+    """
+
+    rows = []
+
+    for location in locations:
+        is_added = False
+        for row in rows:
+            if all(abs(location[1] - row_location[1]) <= max_distance for row_location in row):
+                row.append(location)
+                is_added = True
+                break
+        if not is_added:
+            rows.append([location])
+
+    return rows
