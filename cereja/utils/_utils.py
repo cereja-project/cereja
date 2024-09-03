@@ -94,7 +94,6 @@ __all__ = [
     "value_from_memory",
     "str_gen",
     "set_interval",
-    "group_points_into_rows",
     "SourceCodeAnalyzer"
 ]
 
