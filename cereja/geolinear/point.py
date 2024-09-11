@@ -230,6 +230,19 @@ class Point:
         else:
             raise ValueError(f"Invalid axis: {axis}. Axis should be 'x', 'y', or 'z'.")
 
+    def manhattan_distance_to(self, other: 'Point') -> float:
+        """
+        Computes the Manhattan distance between this point and another point.
+
+        Args:
+            other (Point): The other point to which the Manhattan distance is calculated.
+
+        Returns:
+            float: The Manhattan distance between the two points.
+        """
+        other = Point(other)
+        return abs(sum(self - other))
+
     def __getitem__(self, item: Union[int, str]) -> Union[int, float]:
         """Allows indexing into the point to retrieve its coordinates."""
         if isinstance(item, str):
