@@ -109,4 +109,4 @@ cj_modules_dotted_path = [
 ]
 
 console_logger = logging.StreamHandler(sys.stdout)
-logging.basicConfig(handlers=(console_logger,), level=logging.WARNING)
+logging.basicConfig(handlers=(console_logger,), level=logging.INFO)
