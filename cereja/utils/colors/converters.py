@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 __all__ = ["rgb_to_hex", "hex_to_rgb", "rgb_to_hsl", "hsl_to_rgb", "rgb_to_hsv", "hsv_to_rgb", "rgb_to_cmyk",
-           "cmyk_to_rgb"]
+           "cmyk_to_rgb", "normalize_rgb"]
+
+
+def normalize_rgb(r, g, b):
+    return r / 255.0, g / 255.0, b / 255.0
 
 
 def parse_hex(hex_value):
@@ -55,9 +59,7 @@ def hex_to_rgba(hex_value):
 
 
 def rgb_to_hsl(r, g, b):
-    r /= 255.0
-    g /= 255.0
-    b /= 255.0
+    r, g, b = normalize_rgb(r, g, b)
     max_c = max(r, g, b)
     min_c = min(r, g, b)
     l = (max_c + min_c) / 2.0
@@ -104,7 +106,7 @@ def hsl_to_rgba(h, s, l):
 
 
 def rgb_to_hsv(r, g, b):
-    r, g, b = r / 255.0, g / 255.0, b / 255.0
+    r, g, b = normalize_rgb(r, g, b)
     max_c = max(r, g, b)
     min_c = min(r, g, b)
     delta = max_c - min_c
