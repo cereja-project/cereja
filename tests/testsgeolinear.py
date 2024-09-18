@@ -99,6 +99,18 @@ class TestPoint(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.point.bounding_box(4, 6, position="invalid_position")
 
+    def test_manhattan_distance(self):
+        # Testa a distância de Manhattan entre pontos iguais
+        result = self.p1.manhattan_distance_to(self.p2)
+        self.assertEqual(result, 0)
+
+        # Testa a distância de Manhattan entre pontos diferentes
+        result = self.p1.manhattan_distance_to(self.p3)
+        self.assertEqual(result, abs(1 - 4) + abs(2 - 5) + abs(3 - 6))
+
+        # Testa a distância de Manhattan para uma tupla de coordenadas
+        result = Point((1, 4)).manhattan_distance_to((2, 5))
+        self.assertEqual(result, abs(1 - 2) + abs(4 - 5))
 
 if __name__ == '__main__':
     unittest.main()

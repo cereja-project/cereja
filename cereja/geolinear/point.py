@@ -240,8 +240,7 @@ class Point:
         Returns:
             float: The Manhattan distance between the two points.
         """
-        other = Point(other)
-        return abs(sum(self - other))
+        return sum(abs(a - b) for a, b in zip(self, other))
 
     def __getitem__(self, item: Union[int, str]) -> Union[int, float]:
         """Allows indexing into the point to retrieve its coordinates."""
