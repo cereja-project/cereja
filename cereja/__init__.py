@@ -47,6 +47,7 @@ from .mathtools import *
 from . import experimental
 from ._requests import request
 from . import scraping
+from . import wcag
 
 VERSION = "2.0.2.final.0"
 
