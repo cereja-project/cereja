@@ -22,6 +22,7 @@ import gc
 import math
 import re
 import string
+import threading
 import time
 from collections import OrderedDict, defaultdict
 from importlib import import_module
@@ -98,6 +99,7 @@ __all__ = [
     "map_values",
     'decode_coordinates',
     'encode_coordinates',
+    'SingletonMeta'
 ]
 
 logger = logging.getLogger(__name__)
@@ -1623,3 +1625,18 @@ def decode_coordinates(lparam: int):
     x = lparam & 0xFFFF
     y = (lparam >> 16) & 0xFFFF
     return x, y
+
+
+class SingletonMeta(type):
+    """A thread-safe implementation of Singleton."""
+    _instances = {}
+    _lock: threading.Lock = threading.Lock()  # Class-level lock
+
+    def __call__(cls, *args, **kwargs):
+        # First, check if an instance exists
+        if cls not in cls._instances:
+            with cls._lock:
+                # Double-check locking
+                if cls not in cls._instances:
+                    cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
