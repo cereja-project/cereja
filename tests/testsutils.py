@@ -480,7 +480,7 @@ class UtilsTest(unittest.TestCase):
         ]
         for test_value, kernel_size, strides, expected in tests:
             self.assertEqual(
-                    list(utils.get_batch_strides(test_value, kernel_size, strides)),
+                    list(utils.get_batch_strides(test_value, kernel_size, strides, fill_=True)),
                     expected,
             )
 
@@ -623,7 +623,9 @@ class TestSplitSequence(unittest.TestCase):
                 self.y = y
 
             def __eq__(self, other):
-                return self.x == other.x and self.y == other.y
+                if isinstance(other, Point):
+                    return self.x == other.x and self.y == other.y
+                return False
 
         seq = [Point(1, 2), Point(1, 3), Point(4, 4), Point(4, 8)]
         is_same_x = lambda p1, p2: p1.x == p2.x

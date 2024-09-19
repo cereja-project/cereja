@@ -22,6 +22,7 @@ import gc
 import math
 import re
 import string
+import threading
 import time
 from collections import OrderedDict, defaultdict
 from importlib import import_module
@@ -29,7 +30,7 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable, AnyStr
+from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable, AnyStr, Iterator
 import logging
 import itertools
 from copy import copy
@@ -94,7 +95,11 @@ __all__ = [
     "value_from_memory",
     "str_gen",
     "set_interval",
-    "SourceCodeAnalyzer"
+    "SourceCodeAnalyzer",
+    "map_values",
+    'decode_coordinates',
+    'encode_coordinates',
+    'SingletonMeta'
 ]
 
 logger = logging.getLogger(__name__)
@@ -140,31 +145,51 @@ def split_sequence(seq: List[Any], is_break_fn: Callable) -> List[List[Any]]:
     @return: list of subsequences
     """
     if not isinstance(seq, list) or not seq:
-        raise ValueError("A sequência deve ser uma lista não vazia.")
+        raise ValueError("The sequence must be a non-empty list.")
 
     if not callable(is_break_fn):
-        raise TypeError("is_break_fn deve ser uma função.")
+        raise TypeError("is_break_fn must be a function.")
 
-    # Inicializa com a primeira subsequência
     sub_seqs = []
     start_idx = 0
-    break_fn_arg_count = SourceCodeAnalyzer(is_break_fn).argument_count
-    for indx, val in enumerate(seq):
-        _args = None
-        if indx + 1 == len(seq):
-            sub_seqs.append(seq[start_idx:])
-            break
-        if break_fn_arg_count == 1:
-            _args = (val,)
-        elif break_fn_arg_count == 2:
-            _args = (val, seq[indx + 1])
-        elif break_fn_arg_count == 3:
-            _args = (val, seq[indx + 1], indx)
-
-        if is_break_fn(*_args) if _args else is_break_fn():
-            sub_seqs.append(seq[start_idx:indx+1])
-            start_idx = indx+1
+    if len(seq) == 1:
+        return [seq]
+    for idx, is_break in enumerate(map_values(seq, is_break_fn)):
+        if is_break:
+            sub_seqs.append(seq[start_idx:idx + 1])
+            start_idx = idx + 1
+    if start_idx < len(seq):
+        sub_seqs.append(seq[start_idx:])
     return sub_seqs
+
+
+def map_values(obj: Union[dict, list, tuple, Iterator], fn: Callable) -> Union[dict, list, tuple, Iterator]:
+    fn_arg_count = SourceCodeAnalyzer(fn).argument_count
+    is_dict = isinstance(obj, dict)
+    if isinstance(obj, dict):
+        obj = obj.items()
+    _iter = iter(obj)
+    last = next(_iter, '__stop__')
+    if last == '__stop__':
+        return map(fn, obj)
+    idx = 0
+    while last != '__stop__':
+        _args = None
+        _next = next(_iter, '__stop__')
+
+        if fn_arg_count == 1:
+            _args = (last,)
+        elif fn_arg_count == 2:
+            _args = (last, None if _next == '__stop__' else _next)
+        elif fn_arg_count == 3:
+            _args = (last, None if _next == '__stop__' else _next, idx)
+        if _next == '__stop__' and fn_arg_count >= 2:
+            if idx == 0:
+                yield fn(*_args)
+            break
+        yield fn(*_args) if _args else last
+        last = _next
+        idx += 1
 
 
 def chunk(
@@ -1518,7 +1543,7 @@ def get_zero_mask(number: int, max_len: int = 3) -> str:
     return f"%0.{max_len}d" % number
 
 
-def get_batch_strides(data, kernel_size, strides=1, fill_=True, take_index=False):
+def get_batch_strides(data, kernel_size, strides=1, fill_=False, take_index=False):
     """
     Returns batches of fixed window size (kernel_size) with a given stride
     @param data: iterable
@@ -1565,3 +1590,53 @@ def set_interval(func: Callable, sec: float):
     """
     from .decorators import on_elapsed
     on_elapsed(sec, loop=True, use_threading=True)(func)()
+
+
+def encode_coordinates(x: int, y: int):
+    """
+    Encode the coordinates (x, y) into a single lParam value.
+
+    The encoding is done by shifting the y-coordinate 16 bits to the left and
+    then performing a bitwise OR with the x-coordinate.
+
+    Args:
+        x (int): The x-coordinate.
+        y (int): The y-coordinate.
+
+    Returns:
+        int: The encoded lParam value.
+    """
+    return (y << 16) | x
+
+
+def decode_coordinates(lparam: int):
+    """
+    Decode the lParam value back into the original coordinates (x, y).
+
+    The decoding is done by extracting the lower 16 bits for the x-coordinate
+    and the upper 16 bits for the y-coordinate.
+
+    Args:
+        lparam (int): The encoded lParam value.
+
+    Returns:
+        tuple: A tuple containing the x and y coordinates.
+    """
+    x = lparam & 0xFFFF
+    y = (lparam >> 16) & 0xFFFF
+    return x, y
+
+
+class SingletonMeta(type):
+    """A thread-safe implementation of Singleton."""
+    _instances = {}
+    _lock: threading.Lock = threading.Lock()  # Class-level lock
+
+    def __call__(cls, *args, **kwargs):
+        # First, check if an instance exists
+        if cls not in cls._instances:
+            with cls._lock:
+                # Double-check locking
+                if cls not in cls._instances:
+                    cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
