@@ -405,7 +405,7 @@ class Mouse:
                 position = self.position
             l_param = (position[1] << 16) | position[0]
 
-            self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_down"], 0, l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_down"], 1, l_param)
             self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_up"], 0, l_param)
 
     def click_left(self, position: Tuple[int, int] = None, n_clicks=1):
@@ -420,7 +420,7 @@ class Mouse:
             from_l_param = (from_[1] << 16) | from_[0]
             to_l_param = (to[1] << 16) | to[0]
 
-            self.send_event(self._hwnd, self._mouse_messages_map["left_down"], 0, from_l_param)
+            self.send_event(self._hwnd, self._mouse_messages_map["left_down"], 1, from_l_param)
             self.send_event(self._hwnd, self._mouse_messages_map["left_up"], 0, to_l_param)
         else:
             self.set_position(from_[0], from_[1])
