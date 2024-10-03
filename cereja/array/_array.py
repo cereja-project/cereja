@@ -46,6 +46,7 @@ __all__ = [
     "shape_is_ok",
     "dot",
     "dotproduct",
+    "determinant",
     "div",
     "sub",
     "prod",
@@ -481,6 +482,26 @@ def dot(a, b):
     assert shape_a[-2] == shape_b[-1]
     return [[dotproduct(line, col) for col in get_cols(b)] for line in a]
 
+def determinant(matrix: Sequence[Sequence[Number]]) -> Number:
+    """
+    Calculate the determinant of a square matrix.
+
+    This function is inteded specifically for use with an (nxn) martix
+    and may reject non-square matricies
+
+    :param matrix: Is an (nxn) matrix of numbers
+    :return:
+    """
+    assert(
+        len(get_shape(matrix)) == 2 and get_shape(matrix)[0] == get_shape(matrix)[1]
+    ), f"Matrix: {matrix} is not (nxn), please provide a square matrix."
+    if len(matrix) == 2:
+        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]
+    det = 0
+    for c in range(len(matrix)):
+        sub_matrix = [row[:c] + row[c+1:] for row in matrix[1:]]
+        det += ((-1) ** c) * matrix[0][c] * determinant(sub_matrix)
+    return det
 
 def get_min_max(values: List[Any]) -> Tuple[Any, ...]:
     if not values or len(values) == 0:
