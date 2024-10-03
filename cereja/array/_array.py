@@ -482,7 +482,7 @@ def dot(a, b):
     assert shape_a[-2] == shape_b[-1]
     return [[dotproduct(line, col) for col in get_cols(b)] for line in a]
 
-def determinant(matrix: Sequence[Sequence[Number]]) -> Number:
+def determinant(sequence: Sequence[Union[Sequence[Number], "Matrix"]]) -> Number:
     """
     Calculate the determinant of a square matrix.
 
@@ -493,14 +493,14 @@ def determinant(matrix: Sequence[Sequence[Number]]) -> Number:
     :return:
     """
     assert(
-        len(get_shape(matrix)) == 2 and get_shape(matrix)[0] == get_shape(matrix)[1]
-    ), f"Matrix: {matrix} is not (nxn), please provide a square matrix."
-    if len(matrix) == 2:
-        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]
+        len(get_shape(sequence)) == 2 and get_shape(sequence)[0] == get_shape(sequence)[1]
+    ), f"Matrix: {sequence} is not (nxn), please provide a square matrix."
+    if len(sequence) == 2:
+        return sequence[0][0] * sequence[1][1] - sequence[0][1] * sequence[1][0]
     det = 0
-    for c in range(len(matrix)):
-        sub_matrix = [row[:c] + row[c+1:] for row in matrix[1:]]
-        det += ((-1) ** c) * matrix[0][c] * determinant(sub_matrix)
+    for c in range(len(sequence)):
+        sub_matrix = [row[:c] + row[c+1:] for row in sequence[1:]]
+        det += ((-1) ** c) * sequence[0][c] * determinant(sub_matrix)
     return det
 
 def get_min_max(values: List[Any]) -> Tuple[Any, ...]:
@@ -726,6 +726,9 @@ class Matrix(object):
 
     def reshape(self, shape: Shape):
         return Matrix(reshape(self, shape))
+    
+    def determinant(self):
+        return Matrix(determinant(self))
 
     @staticmethod
     def arange(*args):
