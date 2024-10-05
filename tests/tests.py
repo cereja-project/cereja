@@ -31,6 +31,7 @@ from cereja.array import (
     flatten,
     array_gen,
     get_shape,
+    determinant,
     Matrix,
     reshape,
 )
@@ -98,6 +99,11 @@ class UtilsTestCase(unittest.TestCase):
         sequence = (1, 2, 3)
         expected_value = [1, 2, 3]
         self.assertEqual(flatten(sequence), expected_value)
+
+    def test_determinant(self):
+        sequence = [[6,1,1],[4,-2,5],[2,8,7]]
+        expected_value = -306
+        self.assertEqual(determinant(sequence), expected_value)
 
     def test_is_sequence(self):
         sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]

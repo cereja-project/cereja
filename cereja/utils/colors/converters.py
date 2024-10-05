@@ -1,8 +1,26 @@
 from __future__ import annotations
 
 __all__ = ["rgb_to_hex", "hex_to_rgb", "rgb_to_hsl", "hsl_to_rgb", "rgb_to_hsv", "hsv_to_rgb", "rgb_to_cmyk",
-           "cmyk_to_rgb"]
+           "cmyk_to_rgb", "normalize_rgb"]
 
+def normalize_rgb(r, g, b):
+    """
+    Normalizes the RGB values from 0-255 to the 0-1 range.
+
+    This function converts the RGB color components, typically in the 0-255 range,
+    to values in the 0-1 range. It is useful in various contexts of image processing,
+    graphics, and color calculations, where color values need to be worked on in a normalized format.
+
+    Args:
+        r (int): The red component value, ranging from 0 to 255.
+        g (int): The green component value, ranging from 0 to 255.
+        b (int): The blue component value, ranging from 0 to 255.
+
+    Returns:
+        tuple[float, float, float]: A tuple containing the normalized red,
+        green, and blue values, each in the 0-1 range.
+    """
+    return r / 255.0, g / 255.0, b / 255.0
 
 def parse_hex(hex_value):
     hex_value = hex_value.lstrip("#")
@@ -55,9 +73,7 @@ def hex_to_rgba(hex_value):
 
 
 def rgb_to_hsl(r, g, b):
-    r /= 255.0
-    g /= 255.0
-    b /= 255.0
+    r, g, b = normalize_rgb(r, g, b)
     max_c = max(r, g, b)
     min_c = min(r, g, b)
     l = (max_c + min_c) / 2.0
@@ -104,7 +120,7 @@ def hsl_to_rgba(h, s, l):
 
 
 def rgb_to_hsv(r, g, b):
-    r, g, b = r / 255.0, g / 255.0, b / 255.0
+    r, g, b = normalize_rgb(r, g, b)
     max_c = max(r, g, b)
     min_c = min(r, g, b)
     delta = max_c - min_c
