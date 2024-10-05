@@ -23,8 +23,8 @@ SOFTWARE.
 import functools
 import threading
 import time
+import time as _time
 from abc import abstractmethod
-from typing import Callable, Any
 import abc
 import logging
 import warnings
@@ -33,14 +33,14 @@ import random
 __all__ = [
     "depreciation",
     "synchronized",
-    "time_exec",
     "thread_safe_generator",
     "singleton",
     "on_except",
     "use_thread",
-    "on_elapsed",
     "retry_on_failure",
 ]
+
+from typing import Callable, Any
 
 from ..config.cj_types import PEP440
 
@@ -87,25 +87,6 @@ def thread_safe_generator(func):
         return _ThreadSafeIterator(func(*a, **kw))
 
     return gen
-
-
-def time_exec(func: Callable[[Any], Any]) -> Callable:
-    """
-    Decorator used to signal or perform a particular function.
-
-    :param func: Receives the function that will be executed as well as its parameters.
-    :return
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        from cereja import console
-        first_time = time.time()
-        result = func(*args, **kwargs)
-        console.log(f"[{func.__name__}] performed {time.time() - first_time}")
-        return result
-
-    return wrapper
 
 
 class Decorator(abc.ABC):
@@ -211,6 +192,7 @@ def retry_on_failure(retries: int = 3, initial_delay: float = 0.1, backoff_facto
                         raise e
 
         return wrapper
+
     return register
 
 
@@ -224,6 +206,25 @@ def singleton(cls):
         return instances[cls]
 
     return instance
+
+
+def time_exec(func: Callable[[Any], Any]) -> Callable:
+    """
+    Decorator used to signal or perform a particular function.
+
+    :param func: Receives the function that will be executed as well as its parameters.
+    :return: Returns the function that will be executed.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        from cereja import console
+        first_time = time.time()
+        result = func(*args, **kwargs)
+        console.log(f"[{func.__name__}] performed {time.time() - first_time}")
+        return result
+
+    return wrapper
 
 
 def on_elapsed(interval: float = 1,
@@ -261,6 +262,7 @@ def on_elapsed(interval: float = 1,
                     import threading
                     th = threading.Thread(target=run, daemon=is_daemon)
                     th.start()
+                    return th
                 else:
                     run()
             else:
@@ -277,6 +279,7 @@ def on_elapsed(interval: float = 1,
                     import threading
                     th = threading.Thread(target=run, daemon=is_daemon)
                     th.start()
+                    return th
                 else:
                     return run()
 
