@@ -104,3 +104,10 @@ venv.bak/
 .mypy_cache/
 
 .idea/
+
+*.bmp
+*/cpp_module
+
+CMakeLists.txt
+MANIFEST.in
+*.png

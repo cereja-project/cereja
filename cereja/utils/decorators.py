@@ -28,6 +28,7 @@ from typing import Callable, Any
 import abc
 import logging
 import warnings
+import random
 
 __all__ = [
     "depreciation",
@@ -38,6 +39,7 @@ __all__ = [
     "on_except",
     "use_thread",
     "on_elapsed",
+    "retry_on_failure",
 ]
 
 from ..config.cj_types import PEP440
@@ -188,6 +190,27 @@ def on_except(return_value=None, warn_text=None):
 
         return wrapper
 
+    return register
+
+
+def retry_on_failure(retries: int = 3, initial_delay: float = 0.1, backoff_factor=2, exceptions: tuple = (Exception,),
+                     verbose: bool = False):
+    def register(func):
+        def wrapper(*args, **kwargs):
+            delay = initial_delay
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt < retries - 1:
+                        if verbose:
+                            warnings.warn(f"Retry {attempt + 1} of {retries}: {e}")
+                        delay *= backoff_factor * (1 + random.random())
+                        time.sleep(delay)
+                    else:
+                        raise e
+
+        return wrapper
     return register
 
 
