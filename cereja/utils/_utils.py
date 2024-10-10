@@ -99,6 +99,7 @@ __all__ = [
     'decode_coordinates',
     'encode_coordinates',
     'SingletonMeta',
+    'PoolMeta'
 ]
 
 logger = logging.getLogger(__name__)
@@ -1614,6 +1615,37 @@ def decode_coordinates(lparam: int):
     x = lparam & 0xFFFF
     y = (lparam >> 16) & 0xFFFF
     return x, y
+
+
+class PoolMeta(type):
+    """A thread-safe implementation to control the maximum number of instances."""
+    _instances = []
+    _lock: threading.Lock = threading.Lock()  # Class-level lock
+    _max_instances = 3  # Define the maximum number of instances allowed
+    _available_instances = threading.Condition(_lock)
+
+    def __call__(cls, *args, **kwargs):
+        with cls._available_instances:
+            while len(cls._instances) >= cls._max_instances:
+                cls._available_instances.wait()
+            instance = super(PoolMeta, cls).__call__(*args, **kwargs)
+            cls._instances.append(instance)
+            return instance
+
+    def release_instance(cls, instance):
+        with cls._available_instances:
+            if instance in cls._instances:
+                cls._instances.remove(instance)
+                cls._available_instances.notify()
+
+    def set_max_instances(cls, max_instances):
+        cls._max_instances = max_instances
+
+    def get_max_instances(cls):
+        return cls._max_instances
+
+    def get_instances(cls):
+        return cls._instances
 
 
 class SingletonMeta(type):
