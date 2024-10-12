@@ -28,4 +28,4 @@ from . import colors
 from . import typography
 from . import decorators
 from . import time
-from .time import Timer, set_interval
+from .time import Timer, set_interval, time_format

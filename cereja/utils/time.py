@@ -16,11 +16,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import math
 import threading
+import time
 import time as _time
-from typing import Callable
+from typing import Callable, Union
 
-__all__ = ["Timer", "set_interval"]
+__all__ = ["Timer", "set_interval", "time_format"]
 
 
 class Timer:
@@ -33,12 +35,12 @@ class Timer:
         _auto_reset (bool): Whether the timer should automatically reset after the interval has passed.
     """
 
-    def __init__(self, interval, start=True, auto_reset=False):
+    def __init__(self, interval=-1, start=True, auto_reset=False):
         """
         Initialize the Timer.
 
         Args:
-            interval (float): The time interval in seconds.
+            interval (float): The time interval in seconds, -1 means the timer has no stopping/reset condition.
             start (bool): Whether to start the timer immediately. Default is True.
             auto_reset (bool): Whether the timer should automatically reset after the interval has passed.
                                Default is False.
@@ -63,11 +65,18 @@ class Timer:
             return True
         return False
 
+    def reset(self):
+        self.start()
+
     def start(self):
         """
         Start the timer by setting the start time to the current time.
         """
         self._start = _time.time()
+
+    @property
+    def started(self) -> bool:
+        return self._start > 0
 
     @property
     def elapsed(self):
@@ -77,7 +86,7 @@ class Timer:
         Returns:
             float: The elapsed time in seconds.
         """
-        return _time.time() - self._start
+        return _time.time() - self._start if self.started else 0
 
     @property
     def remaining(self):
@@ -87,7 +96,7 @@ class Timer:
         Returns:
             float: The remaining time in seconds.
         """
-        return self._interval - self.elapsed
+        return max(self._interval - self.elapsed, 0) if self._interval > 0 else float("inf")
 
     @property
     def interval(self):
@@ -99,16 +108,6 @@ class Timer:
         """
         return self._interval
 
-    @interval.setter
-    def interval(self, value):
-        """
-        Set the time interval.
-
-        Args:
-            value (float): The time interval in seconds.
-        """
-        self._interval = value
-
     @property
     def auto_reset(self):
         """
@@ -119,15 +118,56 @@ class Timer:
         """
         return self._auto_reset
 
-    @auto_reset.setter
-    def auto_reset(self, value):
-        """
-        Set the auto reset setting.
+    @property
+    def is_timeout(self):
+        return bool(self)
 
-        Args:
-            value (bool): True to automatically reset the timer after the interval has passed, False otherwise.
-        """
-        self._auto_reset = value
+    @property
+    def time_overflow(self):
+
+        return max(self.elapsed - self.interval, 0) if self._interval > 0 else 0
+
+    def __str__(self):
+        return time_format(self.elapsed)
+
+    def __repr__(self):
+        eta = "" if self._interval <= 0 else f", ETA={time_format(self.remaining)}"
+        return f"Timer(elapsed={self.__str__()}{eta})"
+
+
+class TimeEstimate:
+    def __init__(self, size: int = None):
+        assert size is None or isinstance(size, (int, float)), TypeError(f"{size} isn't valid. Send a number!")
+        self._timer = Timer(start=True)
+        self._size = size or 0
+        self._total_times = 0
+
+    def set_time_it(self) -> float:
+        self._total_times += 1
+        return self._timer.elapsed
+
+    @property
+    def duration(self) -> float:
+        return self._timer.elapsed
+
+    @property
+    def duration_formated(self) -> str:
+        return time_format(self.duration)
+
+    @property
+    def eta(self):
+        if self._total_times == 0 or self._size == 0:
+            return float("inf")
+        else:
+            return max(((self._timer.elapsed / self._total_times) * self._size) - self._timer.elapsed, 0)
+
+    @property
+    def eta_formated(self):
+        return time_format(self.eta)
+
+    @property
+    def per_sec(self):
+        return math.ceil(self._total_times / max(self._timer.elapsed, 1))
 
 
 class IntervalScheduler:
@@ -202,3 +242,30 @@ def set_interval(func: Callable, sec: float, is_daemon=False) -> IntervalSchedul
     scheduler = IntervalScheduler(func, sec, is_daemon)
     scheduler.start()
     return scheduler
+
+
+def time_format(seconds: float, format_="%H:%M:%S") -> Union[str, float]:
+    """
+    Default format is '%H:%M:%S'
+    If the time exceeds 24 hours, it will return a format like 'X days HH:MM:SS'
+
+    >>> time_format(3600)
+    '01:00:00'
+    >>> time_format(90000)
+    '1 days 01:00:00'
+
+    """
+    # Check if seconds is a valid number
+    if seconds >= 0 or seconds < 0:
+        # Calculate the absolute value of days
+        days = int(seconds // 86400)
+        # Format the time
+        time_ = time.strftime(format_, time.gmtime(abs(seconds) % 86400))
+        # Return with days if more than 24 hours
+        if days > 0:
+            return f"{days} days {time_}"
+        # Return the formatted time
+        if seconds < 0:
+            return f"-{time_}"
+        return time_
+    return seconds  # Return NaN or any invalid input as it is

@@ -288,7 +288,7 @@ cj.mathtools.theta_angle((2, 2), (0, -2))  # 135.0
 ### 🧰 Utils
 
 ```python
-
+import cereja.utils.time
 import cereja as cj
 
 data = {"key1": 'value1', "key2": 'value2', "key3": 'value3', "key4": 'value4'}
@@ -322,7 +322,7 @@ cj.utils.list_methods(cj.Path)
 cj.utils.string_to_literal('[1,2,3,4]')
 # Output -> [1, 2, 3, 4]
 
-cj.utils.time_format(3600)
+cereja.utils.time.time_format(3600)
 # Output -> '01:00:00'
 
 cj.utils.truncate("Cereja is fun.", k=3)

@@ -23,7 +23,6 @@ SOFTWARE.
 import functools
 import threading
 import time
-import time as _time
 from abc import abstractmethod
 import abc
 import logging
@@ -232,7 +231,8 @@ def on_elapsed(interval: float = 1,
                use_threading: bool = False,
                verbose: bool = False,
                is_daemon: bool = False,
-               take_last=False):
+               take_last=False,
+               default=None):
     """
     Run a function if the interval has elapsed
 
@@ -243,6 +243,8 @@ def on_elapsed(interval: float = 1,
     @param is_daemon: If True, the thread will be a daemon
     @param take_last: If the time has not run out, it stores and returns the last result of the function execution,
                       if the function returns anything.
+    @param default: return it if the time has not run out
+
     """
 
     def decorator(func: Callable):
@@ -283,7 +285,7 @@ def on_elapsed(interval: float = 1,
                             last_result = func(*args, **kwargs)
                         else:
                             return func(*args, **kwargs)
-                    return last_result
+                    return default or last_result
 
                 if use_threading:
                     import threading
