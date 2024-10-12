@@ -231,7 +231,8 @@ def on_elapsed(interval: float = 1,
                loop: bool = False,
                use_threading: bool = False,
                verbose: bool = False,
-               is_daemon: bool = False):
+               is_daemon: bool = False,
+               take_last=False):
     """
     Run a function if the interval has elapsed
 
@@ -240,13 +241,17 @@ def on_elapsed(interval: float = 1,
     @param verbose: If True, the function name will be printed
     @param use_threading: If True, the function will be executed in a thread
     @param is_daemon: If True, the thread will be a daemon
+    @param take_last: If the time has not run out, it stores and returns the last result of the function execution,
+                      if the function returns anything.
     """
 
     def decorator(func: Callable):
         last_time = 0.0
+        last_result = None
 
         def wrapper(*args, **kwargs):
             nonlocal last_time
+            nonlocal last_result
             if loop:
                 def run():
                     nonlocal last_time
@@ -268,12 +273,17 @@ def on_elapsed(interval: float = 1,
             else:
                 def run():
                     nonlocal last_time
+                    nonlocal last_result
                     current_time = time.time()
                     if current_time - last_time >= interval:
                         if verbose:
                             print(f"Running {func.__name__}")
                         last_time = current_time
-                        return func(*args, **kwargs)
+                        if take_last:
+                            last_result = func(*args, **kwargs)
+                        else:
+                            return func(*args, **kwargs)
+                    return last_result
 
                 if use_threading:
                     import threading
