@@ -37,7 +37,7 @@ from cereja.array import (
 )
 from cereja.utils import is_iterable, is_sequence, chunk
 from cereja.array import prod
-from cereja.mathtools import theta_angle
+from cereja.mathtools import theta_angle, nth_fibonacci_number
 from cereja.config.cj_types import Number
 from cereja.mltools import Corpus
 from cereja.mltools.pln import LanguageData
@@ -157,6 +157,16 @@ class UtilsTestCase(unittest.TestCase):
         b = Matrix([[1, 2, 3], [1, 2, 3]])
         expected = Matrix([[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]])
         self.assertTrue((a / b) == expected)
+
+    def test_nth_fibonacci_number(self):
+        self.assertEqual(nth_fibonacci_number(1), 0)
+        self.assertEqual(nth_fibonacci_number(2), 1)
+        self.assertEqual(nth_fibonacci_number(3), 1)
+        self.assertEqual(nth_fibonacci_number(4), 2)
+        self.assertEqual(nth_fibonacci_number(5), 3)
+        self.assertEqual(nth_fibonacci_number(10), 34)
+        self.assertEqual(nth_fibonacci_number(12), 89)
+        self.assertEqual(nth_fibonacci_number(20), 4181)
 
 
 class PathTest(unittest.TestCase):
