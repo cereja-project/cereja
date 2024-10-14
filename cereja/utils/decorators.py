@@ -24,7 +24,6 @@ import functools
 import threading
 import time
 from abc import abstractmethod
-from typing import Callable, Any
 import abc
 import logging
 import warnings
@@ -33,14 +32,14 @@ import random
 __all__ = [
     "depreciation",
     "synchronized",
-    "time_exec",
     "thread_safe_generator",
     "singleton",
     "on_except",
     "use_thread",
-    "on_elapsed",
     "retry_on_failure",
 ]
+
+from typing import Callable, Any
 
 from ..config.cj_types import PEP440
 
@@ -87,25 +86,6 @@ def thread_safe_generator(func):
         return _ThreadSafeIterator(func(*a, **kw))
 
     return gen
-
-
-def time_exec(func: Callable[[Any], Any]) -> Callable:
-    """
-    Decorator used to signal or perform a particular function.
-
-    :param func: Receives the function that will be executed as well as its parameters.
-    :return
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        from cereja import console
-        first_time = time.time()
-        result = func(*args, **kwargs)
-        console.log(f"[{func.__name__}] performed {time.time() - first_time}")
-        return result
-
-    return wrapper
 
 
 class Decorator(abc.ABC):
@@ -211,6 +191,7 @@ def retry_on_failure(retries: int = 3, initial_delay: float = 0.1, backoff_facto
                         raise e
 
         return wrapper
+
     return register
 
 
@@ -226,11 +207,32 @@ def singleton(cls):
     return instance
 
 
+def time_exec(func: Callable[[Any], Any]) -> Callable:
+    """
+    Decorator used to signal or perform a particular function.
+
+    :param func: Receives the function that will be executed as well as its parameters.
+    :return: Returns the function that will be executed.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        from cereja import console
+        first_time = time.time()
+        result = func(*args, **kwargs)
+        console.log(f"[{func.__name__}] performed {time.time() - first_time}")
+        return result
+
+    return wrapper
+
+
 def on_elapsed(interval: float = 1,
                loop: bool = False,
                use_threading: bool = False,
                verbose: bool = False,
-               is_daemon: bool = False):
+               is_daemon: bool = False,
+               take_last=False,
+               default=None):
     """
     Run a function if the interval has elapsed
 
@@ -239,13 +241,19 @@ def on_elapsed(interval: float = 1,
     @param verbose: If True, the function name will be printed
     @param use_threading: If True, the function will be executed in a thread
     @param is_daemon: If True, the thread will be a daemon
+    @param take_last: If the time has not run out, it stores and returns the last result of the function execution,
+                      if the function returns anything.
+    @param default: return it if the time has not run out
+
     """
 
     def decorator(func: Callable):
         last_time = 0.0
+        last_result = None
 
         def wrapper(*args, **kwargs):
             nonlocal last_time
+            nonlocal last_result
             if loop:
                 def run():
                     nonlocal last_time
@@ -261,22 +269,29 @@ def on_elapsed(interval: float = 1,
                     import threading
                     th = threading.Thread(target=run, daemon=is_daemon)
                     th.start()
+                    return th
                 else:
                     run()
             else:
                 def run():
                     nonlocal last_time
+                    nonlocal last_result
                     current_time = time.time()
                     if current_time - last_time >= interval:
                         if verbose:
                             print(f"Running {func.__name__}")
                         last_time = current_time
-                        return func(*args, **kwargs)
+                        if take_last:
+                            last_result = func(*args, **kwargs)
+                        else:
+                            return func(*args, **kwargs)
+                    return default or last_result
 
                 if use_threading:
                     import threading
                     th = threading.Thread(target=run, daemon=is_daemon)
                     th.start()
+                    return th
                 else:
                     return run()
 

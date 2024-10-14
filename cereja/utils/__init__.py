@@ -26,3 +26,6 @@ from . import colab
 from ._utils import get_batch_strides as stride_values
 from . import colors
 from . import typography
+from . import decorators
+from . import time
+from .time import Timer, set_interval, time_format

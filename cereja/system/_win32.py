@@ -176,7 +176,7 @@ class Keyboard:
 
     __WM_KEYDOWN = 0x0100
     __WM_KEYUP = 0x0101
-    MAX_TIME_SIMULE_KEY_PRESS = 0.05
+    MAX_TIME_SIMULE_KEY_PRESS = 0.1
 
     def __init__(self, hwnd=None, is_async=False):
         self._is_async = is_async
@@ -258,8 +258,8 @@ class Keyboard:
     def _press_n_times(self, key, n_times=1):
         for _ in range(n_times):
             self._key_down(key)
-            time.sleep(0.05 + (self._max_time_simule_key_press - (random.random() * self._max_time_simule_key_press)))
-        self._key_up(key)
+            time.sleep((random.random() * self._max_time_simule_key_press) + 0.01)
+            self._key_up(key)
 
     def _key_press(self, key_code, n_times=1, secs=None):
         key_code = self._parse_key(key_code)

@@ -23,7 +23,6 @@ import math
 import re
 import string
 import threading
-import time
 from collections import OrderedDict, defaultdict
 from importlib import import_module
 import importlib
@@ -58,7 +57,6 @@ __all__ = [
     "logger_level",
     "module_references",
     "set_log_level",
-    "time_format",
     "string_to_literal",
     "rescale_values",
     "Source",
@@ -94,12 +92,12 @@ __all__ = [
     "combinations_sizes",
     "value_from_memory",
     "str_gen",
-    "set_interval",
     "SourceCodeAnalyzer",
     "map_values",
     'decode_coordinates',
     'encode_coordinates',
-    'SingletonMeta'
+    'SingletonMeta',
+    'PoolMeta'
 ]
 
 logger = logging.getLogger(__name__)
@@ -165,7 +163,6 @@ def split_sequence(seq: List[Any], is_break_fn: Callable) -> List[List[Any]]:
 
 def map_values(obj: Union[dict, list, tuple, Iterator], fn: Callable) -> Union[dict, list, tuple, Iterator]:
     fn_arg_count = SourceCodeAnalyzer(fn).argument_count
-    is_dict = isinstance(obj, dict)
     if isinstance(obj, dict):
         obj = obj.items()
     _iter = iter(obj)
@@ -608,33 +605,6 @@ def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
     if hasattr(obj, attr):
         return getattr(obj, attr)
     return None
-
-
-def time_format(seconds: float, format_="%H:%M:%S") -> Union[str, float]:
-    """
-    Default format is '%H:%M:%S'
-    If the time exceeds 24 hours, it will return a format like 'X days HH:MM:SS'
-
-    >>> time_format(3600)
-    '01:00:00'
-    >>> time_format(90000)
-    '1 days 01:00:00'
-
-    """
-    # Check if seconds is a valid number
-    if seconds >= 0 or seconds < 0:
-        # Calculate the absolute value of days
-        days = int(seconds // 86400)
-        # Format the time
-        time_ = time.strftime(format_, time.gmtime(abs(seconds) % 86400))
-        # Return with days if more than 24 hours
-        if days > 0:
-            return f"{days} days {time_}"
-        # Return the formatted time
-        if seconds < 0:
-            return f"-{time_}"
-        return time_
-    return seconds  # Return NaN or any invalid input as it is
 
 
 def fill(value: Union[list, str, tuple], max_size, with_=" ") -> Any:
@@ -1582,16 +1552,6 @@ def str_gen(pattern: AnyStr) -> Sequence[AnyStr]:
     return regex.findall(string.printable)
 
 
-def set_interval(func: Callable, sec: float):
-    """
-    Call a function every sec seconds
-    @param func: function
-    @param sec: seconds
-    """
-    from .decorators import on_elapsed
-    on_elapsed(sec, loop=True, use_threading=True)(func)()
-
-
 def encode_coordinates(x: int, y: int):
     """
     Encode the coordinates (x, y) into a single lParam value.
@@ -1625,6 +1585,37 @@ def decode_coordinates(lparam: int):
     x = lparam & 0xFFFF
     y = (lparam >> 16) & 0xFFFF
     return x, y
+
+
+class PoolMeta(type):
+    """A thread-safe implementation to control the maximum number of instances."""
+    _instances = []
+    _lock: threading.Lock = threading.Lock()  # Class-level lock
+    _max_instances = 3  # Define the maximum number of instances allowed
+    _available_instances = threading.Condition(_lock)
+
+    def __call__(cls, *args, **kwargs):
+        with cls._available_instances:
+            while len(cls._instances) >= cls._max_instances:
+                cls._available_instances.wait()
+            instance = super(PoolMeta, cls).__call__(*args, **kwargs)
+            cls._instances.append(instance)
+            return instance
+
+    def release_instance(cls, instance):
+        with cls._available_instances:
+            if instance in cls._instances:
+                cls._instances.remove(instance)
+                cls._available_instances.notify()
+
+    def set_max_instances(cls, max_instances):
+        cls._max_instances = max_instances
+
+    def get_max_instances(cls):
+        return cls._max_instances
+
+    def get_instances(cls):
+        return cls._instances
 
 
 class SingletonMeta(type):
