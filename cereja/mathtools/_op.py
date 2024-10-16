@@ -39,6 +39,7 @@ __all__ = [
     "least_common_multiple",
     "degrees_to_radian",
     "radian_to_degrees",
+    "nth_fibonacci_number",
 ]
 
 
@@ -130,3 +131,24 @@ def degrees_to_radian(val):
 
 def radian_to_degrees(val):
     return (val * 180.0) / math.pi
+
+
+def nth_fibonacci_number(val:int) -> int:
+    """
+    Calculates the nth fibonacci number using the golden ratio formula.
+
+    Args:
+        val(int): The index (val>0) of the Fibonacci number to calculate
+    
+    Returns:
+        int: The nth Fibonacci number
+
+    Example:
+        >>> nth_fibonacci_number(10)
+        34
+    """
+    if val < 1:
+        raise ValueError("val should be greater than 0")
+    val -= 1 # First Fibonacci number is 0
+    phi = (1 + 5**0.5) / 2
+    return round(phi**val / 5**0.5)
