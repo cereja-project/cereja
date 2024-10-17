@@ -134,7 +134,6 @@ def radian_to_degrees(val):
 
 
 def nth_fibonacci_number(val:int) -> int:
-
     """
     Calculates the nth fibonacci number using the golden ratio formula.
 
