@@ -159,7 +159,6 @@ class UtilsTestCase(unittest.TestCase):
         self.assertTrue((a / b) == expected)
 
     def test_nth_fibonacci_number(self):
-
         with self.assertRaises(ValueError):
             nth_fibonacci_number(-1)
         self.assertEqual(nth_fibonacci_number(1), 0)
