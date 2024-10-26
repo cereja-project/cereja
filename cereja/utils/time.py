@@ -17,12 +17,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import math
+import random
 import threading
 import time
 import time as _time
 from typing import Callable, Union
 
-__all__ = ["Timer", "set_interval", "time_format"]
+__all__ = ["Timer", "set_interval", "time_format", "RandomTimer", "TimeEstimate", "IntervalScheduler"]
 
 
 class Timer:
@@ -127,12 +128,67 @@ class Timer:
 
         return max(self.elapsed - self.interval, 0) if self._interval > 0 else 0
 
+    def wait(self):
+        """
+        Wait until the timer interval has passed.
+        """
+        _time.sleep(self.remaining)
+
     def __str__(self):
         return time_format(self.elapsed)
 
     def __repr__(self):
         eta = "" if self._interval <= 0 else f", ETA={time_format(self.remaining)}"
         return f"Timer(elapsed={self.__str__()}{eta})"
+
+    def iter_over(self, iterable):
+        """
+        Iterate over an iterable and wait until the timer interval has passed.
+        @param iterable: An iterable object.
+        @return: An iterator object.
+        """
+        for item in iterable:
+            self.start()
+            yield item
+            self.wait()
+
+
+class RandomTimer(Timer):
+    def __init__(self, min_interval: float, max_interval: float, start=True, auto_reset=False):
+        """
+        Initialize the RandomTimer.
+
+        Args:
+            min_interval (float): The minimum time interval in seconds.
+            max_interval (float): The maximum time interval in seconds.
+            start (bool): Whether to start the timer immediately. Default is True.
+            auto_reset (bool): Whether the timer should automatically reset after the interval has passed.
+                               Default is False.
+        """
+        assert isinstance(min_interval, (int, float)), TypeError(f"{min_interval} isn't valid. Send a number!")
+        assert isinstance(max_interval, (int, float)), TypeError(f"{max_interval} isn't valid. Send a number!")
+        assert min_interval >= 0, ValueError("min_interval must be greater than or equal to 0")
+        assert max_interval >= 0, ValueError("max_interval must be greater than or equal to 0")
+        assert min_interval < max_interval, ValueError("min_interval must be less than max_interval")
+        self._min_interval = min_interval
+        self._max_interval = max_interval
+        self._interval = self._random_interval()
+        super(RandomTimer, self).__init__(self._interval, start, auto_reset)
+
+    def _random_interval(self):
+        return random.uniform(self._min_interval, self._max_interval)
+
+    def reset(self):
+        self._interval = self._random_interval()
+        self.start()
+
+    def start(self):
+        self._interval = self._random_interval()
+        super(RandomTimer, self).start()
+
+    def __repr__(self):
+        eta = "" if self._interval <= 0 else f", ETA={time_format(self.remaining)}"
+        return f"RandomTimer(elapsed={self.__str__()}{eta})"
 
 
 class TimeEstimate:
@@ -141,6 +197,14 @@ class TimeEstimate:
         self._timer = Timer(start=True)
         self._size = size or 0
         self._total_times = 0
+
+    @property
+    def total_times(self):
+        return self._total_times
+
+    @property
+    def size(self):
+        return self._size
 
     def set_time_it(self) -> float:
         self._total_times += 1
@@ -168,6 +232,12 @@ class TimeEstimate:
     @property
     def per_sec(self):
         return math.ceil(self._total_times / max(self._timer.elapsed, 1))
+
+    def __str__(self):
+        return f"TimeEstimate(duration={self.duration_formated}, eta={self.eta_formated}, per_sec={self.per_sec})"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class IntervalScheduler:
@@ -269,3 +339,17 @@ def time_format(seconds: float, format_="%H:%M:%S") -> Union[str, float]:
             return f"-{time_}"
         return time_
     return seconds  # Return NaN or any invalid input as it is
+
+
+def set_timeout(func: Callable, sec: float, use_thread=False, *args, **kwargs):
+    """
+    Call a function after sec seconds
+    @param func: function
+    @param sec: seconds
+    @param use_thread: If True, the function will be called in a new thread
+    """
+    if use_thread:
+        threading.Timer(sec, func, args=args, kwargs=kwargs).start()
+    else:
+        time.sleep(sec)
+        func(*args, **kwargs)
