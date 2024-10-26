@@ -215,7 +215,6 @@ class Keyboard:
             if not isinstance(v, (str, int)):
                 raise ValueError
             if isinstance(v, str):
-                v = string_to_literal(v)
                 if isinstance(v, str):
                     return [cls.__KEY_NAME_TO_CODE[i] for i in v.split("+")]
         except (ValueError, Exception):
