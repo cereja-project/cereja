@@ -23,7 +23,7 @@ import time
 import time as _time
 from typing import Callable, Union
 
-__all__ = ["Timer", "set_interval", "time_format", "RandomTimer", "TimeEstimate", "IntervalScheduler"]
+__all__ = ["Timer", "set_interval", "time_format", "RandomTimer", "TimeEstimate", "IntervalScheduler", "set_timeout"]
 
 
 class Timer:

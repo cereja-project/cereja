@@ -386,3 +386,31 @@ class Point:
         """
         other = Point(other)
         return (self.magnitude, *self.coordinates) >= (other.magnitude, *other.coordinates)
+
+    def __hash__(self):
+        return hash(self.coordinates)
+
+    def plot(self, ax=None, **kwargs):
+        """
+        Plot the point on a 2D or 3D matplotlib axis.
+
+        Args:
+            ax (matplotlib.axes.Axes, optional): The matplotlib axis to plot the point on.
+            **kwargs: Additional keyword arguments to pass to the plot function.
+
+        Returns:
+            matplotlib.axes.Axes: The matplotlib axis with the point plotted.
+        """
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d' if self.is_3d else None)
+
+        if self.is_3d:
+            ax.scatter(self.x, self.y, self.z, **kwargs)
+        else:
+            ax.scatter(self.x, self.y, **kwargs)
+
+        return ax
