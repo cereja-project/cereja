@@ -128,6 +128,9 @@ class Freq(Counter):
     def min_freq(self):
         return self.sample(min(self.values()))
 
+    def to_dict(self):
+        return dict(self)
+
 
 class ConnectValues(dict):
     def __init__(self, name: str = None):

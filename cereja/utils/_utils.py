@@ -22,6 +22,7 @@ import functools
 import gc
 import math
 import re
+import statistics
 import string
 import threading
 from collections import OrderedDict, defaultdict
@@ -34,7 +35,7 @@ from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingVie
     ValuesView, ItemsView, KeysView
 import logging
 import itertools
-from copy import copy
+from copy import copy, deepcopy
 import inspect
 from pprint import PrettyPrinter
 
@@ -1667,6 +1668,8 @@ def check_type_on_sequence(sequence: Iterable, t: Union[type, Tuple[type, ...]])
     Returns:
         bool: True if all elements are of the specified type, False otherwise.
     """
+    if issubclass(type(sequence), Iterator):
+        sequence = deepcopy(sequence)
     for item in sequence:
         if not isinstance(item, t):
             return False
@@ -1674,6 +1677,8 @@ def check_type_on_sequence(sequence: Iterable, t: Union[type, Tuple[type, ...]])
 
 
 class DataIterator:
+    _element_type = None
+
     def __init__(self, data: Union[Iterable, Sequence, 'DataIterator'], **kwargs):
         """
         Initialize the DataIterator with the given data.
@@ -1683,18 +1688,24 @@ class DataIterator:
             **kwargs: Additional keyword arguments.
 
         Keyword Args:
-            data_type (type, optional): The type of the data. If not provided, it is inferred from the data.
-
+            original_type (type, optional): The type of the sequence object. If not provided, it is inferred from the data.
         Raises:
             AssertionError: If the provided data is not iterable.
         """
-        assert is_iterable(data), "Data must be an iterable object."
-
-        if kwargs.get('data_type') is not None:
-            self._data_type = kwargs.get('data_type')
+        if issubclass(type(data), Iterator) and not isinstance(data, DataIterator):
+            self._data = list(data)
         else:
-            self._data_type = type(data) if not isinstance(data, DataIterator) else data.data_type
-        self._data = data
+            self._data = data
+            assert is_iterable(data), "Data must be an iterable object."
+
+        if kwargs.get('original_type') is not None:
+            self._original_type = kwargs.get('original_type')
+        else:
+            self._original_type = type(data) if not isinstance(data, DataIterator) else data.original_type
+
+        if self._element_type:
+            assert check_type_on_sequence(data, self._element_type), "Data elements are not of the specified type."
+
         self._iter = self.__iter__()
 
     def __iter__(self):
@@ -1727,14 +1738,14 @@ class DataIterator:
             return True
 
     @property
-    def data_type(self):
+    def original_type(self):
         """
         Get the data type of the iterator.
 
         Returns:
             type: The data type of the iterator.
         """
-        return self._data_type
+        return self._original_type
 
     def _iter_dict(self):
         """
@@ -1777,7 +1788,8 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the batches.
         """
-        return DataIterator(get_batch_strides(self, kernel_size=batch_size, strides=step), data_type=self._data_type)
+        return DataIterator(get_batch_strides(self, kernel_size=batch_size, strides=step),
+                            original_type=self._original_type)
 
     def cycle(self) -> Any:
         """
@@ -1796,19 +1808,19 @@ class DataIterator:
             for elem in self:
                 yield elem
 
-    def _convert_into_data_type(self, data):
+    def _convert_into_original_type(self, data):
         try:
-            if issubclass(self._data_type, dict):
+            if issubclass(self._original_type, dict):
                 return dict(data)
-            elif issubclass(self._data_type, ValuesView):
+            elif issubclass(self._original_type, ValuesView):
                 return tuple(data)
-            elif issubclass(self._data_type, ItemsView):
+            elif issubclass(self._original_type, ItemsView):
                 return tuple(data)
-            elif issubclass(self._data_type, KeysView):
+            elif issubclass(self._original_type, KeysView):
                 return tuple(data)
-            return self._data_type(data)
+            return self._original_type(data)
         except TypeError:
-            logger.warning(f"Error to convert data to {self._data_type}. Returning as is.")
+            logger.warning(f"Error to convert data to {self._original_type}. Returning as is.")
             return tuple(data)
 
     def take(self, n: int = None) -> Union[Iterable[Any], Sequence[Any], Dict[Any, Any]]:
@@ -1829,7 +1841,7 @@ class DataIterator:
         else:
             data = itertools.islice(self, n)
 
-        return self._convert_into_data_type(data)
+        return self._convert_into_original_type(data)
 
     def random(self) -> 'DataIterator':
         """
@@ -1840,7 +1852,7 @@ class DataIterator:
         """
         data = list(self)
         random.shuffle(data)
-        return DataIterator(data, data_type=self._data_type)
+        return DataIterator(data, original_type=self._original_type)
 
     def filter(self, func: Callable[[Any], bool]) -> 'DataIterator':
         """
@@ -1852,7 +1864,37 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the filtered data.
         """
-        return DataIterator(filter(func, self), data_type=self._data_type)
+        return DataIterator(filter(func, self), original_type=self._original_type)
+
+    @property
+    def str(self) -> 'DataStringIterator':
+        """
+        Convert the data to string and return a new DataIterator instance with the converted data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the converted data.
+        """
+        return DataStringIterator(self.map(str), original_type=self._original_type)
+
+    @property
+    def int(self) -> 'DataNumberIterator':
+        """
+        Convert the data to integer and return a new DataIterator instance with the converted data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the converted data.
+        """
+        return DataNumberIterator(self.map(int), original_type=self._original_type)
+
+    @property
+    def float(self) -> 'DataNumberIterator':
+        """
+        Convert the data to float and return a new DataIterator instance with the converted data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the converted data.
+        """
+        return DataNumberIterator(self.map(float), original_type=self._original_type)
 
     def map(self, func: Callable[[Any], Any]) -> 'DataIterator':
         """
@@ -1864,7 +1906,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the mapped data.
         """
-        return DataIterator(map(func, self), data_type=self._data_type)
+        return DataIterator(map(func, self), original_type=self._original_type)
 
     def reduce(self, func: Callable[[Any, Any], Any], initial=None) -> Any:
         """
@@ -1886,7 +1928,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the sorted data.
         """
-        return DataIterator(sorted(self, key=key, reverse=reverse), data_type=self._data_type)
+        return DataIterator(sorted(self, key=key, reverse=reverse), original_type=self._original_type)
 
     def enumerate(self, start=0) -> 'DataIterator':
         """
@@ -1898,7 +1940,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the enumerated data.
         """
-        return DataIterator(enumerate(self, start=start), data_type=self._data_type)
+        return DataIterator(enumerate(self, start=start), original_type=self._original_type)
 
     def group_by(self, func: Callable[[Any], Any]) -> 'DataGrouper':
         """
@@ -1919,55 +1961,245 @@ class DataIterator:
             first_elem = f"{self.first.__class__.__name__}(...)"
         return f"DataIterator({first_elem},...)" if not self.is_empty else "DataIterator(Empty)"
 
+    def summary(self):
+        """
+        Get a summary of the data iterator.
+
+        Returns:
+            Dict: A dictionary containing the summary of the data iterator.
+        """
+        data_analyzer = DataAnalyzer(self)
+        return data_analyzer.report
+
+    @property
+    def freq(self):
+        """
+        Get the frequency of the data iterator.
+
+        Returns:
+            Dict: A dictionary containing the frequency of the data iterator.
+        """
+        from ..mltools.data import Freq
+        return Freq(self)
+
+
+class DataStringIterator(DataIterator):
+    _element_type = str
+
+    def __init__(self, data: Union[str, Iterable[str], DataIterator], **kwargs):
+        """
+        Initialize the DataStringIterator with the given data.
+
+        Args:
+            data (Union[str, Iterable[str]]): The data to be iterated over.
+
+        Raises:
+            AssertionError: If the provided data is not a string or an iterable of strings.
+        """
+        super().__init__(data, **kwargs)
+
+    def preprocess(self, is_destructive=False):
+        """
+        Preprocess the data by removing any leading or trailing whitespace and converting it to lowercase.
+
+        Args:
+            is_destructive (bool): Whether to modify the original data or return a new DataStringIterator instance.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance with the preprocessed data.
+        """
+        from ..mltools.preprocess import preprocess
+        return self.map(lambda x: preprocess(x, is_destructive=is_destructive))
+
+    def tokenize(self, preprocess_function=None, use_unk=True):
+        from ..mltools.data import Tokenizer
+        return Tokenizer(self, preprocess_function=preprocess_function, use_unk=use_unk)
+
+class DataNumberIterator(DataIterator):
+    _element_type = (int, float)
+
+    def __init__(self, data: Union[Number, Iterable[Number], DataIterator], **kwargs):
+        """
+        Initialize the DataNumberIterator with the given data.
+
+        Args:
+            data (Union[Number, Iterable[Number]]): The data to be iterated over.
+
+        Raises:
+            AssertionError: If the provided data is not a number or an iterable of numbers.
+        """
+        super().__init__(data, **kwargs)
+
+    def sum(self):
+        """
+        Calculate the sum of the data iterator.
+
+        Returns:
+            Number: The sum of the data iterator.
+        """
+        return sum(self)
+
+    def mean(self):
+        """
+        Calculate the mean of the data iterator.
+
+        Returns:
+            float: The mean of the data iterator.
+        """
+        return statistics.mean(self)
+
+    def median(self):
+        """
+        Calculate the median of the data iterator.
+
+        Returns:
+            float: The median of the data iterator.
+        """
+        return statistics.median(self)
+
+    def mode(self):
+        """
+        Calculate the mode of the data iterator.
+
+        Returns:
+            float: The mode of the data iterator.
+        """
+        return statistics.mode(self)
+
+    def variance(self):
+        """
+        Calculate the variance of the data iterator.
+
+        Returns:
+            float: The variance of the data iterator.
+        """
+        return statistics.variance(self)
+
+    def std_dev(self):
+        """
+        Calculate the standard deviation of the data iterator.
+
+        Returns:
+            float: The standard deviation of the data iterator.
+        """
+        return statistics.stdev(self)
+
+    def describe(self):
+        """
+        Generate a descriptive summary of the data iterator.
+
+        Returns:
+            Dict: A dictionary containing the descriptive summary of the data iterator.
+        """
+        return {
+            "count":    len(self),
+            "sum":      self.sum(),
+            "mean":     self.mean(),
+            "median":   self.median(),
+            "mode":     self.mode(),
+            "variance": self.variance(),
+            "std_dev":  self.std_dev(),
+        }
+
 
 class DataAnalyzer:
     def __init__(self, data):
-        self._data = data
+        from ..mltools.data import Freq
+        self._types = Freq()
+        self._numbers = Freq()
+        self._strings = Freq()
+        self._length = 0
+        for item in data:
+            if isinstance(item, (int, float)):
+                self._numbers.update([item])
+            elif isinstance(item, str):
+                self._strings.update([item])
+            self._types.update([type(item)])
+            self._length += 1
+        self._is_mixed_type = len(self._types) > 1
 
-    def analyze(self):
-        if not self._data:
-            return {"message": "The list is empty."}
+        report = {}
 
-        if check_type_on_sequence(self._data, (int, float)):
-            return self._analyze_numbers()
+        if self.is_numbers or len(self._numbers):
+            total_sum = sum(data)
+            count = self._length
+            avg = total_sum / count if count else 0
+            minimum = min(data)
+            maximum = max(data)
+            variance = sum((x - avg) ** 2 for x in data) / count
+            std_dev = math.sqrt(variance)
+            report_numbers = {
+                "count":    count,
+                "sum":      total_sum,
+                "average":  avg,
+                "minimum":  minimum,
+                "maximum":  maximum,
+                "variance": variance,
+                "std_dev":  std_dev,
+            }
+            if self.is_numbers:
+                report.update(report_numbers)
+            else:
+                report.update({"numbers": report_numbers})
 
-        if check_type_on_sequence(self._data, str):
-            return self._analyze_strings()
+        elif self.is_strings or len(self._strings):
 
-        return {
-            "message": "The list contains mixed or unsupported data types."
-        }
+            report_strings = {
+                "count":         self._length,
+                "count_uniques": len(self.frequency),
+                "most_commons":  self.frequency.most_common(10),
+                "least_commons": self.frequency.least_freq(10),
+            }
+            if self.is_strings:
+                report.update(report_strings)
+            else:
+                report.update({"strings": report_strings})
+        else:
+            self._report = {
+                "count": self._length,
+                "types": self._types.to_dict(),
+                **report
+            }
+        if not self.is_mixed_type:
+            self._report = report
 
-    def _analyze_numbers(self):
-        total = sum(self._data)
-        count = len(self._data)
-        avg = total / count if count else 0
-        minimum = min(self._data)
-        maximum = max(self._data)
+    @property
+    def report(self):
+        return self._report
 
-        return {
-            "type":    "numbers",
-            "count":   count,
-            "sum":     total,
-            "average": avg,
-            "min":     minimum,
-            "max":     maximum
-        }
+    @property
+    def types(self):
+        return self._types
 
-    def _analyze_strings(self):
-        count = len(self._data)
-        lengths = [len(item) for item in self._data]
+    @property
+    def length(self):
+        return self._length
 
-        frequency = {}
-        for item in self._data:
-            frequency[item] = frequency.get(item, 0) + 1
+    @property
+    def frequency(self):
+        return self._strings if self.is_strings else self._numbers if self.is_numbers else self._types
 
-        return {
-            "type":      "strings",
-            "count":     count,
-            "lengths":   lengths,
-            "frequency": frequency,
-        }
+    @property
+    def is_mixed_type(self):
+        return self._is_mixed_type
+
+    @property
+    def is_empty(self):
+        return self._length == 0
+
+    @property
+    def is_numbers(self):
+        return (int in self._types or float in self._types) if not self._is_mixed_type else False
+
+    @property
+    def is_strings(self):
+        return str in self._types if not self._is_mixed_type else False
+
+    def __str__(self):
+        return f"DataAnalyzer({self._report})"
+
+    def __repr__(self):
+        return f"DataAnalyzer({self._report})"
 
 
 class DataGrouper:
