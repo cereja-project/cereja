@@ -477,6 +477,18 @@ class UtilsTest(unittest.TestCase):
                     [23, 24, 25, 25, 25],
                 ],
             ),
+            (
+                [1, 2, 3, 4, 5, 6],
+                2,
+                3,
+                [[1, 2], [4, 5]],
+            ),
+            (
+                [1, 2, 3, 4, 5, 6],
+                2,
+                2,
+                [[1, 2], [3, 4], [5, 6]],
+            )
         ]
         for test_value, kernel_size, strides, expected in tests:
             self.assertEqual(

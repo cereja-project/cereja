@@ -18,9 +18,11 @@ SOFTWARE.
 """
 import ast
 import ctypes
+import functools
 import gc
 import math
 import re
+import statistics
 import string
 import threading
 from collections import OrderedDict, defaultdict
@@ -29,10 +31,11 @@ import importlib
 import sys
 import types
 import random
-from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable, AnyStr, Iterator
+from typing import Any, Union, List, Tuple, Sequence, Iterable, Dict, MappingView, Optional, Callable, AnyStr, Iterator, \
+    ValuesView, ItemsView, KeysView
 import logging
 import itertools
-from copy import copy
+from copy import copy, deepcopy
 import inspect
 from pprint import PrettyPrinter
 
@@ -97,7 +100,12 @@ __all__ = [
     'decode_coordinates',
     'encode_coordinates',
     'SingletonMeta',
-    'PoolMeta'
+    'PoolMeta',
+    'DataIterator',
+    'DataGrouper',
+    'DataAnalyzer',
+    'check_type_on_sequence',
+
 ]
 
 logger = logging.getLogger(__name__)
@@ -1531,19 +1539,35 @@ def get_batch_strides(data, kernel_size, strides=1, fill_=False, take_index=Fals
     if len(batches):
         yield rescale_values(
                 batches, granularity=kernel_size, filling="post"
-        ) if fill_ else batches
+        ) if fill_ else batches[:kernel_size]
 
 
 def prune_values(values: Sequence, factor=2):
+    """
+    Prunes the values in the sequence by reducing the number of elements based on the given factor.
+
+    Args:
+        values (Sequence): The sequence of values to be pruned.
+        factor (int): The factor by which to prune the values. Default is 2.
+
+    Returns:
+        Sequence: The pruned sequence of values.
+
+    Raises:
+        TypeError: If the input values are not subscriptable.
+    """
     assert is_indexable(values), TypeError("object is not subscriptable")
+
     if len(values) <= factor:
         return values
+
     w = round(len(values) / 2)
     k = int(round(w / factor))
     res = values[w - k: w + k]
 
     if len(res) == 0:
         return values[k]
+
     return res
 
 
@@ -1631,3 +1655,690 @@ class SingletonMeta(type):
                 if cls not in cls._instances:
                     cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+
+def check_type_on_sequence(sequence: Iterable, t: Union[type, Tuple[type, ...]]) -> bool:
+    """
+    Check if all elements in a sequence are of a certain type.
+
+    Args:
+        sequence (list): The sequence to be checked.
+        t (type or tuple): The type or tuple of types to check against.
+
+    Returns:
+        bool: True if all elements are of the specified type, False otherwise.
+    """
+    if issubclass(type(sequence), Iterator):
+        sequence = deepcopy(sequence)
+    for item in sequence:
+        if not isinstance(item, t):
+            return False
+    return True
+
+
+class DataIterator:
+    _element_type = None
+
+    def __init__(self, data: Union[Iterable, Sequence, 'DataIterator'], **kwargs):
+        """
+        Initialize the DataIterator with the given data.
+
+        Args:
+            data (Union[Iterable, Sequence, DataIterator]): The data to be iterated over.
+            **kwargs: Additional keyword arguments.
+
+        Keyword Args:
+            original_type (type, optional): The type of the sequence object. If not provided, it is inferred from the data.
+        Raises:
+            AssertionError: If the provided data is not iterable.
+        """
+        if issubclass(type(data), Iterator) and not isinstance(data, DataIterator):
+            self._data = list(data)
+        else:
+            self._data = data
+            assert is_iterable(data), "Data must be an iterable object."
+
+        if kwargs.get('original_type') is not None:
+            self._original_type = kwargs.get('original_type')
+        else:
+            self._original_type = type(data) if not isinstance(data, DataIterator) else data.original_type
+
+        if self._element_type:
+            assert check_type_on_sequence(data, self._element_type), "Data elements are not of the specified type."
+
+        self._iter = self.__iter__()
+
+    def __iter__(self):
+        if isinstance(self._data, dict):
+            return iter(self._iter_dict())
+        else:
+            return iter(self._data)
+
+    def __next__(self):
+        return next(self._iter)
+
+    def __len__(self):
+        try:
+            return len(self._data)
+        except TypeError:
+            raise TypeError("DataIterator values is not subscriptable.")
+
+    @property
+    def is_empty(self) -> bool:
+        """
+        Check if the data iterator is empty.
+
+        Returns:
+            bool: True if the iterator is empty, False otherwise.
+        """
+        try:
+            next(self.__iter__())
+            return False
+        except StopIteration:
+            return True
+
+    @property
+    def original_type(self):
+        """
+        Get the data type of the iterator.
+
+        Returns:
+            type: The data type of the iterator.
+        """
+        return self._original_type
+
+    def _iter_dict(self):
+        """
+        Iterate over the dictionary data.
+
+        Yields:
+            tuple: A tuple containing the key and value of the dictionary.
+        """
+        for key in self._data:
+            yield key, self._data[key]
+
+    @property
+    def first(self) -> Any:
+        """
+        Get the first element of the data iterator.
+
+        Returns:
+            Any: The first element of the iterator.
+        """
+        return next(self.__iter__()) if not self.is_empty else None
+
+    @property
+    def next(self):
+        """
+        Get the next element of the data iterator.
+
+        Returns:
+            Any: The next element of the iterator.
+        """
+        return next(self._iter)
+
+    def batch(self, batch_size: int = 1, step: int = 1) -> 'DataIterator':
+        """
+        Create batches of data from the iterator.
+
+        Args:
+            batch_size (int, optional): The size of each batch. Default is 1.
+            step (int, optional): The step size between batches. Default is 1.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the batches.
+        """
+        return DataIterator(get_batch_strides(self, kernel_size=batch_size, strides=step),
+                            original_type=self._original_type)
+
+    def cycle(self) -> Any:
+        """
+        Take the first `n` elements from the data iterator.
+
+        Args:
+            n (int, optional): The number of elements to take. If `None`, all elements are taken.
+
+        Returns:
+            Iterable[Any]: An iterable containing the first `n` elements.
+
+        Raises:
+            TypeError: If the data cannot be converted to the specified data type.
+        """
+        while True and not self.is_empty:
+            for elem in self:
+                yield elem
+
+    def _convert_into_original_type(self, data):
+        try:
+            if issubclass(self._original_type, dict):
+                return dict(data)
+            elif issubclass(self._original_type, ValuesView):
+                return tuple(data)
+            elif issubclass(self._original_type, ItemsView):
+                return tuple(data)
+            elif issubclass(self._original_type, KeysView):
+                return tuple(data)
+            return self._original_type(data)
+        except TypeError:
+            logger.warning(f"Error to convert data to {self._original_type}. Returning as is.")
+            return tuple(data)
+
+    def take(self, n: int = None) -> Union[Iterable[Any], Sequence[Any], Dict[Any, Any]]:
+        """
+        Take the first `n` elements from the data iterator.
+
+        Args:
+            n (int, optional): The number of elements to take. If `None`, all elements are taken.
+
+        Returns:
+            Iterable[Any]: An iterable containing the first `n` elements.
+
+        Raises:
+            TypeError: If the data cannot be converted to the specified data type.
+        """
+        if n is None:
+            data = self
+        else:
+            data = itertools.islice(self, n)
+
+        return self._convert_into_original_type(data)
+
+    def random(self) -> 'DataIterator':
+        """
+        Shuffle the data randomly and return a new DataIterator instance with the shuffled data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the shuffled data.
+        """
+        data = list(self)
+        random.shuffle(data)
+        return DataIterator(data, original_type=self._original_type)
+
+    def filter(self, func: Callable[[Any], bool]) -> 'DataIterator':
+        """
+        Filter the data using the given function and return a new DataIterator instance with the filtered data.
+
+        Args:
+            func (Callable[[Any], bool]): The function to filter the data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the filtered data.
+        """
+        return DataIterator(filter(func, self), original_type=self._original_type)
+
+    @property
+    def str(self) -> 'DataStringIterator':
+        """
+        Convert the data to string and return a new DataIterator instance with the converted data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the converted data.
+        """
+        return DataStringIterator(self.map(str), original_type=self._original_type)
+
+    @property
+    def int(self) -> 'DataNumberIterator':
+        """
+        Convert the data to integer and return a new DataIterator instance with the converted data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the converted data.
+        """
+        return DataNumberIterator(self.map(int), original_type=self._original_type)
+
+    @property
+    def float(self) -> 'DataNumberIterator':
+        """
+        Convert the data to float and return a new DataIterator instance with the converted data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the converted data.
+        """
+        return DataNumberIterator(self.map(float), original_type=self._original_type)
+
+    def map(self, func: Callable[[Any], Any]) -> 'DataIterator':
+        """
+        Map the data using the given function and return a new DataIterator instance with the mapped data.
+
+        Args:
+            func (Callable[[Any], Any]): The function to map the data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the mapped data.
+        """
+        return DataIterator(map(func, self), original_type=self._original_type)
+
+    def reduce(self, func: Callable[[Any, Any], Any], initial=None) -> Any:
+        """
+        Reduce the data using the given function and return the result.
+        @param func:
+        @param initial:
+        @return:
+        """
+        return functools.reduce(func, self, initial)
+
+    def sort(self, key=None, reverse=False) -> 'DataIterator':
+        """
+        Sort the data using the given key and return a new DataIterator instance with the sorted data.
+
+        Args:
+            key (Optional[Callable[[Any], Any]]): The key function to sort the data.
+            reverse (bool): Whether to sort the data in reverse order.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the sorted data.
+        """
+        return DataIterator(sorted(self, key=key, reverse=reverse), original_type=self._original_type)
+
+    def enumerate(self, start=0) -> 'DataIterator':
+        """
+        Enumerate the data and return a new DataIterator instance with the enumerated data.
+
+        Args:
+            start (int): The starting index for enumeration.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the enumerated data.
+        """
+        return DataIterator(enumerate(self, start=start), original_type=self._original_type)
+
+    def group_by(self, func: Callable[[Any], Any]) -> 'DataGrouper':
+        """
+        Group the data by the given function and return a dictionary with the grouped data.
+
+        Args:
+            func (Callable[[Any], Any]): The function to group the data.
+
+        Returns:
+            DataGrouper: A DataGrouper object containing the grouped data.
+        """
+        return DataGrouper(self, func)
+
+    def __str__(self):
+        try:
+            first_elem = truncate(self.first, k_iter=2, k_str=30, k_dict_keys=30)
+        except Exception:
+            first_elem = f"{self.first.__class__.__name__}(...)"
+        return f"DataIterator({first_elem},...)" if not self.is_empty else "DataIterator(Empty)"
+
+    def summary(self):
+        """
+        Get a summary of the data iterator.
+
+        Returns:
+            Dict: A dictionary containing the summary of the data iterator.
+        """
+        data_analyzer = DataAnalyzer(self)
+        return data_analyzer.report
+
+    @property
+    def freq(self):
+        """
+        Get the frequency of the data iterator.
+
+        Returns:
+            Dict: A dictionary containing the frequency of the data iterator.
+        """
+        from ..mltools.data import Freq
+        return Freq(self)
+
+
+class DataStringIterator(DataIterator):
+    _element_type = str
+
+    def __init__(self, data: Union[str, Iterable[str], DataIterator], **kwargs):
+        """
+        Initialize the DataStringIterator with the given data.
+
+        Args:
+            data (Union[str, Iterable[str]]): The data to be iterated over.
+
+        Raises:
+            AssertionError: If the provided data is not a string or an iterable of strings.
+        """
+        super().__init__(data, **kwargs)
+
+    def preprocess(self, is_destructive=False):
+        """
+        Preprocess the data by removing any leading or trailing whitespace and converting it to lowercase.
+
+        Args:
+            is_destructive (bool): Whether to modify the original data or return a new DataStringIterator instance.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance with the preprocessed data.
+        """
+        from ..mltools.preprocess import preprocess
+        return self.map(lambda x: preprocess(x, is_destructive=is_destructive))
+
+    def tokenize(self, preprocess_function=None, use_unk=True):
+        from ..mltools.data import Tokenizer
+        return Tokenizer(self, preprocess_function=preprocess_function, use_unk=use_unk)
+
+class DataNumberIterator(DataIterator):
+    _element_type = (int, float)
+
+    def __init__(self, data: Union[Number, Iterable[Number], DataIterator], **kwargs):
+        """
+        Initialize the DataNumberIterator with the given data.
+
+        Args:
+            data (Union[Number, Iterable[Number]]): The data to be iterated over.
+
+        Raises:
+            AssertionError: If the provided data is not a number or an iterable of numbers.
+        """
+        super().__init__(data, **kwargs)
+
+    def sum(self):
+        """
+        Calculate the sum of the data iterator.
+
+        Returns:
+            Number: The sum of the data iterator.
+        """
+        return sum(self)
+
+    def mean(self):
+        """
+        Calculate the mean of the data iterator.
+
+        Returns:
+            float: The mean of the data iterator.
+        """
+        return statistics.mean(self)
+
+    def median(self):
+        """
+        Calculate the median of the data iterator.
+
+        Returns:
+            float: The median of the data iterator.
+        """
+        return statistics.median(self)
+
+    def mode(self):
+        """
+        Calculate the mode of the data iterator.
+
+        Returns:
+            float: The mode of the data iterator.
+        """
+        return statistics.mode(self)
+
+    def variance(self):
+        """
+        Calculate the variance of the data iterator.
+
+        Returns:
+            float: The variance of the data iterator.
+        """
+        return statistics.variance(self)
+
+    def std_dev(self):
+        """
+        Calculate the standard deviation of the data iterator.
+
+        Returns:
+            float: The standard deviation of the data iterator.
+        """
+        return statistics.stdev(self)
+
+    def describe(self):
+        """
+        Generate a descriptive summary of the data iterator.
+
+        Returns:
+            Dict: A dictionary containing the descriptive summary of the data iterator.
+        """
+        return {
+            "count":    len(self),
+            "sum":      self.sum(),
+            "mean":     self.mean(),
+            "median":   self.median(),
+            "mode":     self.mode(),
+            "variance": self.variance(),
+            "std_dev":  self.std_dev(),
+        }
+
+
+class DataAnalyzer:
+    def __init__(self, data):
+        from ..mltools.data import Freq
+        self._types = Freq()
+        self._numbers = Freq()
+        self._strings = Freq()
+        self._length = 0
+        for item in data:
+            if isinstance(item, (int, float)):
+                self._numbers.update([item])
+            elif isinstance(item, str):
+                self._strings.update([item])
+            self._types.update([type(item)])
+            self._length += 1
+        self._is_mixed_type = len(self._types) > 1
+
+        report = {}
+
+        if self.is_numbers or len(self._numbers):
+            total_sum = sum(data)
+            count = self._length
+            avg = total_sum / count if count else 0
+            minimum = min(data)
+            maximum = max(data)
+            variance = sum((x - avg) ** 2 for x in data) / count
+            std_dev = math.sqrt(variance)
+            report_numbers = {
+                "count":    count,
+                "sum":      total_sum,
+                "average":  avg,
+                "minimum":  minimum,
+                "maximum":  maximum,
+                "variance": variance,
+                "std_dev":  std_dev,
+            }
+            if self.is_numbers:
+                report.update(report_numbers)
+            else:
+                report.update({"numbers": report_numbers})
+
+        elif self.is_strings or len(self._strings):
+
+            report_strings = {
+                "count":         self._length,
+                "count_uniques": len(self.frequency),
+                "most_commons":  self.frequency.most_common(10),
+                "least_commons": self.frequency.least_freq(10),
+            }
+            if self.is_strings:
+                report.update(report_strings)
+            else:
+                report.update({"strings": report_strings})
+        else:
+            self._report = {
+                "count": self._length,
+                "types": self._types.to_dict(),
+                **report
+            }
+        if not self.is_mixed_type:
+            self._report = report
+
+    @property
+    def report(self):
+        return self._report
+
+    @property
+    def types(self):
+        return self._types
+
+    @property
+    def length(self):
+        return self._length
+
+    @property
+    def frequency(self):
+        return self._strings if self.is_strings else self._numbers if self.is_numbers else self._types
+
+    @property
+    def is_mixed_type(self):
+        return self._is_mixed_type
+
+    @property
+    def is_empty(self):
+        return self._length == 0
+
+    @property
+    def is_numbers(self):
+        return (int in self._types or float in self._types) if not self._is_mixed_type else False
+
+    @property
+    def is_strings(self):
+        return str in self._types if not self._is_mixed_type else False
+
+    def __str__(self):
+        return f"DataAnalyzer({self._report})"
+
+    def __repr__(self):
+        return f"DataAnalyzer({self._report})"
+
+
+class DataGrouper:
+    def __init__(self, data: Union[Iterable, Sequence], key: Callable[[Any], Any]):
+        """
+        Initialize the DataGrouper with the given data and key function.
+
+        Args:
+            data (Union[Iterable, Sequence]): The data to be grouped.
+            key (Callable[[Any], Any]): The key function to group the data.
+
+        Raises:
+            AssertionError: If the provided data is not iterable.
+        """
+        assert is_iterable(data), "Data must be an iterable object."
+        self._data = data
+        self._key = key
+        self._groups = self._group_data()
+
+    def _group_data(self) -> Dict[Any, DataIterator]:
+        """
+        Group the data using the key function.
+
+        Returns:
+            Dict: A dictionary containing the grouped data.
+        """
+        groups = defaultdict(list)
+        for item in self._data:
+            groups[self._key(item)].append(item)
+        return DataIterator(groups).map(lambda x: (x[0], DataIterator(x[1]))).take()
+
+    @classmethod
+    def group_by(cls, data: Union[Iterable, Sequence], key: Callable[[Any], Any]) -> 'DataGrouper':
+        """
+        Group the data using the key function and return a new DataGrouper instance with the grouped data.
+
+        Args:
+            data (Union[Iterable, Sequence]): The data to be grouped.
+            key (Callable[[Any], Any]): The key function to group the data.
+
+        Returns:
+            DataGrouper: A new DataGrouper instance containing the grouped data.
+        """
+        return cls(data, key)
+
+    def get_group_info(self, key: Any) -> DataAnalyzer:
+        """
+        Get information about the group corresponding to the given key.
+
+        Args:
+            key (Any): The key to get the group information for.
+
+        Returns:
+            DataAnalyzer: A DataAnalyzer object containing the group information.
+        """
+        return DataAnalyzer(self._groups[key])
+
+    def get_group_data(self, key: Any) -> DataIterator:
+        """
+        Get the group corresponding to the given key.
+
+        Args:
+            key (Any): The key to get the group for.
+
+        Returns:
+            DataIterator: A DataIterator object containing the group.
+        """
+        return self._groups[key]
+
+    def summary(self):
+        """
+        Get a summary of the grouped data.
+
+        Returns:
+            Dict: A dictionary containing the summary of the grouped data.
+        """
+        return {
+            "count":  len(self._groups),
+            "groups": {key: self.get_group_info(key) for key in self._groups}
+
+        }
+
+    @property
+    def groups(self):
+        """
+        Get the groups.
+
+        Returns:
+            Dict: A dictionary containing the groups.
+        """
+        return self._groups
+
+    def add(self, item: Any):
+        """
+        Add an item to the groups.
+
+        Args:
+            item (Any): The item to be added.
+        """
+        raise NotImplementedError("Adding items to the groups is not supported.")
+
+    def remove(self, item: Any):
+        """
+        Remove an item from the groups.
+
+        Args:
+            item (Any): The item to be removed.
+        """
+        raise NotImplementedError("Removing items from the groups is not supported.")
+
+    def __contains__(self, key: Any) -> bool:
+        """
+        Check if the group corresponding to the given key exists.
+
+        Args:
+            key (Any): The key to check for.
+
+        Returns:
+            bool: True if the group exists, False otherwise.
+        """
+        return key in self._groups
+
+    def __getitem__(self, key: Any) -> DataIterator:
+        """
+        Get the group corresponding to the given key.
+
+        Args:
+            key (Any): The key to get the group for.
+
+        Returns:
+            List: The group corresponding to the given key.
+        """
+        return self._groups[key]
+
+    def __iter__(self):
+        return iter(self._groups)
+
+    def __len__(self):
+        return len(self._groups)
+
+    def __str__(self):
+        return f"DataGrouper({list(self._groups.keys())})"
