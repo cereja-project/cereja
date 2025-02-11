@@ -131,6 +131,9 @@ class Freq(Counter):
     def to_dict(self):
         return dict(self)
 
+    def unique(self):
+        return set(self.keys())
+
 
 class ConnectValues(dict):
     def __init__(self, name: str = None):
