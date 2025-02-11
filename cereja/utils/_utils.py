@@ -1972,7 +1972,7 @@ class DataIterator:
         return self.analyzer.report
 
     @property
-    def freq(self) -> 'Freq':
+    def freq(self):
         """
         Get the frequency of the data iterator.
 
@@ -2001,7 +2001,7 @@ class DataStringIterator(DataIterator):
         self._freq: Union[Freq, None] = None
 
     @property
-    def freq(self) -> 'Freq':
+    def freq(self):
         """
         Get the frequency of the data iterator.
 
