@@ -102,7 +102,6 @@ __all__ = [
     'SingletonMeta',
     'PoolMeta',
     'DataIterator',
-    'DataGrouper',
     'DataAnalyzer',
     'check_type_on_sequence',
 
@@ -1777,7 +1776,7 @@ class DataIterator:
         """
         return next(self._iter)
 
-    def batch(self, batch_size: int = 1, step: int = 1) -> 'DataIterator':
+    def batch(self, batch_size: int = 1, step: int = None) -> 'DataIterator':
         """
         Create batches of data from the iterator.
 
@@ -1788,7 +1787,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the batches.
         """
-        return DataIterator(get_batch_strides(self, kernel_size=batch_size, strides=step),
+        return DataIterator(get_batch_strides(self, kernel_size=batch_size, strides=step or batch_size),
                             original_type=self._original_type)
 
     def cycle(self) -> Any:
@@ -1852,7 +1851,7 @@ class DataIterator:
         """
         data = list(self)
         random.shuffle(data)
-        return DataIterator(data, original_type=self._original_type)
+        return self.__class__(data, original_type=self._original_type)
 
     def filter(self, func: Callable[[Any], bool]) -> 'DataIterator':
         """
@@ -1864,7 +1863,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the filtered data.
         """
-        return DataIterator(filter(func, self), original_type=self._original_type)
+        return self.__class__(filter(func, self), original_type=self._original_type)
 
     @property
     def str(self) -> 'DataStringIterator':
@@ -1906,7 +1905,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the mapped data.
         """
-        return DataIterator(map(func, self), original_type=self._original_type)
+        return self.__class__(map(func, self), original_type=self._original_type)
 
     def reduce(self, func: Callable[[Any, Any], Any], initial=None) -> Any:
         """
@@ -1940,19 +1939,11 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the enumerated data.
         """
-        return DataIterator(enumerate(self, start=start), original_type=self._original_type)
+        return self.__class__(enumerate(self, start=start), original_type=self._original_type)
 
-    def group_by(self, func: Callable[[Any], Any]) -> 'DataGrouper':
-        """
-        Group the data by the given function and return a dictionary with the grouped data.
-
-        Args:
-            func (Callable[[Any], Any]): The function to group the data.
-
-        Returns:
-            DataGrouper: A DataGrouper object containing the grouped data.
-        """
-        return DataGrouper(self, func)
+    def group_by(self, func: Callable[[Any], Any] = lambda x: x) -> Dict:
+        groups = group_by(self, func)
+        return {k: self.__class__(v, original_type=self._original_type) for k, v in groups.items()}
 
     def __str__(self):
         try:
@@ -1961,6 +1952,16 @@ class DataIterator:
             first_elem = f"{self.first.__class__.__name__}(...)"
         return f"DataIterator({first_elem},...)" if not self.is_empty else "DataIterator(Empty)"
 
+    @property
+    def analyzer(self) -> 'DataAnalyzer':
+        """
+        Get a data analyzer for the data iterator.
+
+        Returns:
+            DataAnalyzer: A data analyzer for the data iterator.
+        """
+        return DataAnalyzer(self)
+
     def summary(self):
         """
         Get a summary of the data iterator.
@@ -1968,11 +1969,10 @@ class DataIterator:
         Returns:
             Dict: A dictionary containing the summary of the data iterator.
         """
-        data_analyzer = DataAnalyzer(self)
-        return data_analyzer.report
+        return self.analyzer.report
 
     @property
-    def freq(self):
+    def freq(self) -> 'Freq':
         """
         Get the frequency of the data iterator.
 
@@ -1997,6 +1997,21 @@ class DataStringIterator(DataIterator):
             AssertionError: If the provided data is not a string or an iterable of strings.
         """
         super().__init__(data, **kwargs)
+        from ..mltools.data import Freq
+        self._freq: Union[Freq, None] = None
+
+    @property
+    def freq(self) -> 'Freq':
+        """
+        Get the frequency of the data iterator.
+
+        Returns:
+            Dict: A dictionary containing the frequency of the data iterator.
+        """
+        if self._freq is None:
+            from ..mltools.data import Freq
+            self._freq = Freq(self)
+        return self._freq
 
     def preprocess(self, is_destructive=False):
         """
@@ -2014,6 +2029,151 @@ class DataStringIterator(DataIterator):
     def tokenize(self, preprocess_function=None, use_unk=True):
         from ..mltools.data import Tokenizer
         return Tokenizer(self, preprocess_function=preprocess_function, use_unk=use_unk)
+
+    def most_common(self, n: int = 10):
+        """
+        Get the most common elements in the data iterator.
+
+        Args:
+            n (int, optional): The number of most common elements to return. Default is 10.
+
+        Returns:
+            List: A list of the most common elements in the data iterator.
+        """
+        return self.freq.most_common(n)
+
+    def least_common(self, n: int = 10):
+        """
+        Get the least common elements in the data iterator.
+
+        Args:
+            n (int, optional): The number of least common elements to return. Default is 10.
+
+        Returns:
+            List: A list of the least common elements in the data iterator.
+        """
+        return self.freq.least_freq(n)
+
+    def unique(self):
+        """
+        Get the unique elements in the data iterator.
+
+        Returns:
+            List: A list of the unique elements in the data iterator.
+        """
+        return self.freq.unique()
+
+    def count(self, value):
+        """
+        Count the occurrences of a value in the data iterator.
+
+        Args:
+            value: The value to count the occurrences of.
+
+        Returns:
+            int: The number of occurrences of the value in the data iterator.
+        """
+        return self.freq.get(value, 0)
+
+    def count_uniques(self):
+        """
+        Count the number of unique elements in the data iterator.
+
+        Returns:
+            int: The number of unique elements in the data iterator.
+        """
+        return len(self.freq)
+
+    def starts_with(self, prefix):
+        """
+        Filter the data iterator to only include elements that start with the given prefix.
+
+        Args:
+            prefix: The prefix to filter the data iterator.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance containing the filtered data.
+        """
+        return self.filter(lambda x: x.startswith(prefix))
+
+    def ends_with(self, suffix):
+        """
+        Filter the data iterator to only include elements that end with the given suffix.
+
+        Args:
+            suffix: The suffix to filter the data iterator.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance containing the filtered data.
+        """
+        return self.filter(lambda x: x.endswith(suffix))
+
+    def contains(self, substring):
+        """
+        Filter the data iterator to only include elements that contain the given substring.
+
+        Args:
+            substring: The substring to filter the data iterator.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance containing the filtered data.
+        """
+        return self.filter(lambda x: substring in x)
+
+    def replace(self, old, new):
+        """
+        Replace the old substring with the new substring in the data iterator.
+
+        Args:
+            old: The old substring to replace.
+            new: The new substring to replace with.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance containing the replaced data.
+        """
+        return self.map(lambda x: x.replace(old, new))
+
+    def strip(self):
+        """
+        Strip the leading and trailing whitespace from the data iterator.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance with the stripped data.
+        """
+        return self.map(str.strip)
+
+    def lower(self):
+        """
+        Convert the data iterator to lowercase.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance with the lowercase data.
+        """
+        return self.map(str.lower)
+
+    def upper(self):
+        """
+        Convert the data iterator to uppercase.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance with the uppercase data.
+        """
+        return self.map(str.upper)
+
+    def summary(self):
+        """
+        Generate a descriptive summary of the data iterator.
+
+        Returns:
+            Dict: A dictionary containing the descriptive summary of the data iterator.
+        """
+        return {
+            "count":         len(self),
+            "count_uniques": self.count_uniques(),
+            "most_commons":  self.freq.most_common(10),
+            "least_commons": self.freq.least_freq(10),
+        }
+
 
 class DataNumberIterator(DataIterator):
     _element_type = (int, float)
@@ -2084,7 +2244,7 @@ class DataNumberIterator(DataIterator):
         """
         return statistics.stdev(self)
 
-    def describe(self):
+    def summary(self):
         """
         Generate a descriptive summary of the data iterator.
 
@@ -2103,81 +2263,70 @@ class DataNumberIterator(DataIterator):
 
 
 class DataAnalyzer:
+    TYPES_DATA_ITERATOR_MAP = defaultdict(lambda: DataIterator,
+                                          {str:   DataStringIterator,
+                                           int:   DataNumberIterator,
+                                           float: DataNumberIterator})
+
     def __init__(self, data):
-        from ..mltools.data import Freq
-        self._types = Freq()
-        self._numbers = Freq()
-        self._strings = Freq()
-        self._length = 0
-        for item in data:
-            if isinstance(item, (int, float)):
-                self._numbers.update([item])
-            elif isinstance(item, str):
-                self._strings.update([item])
-            self._types.update([type(item)])
-            self._length += 1
+        if isinstance(data, DataIterator) and issubclass(data.original_type, dict):
+            raise TypeError("DataAnalyzer does not support dictionary data.")
+        report = {}
+        self._types = group_by(data, lambda x: type(x))
+        try:
+            self._length = len(data)
+        except TypeError:
+            self._length = sum([len(self._types[x]) for x in self._types.values()])
+
         self._is_mixed_type = len(self._types) > 1
 
-        report = {}
+        if self.has_numbers:
+            numbers_ = self.numbers
+            report.update(numbers_.summary() if self.is_numbers else {"numbers": numbers_.summary()})
 
-        if self.is_numbers or len(self._numbers):
-            total_sum = sum(data)
-            count = self._length
-            avg = total_sum / count if count else 0
-            minimum = min(data)
-            maximum = max(data)
-            variance = sum((x - avg) ** 2 for x in data) / count
-            std_dev = math.sqrt(variance)
-            report_numbers = {
-                "count":    count,
-                "sum":      total_sum,
-                "average":  avg,
-                "minimum":  minimum,
-                "maximum":  maximum,
-                "variance": variance,
-                "std_dev":  std_dev,
-            }
-            if self.is_numbers:
-                report.update(report_numbers)
-            else:
-                report.update({"numbers": report_numbers})
+        if self.has_strings:
+            strings_ = self.strings
+            report.update(strings_.summary() if self.is_strings else {"strings": strings_.summary()})
 
-        elif self.is_strings or len(self._strings):
-
-            report_strings = {
-                "count":         self._length,
-                "count_uniques": len(self.frequency),
-                "most_commons":  self.frequency.most_common(10),
-                "least_commons": self.frequency.least_freq(10),
-            }
-            if self.is_strings:
-                report.update(report_strings)
-            else:
-                report.update({"strings": report_strings})
-        else:
+        if self._is_mixed_type:
             self._report = {
                 "count": self._length,
-                "types": self._types.to_dict(),
+                "types": self.types,
                 **report
             }
-        if not self.is_mixed_type:
+        elif not self.is_mixed_type:
             self._report = report
+
+    def get_by_type(self, t):
+        return self.TYPES_DATA_ITERATOR_MAP[t](self._types.get(t, []))
+
+    @property
+    def has_numbers(self):
+        return int in self._types or float in self._types
+
+    @property
+    def has_strings(self):
+        return str in self._types
+
+    @property
+    def numbers(self):
+        return DataNumberIterator(self._types.get(int, []) + self._types.get(float, []) if self.has_numbers else [])
+
+    @property
+    def strings(self):
+        return DataStringIterator(self._types.get(str, []) if self.has_strings else [])
+
+    @property
+    def types(self):
+        return tuple(self._types)
 
     @property
     def report(self):
         return self._report
 
     @property
-    def types(self):
-        return self._types
-
-    @property
     def length(self):
         return self._length
-
-    @property
-    def frequency(self):
-        return self._strings if self.is_strings else self._numbers if self.is_numbers else self._types
 
     @property
     def is_mixed_type(self):
@@ -2189,156 +2338,14 @@ class DataAnalyzer:
 
     @property
     def is_numbers(self):
-        return (int in self._types or float in self._types) if not self._is_mixed_type else False
+        return not self._is_mixed_type and self.has_numbers
 
     @property
     def is_strings(self):
-        return str in self._types if not self._is_mixed_type else False
+        return not self._is_mixed_type and self.has_strings
 
     def __str__(self):
         return f"DataAnalyzer({self._report})"
 
     def __repr__(self):
         return f"DataAnalyzer({self._report})"
-
-
-class DataGrouper:
-    def __init__(self, data: Union[Iterable, Sequence], key: Callable[[Any], Any]):
-        """
-        Initialize the DataGrouper with the given data and key function.
-
-        Args:
-            data (Union[Iterable, Sequence]): The data to be grouped.
-            key (Callable[[Any], Any]): The key function to group the data.
-
-        Raises:
-            AssertionError: If the provided data is not iterable.
-        """
-        assert is_iterable(data), "Data must be an iterable object."
-        self._data = data
-        self._key = key
-        self._groups = self._group_data()
-
-    def _group_data(self) -> Dict[Any, DataIterator]:
-        """
-        Group the data using the key function.
-
-        Returns:
-            Dict: A dictionary containing the grouped data.
-        """
-        groups = defaultdict(list)
-        for item in self._data:
-            groups[self._key(item)].append(item)
-        return DataIterator(groups).map(lambda x: (x[0], DataIterator(x[1]))).take()
-
-    @classmethod
-    def group_by(cls, data: Union[Iterable, Sequence], key: Callable[[Any], Any]) -> 'DataGrouper':
-        """
-        Group the data using the key function and return a new DataGrouper instance with the grouped data.
-
-        Args:
-            data (Union[Iterable, Sequence]): The data to be grouped.
-            key (Callable[[Any], Any]): The key function to group the data.
-
-        Returns:
-            DataGrouper: A new DataGrouper instance containing the grouped data.
-        """
-        return cls(data, key)
-
-    def get_group_info(self, key: Any) -> DataAnalyzer:
-        """
-        Get information about the group corresponding to the given key.
-
-        Args:
-            key (Any): The key to get the group information for.
-
-        Returns:
-            DataAnalyzer: A DataAnalyzer object containing the group information.
-        """
-        return DataAnalyzer(self._groups[key])
-
-    def get_group_data(self, key: Any) -> DataIterator:
-        """
-        Get the group corresponding to the given key.
-
-        Args:
-            key (Any): The key to get the group for.
-
-        Returns:
-            DataIterator: A DataIterator object containing the group.
-        """
-        return self._groups[key]
-
-    def summary(self):
-        """
-        Get a summary of the grouped data.
-
-        Returns:
-            Dict: A dictionary containing the summary of the grouped data.
-        """
-        return {
-            "count":  len(self._groups),
-            "groups": {key: self.get_group_info(key) for key in self._groups}
-
-        }
-
-    @property
-    def groups(self):
-        """
-        Get the groups.
-
-        Returns:
-            Dict: A dictionary containing the groups.
-        """
-        return self._groups
-
-    def add(self, item: Any):
-        """
-        Add an item to the groups.
-
-        Args:
-            item (Any): The item to be added.
-        """
-        raise NotImplementedError("Adding items to the groups is not supported.")
-
-    def remove(self, item: Any):
-        """
-        Remove an item from the groups.
-
-        Args:
-            item (Any): The item to be removed.
-        """
-        raise NotImplementedError("Removing items from the groups is not supported.")
-
-    def __contains__(self, key: Any) -> bool:
-        """
-        Check if the group corresponding to the given key exists.
-
-        Args:
-            key (Any): The key to check for.
-
-        Returns:
-            bool: True if the group exists, False otherwise.
-        """
-        return key in self._groups
-
-    def __getitem__(self, key: Any) -> DataIterator:
-        """
-        Get the group corresponding to the given key.
-
-        Args:
-            key (Any): The key to get the group for.
-
-        Returns:
-            List: The group corresponding to the given key.
-        """
-        return self._groups[key]
-
-    def __iter__(self):
-        return iter(self._groups)
-
-    def __len__(self):
-        return len(self._groups)
-
-    def __str__(self):
-        return f"DataGrouper({list(self._groups.keys())})"

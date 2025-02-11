@@ -49,7 +49,7 @@ from ._requests import request
 from . import scraping
 from . import wcag
 
-VERSION = "2.0.6.final.0"
+VERSION = "2.0.7.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
