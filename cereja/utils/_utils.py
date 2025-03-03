@@ -111,11 +111,14 @@ logger = logging.getLogger(__name__)
 
 
 class NoStringWrappingPrettyPrinter(PrettyPrinter):
-    def __init__(self, str_width):
+    def __init__(self,
+                 str_width):
         super().__init__()
         self.str_width = str_width
 
-    def _format(self, object, *args):
+    def _format(self,
+                object,
+                *args):
         if isinstance(object, str):
             width = self._width
             self._width = self.str_width
@@ -131,7 +134,8 @@ def is_indexable(v):
     return hasattr(v, "__getitem__")
 
 
-def split_sequence(seq: List[Any], is_break_fn: Callable) -> List[List[Any]]:
+def split_sequence(seq: List[Any],
+                   is_break_fn: Callable) -> List[List[Any]]:
     """
     Split a sequence into subsequences based on a break function.
     @param seq: sequence to split
@@ -168,7 +172,8 @@ def split_sequence(seq: List[Any], is_break_fn: Callable) -> List[List[Any]]:
     return sub_seqs
 
 
-def map_values(obj: Union[dict, list, tuple, Iterator], fn: Callable) -> Union[dict, list, tuple, Iterator]:
+def map_values(obj: Union[dict, list, tuple, Iterator],
+               fn: Callable) -> Union[dict, list, tuple, Iterator]:
     fn_arg_count = SourceCodeAnalyzer(fn).argument_count
     if isinstance(obj, dict):
         obj = obj.items()
@@ -289,7 +294,10 @@ def clipboard() -> str:
     return _get_tkinter().clipboard_get()
 
 
-def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys: int = 0):
+def truncate(data: Union[Sequence],
+             k_iter: int = 0,
+             k_str: int = 0,
+             k_dict_keys: int = 0):
     """
     Truncates the data to the specified number of elements in half(+1 if odd) + half, adding a filler in between.
     If the data is a dictionary, then truncates recursively until data is "truncatable".
@@ -345,7 +353,12 @@ def truncate(data: Union[Sequence], k_iter: int = 0, k_str: int = 0, k_dict_keys
 
 
 def obj_repr(
-        obj_, attr_limit=10, val_limit=3, show_methods=False, show_private=False, deep=3
+        obj_,
+        attr_limit=10,
+        val_limit=3,
+        show_methods=False,
+        show_private=False,
+        deep=3
 ):
     try:
         if isinstance(obj_, (str, bytes)):
@@ -410,7 +423,9 @@ def can_do(obj: Any) -> List[str]:
 
 
 def sample(
-        v: Sequence, k: int = None, is_random: bool = False) -> Union[list, dict, set, Any]:
+        v: Sequence,
+        k: int = None,
+        is_random: bool = False) -> Union[list, dict, set, Any]:
     """
     Get sample of anything
 
@@ -428,8 +443,14 @@ def sample(
     return result
 
 
-def visualize_sample(v: Sequence, k: int = None, is_random: bool = False, tr_k_iter: int = 6, tr_k_str: int = 20,
-                     tr_k_dict_keys: int = 20, p_print: bool = True, str_width: int = 200):
+def visualize_sample(v: Sequence,
+                     k: int = None,
+                     is_random: bool = False,
+                     tr_k_iter: int = 6,
+                     tr_k_str: int = 20,
+                     tr_k_dict_keys: int = 20,
+                     p_print: bool = True,
+                     str_width: int = 200):
     """
     Samples then (p)prints a (truncated) version of the sample. Helpful for visualizing data structures.
     Args:
@@ -481,7 +502,9 @@ def camel_to_snake(value: str):
     return camel_case_to_snake(value)
 
 
-def camel_case(value: str, sep: Union[str, None] = None, upper_first=False):
+def camel_case(value: str,
+               sep: Union[str, None] = None,
+               upper_first=False):
     if sep is None:
         sep = [" "]
     elif isinstance(sep, (str, int, float)):
@@ -494,7 +517,8 @@ def camel_case(value: str, sep: Union[str, None] = None, upper_first=False):
     return value[0].lower() + value[1:]
 
 
-def snake_case_to_camel(value, upper_first=False):
+def snake_case_to_camel(value,
+                        upper_first=False):
     return camel_case(value, sep="_", upper_first=upper_first)
 
 
@@ -518,7 +542,9 @@ def _invert_parser_key(key):
     return to_tuple(key) if isinstance(key, (list, set, dict)) else key
 
 
-def _invert_append(obj, k, v):
+def _invert_append(obj,
+                   k,
+                   v):
     dict_append(obj, k, v)
     if len(obj[k]) == 1:
         obj[k] = obj[k][0]
@@ -561,7 +587,9 @@ def invert_dict(dict_: Union[dict, set]) -> dict:
     return new_dict
 
 
-def group_by(values, fn, get_freq: bool = False) -> Union[dict, Tuple[dict, dict]]:
+def group_by(values,
+             fn,
+             get_freq: bool = False) -> Union[dict, Tuple[dict, dict]]:
     """
     group items by result of fn (function)
 
@@ -608,13 +636,16 @@ def import_string(dotted_path):
         ) from err
 
 
-def get_attr_if_exists(obj: Any, attr: str) -> Union[object, None]:
+def get_attr_if_exists(obj: Any,
+                       attr: str) -> Union[object, None]:
     if hasattr(obj, attr):
         return getattr(obj, attr)
     return None
 
 
-def fill(value: Union[list, str, tuple], max_size, with_=" ") -> Any:
+def fill(value: Union[list, str, tuple],
+         max_size,
+         with_=" ") -> Any:
     """
     Calculates and adds value
     """
@@ -647,7 +678,8 @@ def string_to_literal(val: Union[str, bytes]):
     return val
 
 
-def module_references(instance: types.ModuleType, **kwargs) -> dict:
+def module_references(instance: types.ModuleType,
+                      **kwargs) -> dict:
     """
     dict of all functions and classes defined in the module.
     To also list the variables it is necessary to define explicitly with the special variable on your module
@@ -743,7 +775,10 @@ def logger_level():
 
 
 def combine_with_all(
-        a: list, b: list, n_a_combinations: int = 1, is_random: bool = False
+        a: list,
+        b: list,
+        n_a_combinations: int = 1,
+        is_random: bool = False
 ) -> List[Tuple[Any, ...]]:
     """
     >>> a = [1, 2, 3]
@@ -784,7 +819,8 @@ def value_from_memory(memory_id):
         raise ValueError(f"Memory ID {memory_id} isn't valid.")
 
 
-def sort(iterable, reverse=False):
+def sort(iterable,
+         reverse=False):
     """
     Sort a list that may contain a mix of different types including other lists or tuples.
 
@@ -807,7 +843,9 @@ def sort(iterable, reverse=False):
     return sorted(iterable, key=sort_key, reverse=reverse)
 
 
-def combinations(iterable, size, is_sorted=False):
+def combinations(iterable,
+                 size,
+                 is_sorted=False):
     """
     Generate all possible combinations of a certain size from an iterable.
 
@@ -826,7 +864,10 @@ def combinations(iterable, size, is_sorted=False):
         raise Exception(f"Can't sort the pairs. {err}")
 
 
-def combinations_sizes(iterable, min_size, max_size, is_sorted=False):
+def combinations_sizes(iterable,
+                       min_size,
+                       max_size,
+                       is_sorted=False):
     """
     Generate all possible combinations for all sizes within the specified range from an iterable.
 
@@ -865,7 +906,8 @@ if __name__ == '__main__':
 
     __prefix_attr_err = "Attr Check Error {attr_}."
 
-    def __init__(self, instance_obj: object):
+    def __init__(self,
+                 instance_obj: object):
         self._prefix_attr = f"__{instance_obj.__class__.__name__}__"
         self._instance_obj = instance_obj
         self._set_attr_current_values()
@@ -886,7 +928,8 @@ if __name__ == '__main__':
                 lambda attr_: attr_.__contains__("__") is False, dir(self._instance_obj)
         )
 
-    def _get_attr_obj(self, attr_: str):
+    def _get_attr_obj(self,
+                      attr_: str):
         if not hasattr(self._instance_obj, attr_):
             raise ValueError(f"Attr {attr_} not found.")
         value = getattr(self._instance_obj, attr_)
@@ -898,15 +941,19 @@ if __name__ == '__main__':
             attr_name = self.parse_attr(attr_)
             setattr(self, attr_name, attr_obj)
 
-    def parse_attr(self, attr_: str):
+    def parse_attr(self,
+                   attr_: str):
         attr_ = self._valid_attr(attr_)
         return f"{self._prefix_attr}{attr_}"
 
-    def __getattr__(self, item):
+    def __getattr__(self,
+                    item):
         return self.__getattribute__(self.parse_attr(item))
 
     class _Attr(object):
-        def __init__(self, name: str, value: Any):
+        def __init__(self,
+                     name: str,
+                     value: Any):
             self.name = name
             self.is_callable = callable(value)
             self.is_private = self.name.startswith("_")
@@ -926,42 +973,48 @@ if __name__ == '__main__':
         def __len__(self):
             return len(self.tests_case)
 
-        def __eq__(self, other):
+        def __eq__(self,
+                   other):
             """==value"""
             if isinstance(other, self.__class__):
                 return NotImplemented
             self.tests_case = (other, self.class_of_attr.__eq__, "==")
             return self
 
-        def __ge__(self, other):
+        def __ge__(self,
+                   other):
             """>=value"""
             if isinstance(other, self.__class__):
                 return NotImplemented
             self.tests_case = (other, self.class_of_attr.__ge__, ">=")
             return self
 
-        def __gt__(self, other):
+        def __gt__(self,
+                   other):
             """>value"""
             if isinstance(other, self.__class__):
                 return NotImplemented
             self.tests_case = (other, self.class_of_attr.__gt__, ">")
             return self
 
-        def __le__(self, other):
+        def __le__(self,
+                   other):
             """<=value."""
             if isinstance(other, self.__class__):
                 return NotImplemented
             self.tests_case = (other, self.class_of_attr.__le__, "<=")
             return self
 
-        def __lt__(self, other):
+        def __lt__(self,
+                   other):
             """<value."""
             if isinstance(other, self.__class__):
                 return NotImplemented
             self.tests_case = (other, self.class_of_attr.__lt__, "<")
             return self
 
-        def __ne__(self, other):
+        def __ne__(self,
+                   other):
             """!=value."""
             if isinstance(other, self.__class__):
                 return NotImplemented
@@ -971,28 +1024,33 @@ if __name__ == '__main__':
         def copy(self):
             return copy(self)
 
-        def run(self, current_value):
+        def run(self,
+                current_value):
             expected, operator, _ = self.tests_case
             if not operator(current_value, expected):
                 return [f"{repr(current_value)} not {_} {repr(expected)}"]
 
             return []
 
-    def _valid_attr(self, attr_name: str):
+    def _valid_attr(self,
+                    attr_name: str):
         assert hasattr(
                 self._instance_obj, attr_name
         ), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
         return attr_name
 
-    def add_check(self, *check_: _Attr):
+    def add_check(self,
+                  *check_: _Attr):
         for i in check_:
             if i not in self._checks:
                 self._checks.append(i)
 
-    def remove_check(self, index: int):
+    def remove_check(self,
+                     index: int):
         self._checks.pop(index)
 
-    def check_attr(self, attr_name: Union[str, _Attr]):
+    def check_attr(self,
+                   attr_name: Union[str, _Attr]):
         if isinstance(attr_name, str):
             stored_test = self.__getattribute__(self.parse_attr(attr_name))
         else:
@@ -1010,7 +1068,8 @@ if __name__ == '__main__':
             self.check_attr(attr_)
 
     @classmethod
-    def _get_class_test(cls, ref):
+    def _get_class_test(cls,
+                        ref):
         func_tests = "".join(
                 cls.__template_unittest_function.format(func_name=i)
                 for i in list_methods(ref)
@@ -1020,11 +1079,13 @@ if __name__ == '__main__':
         )
 
     @classmethod
-    def _get_func_test(cls, ref):
+    def _get_func_test(cls,
+                       ref):
         return cls.__template_unittest_function.format(func_name=ref.__name__)
 
     @classmethod
-    def _get_test(cls, ref):
+    def _get_test(cls,
+                  ref):
         if isinstance(ref, (FunctionType, types.MethodType)):
             return cls._get_func_test(ref)
         if isinstance(ref, type):
@@ -1032,7 +1093,8 @@ if __name__ == '__main__':
         raise TypeError("send a function or class reference")
 
     @classmethod
-    def build_test(cls, reference):
+    def build_test(cls,
+                   reference):
         module_func_test = []
         tests = []
         if isinstance(reference, types.ModuleType):
@@ -1056,7 +1118,8 @@ if __name__ == '__main__':
         return cls.__template_unittest.format(tests="\n".join(tests))
 
 
-def _add_license(base_dir, ext=".py"):
+def _add_license(base_dir,
+                 ext=".py"):
     from cereja.file import FileIO
     from cereja.config import BASE_DIR
 
@@ -1068,7 +1131,8 @@ def _add_license(base_dir, ext=".py"):
         file.save(exist_ok=True)
 
 
-def _rescale_down(input_list, size):
+def _rescale_down(input_list,
+                  size):
     assert len(input_list) >= size, f"{len(input_list), size}"
 
     skip = len(input_list) // size
@@ -1078,7 +1142,10 @@ def _rescale_down(input_list, size):
         yield input_list[i]
 
 
-def _rescale_up(values, k, fill_with=None, filling="inner"):
+def _rescale_up(values,
+                k,
+                fill_with=None,
+                filling="inner"):
     size = len(values)
     assert size <= k, f"Error while resizing: {size} < {k}"
 
@@ -1109,7 +1176,8 @@ def _rescale_up(values, k, fill_with=None, filling="inner"):
             yield fill_with if fill_with is not None else values[-1]
 
 
-def _interpolate(values, k):
+def _interpolate(values,
+                 k):
     if isinstance(values, list):
         from ..array import Matrix
 
@@ -1191,7 +1259,8 @@ def rescale_values(
 
 
 class SourceCodeAnalyzer:
-    def __init__(self, reference: Any):
+    def __init__(self,
+                 reference: Any):
         self._reference = reference
         self._name: Optional[str] = None
         self._doc: Optional[str] = None
@@ -1254,7 +1323,9 @@ class SourceCodeAnalyzer:
             self._doc = inspect.getdoc(self._reference)
         return self._doc
 
-    def save_source_code(self, path: str, **kwargs):
+    def save_source_code(self,
+                         path: str,
+                         **kwargs):
         from cereja import FileIO, Path
 
         path = Path(path)
@@ -1266,7 +1337,8 @@ class SourceCodeAnalyzer:
 
 @depreciation(alternative="SourceCodeAnalyzer")
 class Source(SourceCodeAnalyzer):
-    def __init__(self, reference: Any):
+    def __init__(self,
+                 reference: Any):
         super().__init__(reference)
 
 
@@ -1355,7 +1427,10 @@ def list_to_tuple(obj):
     return tuple(result)
 
 
-def dict_values_len(obj, max_len=None, min_len=None, take_len=False):
+def dict_values_len(obj,
+                    max_len=None,
+                    min_len=None,
+                    take_len=False):
     return {
         i: len(obj[i]) if take_len else obj[i]
         for i in obj
@@ -1462,7 +1537,8 @@ def dict_append(obj: Dict[Any, Union[List, Tuple]],
     return obj
 
 
-def dict_filter_value(obj: Dict[Any, Any], f) -> Any:
+def dict_filter_value(obj: Dict[Any, Any],
+                      f) -> Any:
     """
     Results is a filtered dict by f func result
 
@@ -1506,7 +1582,8 @@ def dict_min_value(obj: Dict[Any, Any]) -> Any:
     return dict_filter_value(obj, min)
 
 
-def get_zero_mask(number: int, max_len: int = 3) -> str:
+def get_zero_mask(number: int,
+                  max_len: int = 3) -> str:
     """
     Returns string of numbers formated with zero mask
     eg.
@@ -1520,7 +1597,11 @@ def get_zero_mask(number: int, max_len: int = 3) -> str:
     return f"%0.{max_len}d" % number
 
 
-def get_batch_strides(data, kernel_size, strides=1, fill_=False, take_index=False):
+def get_batch_strides(data,
+                      kernel_size,
+                      strides=1,
+                      fill_=False,
+                      take_index=False):
     """
     Returns batches of fixed window size (kernel_size) with a given stride
     @param data: iterable
@@ -1541,7 +1622,8 @@ def get_batch_strides(data, kernel_size, strides=1, fill_=False, take_index=Fals
         ) if fill_ else batches[:kernel_size]
 
 
-def prune_values(values: Sequence, factor=2):
+def prune_values(values: Sequence,
+                 factor=2):
     """
     Prunes the values in the sequence by reducing the number of elements based on the given factor.
 
@@ -1575,7 +1657,8 @@ def str_gen(pattern: AnyStr) -> Sequence[AnyStr]:
     return regex.findall(string.printable)
 
 
-def encode_coordinates(x: int, y: int):
+def encode_coordinates(x: int,
+                       y: int):
     """
     Encode the coordinates (x, y) into a single lParam value.
 
@@ -1617,7 +1700,9 @@ class PoolMeta(type):
     _max_instances = 3  # Define the maximum number of instances allowed
     _available_instances = threading.Condition(_lock)
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls,
+                 *args,
+                 **kwargs):
         with cls._available_instances:
             while len(cls._instances) >= cls._max_instances:
                 cls._available_instances.wait()
@@ -1625,13 +1710,15 @@ class PoolMeta(type):
             cls._instances.append(instance)
             return instance
 
-    def release_instance(cls, instance):
+    def release_instance(cls,
+                         instance):
         with cls._available_instances:
             if instance in cls._instances:
                 cls._instances.remove(instance)
                 cls._available_instances.notify()
 
-    def set_max_instances(cls, max_instances):
+    def set_max_instances(cls,
+                          max_instances):
         cls._max_instances = max_instances
 
     def get_max_instances(cls):
@@ -1646,7 +1733,9 @@ class SingletonMeta(type):
     _instances = {}
     _lock: threading.Lock = threading.Lock()  # Class-level lock
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls,
+                 *args,
+                 **kwargs):
         # First, check if an instance exists
         if cls not in cls._instances:
             with cls._lock:
@@ -1656,7 +1745,8 @@ class SingletonMeta(type):
         return cls._instances[cls]
 
 
-def check_type_on_sequence(sequence: Iterable, t: Union[type, Tuple[type, ...]]) -> bool:
+def check_type_on_sequence(sequence: Iterable,
+                           t: Union[type, Tuple[type, ...]]) -> bool:
     """
     Check if all elements in a sequence are of a certain type.
 
@@ -1667,7 +1757,7 @@ def check_type_on_sequence(sequence: Iterable, t: Union[type, Tuple[type, ...]])
     Returns:
         bool: True if all elements are of the specified type, False otherwise.
     """
-    if issubclass(type(sequence), Iterator):
+    if issubclass(type(sequence), Iterator) and not isinstance(sequence, DataIterator):
         sequence = deepcopy(sequence)
     for item in sequence:
         if not isinstance(item, t):
@@ -1678,7 +1768,9 @@ def check_type_on_sequence(sequence: Iterable, t: Union[type, Tuple[type, ...]])
 class DataIterator:
     _element_type = None
 
-    def __init__(self, data: Union[Iterable, Sequence, 'DataIterator'], **kwargs):
+    def __init__(self,
+                 data: Union[Iterable, Sequence, 'DataIterator'],
+                 **kwargs):
         """
         Initialize the DataIterator with the given data.
 
@@ -1691,36 +1783,35 @@ class DataIterator:
         Raises:
             AssertionError: If the provided data is not iterable.
         """
-        if issubclass(type(data), Iterator) and not isinstance(data, DataIterator):
-            self._data = list(data)
-        else:
-            self._data = data
-            assert is_iterable(data), "Data must be an iterable object."
 
-        if kwargs.get('original_type') is not None:
-            self._original_type = kwargs.get('original_type')
-        else:
-            self._original_type = type(data) if not isinstance(data, DataIterator) else data.original_type
-
+        assert is_iterable(data), "Data must be an iterable object."
+        self._data = None
+        self._length = None
+        self._first = None
         if self._element_type:
             assert check_type_on_sequence(data, self._element_type), "Data elements are not of the specified type."
 
-        self._iter = self.__iter__()
+        self._iter = self._get_data(data) if not isinstance(data, Iterator) else data
+
+    def _get_data(self,
+                  data):
+        if isinstance(data, dict):
+            data = data.items()
+        for i in data:
+            yield i
 
     def __iter__(self):
-        if isinstance(self._data, dict):
-            return iter(self._iter_dict())
-        else:
-            return iter(self._data)
+        if self._data is None:
+            self._data = list(self._iter)
+        return iter(self._data)
 
     def __next__(self):
         return next(self._iter)
 
     def __len__(self):
-        try:
-            return len(self._data)
-        except TypeError:
-            raise TypeError("DataIterator values is not subscriptable.")
+        if self._length is None:
+            self._length = sum(1 for _ in self)
+        return self._length
 
     @property
     def is_empty(self) -> bool:
@@ -1730,31 +1821,7 @@ class DataIterator:
         Returns:
             bool: True if the iterator is empty, False otherwise.
         """
-        try:
-            next(self.__iter__())
-            return False
-        except StopIteration:
-            return True
-
-    @property
-    def original_type(self):
-        """
-        Get the data type of the iterator.
-
-        Returns:
-            type: The data type of the iterator.
-        """
-        return self._original_type
-
-    def _iter_dict(self):
-        """
-        Iterate over the dictionary data.
-
-        Yields:
-            tuple: A tuple containing the key and value of the dictionary.
-        """
-        for key in self._data:
-            yield key, self._data[key]
+        return len(self) == 0
 
     @property
     def first(self) -> Any:
@@ -1764,7 +1831,19 @@ class DataIterator:
         Returns:
             Any: The first element of the iterator.
         """
-        return next(self.__iter__()) if not self.is_empty else None
+        if self._first is None:
+            self._first = next(iter(self), None)
+        return self._first
+
+    @property
+    def last(self) -> Any:
+        """
+        Get the last element of the data iterator.
+
+        Returns:
+            Any: The last element of the iterator.
+        """
+        return self._data[-1] if not self.is_empty else None
 
     @property
     def next(self):
@@ -1776,7 +1855,9 @@ class DataIterator:
         """
         return next(self._iter)
 
-    def batch(self, batch_size: int = 1, step: int = None) -> 'DataIterator':
+    def batch(self,
+              batch_size: int = 1,
+              step: int = None) -> 'DataIterator':
         """
         Create batches of data from the iterator.
 
@@ -1787,8 +1868,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the batches.
         """
-        return DataIterator(get_batch_strides(self, kernel_size=batch_size, strides=step or batch_size),
-                            original_type=self._original_type)
+        return DataIterator(get_batch_strides(self, kernel_size=batch_size, strides=step or batch_size))
 
     def cycle(self) -> Any:
         """
@@ -1800,47 +1880,26 @@ class DataIterator:
         Returns:
             Iterable[Any]: An iterable containing the first `n` elements.
 
-        Raises:
-            TypeError: If the data cannot be converted to the specified data type.
         """
         while True and not self.is_empty:
             for elem in self:
                 yield elem
 
-    def _convert_into_original_type(self, data):
-        try:
-            if issubclass(self._original_type, dict):
-                return dict(data)
-            elif issubclass(self._original_type, ValuesView):
-                return tuple(data)
-            elif issubclass(self._original_type, ItemsView):
-                return tuple(data)
-            elif issubclass(self._original_type, KeysView):
-                return tuple(data)
-            return self._original_type(data)
-        except TypeError:
-            logger.warning(f"Error to convert data to {self._original_type}. Returning as is.")
-            return tuple(data)
-
-    def take(self, n: int = None) -> Union[Iterable[Any], Sequence[Any], Dict[Any, Any]]:
-        """
-        Take the first `n` elements from the data iterator.
-
-        Args:
-            n (int, optional): The number of elements to take. If `None`, all elements are taken.
-
-        Returns:
-            Iterable[Any]: An iterable containing the first `n` elements.
-
-        Raises:
-            TypeError: If the data cannot be converted to the specified data type.
-        """
+    def take(self,
+             n: int = None) -> list:
         if n is None:
-            data = self
+            data = list(self)
         else:
-            data = itertools.islice(self, n)
+            data = list(itertools.islice(self, n))
+        return data
 
-        return self._convert_into_original_type(data)
+    @property
+    def length(self) -> int:
+        return self.__len__()
+
+    def __getitem__(self,
+                    item):
+        return self._data[item]
 
     def random(self) -> 'DataIterator':
         """
@@ -1851,9 +1910,10 @@ class DataIterator:
         """
         data = list(self)
         random.shuffle(data)
-        return self.__class__(data, original_type=self._original_type)
+        return self.__class__(data)
 
-    def filter(self, func: Callable[[Any], bool]) -> 'DataIterator':
+    def filter(self,
+               func: Callable[[Any], bool]) -> 'DataIterator':
         """
         Filter the data using the given function and return a new DataIterator instance with the filtered data.
 
@@ -1863,7 +1923,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the filtered data.
         """
-        return self.__class__(filter(func, self), original_type=self._original_type)
+        return self.__class__(filter(func, self))
 
     @property
     def str(self) -> 'DataStringIterator':
@@ -1873,7 +1933,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the converted data.
         """
-        return DataStringIterator(self.map(str), original_type=self._original_type)
+        return DataStringIterator(self.map(str))
 
     @property
     def int(self) -> 'DataNumberIterator':
@@ -1883,7 +1943,7 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the converted data.
         """
-        return DataNumberIterator(self.map(int), original_type=self._original_type)
+        return DataNumberIterator(self.map(int))
 
     @property
     def float(self) -> 'DataNumberIterator':
@@ -1893,9 +1953,10 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the converted data.
         """
-        return DataNumberIterator(self.map(float), original_type=self._original_type)
+        return DataNumberIterator(self.map(float))
 
-    def map(self, func: Callable[[Any], Any]) -> 'DataIterator':
+    def map(self,
+            func: Callable[[Any], Any]) -> 'DataIterator':
         """
         Map the data using the given function and return a new DataIterator instance with the mapped data.
 
@@ -1905,9 +1966,11 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the mapped data.
         """
-        return self.__class__(map(func, self), original_type=self._original_type)
+        return self.__class__(map(func, self))
 
-    def reduce(self, func: Callable[[Any, Any], Any], initial=None) -> Any:
+    def reduce(self,
+               func: Callable[[Any, Any], Any],
+               initial=None) -> Any:
         """
         Reduce the data using the given function and return the result.
         @param func:
@@ -1916,7 +1979,9 @@ class DataIterator:
         """
         return functools.reduce(func, self, initial)
 
-    def sort(self, key=None, reverse=False) -> 'DataIterator':
+    def sort(self,
+             key=None,
+             reverse=False) -> 'DataIterator':
         """
         Sort the data using the given key and return a new DataIterator instance with the sorted data.
 
@@ -1927,9 +1992,10 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the sorted data.
         """
-        return DataIterator(sorted(self, key=key, reverse=reverse), original_type=self._original_type)
+        return self.__class__(sorted(self, key=key, reverse=reverse))
 
-    def enumerate(self, start=0) -> 'DataIterator':
+    def enumerate(self,
+                  start=0) -> 'DataIterator':
         """
         Enumerate the data and return a new DataIterator instance with the enumerated data.
 
@@ -1939,11 +2005,12 @@ class DataIterator:
         Returns:
             DataIterator: A new DataIterator instance containing the enumerated data.
         """
-        return self.__class__(enumerate(self, start=start), original_type=self._original_type)
+        return self.__class__(enumerate(self, start=start))
 
-    def group_by(self, func: Callable[[Any], Any] = lambda x: x) -> Dict:
+    def group_by(self,
+                 func: Callable[[Any], Any] = lambda x: x) -> Dict:
         groups = group_by(self, func)
-        return {k: self.__class__(v, original_type=self._original_type) for k, v in groups.items()}
+        return {k: v for k, v in groups.items()}
 
     def __str__(self):
         try:
@@ -1982,11 +2049,62 @@ class DataIterator:
         from ..mltools.data import Freq
         return Freq(self)
 
+    def flatten(self):
+        """
+        Flatten the data iterator and return a new DataIterator instance with the flattened data.
+
+        Returns:
+            DataIterator: A new DataIterator instance containing the flattened data.
+        """
+        from ..array import flatten
+        return self.__class__(flatten(list(self)))
+
+    def combinations(self,
+                     r: int,
+                     is_sorted=False) -> 'DataIterator':
+        """
+        Get the r-length subsequences of the data iterator.
+        @param r: The length of the subsequences.
+        @param is_sorted: Whether to sort the subsequences. Default is False.
+        @return:
+        """
+        return DataIterator(combinations(self, r, is_sorted=is_sorted))
+
+    def save(self,
+             path: str,
+             exist_ok=False,
+             **kwargs):
+        """
+        Save the data iterator to a file.
+        @param path: The path to save the data iterator.
+        @param exist_ok: Whether to overwrite the file if it already exists.
+
+        Returns: None
+        """
+        from ..file import FileIO
+        from ..system import Path, mkdir
+        path = Path(path)
+        if not path.exists:
+            mkdir(path.parent)
+
+        if path.ext == ".json":
+            if check_type_on_sequence(self, tuple):
+                data = dict(self)
+            elif check_type_on_sequence(self, dict):
+                data = list(self)
+            else:
+                data = {"data": list(self)}
+        else:
+            data = list(self)
+        FileIO.create(path.path, data, **kwargs).save(exist_ok=exist_ok)
+
 
 class DataStringIterator(DataIterator):
     _element_type = str
 
-    def __init__(self, data: Union[str, Iterable[str], DataIterator], **kwargs):
+    def __init__(self,
+                 data: Union[str, Iterable[str], DataIterator],
+                 **kwargs):
         """
         Initialize the DataStringIterator with the given data.
 
@@ -2013,7 +2131,8 @@ class DataStringIterator(DataIterator):
             self._freq = Freq(self)
         return self._freq
 
-    def preprocess(self, is_destructive=False):
+    def preprocess(self,
+                   is_destructive=False):
         """
         Preprocess the data by removing any leading or trailing whitespace and converting it to lowercase.
 
@@ -2026,11 +2145,14 @@ class DataStringIterator(DataIterator):
         from ..mltools.preprocess import preprocess
         return self.map(lambda x: preprocess(x, is_destructive=is_destructive))
 
-    def tokenize(self, preprocess_function=None, use_unk=True):
+    def tokenize(self,
+                 preprocess_function=None,
+                 use_unk=True):
         from ..mltools.data import Tokenizer
         return Tokenizer(self, preprocess_function=preprocess_function, use_unk=use_unk)
 
-    def most_common(self, n: int = 10):
+    def most_common(self,
+                    n: int = 10):
         """
         Get the most common elements in the data iterator.
 
@@ -2042,7 +2164,8 @@ class DataStringIterator(DataIterator):
         """
         return self.freq.most_common(n)
 
-    def least_common(self, n: int = 10):
+    def least_common(self,
+                     n: int = 10):
         """
         Get the least common elements in the data iterator.
 
@@ -2063,7 +2186,8 @@ class DataStringIterator(DataIterator):
         """
         return self.freq.unique()
 
-    def count(self, value):
+    def count(self,
+              value):
         """
         Count the occurrences of a value in the data iterator.
 
@@ -2084,7 +2208,23 @@ class DataStringIterator(DataIterator):
         """
         return len(self.freq)
 
-    def starts_with(self, prefix):
+    def split(self,
+              separator=None,
+              maxsplit=-1):
+        """
+        Split the data iterator using the given separator.
+
+        Args:
+            separator (str, optional): The separator to split the data iterator. Default is None.
+            maxsplit (int, optional): The maximum number of splits to perform. Default is -1.
+
+        Returns:
+            DataStringIterator: A new DataStringIterator instance containing the split data.
+        """
+        return DataIterator(map(lambda x: x.split(separator, maxsplit), self))
+
+    def starts_with(self,
+                    prefix):
         """
         Filter the data iterator to only include elements that start with the given prefix.
 
@@ -2096,7 +2236,8 @@ class DataStringIterator(DataIterator):
         """
         return self.filter(lambda x: x.startswith(prefix))
 
-    def ends_with(self, suffix):
+    def ends_with(self,
+                  suffix):
         """
         Filter the data iterator to only include elements that end with the given suffix.
 
@@ -2108,7 +2249,8 @@ class DataStringIterator(DataIterator):
         """
         return self.filter(lambda x: x.endswith(suffix))
 
-    def contains(self, substring):
+    def contains(self,
+                 substring):
         """
         Filter the data iterator to only include elements that contain the given substring.
 
@@ -2120,7 +2262,9 @@ class DataStringIterator(DataIterator):
         """
         return self.filter(lambda x: substring in x)
 
-    def replace(self, old, new):
+    def replace(self,
+                old,
+                new):
         """
         Replace the old substring with the new substring in the data iterator.
 
@@ -2149,7 +2293,7 @@ class DataStringIterator(DataIterator):
         Returns:
             DataStringIterator: A new DataStringIterator instance with the lowercase data.
         """
-        return self.map(str.lower)
+        return self.map(lambda x: x.lower())
 
     def upper(self):
         """
@@ -2158,7 +2302,7 @@ class DataStringIterator(DataIterator):
         Returns:
             DataStringIterator: A new DataStringIterator instance with the uppercase data.
         """
-        return self.map(str.upper)
+        return self.map(lambda x: x.upper())
 
     def summary(self):
         """
@@ -2178,7 +2322,9 @@ class DataStringIterator(DataIterator):
 class DataNumberIterator(DataIterator):
     _element_type = (int, float)
 
-    def __init__(self, data: Union[Number, Iterable[Number], DataIterator], **kwargs):
+    def __init__(self,
+                 data: Union[Number, Iterable[Number], DataIterator],
+                 **kwargs):
         """
         Initialize the DataNumberIterator with the given data.
 
@@ -2268,9 +2414,8 @@ class DataAnalyzer:
                                            int:   DataNumberIterator,
                                            float: DataNumberIterator})
 
-    def __init__(self, data):
-        if isinstance(data, DataIterator) and issubclass(data.original_type, dict):
-            raise TypeError("DataAnalyzer does not support dictionary data.")
+    def __init__(self,
+                 data):
         report = {}
         self._types = group_by(data, lambda x: type(x))
         try:
@@ -2297,7 +2442,8 @@ class DataAnalyzer:
         elif not self.is_mixed_type:
             self._report = report
 
-    def get_by_type(self, t):
+    def get_by_type(self,
+                    t):
         return self.TYPES_DATA_ITERATOR_MAP[t](self._types.get(t, []))
 
     @property
