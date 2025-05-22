@@ -52,7 +52,8 @@ _exclude = ["BaseDecorator", "Decorator", "logger"]
 def synchronized(func):
     func.__lock__ = threading.Lock()
 
-    def synced_func(*args, **kws):
+    def synced_func(*args,
+                    **kws):
         with func.__lock__:
             return func(*args, **kws)
 
@@ -60,7 +61,8 @@ def synchronized(func):
 
 
 def use_thread(func):
-    def threaded_func(*args, **kws):
+    def threaded_func(*args,
+                      **kws):
         th = threading.Thread(target=func, args=args, kwargs=kws)
         th.start()
         return th
@@ -69,7 +71,8 @@ def use_thread(func):
 
 
 class _ThreadSafeIterator:
-    def __init__(self, iterator):
+    def __init__(self,
+                 iterator):
         self.iterator = iterator
         self.lock = threading.Lock()
 
@@ -82,7 +85,8 @@ class _ThreadSafeIterator:
 
 
 def thread_safe_generator(func):
-    def gen(*a, **kw):
+    def gen(*a,
+            **kw):
         return _ThreadSafeIterator(func(*a, **kw))
 
     return gen
@@ -93,7 +97,9 @@ class Decorator(abc.ABC):
         self.func = None
 
     @abstractmethod
-    def __call__(self, *args, **kwargs):
+    def __call__(self,
+                 *args,
+                 **kwargs):
         """
         You can override and
         :param args:
@@ -102,12 +108,15 @@ class Decorator(abc.ABC):
         """
         return self._register
 
-    def _register(self, func):
+    def _register(self,
+                  func):
         self.func = func
         return self.wrapper
 
     @abstractmethod
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self,
+                *args,
+                **kwargs):
         return self.func(*args, **kwargs)
 
 
@@ -116,7 +125,10 @@ class __Deprecated(Decorator):
     __alternative_template = "You can use {dotted_path}."
 
     def __call__(
-            self, alternative: str, from_version: PEP440 = None, more_info: str = None
+            self,
+            alternative: str,
+            from_version: PEP440 = None,
+            more_info: str = None
     ):
         logger.warning("[!] It's still under development [!]")
         if more_info is not None:
@@ -127,7 +139,9 @@ class __Deprecated(Decorator):
         self.from_version = from_version
         return super().__call__()
 
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self,
+                *args,
+                **kwargs):
         warnings.warn(self.warn, DeprecationWarning)
         result = super().wrapper(*args, **kwargs)
         return result
@@ -143,7 +157,8 @@ def depreciation(alternative: str = None):
     )
 
     def register(func):
-        def wrapper(*args, **kwargs):
+        def wrapper(*args,
+                    **kwargs):
             warnings.warn(
                     f"This function will be deprecated in future versions. "
                     f"{alternative}",
@@ -158,9 +173,11 @@ def depreciation(alternative: str = None):
     return register
 
 
-def on_except(return_value=None, warn_text=None):
+def on_except(return_value=None,
+              warn_text=None):
     def register(func):
-        def wrapper(*args, **kwargs):
+        def wrapper(*args,
+                    **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
@@ -173,10 +190,14 @@ def on_except(return_value=None, warn_text=None):
     return register
 
 
-def retry_on_failure(retries: int = 3, initial_delay: float = 0.1, backoff_factor=2, exceptions: tuple = (Exception,),
+def retry_on_failure(retries: int = 3,
+                     initial_delay: float = 0.1,
+                     backoff_factor=2,
+                     exceptions: tuple = (Exception,),
                      verbose: bool = False):
     def register(func):
-        def wrapper(*args, **kwargs):
+        def wrapper(*args,
+                    **kwargs):
             delay = initial_delay
             for attempt in range(retries):
                 try:
@@ -199,7 +220,8 @@ def singleton(cls):
     instances = {}
 
     @functools.wraps(cls)
-    def instance(*args, **kwargs):
+    def instance(*args,
+                 **kwargs):
         if cls not in instances:
             instances[cls] = cls(*args, **kwargs)
         return instances[cls]
@@ -216,7 +238,8 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
+    def wrapper(*args,
+                **kwargs) -> Any:
         from cereja import console
         first_time = time.time()
         result = func(*args, **kwargs)
@@ -251,9 +274,10 @@ def on_elapsed(interval: float = 1,
         last_time = 0.0
         last_result = None
 
-        def wrapper(*args, **kwargs):
-            nonlocal last_time
-            nonlocal last_result
+        def wrapper(*args,
+                    **kwargs):
+            nonlocal last_time  # noqa: F824
+            nonlocal last_result  # noqa: F824
             if loop:
                 def run():
                     nonlocal last_time
