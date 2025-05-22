@@ -588,7 +588,7 @@ class _JsonIO(_FileIO):
     indent = False
     ensure_ascii = False
 
-    def __init__(self, path_: Path, indent=False, string_eval=True, **kwargs):
+    def __init__(self, path_: Path, indent=False, string_eval=False, **kwargs):
         self.indent = indent
         self.string_eval = string_eval
         if "ensure_ascii" in kwargs:

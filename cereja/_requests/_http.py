@@ -35,7 +35,11 @@ from cereja import Progress
 
 
 class _Http:
-    def __init__(self, url, data=None, headers=None, port=None):
+    def __init__(self,
+                 url,
+                 data=None,
+                 headers=None,
+                 port=None):
         self.headers = headers or {}
         self._protocol, self._port, self._domains, self._endpoint = self.parse_url(
                 url=url, port=port
@@ -85,7 +89,9 @@ class _Http:
         return self.headers.get("Content-length")
 
     @classmethod
-    def parse_url(cls, url: str, port=None):
+    def parse_url(cls,
+                  url: str,
+                  port=None):
 
         url = url.replace("://", ".")
         url = url.split("/", maxsplit=1)
@@ -109,7 +115,10 @@ class _Http:
 class HttpResponse:
     CHUNK_SIZE = 1024 * 1024 * 1  # 1MB
 
-    def __init__(self, request: "HttpRequest", save_on_path=None, timeout=None):
+    def __init__(self,
+                 request: "HttpRequest",
+                 save_on_path=None,
+                 timeout=None):
         self._finished = False
         self._timeout = timeout
         self._code = None
@@ -136,6 +145,10 @@ class HttpResponse:
                     self._headers = dict(req_file.headers.items())
                 if self.CHUNK_SIZE * 3 > (req_file.length or 0):
                     self._data = req_file.read()
+                    if self._save_on_path:
+                        with open(self._save_on_path, "wb") as f:
+                            f.write(self._data)
+                    self._total_completed = "100.0%"
                 else:
                     with Progress(
                             name=f"Fetching data",
@@ -230,7 +243,11 @@ class HttpResponse:
 class HttpRequest(_Http):
     PROXIES = {}
 
-    def __init__(self, method, url, *args, **kwargs):
+    def __init__(self,
+                 method,
+                 url,
+                 *args,
+                 **kwargs):
         super().__init__(url=url, *args, **kwargs)
         if isinstance(self.data, dict):
             self.headers.update({"Content-type": "application/json"})
@@ -252,7 +269,10 @@ class HttpRequest(_Http):
             pass
         return cls.PROXIES
 
-    def send_request(self, save_on=None, timeout=None, **kwargs):
+    def send_request(self,
+                     save_on=None,
+                     timeout=None,
+                     **kwargs):
         if "data" in kwargs:
             self._data = self.parser(kwargs.pop("data"))
 
@@ -283,14 +303,21 @@ class HttpRequest(_Http):
         return self._data
 
     @classmethod
-    def parser(cls, data) -> bytes:
+    def parser(cls,
+               data) -> bytes:
         if isinstance(data, dict):
             return json.dumps(data).encode()
 
         return str(data).encode() if data else b""
 
     @classmethod
-    def build_and_send(cls, method, url, data=None, port=None, headers=None, **kwargs):
+    def build_and_send(cls,
+                       method,
+                       url,
+                       data=None,
+                       port=None,
+                       headers=None,
+                       **kwargs):
         return cls(
                 method=method, url=url, data=data, port=port, headers=headers
         ).send_request(**kwargs)

@@ -84,8 +84,8 @@ class Unicode(object):
     def __parse_ord(cls, value: str) -> int:
         value = value.encode("ascii", "backslashreplace").lower()
 
-        if value.startswith(b"\u") or value.startswith(b"\\u"):
-            value = value.replace(b"\u", b"")
+        if value.startswith(rb"\u") or value.startswith(rb"\\u"):
+            value = value.replace(rb"\u", b"")
 
         value = value.decode("unicode_escape").lower()
         if value.startswith("u"):

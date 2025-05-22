@@ -28,7 +28,7 @@ from typing import Union
 from cereja import string_to_literal
 from cereja.config.cj_types import Number
 
-__all__ = ["md5", "base64_encode", "base64_decode", "is_base64"]
+__all__ = ["md5", "base64_encode", "base64_decode", "is_base64", "random_hash"]
 
 
 def md5(o: Union[list, dict, set, str, Number]):

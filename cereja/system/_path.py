@@ -30,7 +30,6 @@ import time
 from datetime import datetime
 from typing import List, Union
 
-
 from pathlib import Path as Path_
 import glob
 from ..utils.decorators import on_except
@@ -111,7 +110,6 @@ def group_path_from_dir(
             **key_sort_function,
     )
 
-
     batches = chunk(paths, batch_size=num_items_on_tuple)
 
     if to_random:
@@ -119,7 +117,8 @@ def group_path_from_dir(
     return batches
 
 
-def file_name(file_path: str, with_ext: bool = False) -> str:
+def file_name(file_path: str,
+              with_ext: bool = False) -> str:
     """
     Pass a path from a file and the file name will be returned
 
@@ -143,7 +142,8 @@ def file_name(file_path: str, with_ext: bool = False) -> str:
     return f_name
 
 
-def change_date_from_path(path_: str, format_: str = "%d-%m-%Y %H:%M:%S"):
+def change_date_from_path(path_: str,
+                          format_: str = "%d-%m-%Y %H:%M:%S"):
     m_time = os.path.getctime(path_)
     return time.strftime(format_, time.localtime(m_time))
 
@@ -165,7 +165,9 @@ class Path(os.PathLike):
     __sep = os.sep
     _verified = set()
 
-    def __init__(self, initial: Union[str, os.PathLike] = ".", *pathsegments: str):
+    def __init__(self,
+                 initial: Union[str, os.PathLike] = ".",
+                 *pathsegments: str):
         self.__path = Path_(_norm_path(str(initial)), *pathsegments)
         self.__parent = self.__path.parent.as_posix()
         self._parent_name = self.__path.parent.name
@@ -180,7 +182,8 @@ class Path(os.PathLike):
     def __str__(self):
         return self.path
 
-    def __eq__(self, other):
+    def __eq__(self,
+               other):
         if not isinstance(other, self.__class__):
             other = self.__class__(other)
         return self.path == other.path
@@ -188,23 +191,28 @@ class Path(os.PathLike):
     def __len__(self):
         return len(self.parts)
 
-    def __contains__(self, item):
+    def __contains__(self,
+                     item):
         return item in self.path
 
-    def __add__(self, other):
+    def __add__(self,
+                other):
         return self.join(*other)
 
-    def __ne__(self, other):
+    def __ne__(self,
+               other):
         return not self.__eq__(other)
 
-    def __getitem__(self, item):
+    def __getitem__(self,
+                    item):
         if item < 0:
             raise ValueError(f"index < 0 is not possible.")
         if isinstance(item, int):
             item = slice(item + 1)
         return self.__class__("/".join(self.parts[item]))
 
-    def __value_err(self, details=""):
+    def __value_err(self,
+                    details=""):
         if details:
             details = f"details {details}"
         raise ValueError(f"Path <{self.path}> isn't valid. {details}")
@@ -280,7 +288,7 @@ class Path(os.PathLike):
     @property
     @on_except(return_value="", warn_text="Error on parser path in uri")
     def uri(self):
-        return self.__path.as_uri()
+        return self.__path.resolve().as_uri()
 
     @property
     def is_dir(self):
@@ -363,10 +371,13 @@ class Path(os.PathLike):
         return cls(os.getcwd())
 
     @classmethod
-    def set_work_dir(cls, to_):
+    def set_work_dir(cls,
+                     to_):
         os.chdir(to_)
 
-    def join(self, part, *others):
+    def join(self,
+             part,
+             *others):
         assert (
                 self.suffix == ""
         ), f"join operation is only dir. full path received {self.path}"
@@ -378,7 +389,9 @@ class Path(os.PathLike):
                 self.__path.joinpath(*map(lambda p: p.lstrip("/\\"), args)).as_posix()
         )
 
-    def _shutil(self, command: str, **kwargs):
+    def _shutil(self,
+                command: str,
+                **kwargs):
         if not self.exists:
             raise Exception(f"Not Found <{self.uri}>")
         if command == "rm":
@@ -407,7 +420,8 @@ class Path(os.PathLike):
             elif self.is_file:
                 return self.__class__(shutil.copy(str(self), str(to)))
 
-    def rm(self, rm_tree=False):
+    def rm(self,
+           rm_tree=False):
         """
         [!] Use caution when using this command. Only use if you are sure of what you are doing.
 
@@ -415,22 +429,41 @@ class Path(os.PathLike):
         """
         return self._shutil("rm", rm_tree=rm_tree)
 
-    def mv(self, to):
+    def mv(self,
+           to):
         to = self.__class__(to)
         return self._shutil("mv", to=to)
 
-    def cp(self, to):
+    def cp(self,
+           to):
         to = self.__class__(to)
         return self._shutil("cp", to=to)
 
-    def rsplit(self, sep=None, max_split=-1):
+    def mkdir(self, force=False):
+        """
+        Create a directory at the path of this object.
+        """
+        if self.is_file and not force:
+            raise FileExistsError(f"Path <{self.path}> is a file, not a directory. force=True to ignore.")
+        if not self.exists:
+            os.makedirs(self.path, exist_ok=True)
+        return self
+
+    def rsplit(self,
+               sep=None,
+               max_split=-1):
         return self.path.rsplit(sep, max_split)
 
-    def split(self, sep=None, max_split=-1):
+    def split(self,
+              sep=None,
+              max_split=-1):
         return self.path.rsplit(sep, max_split)
 
     def list_dir(
-            self, search_match="*", only_name=False, recursive=False
+            self,
+            search_match="*",
+            only_name=False,
+            recursive=False
     ) -> List["Path"]:
         """
         Extension of the listdir function of module os.
@@ -513,7 +546,10 @@ class Path(os.PathLike):
 
 
 class TempDir:
-    def __init__(self, start_name="cj_", end_name="_temp", create_on=None):
+    def __init__(self,
+                 start_name="cj_",
+                 end_name="_temp",
+                 create_on=None):
         self._tmpdir = tempfile.TemporaryDirectory(
                 suffix=end_name, prefix=start_name, dir=create_on
         )
@@ -544,10 +580,15 @@ class TempDir:
     def files(self):
         return self.path.list_files(recursive=True)
 
-    def __enter__(self, *args, **kwargs):
+    def __enter__(self,
+                  *args,
+                  **kwargs):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self,
+                 exc_type,
+                 exc_val,
+                 exc_tb):
         self.__delete()
 
 
