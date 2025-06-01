@@ -143,6 +143,19 @@ class Share:
         # Checks if the share is a BDR (Brazilian Depositary Receipt)
         return bool(self.bdr_type)
 
+    def to_dict(self):
+        # Converts the Share instance to a dictionary
+        return {
+            "trading_code": self.trading_code,
+            "cnpj":         self.cnpj,
+            "name":         self.name,
+            "segment":      self.segment,
+            "market_indicator": self.market_indicator,
+            "bdr_type":     self.bdr_type,
+            "date_listing": self.date_listing,
+            "financial":    self.financial.to_dict() if self.financial else None,
+        }
+
     def __repr__(self):
         # String representation of the Share instance
         return f"{self.trading_code}(cnpj={self.cnpj}, name={self.name})"
