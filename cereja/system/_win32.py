@@ -802,10 +802,11 @@ class Window:
         SelectObject(mem_dc, bmp_handle)
 
         # Usa PW_RENDERFULLCONTENT para capturar mesmo que não esteja em foreground
-        pw_result = PrintWindow(self.hwnd, mem_dc, PW_RENDERFULLCONTENT)
+        pw_result = PrintWindow(self.hwnd, mem_dc, 0x00000001 | PW_RENDERFULLCONTENT)
         if not pw_result:
             # Fallback: PrintWindow sem flags
             pw_result = PrintWindow(self.hwnd, mem_dc, 0)
+        ReleaseDC(self.hwnd, window_dc)
 
         # 5) Extrai pixels do bitmap
         bmi = BITMAPINFO()
@@ -823,9 +824,7 @@ class Window:
         # 6) Se GetDIBits falhar (scan == 0), retorna um BMP preto do tamanho correto
         if scan == 0:
             # Preenche buffer com zeros (preto)
-            bitmap_data = (ctypes.c_byte * buffer_size)()
-            for i in range(buffer_size):
-                bitmap_data[i] = 0
+            bitmap_data = ctypes.create_string_buffer(buffer_size)
 
         # 7) Se foi solicitado, salva em arquivo BMP
         if filepath:
@@ -844,10 +843,6 @@ class Window:
         # 8) Limpeza dos handles GDI usados
         DeleteObject(bmp_handle)
         DeleteDC(mem_dc)
-        if only_window_content:
-            ReleaseDC(self.hwnd, window_dc)
-        else:
-            ReleaseDC(self.hwnd, window_dc)
 
         return bitmap_data.raw
 
