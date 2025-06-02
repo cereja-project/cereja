@@ -459,6 +459,14 @@ class Path(os.PathLike):
               max_split=-1):
         return self.path.rsplit(sep, max_split)
 
+    @classmethod
+    def user_home(cls) -> "Path":
+        """
+        Get the user's home directory.
+        @return: Path object of the user's home directory.
+        """
+        return cls(os.path.expanduser("~"))
+
     def list_dir(
             self,
             search_match="*",
