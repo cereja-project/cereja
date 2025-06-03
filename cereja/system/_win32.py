@@ -1,12 +1,13 @@
 import ctypes.wintypes
+import os
 import sys
+import tempfile
 import threading
 import time
 from ctypes import wintypes
 import random
-from typing import Tuple
-
-from ..utils import invert_dict, is_numeric_sequence, string_to_literal
+from typing import Tuple, Optional
+from ..utils import invert_dict, is_numeric_sequence
 
 import ctypes
 from ctypes.wintypes import HWND, LPARAM, BOOL
@@ -845,6 +846,95 @@ class Window:
         DeleteDC(mem_dc)
 
         return bitmap_data.raw
+
+    def capture_image_ppm(self,
+                          ppm_path: Optional[str] = None,
+                          only_window_content: bool = True) -> bytes:
+        """
+        Captura a janela (ou área cliente) e gera um arquivo PPM (P6) contendo apenas
+        os canais RGB, sem usar dependências externas. Se ppm_path for fornecido,
+        salva o PPM nesse caminho e retorna os bytes do PPM (cabeçalho + dados RGB).
+
+        Args:
+            ppm_path: caminho para salvar o arquivo .ppm (opcional). Se None, retorna apenas os bytes.
+            only_window_content: se True, captura só a área cliente; caso contrário, captura a janela inteira.
+
+        Returns:
+            bytes: conteúdo raw do arquivo PPM (cabeçalho + pixels RGB).
+        """
+        # 1) Captura o BMP bruto (BGRA) em memória
+        raw_bgra = self.capture_image_bmp(filepath=None, only_window_content=only_window_content)
+
+        # 2) Determina largura e altura da região capturada
+        if only_window_content:
+            w, h = self.size_window_content
+        else:
+            w, h = self.size
+
+        # 3) Monta o cabeçalho PPM (P6)
+        header = f"P6\n{w} {h}\n255\n".encode("ascii")
+
+        # 4) Converte cada pixel BGRA → RGB e acumula em bytearray
+        rgb_data = bytearray()
+        # O BMP retornado é top-down, cada linha tem w pixels, cada pixel 4 bytes (B, G, R, A)
+        for y in range(h):
+            row_start = y * w * 4
+            for x in range(w):
+                idx = row_start + x * 4
+                b = raw_bgra[idx]
+                g = raw_bgra[idx + 1]
+                r = raw_bgra[idx + 2]
+                # ignorar alpha (idx+3)
+                rgb_data.extend((r, g, b))
+
+        ppm_bytes = header + rgb_data
+
+        # 5) Se foi fornecido caminho, salva o PPM em disco
+        if ppm_path:
+            try:
+                with open(ppm_path, "wb") as f:
+                    f.write(ppm_bytes)
+            except Exception as e:
+                raise RuntimeError(f"Não foi possível salvar PPM em '{ppm_path}': {e}")
+
+        return ppm_bytes
+
+    def show_screenshot(self,
+                        only_window_content: bool = True):
+        """
+        Exibe um único screenshot da janela, usando ImageWindow.
+        """
+        import tkinter as tk
+        from cereja.system.ui.image_view import ImageWindow
+        root = tk.Tk()
+        root.withdraw()
+
+        # captura o PPM em memória
+        ppm_bytes = self.capture_image_ppm(ppm_path=None, only_window_content=only_window_content)
+
+        # salva temporariamente em arquivo para reutilizar ImageWindow
+        fd, temp_path = tempfile.mkstemp(suffix=".ppm")
+        os.close(fd)
+        with open(temp_path, "wb") as f:
+            f.write(ppm_bytes)
+
+        try:
+
+            viewer = ImageWindow(root, image_path=temp_path, title=f"Screenshot: {self.title}")
+            root.wait_window(viewer.window)
+        finally:
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+            root.destroy()
+
+    def stream(self,
+               interval: int = 500,
+               only_window_content: bool = True):
+        from cereja.system.ui.image_view import WindowStream
+        stream_ = WindowStream(self, interval=interval, only_window_content=only_window_content)
+        stream_.start()
 
     # Métodos de exibição/ocultação
     def hide(self):

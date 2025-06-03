@@ -47,3 +47,4 @@ ClassType = type(_C)
 Number: T_number = T_number
 PEP440 = Tuple[int, int, int, str, int]
 Shape = Tuple[int, ...]
+RECT = Tuple[int, int, int, int]
