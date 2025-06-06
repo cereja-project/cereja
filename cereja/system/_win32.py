@@ -899,6 +899,31 @@ class Window:
 
         return ppm_bytes
 
+    def to_png_file(self,
+                    png_path: str,
+                    only_window_content: bool = True):
+        """
+        Captura a janela (ou área cliente) e salva como PNG.
+        @param png_path:
+        @param only_window_content:
+        @return:
+        """
+        try:
+            from tkinter import PhotoImage, Tk
+        except ImportError:
+            raise ImportError("Para salvar como PNG, é necessário ter o Tkinter instalado.")
+        import cereja as cj
+        root = Tk()
+        root.withdraw()
+
+        ppm_bytes = self.capture_image_ppm(ppm_path=None, only_window_content=only_window_content)
+        assert cj.Path(png_path).ext.replace('.', '') == "png", f"png_path deve ter extensão .png: {png_path}"
+        PhotoImage(data=ppm_bytes).write(png_path, format="png")
+        # limpa memória
+        del ppm_bytes
+
+        root.destroy()
+
     def show_screenshot(self,
                         only_window_content: bool = True):
         """

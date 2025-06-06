@@ -3,18 +3,20 @@ import os
 import tempfile
 import threading
 from dataclasses import asdict, dataclass
-from typing import Optional
+from typing import Optional, Union
 
 from cereja.config.cj_types import RECT
 
 try:
     import tkinter as tk
-    from tkinter import messagebox
+    from tkinter import messagebox, filedialog, simpledialog
 except ImportError:
     raise ImportError("Tkinter is required for this module. Please install it with 'pip install tk'.")
 
+
 class RegionSelector:
-    def __init__(self, root):
+    def __init__(self,
+                 root):
         """
         Inicializa o seletor de região usando um Toplevel transparente
         que ocupa toda a tela. Permite ao usuário clicar e arrastar
@@ -28,7 +30,8 @@ class RegionSelector:
         self.coords: Optional[RECT] = None  # Tupla (x1, y1, x2, y2)
         self.initial_rect: Optional[RECT] = None
 
-    def select_region(self, initial_rect: Optional[RECT] = None) -> Optional[RECT]:
+    def select_region(self,
+                      initial_rect: Optional[RECT] = None) -> Optional[RECT]:
         """
         Abre uma janela sobre toda a tela para o usuário desenhar
         ou ajustar o retângulo. Se initial_rect for fornecido, desenha
@@ -39,10 +42,10 @@ class RegionSelector:
 
         # Cria Toplevel transparente
         self.top = tk.Toplevel(self.root)
-        self.top.attributes('-fullscreen', True)              # Ocupa toda a tela
-        self.top.attributes('-alpha', 0.3)                    # Transparência
-        self.top.attributes('-topmost', True)                 # Fica acima de todas as janelas
-        self.top.config(cursor="crosshair")                   # Cursor em cruz para seleção
+        self.top.attributes('-fullscreen', True)  # Ocupa toda a tela
+        self.top.attributes('-alpha', 0.3)  # Transparência
+        self.top.attributes('-topmost', True)  # Fica acima de todas as janelas
+        self.top.config(cursor="crosshair")  # Cursor em cruz para seleção
 
         # Canvas para desenhar o retângulo de seleção
         self.canvas = tk.Canvas(self.top, bg="black")
@@ -69,7 +72,68 @@ class RegionSelector:
 
         return self.coords  # Retorna as coordenadas finais (ou o initial se não houver ajuste)
 
-    def _on_button_press(self, event):
+    def select_region_from_image(self,
+                                 img: Union[str, bytes],
+                                 initial_rect: Optional[RECT] = None) -> Optional[RECT]:
+        """
+        Abre uma janela para o usuário selecionar uma região de um arquivo de imagem.
+        O usuário pode clicar e arrastar para definir um retângulo, que será retornado
+        como coordenadas (x1, y1, x2, y2).
+        """
+        self.initial_rect = initial_rect if initial_rect else self.coords
+        # Necessário alocarar uma janela para exibir a imagem
+        self.top = tk.Toplevel(self.root)
+        self.top.title("Seleção de Região")
+        # self.top.attributes('-fullscreen', True)  # Ocupa toda a tela
+        # self.top.attributes('-alpha', 0.3)  # Transparência
+        self.top.attributes('-topmost', True)  # Fica acima de todas as janelas
+        self.top.config(cursor="crosshair")  # Cursor em cruz para seleção
+        # focus inicial na janela
+        self.top.focus_set()
+        self.canvas = tk.Canvas(self.top, bg="black")
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        # Carrega a imagem no canvas
+        try:
+            # Se for uma string, assume que é um caminho de arquivo
+            self.tk_image = tk.PhotoImage(file=img) if isinstance(img, str) else tk.PhotoImage(
+                    data=img.decode("latin1"))
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao carregar imagem': {e}")
+            self.top.destroy()
+            return None
+        self.display_image = self.tk_image
+        orig_w = self.tk_image.width()
+        orig_h = self.tk_image.height()
+        self.canvas.config(width=orig_w, height=orig_h)
+        self.canvas.create_image(0, 0, anchor="nw", image=self.display_image)
+        # Se houver retângulo inicial, desenha com cor azul clara
+        if self.initial_rect:
+            x1, y1, x2, y2 = self.initial_rect
+            self.canvas.create_rectangle(
+                    x1, y1, x2, y2,
+                    outline="cyan", width=2, dash=(4, 2)
+            )
+            # Define coords inicialmente para o valor atual
+            self.coords = self.initial_rect
+        # Bind de eventos de mouse para permitir novo desenho/ajuste
+        self.canvas.bind("<ButtonPress-1>", self._on_button_press)
+        self.canvas.bind("<B1-Motion>", self._on_mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self._on_button_release)
+        # bind ESC para fechar a janela sem retornar nada
+        self.top.bind("<Escape>", self._on_escape)
+        self.root.wait_window(self.top)  # Aguarda até que a janela de seleção seja fechada
+        return self.coords  # Retorna as coordenadas finais (ou o initial se não houver ajuste)
+
+    def _on_escape(self,
+                   event):
+        """
+        Cancela a seleção e fecha a janela de seleção.
+        """
+        # Fecha a janela de seleção
+        self.top.destroy()
+
+    def _on_button_press(self,
+                         event):
         # Quando o usuário inicia um novo clique, remove retângulo anterior (se desenhado)
         if self.rect_id:
             self.canvas.delete(self.rect_id)
@@ -82,14 +146,16 @@ class RegionSelector:
                 outline="red", width=2
         )
 
-    def _on_mouse_drag(self, event):
+    def _on_mouse_drag(self,
+                       event):
         # Atualiza o retângulo enquanto o mouse é arrastado
         cur_x = self.canvas.canvasx(event.x)
         cur_y = self.canvas.canvasy(event.y)
         # Atualiza as coordenadas do retângulo desenhado
         self.canvas.coords(self.rect_id, self.start_x, self.start_y, cur_x, cur_y)
 
-    def _on_button_release(self, event):
+    def _on_button_release(self,
+                           event):
         # Quando o botão do mouse é liberado, armazena as coordenadas finais
         end_x = self.canvas.canvasx(event.x)
         end_y = self.canvas.canvasy(event.y)
@@ -100,6 +166,8 @@ class RegionSelector:
         self.coords = (x1, y1, x2, y2)
         # Fecha a janela de seleção
         self.top.destroy()
+
+
 class BaseImageWindow:
     """
     Base class for image display windows.
@@ -684,34 +752,80 @@ class WindowStream:
             except:
                 pass
 
+
+class FileSelector:
+    """
+    Classe utilitária para abrir um diálogo de seleção de arquivo.
+    Retorna o caminho do arquivo selecionado ou None se cancelado.
+    """
+
+    @staticmethod
+    def select_file(parent: tk.Tk,
+                    title: str = "Selecione um arquivo") -> Optional[str]:
+        """
+        Abre um diálogo para selecionar um arquivo e retorna o caminho selecionado.
+        Se o usuário cancelar, retorna None.
+        """
+        file_path = filedialog.askopenfilename(parent=parent, title=title)
+        if file_path:
+            return file_path
+        return None
+
+
+# Type File
+FILE = Union[str, bytes, os.PathLike]
+# FieldName
+FIELDNAME = str
+
+
 @dataclass
 class WindowCaptureConfig:
-    game_window_content_rect: RECT = (316, 38, 1602, 700)
-    minimap: RECT = (1147, 4, 1236, 95)
-    minimap_level: RECT = (1276, 42, 1283, 95)
-    containers: RECT = (1141, 280, 1285, 660)
-    amulet: RECT = (1147, 135, 1174, 162)
-    ring: RECT = (1147, 196, 1174, 222)
-    life: RECT = (10, 6, 492, 12)
-    mana: RECT = (500, 5, 983, 8)
-    status: RECT = (452, 49, 539, 58)
-    center: RECT = (369, 180, 609, 420)
-    sqms: RECT = (182, 66, 808, 526)
+    """
+    Configurações para captura de janela, definidas como dataclass.
+    Cada atributo é uma tupla de quatro inteiros representando um retângulo
+    (x1, y1, x2, y2) na tela.
+    """
+    image: FILE = None  # Caminho para imagem (opcional)
+    name: FIELDNAME = ""  # Nome da janela a ser capturada
+    window_rect: RECT = (0, 0, 800, 600)
+
+
 class ConfigApp:
-    def __init__(self, img_path: str):
+    def __init__(self,
+                 img_path: str = None,
+                 img_data: bytes = None,
+                 default_config=None):
         # Inicializa a janela principal
         self.root = tk.Tk()
         self.root.title("Configurações do Sistema")
         self.root.minsize(650, 700)
 
+        self._default_config = WindowCaptureConfig() if default_config is None else default_config
+        self.img_path = img_path if img_path else self._default_config.image
+        self.img_data = img_data
         # Dicionário para armazenar referências dos campos de entrada
         self.entries = {}
 
         # Instância de RegionSelector para reutilizar
-        self.region_selector = ImageRegionSelector(self.root, image_path=img_path)
+        self.region_selector = RegionSelector(self.root)
 
         # Chama método para criar widgets na janela
         self._create_widgets()
+
+    def _on_select_image(self,
+                         entry_widget: tk.Entry):
+        """
+        Abre um diálogo para selecionar uma imagem e preenche o campo de entrada
+        """
+        file_path = FileSelector.select_file(self.root, title="Selecione uma imagem")
+        if file_path:
+            print("Arquivo selecionado:", file_path)
+            # Se o usuário selecionou um arquivo, preenche a Entry com o caminho
+            entry_widget.config(state="normal")
+            entry_widget.delete(0, tk.END)
+            entry_widget.insert(0, file_path)
+            self.img_path = file_path
+            entry_widget.config(state="readonly")  # Volta para readonly após inserir
 
     def _create_widgets(self):
         """
@@ -724,30 +838,64 @@ class ConfigApp:
         container.pack(fill="both", expand=True)
 
         # Lista de campos da dataclass e seus valores padrão (usados como placeholders)
-        default_config = WindowCaptureConfig()
-        config_fields = asdict(default_config).items()
+        config_fields = asdict(self._default_config).items()
 
         # Para cada campo, cria Label, Entry e botão "Selecionar"
         row_index = 0
         for field_name, default_value in config_fields:
+
             # Label do campo (em português para usuário entender)
             label = tk.Label(container, text=f"{field_name.replace('_', ' ').title()}:")
             label.grid(row=row_index, column=0, sticky="w", pady=5)
 
             # Entry onde o usuário poderá ver ou digitar o valor
-            entry = tk.Entry(container, width=30)
-            # Exibe valor padrão no formato "int,int,int,int"
-            entry.insert(0, ",".join(str(v) for v in default_value))
-            entry.grid(row=row_index, column=1, pady=5, padx=5)
+            entry = tk.Entry(container, width=50)
+            # responsive .. para que o texto não fique cortado
+            entry.grid_propagate(False)
 
-            # Botão de seleção de região para campos tipo RECT
-            select_btn = tk.Button(
-                    container,
-                    text="Selecionar Região",
-                    command=lambda fn=field_name, e=entry: self._on_select_region(fn, e)
-            )
-            select_btn.grid(row=row_index, column=2, pady=5, padx=5)
+            if self._default_config.__annotations__[field_name] is FILE:
+                # Se for o campo de imagem, preenche com o caminho da imagem
+                entry.insert(0, self.img_path if self.img_path else "")
+                entry.grid(row=row_index, column=1, pady=5, padx=5)
+                # Botão para selecionar arquivo de imagem
+                select_btn = tk.Button(
+                        container,
+                        text="Selecionar Imagem",
+                        command=lambda e=entry: self._on_select_image(e)
+                )
+                select_btn.grid(row=row_index, column=2, pady=5, padx=5)
+            elif self._default_config.__annotations__[field_name] is FIELDNAME:
+                # Se for o campo de nome da janela, preenche com o valor padrão
+                entry.insert(0, default_value)
+                entry.grid(row=row_index, column=1, pady=5, padx=5)
+                # Botão apenas para editar o nome da janela e ao sair do campo
+                # desabilita a edição
+                select_btn = tk.Button(
+                        container,
+                        text="Editar Nome",
+                        command=lambda e=entry: e.config(state="normal"),
+                )
+                # Após clicar no botão, o usuário pode editar o campo
+                # e depois clicar fora para desabilitar a edição
+                entry.bind("<FocusOut>", lambda e, btn=select_btn: (
+                    btn.config(text="Editar Nome"),
+                    e.widget.config(state="readonly")
+                ))
+                select_btn.grid(row=row_index, column=2, pady=5, padx=5)
+            else:
+                # Exibe valor padrão no formato "int,int,int,int"
+                entry.insert(0, ",".join(str(v) for v in default_value))
+                entry.grid(row=row_index, column=1, pady=5, padx=5)
 
+                # Botão de seleção de região para campos tipo RECT
+                select_btn = tk.Button(
+                        container,
+                        text="Selecionar Região",
+                        command=lambda fn=field_name,
+                                       e=entry: self._on_select_region(fn, e)
+                )
+                select_btn.grid(row=row_index, column=2, pady=5, padx=5)
+            entry.config(readonlybackground="#f0f0f0", state="readonly")
             # Armazena referência do widget de entrada
             self.entries[field_name] = entry
 
@@ -761,7 +909,10 @@ class ConfigApp:
         )
         save_button.grid(row=row_index, column=0, columnspan=3, pady=20)
 
-    def _on_select_region(self, field_name: str, entry_widget: tk.Entry):
+
+    def _on_select_region(self,
+                          field_name: str,
+                          entry_widget: tk.Entry):
         """
         Chamado ao clicar em "Selecionar Região". Obtém o valor atual do campo,
         converte para tupla e passa como região inicial para o RegionSelector.
@@ -773,17 +924,27 @@ class ConfigApp:
             initial_rect = self._parse_tuple(current_text)
 
             # Inicia seleção de região com o retângulo inicial carregado
-            new_rect = self.region_selector.select_region(initial_rect=initial_rect)
+            if self.img_path is not None or self.img_data is not None:
+                new_rect = self.region_selector.select_region_from_image(
+                        img=self.img_path if self.img_path else self.img_data,
+                        initial_rect=initial_rect
+                )
+            else:
+                new_rect = self.region_selector.select_region(initial_rect=initial_rect)
             if new_rect:
+                # Se o campo estiver desabilitado, habilita, atualiza e desabilita novamente
                 # Atualiza a Entry com o valor no formato "x1,y1,x2,y2"
+                entry_widget.config(state="normal")
                 entry_widget.delete(0, tk.END)
                 entry_widget.insert(0, ",".join(str(v) for v in new_rect))
+                entry_widget.config(state="readonly")
         except ValueError as e:
             messagebox.showerror("Erro de Validação", f"Valor atual inválido: {e}")
         except Exception as e:
             messagebox.showerror("Erro", f"Não foi possível selecionar a região: {e}")
 
-    def _parse_tuple(self, text: str) -> RECT:
+    def _parse_tuple(self,
+                     text: str) -> RECT:
         """
         Recebe uma string no formato "x1,x2,x3,x4" e retorna uma tupla de quatro ints.
         Caso não seja possível converter, levanta ValueError.
@@ -797,6 +958,22 @@ class ConfigApp:
             raise ValueError("Todos os valores devem ser números inteiros.")
         return nums  # type: ignore
 
+    @classmethod
+    def from_json(cls,
+                  json_file: str) -> 'ConfigApp':
+        """
+        Lê um arquivo JSON com as configurações e cria uma instância de ConfigApp.
+        O JSON deve conter os campos definidos na dataclass WindowCaptureConfig.
+        """
+        try:
+            with open(json_file, "r", encoding="utf-8") as f:
+                config_data = json.load(f)
+            config = WindowCaptureConfig(**config_data)
+            return cls(default_config=config)
+        except Exception as e:
+            messagebox.showerror("Erro ao carregar configurações", str(e))
+            return cls()
+
     def _save_settings(self):
         """
         Lê cada campo de entrada, converte para tupla de ints e cria
@@ -807,9 +984,25 @@ class ConfigApp:
         kwargs = {}
         try:
             for field_name, entry_widget in self.entries.items():
-                text_value = entry_widget.get()
-                tuple_value = self._parse_tuple(text_value)
-                kwargs[field_name] = tuple_value
+                # Verifica se o campo é FILE (caminho de imagem)
+                if self._default_config.__annotations__[field_name] is FILE:
+                    # Se for FILE, pega o caminho da imagem
+                    # salva imagem no mesmo diretório
+                    text_value = os.path.abspath("capture_image.png")
+                    self.region_selector.tk_image.write(
+                            text_value, format="png"
+                    )
+                    kwargs[field_name] = text_value
+                elif self._default_config.__annotations__[field_name] is FIELDNAME:
+                    # Se for FIELDNAME, pega o texto do campo
+                    text_value = entry_widget.get().strip()
+                    if not text_value:
+                        raise ValueError(f"O campo '{field_name}' não pode estar vazio.")
+                    kwargs[field_name] = text_value
+                else:
+                    text_value = entry_widget.get()
+                    tuple_value = self._parse_tuple(text_value)
+                    kwargs[field_name] = tuple_value
 
             # Cria instância da dataclass com os valores coletados
             config = WindowCaptureConfig(**kwargs)
