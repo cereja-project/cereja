@@ -5,6 +5,7 @@ import threading
 from dataclasses import asdict, dataclass
 from typing import Optional, Union
 
+from cereja import Window
 from cereja.config.cj_types import RECT
 
 try:
@@ -615,7 +616,7 @@ class WindowStream:
 
     def __init__(
             self,
-            capture_window: 'cereja.Window',
+            capture_window: Window,
             interval: int = 500,
             only_window_content: bool = True
     ):
