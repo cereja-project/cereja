@@ -37,7 +37,9 @@ PYTHON_VERSION = sys.version_info[:3]
 
 
 class BasicConfig(metaclass=ABCMeta):
-    def __init__(self, hook=None, **kwargs):
+    def __init__(self,
+                 hook=None,
+                 **kwargs):
         self._fields = ()
         self._listen = hook
         self.set_config(**kwargs)
@@ -45,7 +47,9 @@ class BasicConfig(metaclass=ABCMeta):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.get()})"
 
-    def __setattr__(self, key, value):
+    def __setattr__(self,
+                    key,
+                    value):
         if hasattr(self, "_locked"):
             if self._locked is True:
                 er = "This is a critical config. You can use <set_config> method."
@@ -59,7 +63,8 @@ class BasicConfig(metaclass=ABCMeta):
         self._fields = tuple(self.get().keys())
         super().__setattr__("_locked", True)
 
-    def set_config(self, **kwargs) -> None:
+    def set_config(self,
+                   **kwargs) -> None:
         self._before(kwargs)
         self.__unlock()
         for k, i in kwargs.items():
@@ -69,12 +74,14 @@ class BasicConfig(metaclass=ABCMeta):
             self._listen()
 
     @abstractmethod
-    def _before(self, new_config: dict):
+    def _before(self,
+                new_config: dict):
         for k in new_config:
             if k not in self._fields and self._fields:
                 raise ValueError(f"<{k}> not in config attrs {self._fields}")
 
-    def get(self, item=None):
+    def get(self,
+            item=None):
         config = {}
         if item is None:
             for attr_ in dir(self):
@@ -107,6 +114,3 @@ cj_modules_dotted_path = [
     "cereja.datatools.pln",
     "cereja.datatools.data",
 ]
-
-console_logger = logging.StreamHandler(sys.stdout)
-logging.basicConfig(handlers=(console_logger,), level=logging.INFO)

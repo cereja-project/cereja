@@ -32,13 +32,6 @@ from ..utils import is_sequence, clipboard
 from ..system import memory_of_this
 from ..utils import string_to_literal, sample, fill
 
-try:
-    import numpy as np
-
-    has_np = True
-except ImportError:
-    has_np = False
-
 logger = logging.Logger(__name__)
 
 __all__ = ["FileIO"]
@@ -161,7 +154,9 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def _load(self, mode=None, **kwargs) -> Any:
+    def _load(self,
+              mode=None,
+              **kwargs) -> Any:
         pass
 
     @abstractmethod
@@ -175,11 +170,13 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
+    def _parse_fp(self,
+                  fp: Union[TextIO, BytesIO]) -> Any:
         pass
 
     @abstractmethod
-    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+    def _save_fp(self,
+                 fp: Union[TextIO, BytesIO]) -> None:
         pass
 
     @abstractmethod
@@ -191,15 +188,19 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def parse(self, data):
+    def parse(self,
+              data):
         pass
 
     @abstractmethod
-    def add(self, data, **kwargs):
+    def add(self,
+            data,
+            **kwargs):
         pass
 
     @abstractmethod
-    def size(self, unit: str = "KB"):
+    def size(self,
+             unit: str = "KB"):
         pass
 
     @abstractmethod
@@ -211,13 +212,19 @@ class _IFileIO(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_path(self, p: str):
+    def set_path(self,
+                 p: str):
         pass
 
 
 class _FileIO(_IFileIO, ABC):
     def __init__(
-            self, path_: Path, data=None, creation_mode=False, is_byte=None, **kwargs
+            self,
+            path_: Path,
+            data=None,
+            creation_mode=False,
+            is_byte=None,
+            **kwargs
     ):
         super().__init__()
         if is_byte is not None:
@@ -238,7 +245,8 @@ class _FileIO(_IFileIO, ABC):
         else:
             self._data = self._load(**kwargs)
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls,
+                          **kwargs):
         for attr in cls._need_implement:
             if getattr(cls, attr) is None:
                 raise NotImplementedError(
@@ -248,7 +256,9 @@ class _FileIO(_IFileIO, ABC):
     def __repr__(self):
         return f"File{self.__class__.__name__.replace('_', '')}({self._path.name})"
 
-    def __setattr__(self, key, value):
+    def __setattr__(self,
+                    key,
+                    value):
         object.__setattr__(self, key, copy.copy(value))
         if (
                 hasattr(self, "_change_history")
@@ -266,13 +276,16 @@ class _FileIO(_IFileIO, ABC):
                     key, copy.copy(object.__getattribute__(self, key))
             )  # append last_value of attr
 
-    def __getitem__(self, item):
+    def __getitem__(self,
+                    item):
         try:
             return self.data[item]
         except TypeError:
             raise TypeError(f"'{self.__class__.__name__}' object is not subscriptable")
 
-    def __setitem__(self, key, value):
+    def __setitem__(self,
+                    key,
+                    value):
         # TODO: save only the index that has been changed
         try:
             self._data[key] = value
@@ -280,14 +293,17 @@ class _FileIO(_IFileIO, ABC):
         except TypeError:
             raise TypeError(f"'{self.__class__.__name__}' object is not subscriptable")
 
-    def _set_change(self, key, value):
+    def _set_change(self,
+                    key,
+                    value):
         self._change_history = self._change_history[: self._current_change + 1]
         if len(self._change_history) >= self._max_history_length:
             self._change_history.pop(0)
         self._change_history.append((key, value))
         self._current_change = len(self._change_history)
 
-    def _select_change(self, index):
+    def _select_change(self,
+                       index):
         try:
 
             key, value = self._change_history[self._current_change + index]
@@ -374,22 +390,27 @@ class _FileIO(_IFileIO, ABC):
         return self._only_read
 
     @classmethod
-    def add(cls, *args, **kwargs):
+    def add(cls,
+            *args,
+            **kwargs):
         raise NotImplementedError("it's not implemented")
 
     @classmethod
-    def parse_ext(cls, ext: str) -> str:
+    def parse_ext(cls,
+                  ext: str) -> str:
         if not isinstance(ext, str):
             raise TypeError("Error during parsing ext. Send a string.")
         return "." + ext.replace(".", "")
 
-    def _get_mode(self, mode) -> str:
+    def _get_mode(self,
+                  mode) -> str:
         """
         if mode is 'r' return 'r+' or 'r+b' else mode is 'w' return 'w+' or 'w+b'
         """
         return f"{mode}+b" if self._is_byte else f"{mode}+"
 
-    def size(self, unit: str = "KB"):
+    def size(self,
+             unit: str = "KB"):
         """
         returns the size that the file occupies on the disk.
 
@@ -410,7 +431,9 @@ class _FileIO(_IFileIO, ABC):
                 memory_of_this(self._data) - self._data.__class__().__sizeof__()
         ) / self._size_map[unit]
 
-    def _load(self, mode=None, **kwargs) -> Any:
+    def _load(self,
+              mode=None,
+              **kwargs) -> Any:
         if self._path.suffix in self._dont_read:
             logger.warning(
                     f"I can't read this file. See class attribute <{self.__class__.__name__}._dont_read>"
@@ -478,7 +501,8 @@ class _FileIO(_IFileIO, ABC):
         self._path.rm()
         self._is_deleted = True
 
-    def set_path(self, path_):
+    def set_path(self,
+                 path_):
         p = Path(path_)
         assert not p.is_dir, f"{p.path} is a directory."
         self._path = p
@@ -492,7 +516,9 @@ class _FileIO(_IFileIO, ABC):
         if self._current_change < len(self._change_history):
             self._select_change(+1)
 
-    def sample_items(self, k: int = 1, is_random=False):
+    def sample_items(self,
+                     k: int = 1,
+                     is_random=False):
         """
         Get sample of this.
 
@@ -515,11 +541,16 @@ class _FileIO(_IFileIO, ABC):
         return self.__next__()
 
     @classmethod
-    def load(cls, path_, **kwargs):
+    def load(cls,
+             path_,
+             **kwargs):
         return cls(path_, creation_mode=False, **kwargs)
 
     @classmethod
-    def create(cls, path_, data=None, **kwargs):
+    def create(cls,
+               path_,
+               data=None,
+               **kwargs):
         return cls(path_=path_, data=data, creation_mode=True, **kwargs)
 
 
@@ -529,28 +560,32 @@ class _Generic(_FileIO):
     _ext_allowed = ()
     _split_lines = False
 
-    def _parse_fp(self, fp: BytesIO) -> List[bytes]:
+    def _parse_fp(self,
+                  fp: BytesIO) -> List[bytes]:
         if self._split_lines or not bool(self.ext):
             data = fp.read().splitlines()
         else:
             data = fp.read()
         return self.parse(data)
 
-    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+    def _save_fp(self,
+                 fp: Union[TextIO, BytesIO]) -> None:
         fp.write(
                 self._convert("\n").join(
                         i if isinstance(i, (str, bytes)) else str(i) for i in self._data
                 )
         )
 
-    def _convert(self, val):
+    def _convert(self,
+                 val):
         if self._is_byte and not isinstance(val, bytes):
             return str(val).encode()
         if not self._is_byte and isinstance(val, str):
             return string_to_literal(val)
         return val
 
-    def parse(self, data) -> List[bytes]:
+    def parse(self,
+              data) -> List[bytes]:
         if isinstance(data, (bytes, str, int, float, complex)):
             return [self._convert(data)]
         if not data:
@@ -559,7 +594,9 @@ class _Generic(_FileIO):
             return [self._convert(i) for i in data]
         raise ValueError(f"{type(data)} isn't valid.")
 
-    def add(self, data, line=-1):
+    def add(self,
+            data,
+            line=-1):
         data = self.parse(data)
         if line != -1:
             for pos, i in enumerate(data, line):
@@ -569,7 +606,8 @@ class _Generic(_FileIO):
             return
         self._set_change("_data", self._data.copy())
 
-    def remove(self, line: Union[int, str]):
+    def remove(self,
+               line: Union[int, str]):
         self._data.pop(line)
         self._set_change("_data", self._data.copy())
 
@@ -588,7 +626,11 @@ class _JsonIO(_FileIO):
     indent = False
     ensure_ascii = False
 
-    def __init__(self, path_: Path, indent=False, string_eval=True, **kwargs):
+    def __init__(self,
+                 path_: Path,
+                 indent=False,
+                 string_eval=False,
+                 **kwargs):
         self.indent = indent
         self.string_eval = string_eval
         if "ensure_ascii" in kwargs:
@@ -599,12 +641,14 @@ class _JsonIO(_FileIO):
     def _object_hook(obj):
         return {string_to_literal(k): string_to_literal(v) for k, v in obj.items()}
 
-    def _parse_fp(self, fp: TextIO) -> dict:
+    def _parse_fp(self,
+                  fp: TextIO) -> dict:
         return json.load(
                 fp, object_hook=self._object_hook if self.string_eval else None
         )
 
-    def _save_fp(self, fp):
+    def _save_fp(self,
+                 fp):
         json.dump(
                 self._data,
                 fp,
@@ -621,7 +665,8 @@ class _JsonIO(_FileIO):
     def values(self) -> ValuesView:
         return self._data.values()
 
-    def parse(self, data) -> Union[dict, list]:
+    def parse(self,
+              data) -> Union[dict, list]:
         if isinstance(data, (dict, list)):
             return data
         elif isinstance(data, (str, bytes)):
@@ -631,25 +676,34 @@ class _JsonIO(_FileIO):
         else:
             raise TypeError(f"{type(data)} isn't valid.")
 
-    def _add(self, k, v):
+    def _add(self,
+             k,
+             v):
         self._data[k] = v
 
-    def add(self, key, value):
+    def add(self,
+            key,
+            value):
         self._add(key, value)
 
-    def remove(self, key):
+    def remove(self,
+               key):
         self._data.pop(key)
 
-    def get(self, _key):
+    def get(self,
+            _key):
         return self._data.get(_key)
 
-    def __getitem__(self, item):
+    def __getitem__(self,
+                    item):
         try:
             return self.data[item]
         except KeyError:
             raise KeyError(f"{item} not found.")
 
-    def __setitem__(self, key, value):
+    def __setitem__(self,
+                    key,
+                    value):
         self.add(key, value)
 
     def __iter__(self):
@@ -689,13 +743,15 @@ class _BmpIO(_FileIO, ABC):
     def height(self):
         return self._height
 
-    def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
+    def _parse_fp(self,
+                  fp: Union[TextIO, BytesIO]) -> Any:
         self._header = fp.read(54)  # Os primeiros 54 bytes são o cabeçalho BMP
         self._width = abs(int.from_bytes(self.header[18:22], byteorder='little', signed=True))
         self._height = abs(int.from_bytes(self.header[22:26], byteorder='little', signed=True))
         return fp.read()  # Ler os dados da imagem
 
-    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+    def _save_fp(self,
+                 fp: Union[TextIO, BytesIO]) -> None:
         if self.header is None:
             file_header_size = 14
             info_header_size = 40
@@ -726,7 +782,8 @@ class _BmpIO(_FileIO, ABC):
             fp.write(self.header)
         fp.write(self.data)
 
-    def parse(self, data):
+    def parse(self,
+              data):
         return data
 
 
@@ -735,13 +792,16 @@ class _Mp4IO(_FileIO, ABC):
     _only_read = True
     _ext_allowed = (".mp4",)
 
-    def _save_fp(self, fp):
+    def _save_fp(self,
+                 fp):
         fp.write(self._data)
 
-    def _parse_fp(self, fp: BytesIO) -> bytes:
+    def _parse_fp(self,
+                  fp: BytesIO) -> bytes:
         return fp.read()
 
-    def parse(self, data):
+    def parse(self,
+              data):
         return self._data
 
 
@@ -801,16 +861,22 @@ class _CsvIO(_FileIO):
         for row in self.data:
             yield dict(zip(self.cols, row))
 
-    def _parse_fp(self, fp: TextIO, **kwargs) -> List[List[Any]]:
+    def _parse_fp(self,
+                  fp: TextIO,
+                  **kwargs) -> List[List[Any]]:
         reader = csv.reader(fp)
         return self.parse(reader)
 
-    def _save_fp(self, fp: TextIO):
+    def _save_fp(self,
+                 fp: TextIO):
         writer = csv.DictWriter(fp, fieldnames=self.cols)
         writer.writeheader()
         writer.writerows(self.rows)
 
-    def _normalize_row(self, row, fill_with=None, literal_values=True):
+    def _normalize_row(self,
+                       row,
+                       fill_with=None,
+                       literal_values=True):
         if not is_sequence(row):
             row = [row]
         if self._cols:
@@ -859,7 +925,10 @@ class _CsvIO(_FileIO):
     def shape(self):
         return get_shape(self._data)
 
-    def _add(self, row: List[Any], index, fill_with=None):
+    def _add(self,
+             row: List[Any],
+             index,
+             fill_with=None):
         row = self.parse([row], fill_with=fill_with)
         if index != -1:
             for pos, i in enumerate(row, index):
@@ -867,7 +936,10 @@ class _CsvIO(_FileIO):
         else:
             self._data += row
 
-    def add(self, row: List[Any], index=-1, fill_with=None):
+    def add(self,
+            row: List[Any],
+            index=-1,
+            fill_with=None):
         """
         Add row is similar to list.append
 
@@ -877,7 +949,8 @@ class _CsvIO(_FileIO):
         """
         self._add(row=row, index=index, fill_with=fill_with)
 
-    def __getitem__(self, item):
+    def __getitem__(self,
+                    item):
         if isinstance(item, str):
             if item not in self.cols:
                 raise ValueError(f"Column name <{item}> not in {self.cols}")
@@ -899,14 +972,18 @@ class _PyObj(_FileIO):
     _newline = False
     _ext_allowed = (".pkl",)
 
-    def _parse_fp(self, fp: TextIO, **kwargs) -> List[List[Any]]:
+    def _parse_fp(self,
+                  fp: TextIO,
+                  **kwargs) -> List[List[Any]]:
         loaded_obj = pickle.load(fp, **kwargs)
         return self.parse(loaded_obj)
 
-    def _save_fp(self, fp: TextIO):
+    def _save_fp(self,
+                 fp: TextIO):
         pickle.dump(self.data, fp)
 
-    def parse(self, data):
+    def parse(self,
+              data):
         return data
 
 
@@ -916,15 +993,19 @@ class _ZipFileIO(_FileIO):
     _newline = False
     _ext_allowed = (".zip",)
 
-    def __init__(self, path_: Path, **kwargs):
+    def __init__(self,
+                 path_: Path,
+                 **kwargs):
 
         super().__init__(path_, **kwargs)
 
-    def add(self, data: Union[str, list, tuple]):
+    def add(self,
+            data: Union[str, list, tuple]):
         parsed = self.parse(data)
         self._data += parsed
 
-    def _parse_fp(self, fp: Union[TextIO, BytesIO]) -> Any:
+    def _parse_fp(self,
+                  fp: Union[TextIO, BytesIO]) -> Any:
         return self.unzip(fp.name)
 
     @classmethod
@@ -944,11 +1025,15 @@ class _ZipFileIO(_FileIO):
                     save_on, members=Progress.prog(list(members), name="Extracting")
             )
 
-    def _save_fp(self, fp: Union[TextIO, BytesIO]) -> None:
+    def _save_fp(self,
+                 fp: Union[TextIO, BytesIO]) -> None:
         raise NotImplementedError
 
     @classmethod
-    def load(cls, path_, load_on_memory=False, **kwargs):
+    def load(cls,
+             path_,
+             load_on_memory=False,
+             **kwargs):
         return cls(
                 path_=path_, creation_mode=False, load_on_memory=load_on_memory, **kwargs
         )
@@ -974,7 +1059,8 @@ class _ZipFileIO(_FileIO):
             tmp_file.cp(self.path)
             self._last_update = self.updated_at
 
-    def parse(self, data):
+    def parse(self,
+              data):
         if not data:
             return []
         if isinstance(data, (str, Path)):
@@ -997,12 +1083,14 @@ class _SrtFile(_TxtIO):
     _ext_allowed = (".srt", ".vtt")
 
     @classmethod
-    def is_block_start(cls, line) -> bool:
+    def is_block_start(cls,
+                       line) -> bool:
         return bool(
                 re.match(r"\d{2}:\d{2}:\d{2}[.,]\d+\s-->\s\d{2}:\d{2}:\d{2}[.,]\d+", line)
         )
 
-    def parse(self, data):
+    def parse(self,
+              data):
         data = super().parse(data)
         blocks = []
         current_block = 0
@@ -1028,11 +1116,16 @@ class _SrtFile(_TxtIO):
                 [str(block_item) for block in self.data for block_item in block]
         )
 
-    def add(self, data, line=-1):
+    def add(self,
+            data,
+            line=-1):
         raise NotImplementedError
 
     @classmethod
-    def from_url(cls, url: str, *args, **kwargs):
+    def from_url(cls,
+                 url: str,
+                 *args,
+                 **kwargs):
         # TODO: need improves
         resp = request.get(url, *args, **kwargs)
         if resp.code == 200:
@@ -1048,7 +1141,9 @@ class _SrtFile(_TxtIO):
         ]
 
     class Block:
-        def __init__(self, number, *content):
+        def __init__(self,
+                     number,
+                     *content):
             self.number = number
             time_, *content = content
 
@@ -1071,7 +1166,8 @@ class _SrtFile(_TxtIO):
         def _values(self):
             return (self.number, self.time, *self.content)
 
-        def __getitem__(self, item):
+        def __getitem__(self,
+                        item):
             return self._values[item]
 
         def __repr__(self):
@@ -1089,25 +1185,34 @@ class FileIO:
     bmp = _BmpIO
     _generic = _Generic
 
-    def __new__(cls, path_, data=None, **kwargs):
+    def __new__(cls,
+                path_,
+                data=None,
+                **kwargs):
         raise Exception(
                 f"Cannot instantiate {cls.__name__}, use the methods ['create', 'load', 'load_files']"
         )
 
     @classmethod
-    def create(cls, path_: Union[Type[Path], str], data: Any, **kwargs) -> _FileIO:
+    def create(cls,
+               path_: Union[Type[Path], str],
+               data: Any,
+               **kwargs) -> _FileIO:
         path_ = Path(path_)
         return cls.lookup(path_.suffix).create(path_=path_, data=data, **kwargs)
 
     @classmethod
-    def lookup(cls, ext: str) -> Type[_FileIO]:
+    def lookup(cls,
+               ext: str) -> Type[_FileIO]:
         ext = ext.replace(".", "")
         if hasattr(cls, ext):
             return getattr(cls, ext)
         return cls._generic
 
     @classmethod
-    def load(cls, path_: Union[str, Path], **kwargs) -> _FileIO:
+    def load(cls,
+             path_: Union[str, Path],
+             **kwargs) -> _FileIO:
         path_ = Path(path_)
         if not path_.exists:
             raise FileNotFoundError(f"{path_.path} not found.")
