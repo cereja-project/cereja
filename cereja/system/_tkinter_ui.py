@@ -159,6 +159,7 @@ class ConfigDialog(tk.Toplevel):
         self.title("Configurar Cereja Bot")
         self.resizable(False, False)
         self.on_save = on_save
+        self._file_path = None
         self.config = config or {}
         # garante listas
         self.config.setdefault("hotkeys", [])
@@ -168,6 +169,24 @@ class ConfigDialog(tk.Toplevel):
         self._build_ui()
         self.grab_set()
         self.wait_window(self)
+
+    def _set_file_path_on_window_selected(self,
+                                          event=None):
+        print("Setting file path based on selected window...")
+        idx = self.win_combo.current()
+        if idx < 0:
+            return
+        window = self.windows[idx]
+        try:
+            window_title = window.title.strip()
+            if not window_title:
+                messagebox.showwarning("Faltando", "Selecione uma janela alvo.")
+                return
+            filename = _get_hash_window_tittle(window_title)
+            self._file_path = self.CONFIG_DIR.join(filename).join(f"{filename}.json")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao obter título da janela: {e}")
+            return
 
     def _build_ui(self):
         pad = {'padx': 10, 'pady': 5}
@@ -180,6 +199,7 @@ class ConfigDialog(tk.Toplevel):
         self.windows = Window.get_all_windows()
         opts = [f"{w.title.strip()}" for w in self.windows]
         self.win_combo = ttk.Combobox(frame_win, values=opts, state='readonly')
+        self.win_combo.bind("<<ComboboxSelected>>", self._set_file_path_on_window_selected)
         self.win_combo.grid(row=1, column=0, sticky="ew", **pad)
         if "window_title" in self.config:
             for i, w in enumerate(self.windows):
@@ -188,6 +208,7 @@ class ConfigDialog(tk.Toplevel):
                     self.win_combo.set(f"{w.title.strip()}")
                     # disable selection if found
                     self.win_combo.config(state='disabled')
+                    self._set_file_path_on_window_selected()
                     break
 
         # Região do Jogo
@@ -320,8 +341,10 @@ class ConfigDialog(tk.Toplevel):
         x1, y1, x2, y2 = region
         snippet = tk.PhotoImage()
         snippet.tk.call(snippet, 'copy', img, '-from', x1, y1, x2, y2, '-to', 0, 0)
-        filename = f"{name}.png"
+
         try:
+            assert self._file_path, "File path must be set before saving snippet."
+            filename = self._file_path.parent.join(f"{name}.png").path
             snippet.write(filename, format='png')
         except Exception as e:
             messagebox.showerror("Erro ao salvar snippet", str(e))
@@ -605,18 +628,9 @@ class ConfigDialog(tk.Toplevel):
             messagebox.showwarning("Faltando", "Configure janela e região antes de salvar.")
             return
         try:
-            window_title = self.win_combo.get().strip()
-            if not window_title:
-                messagebox.showwarning("Faltando", "Selecione uma janela alvo.")
-                return
-            filename = _get_hash_window_tittle(window_title)
-            if not filename:
-                filename = _get_hash_window_tittle("cereja_config")
-            # cria diretório se não existir
-            filepath_dir = ConfigDialog.CONFIG_DIR.join(filename)
-            filepath_dir.mkdir(force=True)
-            filepath = filepath_dir.join(f"{filename}.json")
-            FileIO.create(filepath, self.config, ensure_ascii=False, indent=True).save(
+            assert self._file_path is not None, "File path must be set before saving."
+            self._file_path.parent.mkdir(force=True)
+            FileIO.create(self._file_path, self.config, ensure_ascii=False, indent=True).save(
                     exist_ok=True
             )
 
@@ -624,7 +638,7 @@ class ConfigDialog(tk.Toplevel):
             messagebox.showerror("Erro", f"Falha ao salvar configuração: {e}")
             return
         messagebox.showinfo("Salvo", "Configurações salvas com sucesso.")
-        self.on_save(self.config, filepath)
+        self.on_save(self.config, self._file_path)
         self.destroy()
 
 
@@ -633,7 +647,7 @@ class AutomatorGUI(tk.Tk):
         super().__init__()
         self.title("Cereja Bot")
         self.geometry("600x500")
-        self.withdraw()
+        # self.withdraw()
         self.config_filepath = None
 
         self.config_data = self.load_config()
@@ -657,6 +671,7 @@ class AutomatorGUI(tk.Tk):
             return None
         # se existir mais de um arquivo, pergunta qual usar
         if len(config_files) >= 1:
+
             selected = filedialog.askopenfilename(
                     title="Selecione a configuração",
                     initialdir=str(ConfigDialog.CONFIG_DIR),
