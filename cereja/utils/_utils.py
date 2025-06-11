@@ -41,7 +41,7 @@ from pprint import PrettyPrinter
 
 from .decorators import depreciation
 # Needed init configs
-from ..config.cj_types import ClassType, FunctionType, Number
+from ..config.cj_types import T_CLASS, T_FUNC, T_NUMBER
 from itertools import combinations as itertools_combinations
 
 __all__ = [
@@ -958,8 +958,8 @@ if __name__ == '__main__':
             self.is_callable = callable(value)
             self.is_private = self.name.startswith("_")
             self.is_bool = value is True or value is False
-            self.is_class = isinstance(value, ClassType)
-            self.is_function = isinstance(value, FunctionType)
+            self.is_class = isinstance(value, T_CLASS)
+            self.is_function = isinstance(value, T_FUNC)
             self.class_of_attr = value.__class__
             self._operator_repr = None
             self.tests_case = []
@@ -1086,7 +1086,7 @@ if __name__ == '__main__':
     @classmethod
     def _get_test(cls,
                   ref):
-        if isinstance(ref, (FunctionType, types.MethodType)):
+        if isinstance(ref, (T_FUNC, types.MethodType)):
             return cls._get_func_test(ref)
         if isinstance(ref, type):
             return cls._get_class_test(ref)
@@ -1377,7 +1377,7 @@ def is_sequence(obj: Any) -> bool:
     return is_iterable(obj)
 
 
-def is_numeric_sequence(obj: Sequence[Number]) -> bool:
+def is_numeric_sequence(obj: Sequence[T_NUMBER]) -> bool:
     try:
         from cereja.array import flatten
 
@@ -2323,7 +2323,7 @@ class DataNumberIterator(DataIterator):
     _element_type = (int, float)
 
     def __init__(self,
-                 data: Union[Number, Iterable[Number], DataIterator],
+                 data: Union[T_NUMBER, Iterable[T_NUMBER], DataIterator],
                  **kwargs):
         """
         Initialize the DataNumberIterator with the given data.

@@ -200,7 +200,7 @@ class Keyboard:
 
     def __init__(self,
                  hwnd: int = None,
-                 is_async: bool = False):
+                 is_async: bool = True):
         """
         Args:
             hwnd: handle da janela alvo. Se None, métodos apenas detectam estado de teclas, sem enviar.
@@ -475,7 +475,7 @@ class Mouse:
 
     def __init__(self,
                  hwnd=None,
-                 is_async=False):
+                 is_async=True):
         self.send_event = PostMessage if is_async else SendMessage
         self.user32 = ctypes.windll.user32
         self._hwnd = hwnd
@@ -510,7 +510,7 @@ class Mouse:
                button: str,
                position=None,
                n_clicks=1,
-               interval=0.0):
+               interval=0.1):
         if button not in ("left", "right"):
             raise ValueError(f"button {button} isn't valid")
 
@@ -525,9 +525,16 @@ class Mouse:
         else:
             if position is None:
                 position = self.position
-            l_param = (position[1] << 16) | position[0]
-
+            l_param = (position[1] << 16) | position[0]  # y << 16 | x
+            if n_clicks < 1:
+                raise ValueError("n_clicks must be at least 1")
+            # envia evento de localização do mouse
+            self.send_event(self._hwnd, self._mouse_messages_map["move"], 0, l_param)
+            # envia evento de clique
             self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_down"], 1, l_param)
+            for _ in range(n_clicks - 1):
+                time.sleep(interval)
+                self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_click"], 0, l_param)
             self.send_event(self._hwnd, self._mouse_messages_map[f"{button}_up"], 0, l_param)
 
     def click_left(self,
@@ -548,7 +555,12 @@ class Mouse:
             from_l_param = (from_[1] << 16) | from_[0]
             to_l_param = (to[1] << 16) | to[0]
 
+            # Envia evento de localização do mouse
+            self.send_event(self._hwnd, self._mouse_messages_map["move"], 0, from_l_param)
+            # Envia eventos de clique e arrasto
             self.send_event(self._hwnd, self._mouse_messages_map["left_down"], 1, from_l_param)
+            # Envia evento de movimento para a posição final
+            self.send_event(self._hwnd, self._mouse_messages_map["move"], 0, to_l_param)
             self.send_event(self._hwnd, self._mouse_messages_map["left_up"], 0, to_l_param)
         else:
             self.set_position(from_[0], from_[1])
@@ -930,7 +942,7 @@ class Window:
         Exibe um único screenshot da janela, usando ImageWindow.
         """
         import tkinter as tk
-        from cereja.system.ui.image_view import ImageWindow
+        from cereja.system._tkinter_ui import ImageWindow
         root = tk.Tk()
         root.withdraw()
 
@@ -957,7 +969,7 @@ class Window:
     def stream(self,
                interval: int = 500,
                only_window_content: bool = True):
-        from cereja.system.ui.image_view import WindowStream
+        from cereja.system._tkinter_ui import WindowStream
         stream_ = WindowStream(self, interval=interval, only_window_content=only_window_content)
         stream_.start()
 

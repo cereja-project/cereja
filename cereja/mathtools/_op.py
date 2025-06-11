@@ -25,7 +25,7 @@ from typing import Tuple, Union, Sequence
 
 from ..array import flatten, get_shape
 from ..utils import is_sequence, chunk
-from cereja.config.cj_types import Number
+from cereja.config.cj_types import T_NUMBER
 
 __all__ = [
     "imc",
@@ -75,14 +75,14 @@ def proportional(
     return (new_max_value / old_max_value) * value
 
 
-def estimate(from_: Number, to: Number, based: Number, ndigits=2) -> Number:
+def estimate(from_: T_NUMBER, to: T_NUMBER, based: T_NUMBER, ndigits=2) -> T_NUMBER:
     if from_ > 0:
         based = based or 1
         return round((based / from_) * to - based, ndigits)
     return float("NaN")
 
 
-def percent(from_: Number, to: Number, ndigits=2) -> Number:
+def percent(from_: T_NUMBER, to: T_NUMBER, ndigits=2) -> T_NUMBER:
     to = to or 1
     return round((from_ / to) * 100, ndigits)
 
@@ -93,7 +93,7 @@ def pow_(x, y=2):
     return [math.pow(i, y) for i in x]
 
 
-def theta_angle(u: Sequence[Number], v: Sequence[Number], degrees=True) -> float:
+def theta_angle(u: Sequence[T_NUMBER], v: Sequence[T_NUMBER], degrees=True) -> float:
     """
     Calculates and returns theta angle between two vectors
 

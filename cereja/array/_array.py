@@ -28,7 +28,7 @@ from functools import reduce
 from itertools import chain
 from typing import Any, Sequence, Tuple, Union, List, Optional
 import copy
-from cereja.config.cj_types import Number, Shape
+from cereja.config.cj_types import T_NUMBER, T_SHAPE
 import logging
 
 __all__ = [
@@ -305,12 +305,12 @@ def flatten(
     return (sequence, shapes) if return_shapes else sequence
 
 
-def rand_uniform(_from: Number, to: Number):
+def rand_uniform(_from: T_NUMBER, to: T_NUMBER):
     return _from + (to - _from) * random.random()
 
 
 def rand_n(
-        _from: Number = 0.0, to: Number = 1.0, n: int = 1
+        _from: T_NUMBER = 0.0, to: T_NUMBER = 1.0, n: int = 1
 ) -> Union[float, List[float]]:
     """
     All values ​​are random and their sum is equal to 1 (default) or the value sent in parameter (to)
@@ -420,7 +420,7 @@ def get_cols(sequence: Union[Sequence, "Matrix"]):
     return list(zip(*sequence))
 
 
-def prod(sequence: Sequence[Number], start=1) -> Number:
+def prod(sequence: Sequence[T_NUMBER], start=1) -> T_NUMBER:
     """
     Calculate the product of all the elements in the input iterable.
 
@@ -445,7 +445,7 @@ def prod(sequence: Sequence[Number], start=1) -> Number:
     return reduce((lambda x, y: x * y), [start, *sequence])
 
 
-def sub(sequence: Sequence[Number]) -> Number:
+def sub(sequence: Sequence[T_NUMBER]) -> T_NUMBER:
     if not is_sequence(sequence):
         raise TypeError(
                 f"Value of {sequence} is not valid. Please send a numeric list."
@@ -463,7 +463,7 @@ def _div(a, b):
     return a / b
 
 
-def div(sequence: Sequence[Number]) -> Number:
+def div(sequence: Sequence[T_NUMBER]) -> T_NUMBER:
     if not is_sequence(sequence):
         raise TypeError(
                 f"Value of {sequence} is not valid. Please send a numeric list."
@@ -482,7 +482,7 @@ def dot(a, b):
     assert shape_a[-2] == shape_b[-1]
     return [[dotproduct(line, col) for col in get_cols(b)] for line in a]
 
-def determinant(sequence: Sequence[Union[Sequence[Number], "Matrix"]]) -> Number:
+def determinant(sequence: Sequence[Union[Sequence[T_NUMBER], "Matrix"]]) -> T_NUMBER:
     """
     Calculate the determinant of a square matrix.
 
@@ -724,7 +724,7 @@ class Matrix(object):
         flattened = self.flatten()
         return sum(flattened) / len(flattened)
 
-    def reshape(self, shape: Shape):
+    def reshape(self, shape: T_SHAPE):
         return Matrix(reshape(self, shape))
     
     def determinant(self):

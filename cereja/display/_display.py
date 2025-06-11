@@ -33,7 +33,7 @@ from typing import Sequence, Any, Union, AnyStr
 
 from cereja import has_length
 from cereja.utils import is_iterable
-from cereja.config.cj_types import Number
+from cereja.config.cj_types import T_NUMBER
 from cereja.system.unicode import Unicode
 from cereja.utils import fill, get_instances_of, import_string
 from cereja.utils.time import time_format
@@ -431,10 +431,10 @@ class State(metaclass=ABCMeta):
     @abstractmethod
     def display(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
     ) -> str:
         """
@@ -445,10 +445,10 @@ class State(metaclass=ABCMeta):
 
     def done(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
     ) -> str:
         return self.display(current_value, max_value, current_percent, time_it, n_times)
@@ -476,10 +476,10 @@ class _StateLoading(State):
 
     def display(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -491,10 +491,10 @@ class _StateLoading(State):
 
     def done(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -508,10 +508,10 @@ class _StateAwaiting(_StateLoading):
 
     def display(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -530,10 +530,10 @@ class _StateAwaiting(_StateLoading):
 
     def done(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -545,10 +545,10 @@ class _StateDownloadData(State):
 
     def display(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -573,10 +573,10 @@ class _StateBar(State):
 
     def display(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> AnyStr:
@@ -591,10 +591,10 @@ class _StateBar(State):
 
     def done(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -610,10 +610,10 @@ class _StatePercent(State):
 
     def display(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -621,10 +621,10 @@ class _StatePercent(State):
 
     def done(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -638,10 +638,10 @@ class _StateTime(State):
 
     def display(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -657,10 +657,10 @@ class _StateTime(State):
 
     def done(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: float,
             **kwargs,
     ) -> str:
@@ -673,10 +673,10 @@ class _StateValue(State):
 
     def display(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -685,10 +685,10 @@ class _StateValue(State):
 
     def done(
             self,
-            current_value: Number,
-            max_value: Number,
-            current_percent: Number,
-            time_it: Number,
+            current_value: T_NUMBER,
+            max_value: T_NUMBER,
+            current_percent: T_NUMBER,
+            time_it: T_NUMBER,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -823,7 +823,7 @@ class Progress:
     def total_completed(self):
         return f"{self.percent_(self._current_value)}%"
 
-    def _states_view(self, for_value: Number) -> str:
+    def _states_view(self, for_value: T_NUMBER) -> str:
         """
         Return current state and bool
         bool:
@@ -900,7 +900,7 @@ class Progress:
     def states(self):
         return self._parse_states()
 
-    def percent_(self, for_value: Number) -> Number:
+    def percent_(self, for_value: T_NUMBER) -> T_NUMBER:
         return percent(for_value, self.max_value)
 
     def update_max_value(self, max_value: int):

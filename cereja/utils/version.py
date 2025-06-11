@@ -25,12 +25,12 @@ import subprocess
 from datetime import datetime
 from typing import Union
 
-from cereja.config.cj_types import PEP440
+from cereja.config.cj_types import T_PEP440
 
 __all__ = ["get_version", "latest_git", "get_version_pep440_compliant"]
 
 
-def get_version(version: Union[str, PEP440] = None) -> PEP440:
+def get_version(version: Union[str, T_PEP440] = None) -> T_PEP440:
     """
     Dotted version of the string type is expected
     e.g:

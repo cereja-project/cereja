@@ -25,7 +25,7 @@ import warnings
 from typing import List, Dict, Union, Sequence, AnyStr, Any, Iterable
 
 from ..file import FileIO
-from ..config.cj_types import Number
+from ..config.cj_types import T_NUMBER
 from ..mltools import preprocess as _preprocess
 from ..mltools.data import Freq
 from ..config.conf import BasicConfig
@@ -244,7 +244,7 @@ class LanguageData(BaseData):
     def preprocess(self, value: Union[str, List[str]]):
         return self._preprocessor.preprocess(value)
 
-    def synergy(self, value: Union[Iterable[str], str]) -> Number:
+    def synergy(self, value: Union[Iterable[str], str]) -> T_NUMBER:
         """
         Returns how important the value sent is in relation to the data set
         """
