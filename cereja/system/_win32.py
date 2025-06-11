@@ -936,43 +936,6 @@ class Window:
 
         root.destroy()
 
-    def show_screenshot(self,
-                        only_window_content: bool = True):
-        """
-        Exibe um único screenshot da janela, usando ImageWindow.
-        """
-        import tkinter as tk
-        from cereja.system._tkinter_ui import ImageWindow
-        root = tk.Tk()
-        root.withdraw()
-
-        # captura o PPM em memória
-        ppm_bytes = self.capture_image_ppm(ppm_path=None, only_window_content=only_window_content)
-
-        # salva temporariamente em arquivo para reutilizar ImageWindow
-        fd, temp_path = tempfile.mkstemp(suffix=".ppm")
-        os.close(fd)
-        with open(temp_path, "wb") as f:
-            f.write(ppm_bytes)
-
-        try:
-
-            viewer = ImageWindow(root, image_path=temp_path, title=f"Screenshot: {self.title}")
-            root.wait_window(viewer.window)
-        finally:
-            try:
-                os.remove(temp_path)
-            except:
-                pass
-            root.destroy()
-
-    def stream(self,
-               interval: int = 500,
-               only_window_content: bool = True):
-        from cereja.system._tkinter_ui import WindowStream
-        stream_ = WindowStream(self, interval=interval, only_window_content=only_window_content)
-        stream_.start()
-
     # Métodos de exibição/ocultação
     def hide(self):
         """Oculta a janela completamente."""
