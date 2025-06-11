@@ -31,7 +31,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 import logging
 from typing import Sequence, Any
 
-from cereja.config.cj_types import FunctionType
+from cereja.config.cj_types import T_FUNC
 
 __all__ = ["TaskList", "AsyncToSync", "SyncToAsync", "sync_to_async", "async_to_sync"]
 logger = logging.getLogger(__name__)
@@ -246,7 +246,7 @@ class TaskList:
 
     """
 
-    def __init__(self, func: FunctionType, sequence: Sequence[Any]):
+    def __init__(self, func: T_FUNC, sequence: Sequence[Any]):
         from ..utils import is_sequence
 
         if not isinstance(func, Callable):

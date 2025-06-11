@@ -37,7 +37,7 @@ from cereja.array import (
 )
 from cereja.utils import is_iterable, is_sequence, chunk
 from cereja.array import prod
-from cereja.config.cj_types import Number
+from cereja.config.cj_types import T_NUMBER
 from cereja.mltools import Corpus
 from cereja.mltools.pln import LanguageData
 from cereja.display import State, Progress
@@ -302,20 +302,20 @@ class ProgressTestCase:
         class MyCustomSate(State):
             def display(
                     self,
-                    current_value: Number,
-                    max_value: Number,
-                    current_percent: Number,
-                    time_it: Number,
+                    current_value: T_NUMBER,
+                    max_value: T_NUMBER,
+                    current_percent: T_NUMBER,
+                    time_it: T_NUMBER,
                     n_times: int,
             ) -> str:
                 return "RUNNING"
 
             def done(
                     self,
-                    current_value: Number,
-                    max_value: Number,
-                    current_percent: Number,
-                    time_it: Number,
+                    current_value: T_NUMBER,
+                    max_value: T_NUMBER,
+                    current_percent: T_NUMBER,
+                    time_it: T_NUMBER,
                     n_times: int,
             ) -> str:
                 return "FINISHED"

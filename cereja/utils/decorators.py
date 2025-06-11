@@ -41,7 +41,7 @@ __all__ = [
 
 from typing import Callable, Any
 
-from ..config.cj_types import PEP440
+from ..config.cj_types import T_PEP440
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ class __Deprecated(Decorator):
     def __call__(
             self,
             alternative: str,
-            from_version: PEP440 = None,
+            from_version: T_PEP440 = None,
             more_info: str = None
     ):
         logger.warning("[!] It's still under development [!]")

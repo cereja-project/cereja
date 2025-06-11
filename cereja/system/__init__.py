@@ -25,5 +25,6 @@ from ..system.commons import *
 
 try:
     from ._win32 import Window, Keyboard, Mouse, play_alert_sound
+    import _tkinter_ui as gui
 except (ImportError, ValueError) as err:
     pass
