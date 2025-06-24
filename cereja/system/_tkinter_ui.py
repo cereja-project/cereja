@@ -104,6 +104,10 @@ class RegionSelector:
             messagebox.showerror("Erro", f"Falha ao carregar imagem: {e}")
             top.destroy()
             return None
+
+        if self.initial_rect:
+            x1, y1, x2, y2 = self.initial_rect
+            canvas.create_rectangle(x1, y1, x2, y2, outline='cyan', width=2, dash=(4, 2))
         if crop_from_initial and self.initial_rect:
             x1, y1, x2, y2 = self.initial_rect
             width, height = x2 - x1, y2 - y1
@@ -115,9 +119,7 @@ class RegionSelector:
             canvas.create_image(0, 0, anchor='nw', image=photo)
             canvas.image = photo
 
-        if self.initial_rect:
-            x1, y1, x2, y2 = self.initial_rect
-            canvas.create_rectangle(x1, y1, x2, y2, outline='cyan', width=2, dash=(4, 2))
+
 
         def on_press(evt):
             if self.rect_id:
@@ -136,6 +138,12 @@ class RegionSelector:
             ex, ey = canvas.canvasx(evt.x), canvas.canvasy(evt.y)
             x1_, y1_ = int(min(self.start_x, ex)), int(min(self.start_y, ey))
             x2_, y2_ = int(max(self.start_x, ex)), int(max(self.start_y, ey))
+            # Ajusta coordenadas para a região inicial, se fornecida
+            # if self.initial_rect:
+            #     x1_ += initial_rect[0]
+            #     y1_ += initial_rect[1]
+            #     x2_ += initial_rect[0]
+            #     y2_ += initial_rect[1]
             self.coords = (x1_, y1_, x2_, y2_)
             top.destroy()
 
@@ -166,6 +174,7 @@ class ConfigDialog(tk.Toplevel):
         self.config.setdefault("click_positions", [])
         self.config.setdefault("actions", [])
         self.config.setdefault("snippets", [])
+        self.config.setdefault("regions", [])
         self._build_ui()
         self.grab_set()
         self.wait_window(self)
@@ -211,7 +220,7 @@ class ConfigDialog(tk.Toplevel):
                     self._set_file_path_on_window_selected()
                     break
 
-        # Região do Jogo
+        # Região root
         frame_reg = ttk.LabelFrame(self, text="Região do Jogo")
         frame_reg.grid(row=1, column=0, columnspan=2, sticky="ew", **pad)
         frame_reg.columnconfigure(0, weight=1)
@@ -219,9 +228,21 @@ class ConfigDialog(tk.Toplevel):
         ttk.Label(frame_reg, textvariable=self.region_var).grid(row=0, column=0, sticky="w")
         ttk.Button(frame_reg, text="Selecionar Região", command=self.select_region).grid(row=0, column=1)
 
+        # Regiões retangulares
+        rect_reg_frame = ttk.LabelFrame(self, text="Região Retangular")
+        rect_reg_frame.grid(row=2, column=1, sticky="ew", **pad)
+        rect_reg_frame.columnconfigure(0, weight=1)
+        self.rects_listbox = tk.Listbox(rect_reg_frame, height=4)
+        self.rects_listbox.grid(row=0, column=0, sticky="ew", **pad)
+        btns_reg = ttk.Frame(rect_reg_frame)
+        btns_reg.grid(row=0, column=1, sticky="n", **pad)
+        ttk.Button(btns_reg, text="Adicionar", command=self.add_rect_region).pack(fill="x", pady=2)
+        ttk.Button(btns_reg, text="Visualizar", command=self.view_rect_region).pack(fill="x", pady=2)
+        ttk.Button(btns_reg, text="Remover", command=self.remove_rect_region).pack(fill="x", pady=2)
+
         # Posições de Clique
         frame_pos = ttk.LabelFrame(self, text="Posições de Clique")
-        frame_pos.grid(row=2, column=0, columnspan=2, sticky="ew", **pad)
+        frame_pos.grid(row=3, column=0, columnspan=2, sticky="ew", **pad)
         frame_pos.columnconfigure(0, weight=1)
         self.pos_listbox = tk.Listbox(frame_pos, height=4)
         self.pos_listbox.grid(row=0, column=0, sticky="ew", **pad)
@@ -233,7 +254,7 @@ class ConfigDialog(tk.Toplevel):
 
         # Hotkeys
         frame_hot = ttk.LabelFrame(self, text="Hotkeys")
-        frame_hot.grid(row=3, column=0, columnspan=2, sticky="ew", **pad)
+        frame_hot.grid(row=4, column=0, columnspan=2, sticky="ew", **pad)
         frame_hot.columnconfigure(0, weight=1)
         self.hot_listbox = tk.Listbox(frame_hot, height=3)
         self.hot_listbox.grid(row=0, column=0, sticky="ew", **pad)
@@ -245,7 +266,7 @@ class ConfigDialog(tk.Toplevel):
 
         # Ações Simples
         frame_act = ttk.LabelFrame(self, text="Ações Simples")
-        frame_act.grid(row=4, column=0, columnspan=2, sticky="ew", **pad)
+        frame_act.grid(row=5, column=0, columnspan=2, sticky="ew", **pad)
         frame_act.columnconfigure(0, weight=1)
         self.act_listbox = tk.Listbox(frame_act, height=4)
         self.act_listbox.grid(row=0, column=0, sticky="ew", **pad)
@@ -257,7 +278,7 @@ class ConfigDialog(tk.Toplevel):
 
         # Snippets (image crops)
         frame_snip = ttk.LabelFrame(self, text="Snippets")
-        frame_snip.grid(row=5, column=0, columnspan=2, sticky="ew", **pad)
+        frame_snip.grid(row=6, column=0, columnspan=2, sticky="ew", **pad)
         frame_snip.columnconfigure(0, weight=1)
         self.snip_listbox = tk.Listbox(frame_snip, height=4)
         self.snip_listbox.grid(row=0, column=0, sticky="ew", **pad)
@@ -275,6 +296,74 @@ class ConfigDialog(tk.Toplevel):
         self.update_hotkeys_list()
         self.update_actions_list()
         self.update_snippets_list()
+        self.update_rects_list()
+
+    def add_rect_region(self):
+        """
+        Seleciona região em relação à região do jogo.
+        """
+        idx = self.win_combo.current()
+        if idx < 0:
+            messagebox.showwarning("Faltando", "Selecione uma janela alvo antes de adicionar região.")
+            return
+        window = self.windows[idx]
+        try:
+            ppm = window.capture_image_ppm()
+        except Exception as e:
+            messagebox.showerror("Erro ao capturar imagem", str(e))
+            return
+        selector = RegionSelector(self)
+        region = selector.select_region_from_image(ppm, initial_rect=self.config.get("region"), crop_from_initial=True)
+        if not region:
+            return
+        name = simpledialog.askstring("Nome da Região", "Digite um nome para a região:", parent=self)
+        if not name:
+            return
+        self.config.setdefault("regions", []).append({"name": name, "region": region})
+        self.update_rects_list()
+
+    def view_rect_region(self):
+        sel = self.rects_listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Faltando", "Selecione uma região para visualizar.")
+            return
+        idx = sel[0]
+        reg = self.config.get("regions", [])[idx]
+        region = reg.get("region")
+        if not region:
+            messagebox.showerror("Erro", "Região não encontrada.")
+            return
+        x1, y1, x2, y2 = self.config.get("region", (0, 0, 0, 0))
+
+        top = tk.Toplevel(self)
+        top.title(f"Região: {reg['name']}")
+        canvas = tk.Canvas(top, width=x2 - x1, height=y2 - y1)
+        canvas.pack(padx=10, pady=10)
+        try:
+            ppm = self.windows[self.win_combo.current()].capture_image_ppm()
+            img = tk.PhotoImage(data=ppm.decode('latin1'))
+            canvas.create_image(-x1, -y1, anchor='nw', image=img)
+            canvas.image = img
+            # Desenha o retângulo da região
+            x1, y1, x2, y2 = region
+            # ajusta coordenadas para a região inicial, se fornecida
+            canvas.create_rectangle(x1, y1, x2, y2, outline='cyan', width=2)
+        except Exception as e:
+            messagebox.showerror("Erro ao carregar imagem", str(e))
+
+    def remove_rect_region(self):
+        sel = self.rects_listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Faltando", "Selecione uma região para remover.")
+            return
+        idx = sel[0]
+        self.config.get("regions", []).pop(idx)
+        self.update_rects_list()
+
+    def update_rects_list(self):
+        self.rects_listbox.delete(0, tk.END)
+        for idx, reg in enumerate(self.config.get("regions", [])):
+            self.rects_listbox.insert(tk.END, f"{idx}: {reg['name']} ({reg['region']})")
 
     def update_positions_list(self):
         self.pos_listbox.delete(0, tk.END)
@@ -339,11 +428,18 @@ class ConfigDialog(tk.Toplevel):
         raw = ppm.decode('latin1')
         img = tk.PhotoImage(data=raw)
         x1, y1, x2, y2 = region
+        initial_rect = self.config.get("region", (0, 0, 0, 0))
+        if initial_rect:
+            x1 += initial_rect[0]
+            y1 += initial_rect[1]
+            x2 += initial_rect[0]
+            y2 += initial_rect[1]
         snippet = tk.PhotoImage()
         snippet.tk.call(snippet, 'copy', img, '-from', x1, y1, x2, y2, '-to', 0, 0)
 
         try:
             assert self._file_path, "File path must be set before saving snippet."
+            self._file_path.parent.mkdir(force=True)
             filename = self._file_path.parent.join(f"{name}.png").path
             snippet.write(filename, format='png')
         except Exception as e:
