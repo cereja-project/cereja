@@ -5,6 +5,7 @@ from typing import Optional, Union, List, Dict
 from cereja import Window, Path, FileIO
 from cereja.config.cj_types import T_RECT, T_POINT
 from cereja import hashtools
+from cereja.system.action_runner import ActionRunner, Action
 
 try:
     import tkinter as tk
@@ -22,6 +23,53 @@ def _get_hash_window_tittle(title: str) -> str:
     preprocessed_title = ''.join(c for c in tittle if c.isalnum() or c.isspace())
     preprocessed_title = preprocessed_title.replace(' ', '_')
     return f"{hashtools.md5(tittle)}_{preprocessed_title}"
+
+
+class ListboxManager:
+    def __init__(self,
+                 parent,
+                 config_key,
+                 listbox,
+                 operations):
+        """
+        Generic manager for listbox operations
+
+        Args:
+            parent: The parent widget that owns the listbox
+            config_key: Key in the config dictionary for this list
+            listbox: The Listbox widget
+            operations: Dict with operations like 'add', 'view', 'test', 'remove'
+        """
+        self.parent = parent
+        self.config_key = config_key
+        self.listbox = listbox
+        self.operations = operations
+
+    def get_selected_item(self):
+        """Get the currently selected item or show warning"""
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Faltando", f"Selecione um item primeiro.")
+            return None, None
+        idx = sel[0]
+        item = self.parent.config.get(self.config_key, [])[idx]
+        return idx, item
+
+    def remove_item(self):
+        """Remove selected item from the list"""
+        idx, _ = self.get_selected_item() or (None, None)
+        if idx is not None:
+            self.parent.config.get(self.config_key, []).pop(idx)
+            self.update_list()
+
+    def update_list(self):
+        """Update the listbox with current items"""
+        self.listbox.delete(0, tk.END)
+        formatter = self.operations.get('format_item', lambda i,
+                                                              item: f"{i}: {item['name']}")
+
+        for i, item in enumerate(self.parent.config.get(self.config_key, [])):
+            self.listbox.insert(tk.END, formatter(i, item))
 
 
 class ImagePointSelector:
@@ -119,8 +167,6 @@ class RegionSelector:
             canvas.create_image(0, 0, anchor='nw', image=photo)
             canvas.image = photo
 
-
-
         def on_press(evt):
             if self.rect_id:
                 canvas.delete(self.rect_id)
@@ -169,139 +215,162 @@ class ConfigDialog(tk.Toplevel):
         self.on_save = on_save
         self._file_path = None
         self.config = config or {}
-        # garante listas
-        self.config.setdefault("hotkeys", [])
-        self.config.setdefault("click_positions", [])
-        self.config.setdefault("actions", [])
-        self.config.setdefault("snippets", [])
-        self.config.setdefault("regions", [])
+
+        # Initialize default config lists
+        for key in ["hotkeys", "click_positions", "actions", "snippets", "regions"]:
+            self.config.setdefault(key, [])
+
         self._build_ui()
         self.grab_set()
         self.wait_window(self)
 
-    def _set_file_path_on_window_selected(self,
-                                          event=None):
-        print("Setting file path based on selected window...")
-        idx = self.win_combo.current()
-        if idx < 0:
-            return
-        window = self.windows[idx]
-        try:
-            window_title = window.title.strip()
-            if not window_title:
-                messagebox.showwarning("Faltando", "Selecione uma janela alvo.")
-                return
-            filename = _get_hash_window_tittle(window_title)
-            self._file_path = self.CONFIG_DIR.join(filename).join(f"{filename}.json")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao obter título da janela: {e}")
-            return
-
     def _build_ui(self):
         pad = {'padx': 10, 'pady': 5}
+        self._build_window_selection(pad)
+        self._build_region_selection(pad)
 
-        # Frame for Window Selection
+        # Create notebook for tabs
+        notebook = ttk.Notebook(self)
+        notebook.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
+
+        # Create tab managers
+        self.managers = {
+            'regions':   self._create_regions_tab(notebook),
+            'positions': self._create_positions_tab(notebook),
+            'hotkeys':   self._create_hotkeys_tab(notebook),
+            'actions':   self._create_actions_tab(notebook),
+            'snippets':  self._create_snippets_tab(notebook)
+        }
+
+        # Configure the main window to expand the notebook
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
+
+        # Save button
+        ttk.Button(self, text="Salvar", command=self.save).grid(row=3, column=0, sticky="e", padx=10, pady=10)
+
+        # Initialize all lists
+        for manager in self.managers.values():
+            manager.update_list()
+
+    def _build_window_selection(self,
+                                pad):
         frame_win = ttk.LabelFrame(self, text="Janela Alvo")
-        frame_win.grid(row=0, column=0, columnspan=2, sticky="ew", **pad)
+        frame_win.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
         frame_win.columnconfigure(0, weight=1)
         ttk.Label(frame_win, text="Selecione a Janela:").grid(row=0, column=0, sticky="w")
+
         self.windows = Window.get_all_windows()
         opts = [f"{w.title.strip()}" for w in self.windows]
         self.win_combo = ttk.Combobox(frame_win, values=opts, state='readonly')
         self.win_combo.bind("<<ComboboxSelected>>", self._set_file_path_on_window_selected)
         self.win_combo.grid(row=1, column=0, sticky="ew", **pad)
+
         if "window_title" in self.config:
             for i, w in enumerate(self.windows):
                 if w.title.strip() == self.config["window_title"].strip():
                     self.win_combo.current(i)
                     self.win_combo.set(f"{w.title.strip()}")
-                    # disable selection if found
                     self.win_combo.config(state='disabled')
                     self._set_file_path_on_window_selected()
                     break
 
-        # Região root
+    def _build_region_selection(self,
+                                pad):
         frame_reg = ttk.LabelFrame(self, text="Região do Jogo")
-        frame_reg.grid(row=1, column=0, columnspan=2, sticky="ew", **pad)
+        frame_reg.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
         frame_reg.columnconfigure(0, weight=1)
         self.region_var = tk.StringVar(value=str(self.config.get("region", "")))
         ttk.Label(frame_reg, textvariable=self.region_var).grid(row=0, column=0, sticky="w")
         ttk.Button(frame_reg, text="Selecionar Região", command=self.select_region).grid(row=0, column=1)
 
-        # Regiões retangulares
-        rect_reg_frame = ttk.LabelFrame(self, text="Região Retangular")
-        rect_reg_frame.grid(row=2, column=1, sticky="ew", **pad)
-        rect_reg_frame.columnconfigure(0, weight=1)
-        self.rects_listbox = tk.Listbox(rect_reg_frame, height=4)
-        self.rects_listbox.grid(row=0, column=0, sticky="ew", **pad)
-        btns_reg = ttk.Frame(rect_reg_frame)
-        btns_reg.grid(row=0, column=1, sticky="n", **pad)
-        ttk.Button(btns_reg, text="Adicionar", command=self.add_rect_region).pack(fill="x", pady=2)
-        ttk.Button(btns_reg, text="Visualizar", command=self.view_rect_region).pack(fill="x", pady=2)
-        ttk.Button(btns_reg, text="Remover", command=self.remove_rect_region).pack(fill="x", pady=2)
+    def _create_tab_with_listbox(self,
+                                 notebook,
+                                 tab_name,
+                                 height=6):
+        """Create a standard tab with listbox and scrollbar"""
+        tab = ttk.Frame(notebook)
+        notebook.add(tab, text=tab_name)
+        tab.columnconfigure(0, weight=1)
 
-        # Posições de Clique
-        frame_pos = ttk.LabelFrame(self, text="Posições de Clique")
-        frame_pos.grid(row=3, column=0, columnspan=2, sticky="ew", **pad)
-        frame_pos.columnconfigure(0, weight=1)
-        self.pos_listbox = tk.Listbox(frame_pos, height=4)
-        self.pos_listbox.grid(row=0, column=0, sticky="ew", **pad)
-        btns_pos = ttk.Frame(frame_pos)
-        btns_pos.grid(row=0, column=1, sticky="n", **pad)
-        ttk.Button(btns_pos, text="Adicionar", command=self.add_position).pack(fill="x", pady=2)
-        ttk.Button(btns_pos, text="Testar", command=self.test_position).pack(fill="x", pady=2)
-        ttk.Button(btns_pos, text="Remover", command=self.remove_position).pack(fill="x", pady=2)
+        # Create listbox with scrollbar
+        listbox = tk.Listbox(tab, height=height)
+        listbox.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        # Hotkeys
-        frame_hot = ttk.LabelFrame(self, text="Hotkeys")
-        frame_hot.grid(row=4, column=0, columnspan=2, sticky="ew", **pad)
-        frame_hot.columnconfigure(0, weight=1)
-        self.hot_listbox = tk.Listbox(frame_hot, height=3)
-        self.hot_listbox.grid(row=0, column=0, sticky="ew", **pad)
-        btns_hot = ttk.Frame(frame_hot)
-        btns_hot.grid(row=0, column=1, sticky="n", **pad)
-        ttk.Button(btns_hot, text="Adicionar", command=self.add_hotkey).pack(fill="x", pady=2)
-        ttk.Button(btns_hot, text="Testar", command=self.test_hotkey).pack(fill="x", pady=2)
-        ttk.Button(btns_hot, text="Remover", command=self.remove_hotkey).pack(fill="x", pady=2)
+        scrollbar = ttk.Scrollbar(tab, orient="vertical", command=listbox.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns", pady=5)
+        listbox.configure(yscrollcommand=scrollbar.set)
 
-        # Ações Simples
-        frame_act = ttk.LabelFrame(self, text="Ações Simples")
-        frame_act.grid(row=5, column=0, columnspan=2, sticky="ew", **pad)
-        frame_act.columnconfigure(0, weight=1)
-        self.act_listbox = tk.Listbox(frame_act, height=4)
-        self.act_listbox.grid(row=0, column=0, sticky="ew", **pad)
-        btns_act = ttk.Frame(frame_act)
-        btns_act.grid(row=0, column=1, sticky="n", **pad)
-        ttk.Button(btns_act, text="Adicionar Ação", command=self.add_action).pack(fill="x", pady=2)
-        ttk.Button(btns_act, text="Testar Ação", command=self.test_action).pack(fill="x", pady=2)
-        ttk.Button(btns_act, text="Remover Ação", command=self.remove_action).pack(fill="x", pady=2)
+        # Create button frame
+        btn_frame = ttk.Frame(tab)
+        btn_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
 
-        # Snippets (image crops)
-        frame_snip = ttk.LabelFrame(self, text="Snippets")
-        frame_snip.grid(row=6, column=0, columnspan=2, sticky="ew", **pad)
-        frame_snip.columnconfigure(0, weight=1)
-        self.snip_listbox = tk.Listbox(frame_snip, height=4)
-        self.snip_listbox.grid(row=0, column=0, sticky="ew", **pad)
-        btns_snip = ttk.Frame(frame_snip)
-        btns_snip.grid(row=0, column=1, sticky="n", **pad)
-        ttk.Button(btns_snip, text="Adicionar", command=self.add_snippet).pack(fill="x", pady=2)
-        ttk.Button(btns_snip, text="Visualizar", command=self.view_snippet).pack(fill="x", pady=2)
-        ttk.Button(btns_snip, text="Remover", command=self.remove_snippet).pack(fill="x", pady=2)
+        return tab, listbox, btn_frame
 
-        # Save button
-        ttk.Button(self, text="Salvar", command=self.save).grid(row=7, column=1, sticky="e", **pad)
+    def _create_regions_tab(self,
+                            notebook):
+        tab, listbox, btn_frame = self._create_tab_with_listbox(notebook, "Regiões")
+        self.rects_listbox = listbox
 
-        # Initialize lists
-        self.update_positions_list()
-        self.update_hotkeys_list()
-        self.update_actions_list()
-        self.update_snippets_list()
-        self.update_rects_list()
+        ttk.Button(btn_frame, text="Adicionar", command=self.add_rect_region).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Visualizar", command=self.view_rect_region).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Remover", command=self.remove_rect_region).pack(side="left", padx=5)
 
+        def format_region(i,
+                          item):
+            return f"{i}: {item['name']} ({item['region']})"
+
+        return ListboxManager(self, "regions", listbox, {
+            'format_item': format_region,
+        })
+
+    def _create_positions_tab(self,
+                              notebook):
+        tab, listbox, btn_frame = self._create_tab_with_listbox(notebook, "Posições")
+        self.pos_listbox = listbox
+
+        ttk.Button(btn_frame, text="Adicionar", command=self.add_position).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Testar", command=self.test_position).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Remover", command=self.remove_position).pack(side="left", padx=5)
+
+        return ListboxManager(self, "click_positions", listbox, {})
+
+    def _create_hotkeys_tab(self,
+                            notebook):
+        tab, listbox, btn_frame = self._create_tab_with_listbox(notebook, "Hotkeys")
+        self.hot_listbox = listbox
+
+        ttk.Button(btn_frame, text="Adicionar", command=self.add_hotkey).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Testar", command=self.test_hotkey).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Remover", command=self.remove_hotkey).pack(side="left", padx=5)
+
+        return ListboxManager(self, "hotkeys", listbox, {})
+
+    def _create_actions_tab(self,
+                            notebook):
+        tab, listbox, btn_frame = self._create_tab_with_listbox(notebook, "Ações")
+        self.act_listbox = listbox
+
+        ttk.Button(btn_frame, text="Adicionar", command=self.add_action).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Testar", command=self.test_action).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Remover", command=self.remove_action).pack(side="left", padx=5)
+
+        return ListboxManager(self, "actions", listbox, {})
+
+    def _create_snippets_tab(self,
+                             notebook):
+        tab, listbox, btn_frame = self._create_tab_with_listbox(notebook, "Snippets")
+        self.snip_listbox = listbox
+
+        ttk.Button(btn_frame, text="Adicionar", command=self.add_snippet).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Visualizar", command=self.view_snippet).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Remover", command=self.remove_snippet).pack(side="left", padx=5)
+
+        return ListboxManager(self, "snippets", listbox, {})
+
+    # Refactor methods to use managers
     def add_rect_region(self):
-        """
-        Seleciona região em relação à região do jogo.
-        """
+        """Seleciona região em relação à região do jogo."""
         idx = self.win_combo.current()
         if idx < 0:
             messagebox.showwarning("Faltando", "Selecione uma janela alvo antes de adicionar região.")
@@ -320,15 +389,13 @@ class ConfigDialog(tk.Toplevel):
         if not name:
             return
         self.config.setdefault("regions", []).append({"name": name, "region": region})
-        self.update_rects_list()
+        self.managers['regions'].update_list()
 
     def view_rect_region(self):
-        sel = self.rects_listbox.curselection()
-        if not sel:
-            messagebox.showwarning("Faltando", "Selecione uma região para visualizar.")
+        idx, reg = self.managers['regions'].get_selected_item() or (None, None)
+        if not reg:
             return
-        idx = sel[0]
-        reg = self.config.get("regions", [])[idx]
+
         region = reg.get("region")
         if not region:
             messagebox.showerror("Erro", "Região não encontrada.")
@@ -352,13 +419,39 @@ class ConfigDialog(tk.Toplevel):
             messagebox.showerror("Erro ao carregar imagem", str(e))
 
     def remove_rect_region(self):
-        sel = self.rects_listbox.curselection()
-        if not sel:
-            messagebox.showwarning("Faltando", "Selecione uma região para remover.")
+        self.managers['regions'].remove_item()
+
+    # Similar refactoring for other methods...
+
+    def remove_position(self):
+        self.managers['positions'].remove_item()
+
+    def remove_hotkey(self):
+        self.managers['hotkeys'].remove_item()
+
+    def remove_action(self):
+        self.managers['actions'].remove_item()
+
+    def remove_snippet(self):
+        self.managers['snippets'].remove_item()
+
+    def _set_file_path_on_window_selected(self,
+                                          event=None):
+        print("Setting file path based on selected window...")
+        idx = self.win_combo.current()
+        if idx < 0:
             return
-        idx = sel[0]
-        self.config.get("regions", []).pop(idx)
-        self.update_rects_list()
+        window = self.windows[idx]
+        try:
+            window_title = window.title.strip()
+            if not window_title:
+                messagebox.showwarning("Faltando", "Selecione uma janela alvo.")
+                return
+            filename = _get_hash_window_tittle(window_title)
+            self._file_path = self.CONFIG_DIR.join(filename).join(f"{filename}.json")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao obter título da janela: {e}")
+            return
 
     def update_rects_list(self):
         self.rects_listbox.delete(0, tk.END)
@@ -378,7 +471,7 @@ class ConfigDialog(tk.Toplevel):
     def update_actions_list(self):
         self.act_listbox.delete(0, tk.END)
         for idx, act in enumerate(self.config.get("actions", [])):
-            self.act_listbox.insert(tk.END, f"{idx}: {act['name']} ({act['type']}) every {act['interval']}s")
+            self.act_listbox.insert(tk.END, f"{idx}: {act['name']}")
 
     def update_snippets_list(self):
         self.snip_listbox.delete(0, tk.END)
@@ -448,125 +541,242 @@ class ConfigDialog(tk.Toplevel):
         self.config.setdefault("snippets", []).append({"name": name, "region": region, "file": filename})
         self.update_snippets_list()
 
-    def remove_snippet(self):
-        sel = self.snip_listbox.curselection()
-        if not sel:
-            return
-        idx = sel[0]
-        sn = self.config.get("snippets", []).pop(idx)
-        # Optionally delete the file: os.remove(sn['file'])
-        self.update_snippets_list()
-
     def add_action(self):
-        # Dialog para criar ação usando seleções
+        # Dialog to create an action using selections
         dlg = tk.Toplevel(self)
         dlg.title("Adicionar Ação")
         pad = {'padx': 10, 'pady': 5}
         dlg.columnconfigure(1, weight=1)
 
-        types = ['move', 'click', 'hotkey']
-        ttk.Label(dlg, text="Tipo:").grid(row=0, column=0, **pad)
-        type_cb = ttk.Combobox(dlg, values=types, state='readonly')
-        type_cb.grid(row=0, column=1, sticky='ew', **pad)
-
-        ttk.Label(dlg, text="Nome:").grid(row=1, column=0, **pad)
+        ttk.Label(dlg, text="Nome:").grid(row=0, column=0, **pad)
         name_entry = ttk.Entry(dlg)
-        name_entry.grid(row=1, column=1, sticky='ew', **pad)
+        name_entry.grid(row=0, column=1, sticky='ew', **pad)
 
-        # Frames parametrização
-        frame_move = ttk.Frame(dlg)
-        frame_click = ttk.Frame(dlg)
-        frame_hot = ttk.Frame(dlg)
+        # Frame for instructions
+        instructions_frame = ttk.LabelFrame(dlg, text="Instruções")
+        instructions_frame.grid(row=2, column=0, columnspan=2, sticky='ew', **pad)
 
-        pos_names = [p['name'] for p in self.config['click_positions']]
-        ttk.Label(frame_move, text="Origem:").grid(row=0, column=0, **pad)
-        ori_cb = ttk.Combobox(frame_move, values=pos_names, state='readonly')
-        ori_cb.grid(row=0, column=1, **pad)
-        ttk.Label(frame_move, text="Destino:").grid(row=1, column=0, **pad)
-        dest_cb = ttk.Combobox(frame_move, values=pos_names, state='readonly')
-        dest_cb.grid(row=1, column=1, **pad)
+        instructions_list = []
+        instructions_listbox = tk.Listbox(instructions_frame, height=5)
+        instructions_listbox.pack(fill='x', padx=5, pady=5)
 
-        ttk.Label(frame_click, text="Posição:").grid(row=0, column=0, **pad)
-        click_cb = ttk.Combobox(frame_click, values=pos_names, state='readonly')
-        click_cb.grid(row=0, column=1, **pad)
+        # Frame for instruction buttons
+        btn_frame = ttk.Frame(instructions_frame)
+        btn_frame.pack(fill='x')
 
-        hk_names = [h['name'] for h in self.config['hotkeys']]
-        ttk.Label(frame_hot, text="Hotkey:").grid(row=0, column=0, **pad)
-        hk_cb = ttk.Combobox(frame_hot, values=hk_names, state='readonly')
-        hk_cb.grid(row=0, column=1, **pad)
+        def add_instruction():
+            instruction_dlg = tk.Toplevel(dlg)
+            instruction_dlg.title("Adicionar Instrução")
+            instruction_dlg.grab_set()
 
-        ttk.Label(dlg, text="Intervalo (s):").grid(row=4, column=0, **pad)
-        interval_sp = ttk.Spinbox(dlg, from_=1, to=3600)
-        interval_sp.grid(row=4, column=1, sticky='ew', **pad)
+            types = ['move', 'click', 'hotkey', 'wait']
+            ttk.Label(instruction_dlg, text="Tipo:").grid(row=0, column=0, **pad)
+            type_cb = ttk.Combobox(instruction_dlg, values=types, state='readonly')
+            type_cb.grid(row=0, column=1, sticky='ew', **pad)
 
-        def show_params(event):
-            frame_move.grid_forget();
-            frame_click.grid_forget();
-            frame_hot.grid_forget()
-            t = type_cb.get()
-            if t == 'move':
-                frame_move.grid(row=2, column=0, columnspan=2, **pad)
-            elif t == 'click':
-                frame_click.grid(row=2, column=0, columnspan=2, **pad)
-            elif t == 'hotkey':
-                frame_hot.grid(row=2, column=0, columnspan=2, **pad)
+            # Frames for different instruction types
+            frame_move = ttk.Frame(instruction_dlg)
+            frame_click = ttk.Frame(instruction_dlg)
+            frame_hot = ttk.Frame(instruction_dlg)
+            frame_wait = ttk.Frame(instruction_dlg)
 
-        type_cb.bind('<<ComboboxSelected>>', show_params)
+            # Setup move frame
+            pos_names = [p['name'] for p in self.config.get('click_positions', [])]
+            ttk.Label(frame_move, text="Origem:").grid(row=0, column=0, **pad)
+            ori_cb = ttk.Combobox(frame_move, values=pos_names, state='readonly')
+            ori_cb.grid(row=0, column=1, **pad)
+            ttk.Label(frame_move, text="Destino:").grid(row=1, column=0, **pad)
+            dest_cb = ttk.Combobox(frame_move, values=pos_names, state='readonly')
+            dest_cb.grid(row=1, column=1, **pad)
 
-        btn_frame = ttk.Frame(dlg)
-        btn_frame.grid(row=5, column=0, columnspan=2, **pad)
+            # Setup click frame
+            ttk.Label(frame_click, text="Posição:").grid(row=0, column=0, **pad)
+            click_cb = ttk.Combobox(frame_click, values=pos_names, state='readonly')
+            click_cb.grid(row=0, column=1, **pad)
+            ttk.Label(frame_click, text="Botão:").grid(row=1, column=0, **pad)
+            btn_cb = ttk.Combobox(frame_click, values=['left', 'right'], state='readonly')
+            btn_cb.set('left')
+            btn_cb.grid(row=1, column=1, **pad)
 
-        def confirm():
-            t = type_cb.get();
-            nm = name_entry.get().strip();
-            iv = int(interval_sp.get())
-            if not t or not nm:
-                messagebox.showwarning("Faltando", "Preencha tipo e nome.");
+            # Setup hotkey frame
+            hk_names = [h['name'] for h in self.config.get('hotkeys', [])]
+            ttk.Label(frame_hot, text="Hotkey:").grid(row=0, column=0, **pad)
+            hk_cb = ttk.Combobox(frame_hot, values=hk_names, state='readonly')
+            hk_cb.grid(row=0, column=1, **pad)
+
+            # Setup wait frame
+            ttk.Label(frame_wait, text="Tempo (s):").grid(row=0, column=0, **pad)
+            wait_entry = ttk.Entry(frame_wait)
+            wait_entry.insert(0, "1.0")
+            wait_entry.grid(row=0, column=1, **pad)
+
+            current_frame = None
+
+            def show_params(event):
+                nonlocal current_frame
+                if current_frame:
+                    current_frame.grid_forget()
+
+                type_val = type_cb.get()
+                if type_val == 'move':
+                    frame_move.grid(row=2, column=0, columnspan=2, sticky='ew', **pad)
+                    current_frame = frame_move
+                elif type_val == 'click':
+                    frame_click.grid(row=2, column=0, columnspan=2, sticky='ew', **pad)
+                    current_frame = frame_click
+                elif type_val == 'hotkey':
+                    frame_hot.grid(row=2, column=0, columnspan=2, sticky='ew', **pad)
+                    current_frame = frame_hot
+                elif type_val == 'wait':
+                    frame_wait.grid(row=2, column=0, columnspan=2, sticky='ew', **pad)
+                    current_frame = frame_wait
+
+            type_cb.bind('<<ComboboxSelected>>', show_params)
+
+            confirm_btn_frame = ttk.Frame(instruction_dlg)
+            confirm_btn_frame.grid(row=3, column=0, columnspan=2, sticky='ew', **pad)
+
+            def confirm_instruction():
+                try:
+                    type_val = type_cb.get()
+                    param = None
+
+                    if type_val == 'move':
+                        if ori_cb.current() < 0 or dest_cb.current() < 0:
+                            messagebox.showerror("Erro", "Selecione origem e destino")
+                            return
+                        param = (ori_cb.current(), dest_cb.current())
+
+                    elif type_val == 'click':
+                        if click_cb.current() < 0:
+                            messagebox.showerror("Erro", "Selecione uma posição")
+                            return
+                        param = (click_cb.current(), btn_cb.get())
+
+                    elif type_val == 'hotkey':
+                        if hk_cb.current() < 0:
+                            messagebox.showerror("Erro", "Selecione uma hotkey")
+                            return
+                        param = hk_cb.current()
+
+                    elif type_val == 'wait':
+                        try:
+                            param = float(wait_entry.get())
+                            if param <= 0:
+                                raise ValueError()
+                        except ValueError:
+                            messagebox.showerror("Erro", "Tempo de espera deve ser positivo")
+                            return
+                    instruction = {'type': type_val, 'param': param}
+                    instructions_list.append(instruction)
+
+                    # Show in listbox with a descriptive name
+                    if type_val == 'move':
+                        pos_names = [p['name'] for p in self.config.get('click_positions', [])]
+                        desc = f"Move: {pos_names[param[0]]} -> {pos_names[param[1]]}"
+                    elif type_val == 'click':
+                        pos_names = [p['name'] for p in self.config.get('click_positions', [])]
+                        desc = f"Click {param[1]} em: {pos_names[param[0]]}"
+                    elif type_val == 'hotkey':
+                        hk_names = [h['name'] for h in self.config.get('hotkeys', [])]
+                        desc = f"Hotkey: {hk_names[param]}"
+                    elif type_val == 'wait':
+                        desc = f"Espera: {param}s"
+                    instruction_dlg.destroy()
+
+                    instructions_listbox.insert(tk.END, desc)
+
+                except Exception as e:
+                    messagebox.showerror("Erro", f"Erro ao adicionar instrução: {str(e)}")
+
+            ttk.Button(confirm_btn_frame, text="Confirmar", command=confirm_instruction).pack(side='left', padx=5)
+            ttk.Button(confirm_btn_frame, text="Cancelar", command=instruction_dlg.destroy).pack(side='left', padx=5)
+
+        def remove_instruction():
+            sel = instructions_listbox.curselection()
+            if not sel:
                 return
-            if t == 'move':
-                p = (pos_names.index(ori_cb.get()), pos_names.index(dest_cb.get()))
-            elif t == 'click':
-                p = pos_names.index(click_cb.get())
-            else:
-                p = hk_names.index(hk_cb.get())
-            self.config.setdefault('actions', []).append({'name': nm, 'type': t, 'param': p, 'interval': iv})
-            self.update_actions_list();
+            idx = sel[0]
+            instructions_list.pop(idx)
+            instructions_listbox.delete(idx)
+
+        def move_up():
+            sel = instructions_listbox.curselection()
+            if not sel or sel[0] == 0:
+                return
+            idx = sel[0]
+            instructions_list[idx], instructions_list[idx - 1] = instructions_list[idx - 1], instructions_list[idx]
+            item = instructions_listbox.get(idx)
+            instructions_listbox.delete(idx)
+            instructions_listbox.insert(idx - 1, item)
+            instructions_listbox.selection_set(idx - 1)
+
+        def move_down():
+            sel = instructions_listbox.curselection()
+            if not sel or sel[0] == len(instructions_list) - 1:
+                return
+            idx = sel[0]
+            instructions_list[idx], instructions_list[idx + 1] = instructions_list[idx + 1], instructions_list[idx]
+            item = instructions_listbox.get(idx)
+            instructions_listbox.delete(idx)
+            instructions_listbox.insert(idx + 1, item)
+            instructions_listbox.selection_set(idx + 1)
+
+        ttk.Button(btn_frame, text="Adicionar", command=add_instruction).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Remover", command=remove_instruction).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Mover ↑", command=move_up).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Mover ↓", command=move_down).pack(side='left', padx=5)
+
+        # Final confirmation buttons
+        final_btn_frame = ttk.Frame(dlg)
+        final_btn_frame.grid(row=3, column=0, columnspan=2, **pad)
+
+        def confirm_action():
+            name = name_entry.get().strip()
+            if not name:
+                messagebox.showerror("Erro", "Nome é obrigatório.")
+                return
+            interval = 0.5
+            try:
+                interval = float(interval)
+                if interval <= 0:
+                    raise ValueError("Intervalo deve ser positivo.")
+            except ValueError as e:
+                messagebox.showerror("Erro", str(e))
+                return
+            action = {
+                'name':         name,
+                'interval':     interval,
+                'instructions': instructions_list,
+                'enabled':      False
+            }
+            self.config["actions"].append(action)
+            self.update_actions_list()
             dlg.destroy()
 
-        ttk.Button(btn_frame, text="Confirmar", command=confirm).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text="Cancelar", command=dlg.destroy).pack(side='left', padx=5)
-        dlg.grab_set();
+        ttk.Button(final_btn_frame, text="Confirmar", command=confirm_action).pack(side='left', padx=5)
+        ttk.Button(final_btn_frame, text="Cancelar", command=dlg.destroy).pack(side='left', padx=5)
+        dlg.grab_set()
         dlg.focus_force()
-
-    def remove_action(self):
-        sel = self.act_listbox.curselection()
-        if not sel: return
-        idx = sel[0]
-        del self.config["actions"][idx]
-        self.update_actions_list()
 
     def test_action(self):
         sel = self.act_listbox.curselection()
-        if not sel: return
+        if not sel:
+            return
         act = self.config.get("actions", [])[sel[0]]
         idx = self.win_combo.current()
         if idx < 0:
             messagebox.showwarning("Faltando", "Selecione uma janela antes de testar ação.")
             return
         window = self.windows[idx]
-        # perform single execution
+
         try:
-            if act['type'] == 'move':
-                ori, dest = act['param']
-                p1 = self.config['click_positions'][ori]['point']
-                p2 = self.config['click_positions'][dest]['point']
-                window.mouse.drag_to(p1, p2)
-            elif act['type'] == 'click':
-                p = self.config['click_positions'][act['param']]['point']
-                window.mouse.click_left(p)
-            else:
-                combo = self.config['hotkeys'][act['param']]['combo']
-                window.keyboard.press_and_release(combo)
+            action = Action(**{**act, "enabled": True})
+            for inst in action._instructions:
+                if inst.type == 'wait':
+                    time.sleep(inst.param)
+                    continue
+                inst.execute(window, self.config.get("click_positions", []), self.config.get("hotkeys", []))
         except Exception as e:
             messagebox.showerror("Erro ao testar ação", str(e))
 
@@ -612,14 +822,6 @@ class ConfigDialog(tk.Toplevel):
         top.focus_force()
         self.wait_window(top)
 
-    def remove_hotkey(self):
-        sel = self.hot_listbox.curselection()
-        if not sel:
-            return
-        idx = sel[0]
-        del self.config["hotkeys"][idx]
-        self.update_hotkeys_list()
-
     def test_hotkey(self):
         sel = self.hot_listbox.curselection()
         if not sel:
@@ -661,14 +863,14 @@ class ConfigDialog(tk.Toplevel):
         pos_list.append({"name": name, "point": pt})
         self.update_positions_list()
 
-    def remove_position(self):
-        sel = self.pos_listbox.curselection()
-        if not sel:
-            messagebox.showwarning("Faltando", "Selecione uma posição para remover.")
-            return
-        idx = sel[0]
-        del self.config["click_positions"][idx]
-        self.update_positions_list()
+    # def remove_position(self):
+    #     sel = self.pos_listbox.curselection()
+    #     if not sel:
+    #         messagebox.showwarning("Faltando", "Selecione uma posição para remover.")
+    #         return
+    #     idx = sel[0]
+    #     del self.config["click_positions"][idx]
+    #     self.update_positions_list()
 
     def test_position(self):
         sel = self.pos_listbox.curselection()
@@ -743,8 +945,10 @@ class AutomatorGUI(tk.Tk):
         super().__init__()
         self.title("Cereja Bot")
         self.geometry("600x500")
-        # self.withdraw()
         self.config_filepath = None
+
+        # runner ainda não existe
+        self.runner: Optional[ActionRunner] = None
 
         self.config_data = self.load_config()
         if not self.config_data:
@@ -752,6 +956,7 @@ class AutomatorGUI(tk.Tk):
         self.deiconify()
 
         self.create_menu()
+        self.runner = None  # Inicializa runner como None
         self.build_ui()
 
     def load_config(self) -> Optional[Dict]:
@@ -840,18 +1045,48 @@ class AutomatorGUI(tk.Tk):
             var = tk.BooleanVar(value=act.get("enabled", True))
             cb = ttk.Checkbutton(
                     action_frame,
-                    text=f"{act['name']} ({act['type']}, every {act['interval']}s)",
+                    text=f"{act['name']}",
                     variable=var,
                     command=lambda i=idx,
                                    v=var: self.toggle_action(i, v)
             )
             cb.pack(anchor="w", pady=2)
             self.action_vars.append(var)
+        self.setup_runner()
+
+    def setup_runner(self):
+        # sempre chame stop antes de reiniciar
+        if self.runner:
+            self.runner.stop()
+
+        # encontra a janela correspondente ao título
+        window = next((
+            w for w in Window.get_all_windows()
+            if w.title.strip() == self.config_data["window_title"].strip()
+        ), None)
+        if not window:
+            messagebox.showwarning("Aviso", "Janela alvo não encontrada para rodar ações.")
+            return
+
+        # cria lista de objetos Action (mesmo desabilitados)
+        actions = [
+            Action(**a)
+            for a in self.config_data.get("actions", [])
+        ]
+
+        positions = self.config_data.get("click_positions", [])
+        hotkeys = self.config_data.get("hotkeys", [])
+
+        # instancia e inicia
+        self.runner = ActionRunner(actions, window, positions, hotkeys)
+        self.runner.start()
 
     def toggle_action(self,
                       idx: int,
                       var: tk.BooleanVar):
-        self.config_data['actions'][idx]['enabled'] = var.get()
+        enabled = var.get()
+        self.config_data["actions"][idx]["enabled"] = enabled
+        self.runner.actions[idx].enabled = enabled
         self.save_config()
 
 
