@@ -863,15 +863,6 @@ class ConfigDialog(tk.Toplevel):
         pos_list.append({"name": name, "point": pt})
         self.update_positions_list()
 
-    # def remove_position(self):
-    #     sel = self.pos_listbox.curselection()
-    #     if not sel:
-    #         messagebox.showwarning("Faltando", "Selecione uma posição para remover.")
-    #         return
-    #     idx = sel[0]
-    #     del self.config["click_positions"][idx]
-    #     self.update_positions_list()
-
     def test_position(self):
         sel = self.pos_listbox.curselection()
         if not sel:
@@ -958,6 +949,16 @@ class AutomatorGUI(tk.Tk):
         self.create_menu()
         self.runner = None  # Inicializa runner como None
         self.build_ui()
+
+        # Bind WM_DELETE_WINDOW protocol to handle application closing
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def on_closing(self):
+        """Ask for confirmation before closing the application"""
+        if messagebox.askokcancel("Sair", "Deseja realmente sair?\nAs automações serão interrompidas."):
+            if self.runner:
+                self.runner.stop()
+            self.destroy()
 
     def load_config(self) -> Optional[Dict]:
         all_file_names = set(ConfigDialog.CONFIG_DIR.list_dir("**/*.json", only_name=True))
