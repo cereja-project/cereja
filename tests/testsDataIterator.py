@@ -60,7 +60,7 @@ class TestDataIterator(unittest.TestCase):
         self.assertEqual(iterator.take(3), [1, 2, 3])
 
     def test_random_elements(self):
-        data = [1, 2, 3, 4, 5]
+        data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         iterator = DataIterator(data)
         random_iterator = iterator.random()
         self.assertNotEqual(list(random_iterator), data)
