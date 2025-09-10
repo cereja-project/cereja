@@ -29,3 +29,4 @@ from . import typography
 from . import decorators
 from . import time
 from .time import Timer, set_interval, time_format
+from .git.repository import GitRepository
