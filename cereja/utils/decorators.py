@@ -241,9 +241,9 @@ def time_exec(func: Callable[[Any], Any]) -> Callable:
     def wrapper(*args,
                 **kwargs) -> Any:
         from cereja import console
-        first_time = time.time()
+        first_time = time.monotonic()
         result = func(*args, **kwargs)
-        console.log(f"[{func.__name__}] performed {time.time() - first_time}")
+        console.log(f"[{func.__name__}] performed {time.monotonic() - first_time}")
         return result
 
     return wrapper
@@ -282,7 +282,7 @@ def on_elapsed(interval: float = 1,
                 def run():
                     nonlocal last_time
                     while True:
-                        current_time = time.time()
+                        current_time = time.monotonic()
                         if current_time - last_time >= interval:
                             if verbose:
                                 print(f"Running {func.__name__}")
@@ -300,7 +300,7 @@ def on_elapsed(interval: float = 1,
                 def run():
                     nonlocal last_time
                     nonlocal last_result
-                    current_time = time.time()
+                    current_time = time.monotonic()
                     if current_time - last_time >= interval:
                         if verbose:
                             print(f"Running {func.__name__}")

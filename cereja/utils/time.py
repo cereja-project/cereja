@@ -73,7 +73,7 @@ class Timer:
         """
         Start the timer by setting the start time to the current time.
         """
-        self._start = _time.time()
+        self._start = time.monotonic()
 
     @property
     def started(self) -> bool:
@@ -87,7 +87,7 @@ class Timer:
         Returns:
             float: The elapsed time in seconds.
         """
-        return _time.time() - self._start if self.started else 0
+        return time.monotonic() - self._start if self.started else 0
 
     @property
     def remaining(self):

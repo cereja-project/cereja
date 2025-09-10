@@ -135,23 +135,23 @@ class Time:
     def time(self):
         if self._t0 is None:
             self.start()
-        self._last_time_check = time.time()
+        self._last_time_check = time.monotonic()
         if self._stopped_on:
             return self._stopped_on - self._t0
-        return time.time() - self._t0
+        return time.monotonic() - self._t0
 
     @property
     def last_check_time(self):
-        return time.time() - self._last_time_check
+        return time.monotonic() - self._last_time_check
 
     def start(self):
         self._stopped_on = None
-        self._t0 = time.time()
+        self._t0 = time.monotonic()
         self._last_time_check = self._t0
 
     def stop(self):
         if self._started:
-            self._stopped_on = time.time()
+            self._stopped_on = time.monotonic()
             return
         raise Exception("Time counting has not started. Use Time.start method.")
 

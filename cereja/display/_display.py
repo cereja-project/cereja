@@ -1068,7 +1068,7 @@ class Progress:
 
     @property
     def time_it(self):
-        return time.time() - (self._started_time or time.time())
+        return time.monotonic() - (self._started_time or time.monotonic())
 
     @property
     def total_completed(self):
@@ -1240,7 +1240,7 @@ class Progress:
         self._console.set_prefix(self._name)
         if self._started:
             return
-        self._started_time = time.time()
+        self._started_time = time.monotonic()
         self._started = True
         try:
             self._th_root.start()
@@ -1306,7 +1306,7 @@ class Progress:
             self._console.set_prefix(f"{self.name}({name})")
         if self._with_context and name is None:
             self._console.set_prefix(f"{self.name}(iter-{self._task_count})")
-        self._started_time = time.time()
+        self._started_time = time.monotonic()
         self._task_count += 1
         return self
 
