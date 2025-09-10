@@ -1,12 +1,16 @@
+import enum
 import re
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Union, List
+from typing import Union, List, Annotated
 
 __all__ = ['DateTime', 'AmbiguousDateFormatError']
 
 
 class AmbiguousDateFormatError(ValueError):
-    def __init__(self, date_string, possible_formats):
+    def __init__(self,
+                 date_string,
+                 possible_formats):
         self.date_string = date_string
         self.possible_formats = possible_formats
         message = (
@@ -18,6 +22,50 @@ class AmbiguousDateFormatError(ValueError):
 
 class UnrecognizedDateFormatError(ValueError):
     pass
+
+@dataclass(frozen=True)
+class DateFormatsEnum(enum.Enum):
+    DDMMYYYY = '%d/%m/%Y'
+    MMDDYYYY = '%m/%d/%Y'
+    YYYYMMDD = '%Y/%m/%d'
+    DDMMYY = '%d/%m/%y'
+    MMDDYY = '%m/%d/%y'
+    YYMMDD = '%y/%m/%d'
+    DDMMYYYY_DASH = '%d-%m-%Y'
+    MMDDYYYY_DASH = '%m-%d-%Y'
+    YYYYMMDD_DASH = '%Y-%m-%d'
+    DDMMYY_DASH = '%d-%m-%y'
+    MMDDYY_DASH = '%m-%d-%y'
+    YYMMDD_DASH = '%y-%m-%d'
+    DDMMYYYY_DOT = '%d.%m.%Y'
+    YYYYMMDD_DOT = '%Y.%m.%d'
+    DDMMMYYYY = '%d %b %Y'
+    MMMDDYYYY_COMMA = '%b %d, %Y'
+    DDMMMYYYY_DASH = '%d-%b-%Y'
+    DDMMMMYYYY = '%d %B %Y'
+    MMMMDDYYYY_COMMA = '%B %d, %Y'
+    ISO8601 = '%Y-%m-%dT%H:%M:%S'
+    ISO8601_UTC = '%Y-%m-%dT%H:%M:%SZ'
+    DATETIME_SPACE = '%Y-%m-%d %H:%M:%S'
+    DATETIME_SPACE_MS = '%Y-%m-%d %H:%M:%S.%f'
+    DATETIME_SLASH = '%d/%m/%Y %H:%M:%S'
+    DATETIME_DASH = '%d-%m-%Y %H:%M:%S'
+    DATETIME_SLASH_TIME_NO_SEC = '%d/%m/%Y %H:%M'
+    DATETIME_DASH_TIME_NO_SEC = '%d-%m-%Y %H:%M'
+    YYYYMMDD_COMPACT = '%Y%m%d'
+    DDMMMYYYY_COMPACT = '%d%b%Y'
+    MMMDD_CURRENTYEAR = '%b %d'
+    DDMMM_CURRENTYEAR = '%d %b'
+    MMMYYYY_DAY1 = '%b %Y'
+    MMMMYYYY_DAY1 = '%B %Y'
+
+    # formats with timezone (manual parsing)
+    ISO8601_UTC_Z = '%Y-%m-%dT%H:%M:%SZ'
+
+    # functions to convert between formats can be added here
+    def convert(self,
+                dt: datetime) -> str:
+        return dt.strftime(self.value)
 
 
 class DateTime(datetime):
@@ -68,47 +116,72 @@ class DateTime(datetime):
         # Other formats can be added here
     }
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls,
+                *args,
+                **kwargs):
         if args and isinstance(args[0], str):
             return cls.parse_from_string(args[0])
         return super().__new__(cls, *args, **kwargs)
 
     @classmethod
-    def _validate_timestamp(cls, value) -> Union[int, float]:
+    def _validate_timestamp(cls,
+                            value) -> Union[int, float]:
         assert isinstance(value, (int, float)), f"{value} is not valid."
         return value
 
     @classmethod
-    def _validate_date(cls, other):
+    def _validate_date(cls,
+                       other):
         assert isinstance(other, datetime), f"Send {datetime} obj"
         return other
 
     @classmethod
-    def days_from_timestamp(cls, timestamp):
+    def days_from_timestamp(cls,
+                            timestamp):
         return timestamp / (3600 * 24)
 
     @classmethod
-    def into_timestamp(cls, days=0, min_=0, sec=0):
+    def get_format(cls,
+                   date_string: str) -> List[str]:
+        possible_dates = cls._get_possible_dates(date_string)
+        return [fmt for _, fmt in possible_dates]
+
+    def days_from_now(self):
+        return self.days_from_timestamp(self.timestamp() - datetime.now().timestamp())
+
+    @classmethod
+    def into_timestamp(cls,
+                       days=0,
+                       min_=0,
+                       sec=0):
         days = 3600 * 24 * days if cls._validate_timestamp(days) else days
         min_ = 3600 * 60 * min_ if cls._validate_timestamp(min_) else min_
         return days + min_ + cls._validate_timestamp(sec)
 
-    def add(self, days=0, min_=0, sec=0):
+    def add(self,
+            days=0,
+            min_=0,
+            sec=0):
         return self.fromtimestamp(
                 self.timestamp() + self.into_timestamp(days, min_, sec)
         )
 
-    def sub(self, days=0, min_=0, sec=0):
+    def sub(self,
+            days=0,
+            min_=0,
+            sec=0):
         return self.fromtimestamp(
                 abs(self.timestamp() - self.into_timestamp(days, min_, sec))
         )
 
-    def days_between(self, other):
+    def days_between(self,
+                     other):
         return self.days_from_timestamp(
                 abs(self.timestamp() - self._validate_date(other).timestamp())
         )
 
-    def compare(self, other):
+    def compare(self,
+                other):
         """
         compares date time and
         returns 1 if the instantiated date is greater,
@@ -124,7 +197,9 @@ class DateTime(datetime):
         )
 
     @classmethod
-    def _parse_with_formats(cls, date_string: str, date_formats: List[str]):
+    def _parse_with_formats(cls,
+                            date_string: str,
+                            date_formats: List[str]):
         """
         Parse the given date string using a list of possible date formats.
 
@@ -152,7 +227,8 @@ class DateTime(datetime):
         return parsed_dates
 
     @classmethod
-    def _get_possible_dates(cls, date_string: str):
+    def _get_possible_dates(cls,
+                            date_string: str):
         possible_dates = []
         for regex, date_formats in cls.__DATE_FORMATS.items():
             if re.fullmatch(regex, date_string):
@@ -163,7 +239,8 @@ class DateTime(datetime):
         return possible_dates
 
     @classmethod
-    def parse_from_string(cls, date_string: str):
+    def parse_from_string(cls,
+                          date_string: str):
         """
         Parse a date string into a DateTime object.
 
@@ -195,7 +272,9 @@ class DateTime(datetime):
                 raise AmbiguousDateFormatError(date_string, [fmt for _, fmt in possible_dates])
 
     @classmethod
-    def are_dates_equal(cls, date_str1: Union[str, datetime], date_str2: Union[str, datetime]) -> bool:
+    def are_dates_equal(cls,
+                        date_str1: Union[str, datetime],
+                        date_str2: Union[str, datetime]) -> bool:
         """
         Check if two dates are equal.
 
@@ -226,7 +305,8 @@ class DateTime(datetime):
         return False
 
     @classmethod
-    def _disambiguate_date(cls, possible_dates):
+    def _disambiguate_date(cls,
+                           possible_dates):
         """
         Disambiguate a list of possible dates to find a valid date.
 
@@ -255,7 +335,27 @@ class DateTime(datetime):
         else:
             return None
 
-    def __eq__(self, other):
+    # criar uma utilitário para converter facilmente entre esses formatos
+    # ex. DateTime("25/12/2023").parser.DDMMYYYY -> "2023-12-25"
+    @property
+    def format(self) -> Annotated[DateFormatsEnum, "Access date formats as attributes"]:
+        class Parser:
+            def __init__(self,
+                         dt: DateTime):
+                self._dt = dt
+
+            def __getattr__(self,
+                            name: str) -> str:
+                try:
+                    date_format = DateFormatsEnum[name].value
+                    return self._dt.strftime(date_format)
+                except KeyError:
+                    raise AttributeError(f"No such format: {name}")
+        return Parser(self)
+
+
+    def __eq__(self,
+               other):
         if isinstance(other, str):
             return self.are_dates_equal(self, other)
         return super().__eq__(other)
