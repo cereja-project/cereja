@@ -8,6 +8,8 @@ import sys
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional
 
+from cereja import FileIO
+
 
 @dataclass
 class CommitInfo:
@@ -164,7 +166,7 @@ def build_markdown(branch: str, base: str, commits: List[CommitInfo], files: Lis
         Texto em Markdown.
     """
     categories = categorize_files(files)
-    now = dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    now = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     lines: List[str] = []
     lines.append(f"# Nota de Implementações - branch {branch}")
     lines.append("")
@@ -269,8 +271,7 @@ def main() -> int:
             content = build_json(branch, base, commits, diff_files)
             default_name = f"implementacoes_{branch}.json"
         output_path = args.output or default_name
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(content)
+        FileIO.create(output_path, content).save(exist_ok=True)
         print(output_path)
         return 0
     except Exception as exc:  # noqa: BLE001
