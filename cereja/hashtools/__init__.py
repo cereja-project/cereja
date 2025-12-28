@@ -20,3 +20,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 from cereja.hashtools._hash import *
+from cereja.hashtools._crypto import *

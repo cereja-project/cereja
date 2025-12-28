@@ -42,6 +42,7 @@ from .system.unicode import *
 from . import date
 from .date import *
 from . import hashtools
+from .hashtools import *
 from . import mathtools
 from .mathtools import *
 from . import experimental
