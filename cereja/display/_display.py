@@ -1010,6 +1010,8 @@ class Progress:
             try:
                 progress.stop()
             except:
+                # Intentionally ignore any errors while stopping individual progresses
+                # to ensure best-effort cleanup of all registered instances.
                 pass
 
     def stop(self):
