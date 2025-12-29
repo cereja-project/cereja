@@ -223,7 +223,7 @@ def flatten(
     elif isinstance(sequence, (tuple, set)):
         sequence = list(sequence)
     elif not isinstance(sequence, SEQUENCE_TYPES):
-        raise AssertionError("Invalid value to sequence", type(sequence))
+        raise AssertionError(f"Invalid value to sequence: {type(sequence)}")
 
     try:
         sequence = sequence.copy()
