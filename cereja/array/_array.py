@@ -262,7 +262,6 @@ def flatten(
         sequence = result
         deep += 1
 
-
         if return_shapes:
             shapes[deep] = len_seqs
 
