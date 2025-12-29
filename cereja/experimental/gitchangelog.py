@@ -218,7 +218,7 @@ def build_json(branch: str, base: str, commits: List[CommitInfo], files: List[Di
     payload = {
         "branch": branch,
         "base": base,
-        "generated_at": dt.datetime.utcnow().isoformat() + "Z",
+        "generated_at": dt.datetime.now(dt.UTC).isoformat().replace("+00:00", "Z"),
         "stats": {
             "commits": len(commits),
             "files_total": len(files),
