@@ -304,6 +304,8 @@ class _Stdout:
                 self._stdout_buffer.close()
                 self._stderr_buffer.close()
             except (AttributeError, ValueError):
+                # Ignore errors when closing buffers: cleanup is best-effort and
+                # buffers may already be closed or partially initialized.
                 pass
 
             # Limpa outras referências
