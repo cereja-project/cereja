@@ -21,3 +21,4 @@ SOFTWARE.
 """
 from cereja.hashtools._hash import *
 from cereja.hashtools._crypto import *
+from cereja.hashtools._compress import *
