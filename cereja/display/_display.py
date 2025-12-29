@@ -584,6 +584,8 @@ class _ConsoleBase(metaclass=ABC):
         try:
             self.cleanup()
         except:
+            # Suppress all exceptions during object destruction to avoid errors at
+            # interpreter shutdown or partial teardown.
             pass
 
 
