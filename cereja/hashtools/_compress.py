@@ -423,6 +423,8 @@ def analyze_data(data: Union[str, bytes]) -> Dict[str, Any]:
             'entropy': 0,
             'repetition_ratio': 0,
             'sequential_ratio': 0,
+            'unique_ratio': 0,
+            'max_value': 0,
             'suggested_strategy': CompressionStrategy.ZLIB
         }
     
@@ -449,6 +451,9 @@ def analyze_data(data: Union[str, bytes]) -> Dict[str, Any]:
             if run_length >= 3:
                 runs += run_length
             run_length = 1
+    # Account for the last run
+    if run_length >= 3:
+        runs += run_length
     repetition_ratio = runs / size if size > 0 else 0
     
     # Calculate sequential ratio (Delta potential)
@@ -491,19 +496,23 @@ def suggest_strategy(data: Union[str, bytes]) -> CompressionStrategy:
     analysis = analyze_data(data)
     
     # Decision tree based on data characteristics
-    # Check sequential first (sequential integers have repeating bytes)
-    if analysis['sequential_ratio'] > 0.8:
+    # Check RLE first for extremely repetitive data
+    if analysis['repetition_ratio'] > 0.9:
+        return CompressionStrategy.RLE
+    # Check sequential (sequential integers have repeating bytes)
+    elif analysis['sequential_ratio'] > 0.8:
         return CompressionStrategy.DELTA
     # Check for small value range (bitpack)
     elif analysis['max_value'] < 16 and analysis['size'] > 100:
         return CompressionStrategy.BITPACK
-    # Check RLE for highly repetitive data
+    # Check for very large data (LZMA is usually best)
+    elif analysis['size'] > 10000:
+        return CompressionStrategy.LZMA
+    # Check RLE for moderately repetitive data
     elif analysis['repetition_ratio'] > 0.5:
         return CompressionStrategy.RLE
     elif analysis['entropy'] < 4 and analysis['size'] > 1000:
         return CompressionStrategy.DICTIONARY
-    elif analysis['size'] > 10000:
-        return CompressionStrategy.LZMA
     elif analysis['size'] > 1000:
         return CompressionStrategy.BZ2
     else:
