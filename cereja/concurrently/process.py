@@ -292,7 +292,7 @@ class Processor:
             self._failure_data.append(item)
 
     def get_status(self):
-        return f"{round(self.total_processed / (time.time() - self._started_at), 2)} cpf/s " \
+        return f"{round(self.total_processed / (time.monotonic() - self._started_at), 2)} cpf/s " \
                f"- processing: {self.in_progress_count} " \
                f"- success: {self._total_success} " \
                f"- fail: {len(self._failure_data)} "
@@ -305,7 +305,7 @@ class Processor:
         self._stopped = False
         # inicia thread para atualizar o banco com o resultado da validação.
         self._create_process_result_service().start()
-        self._started_at = time.time()
+        self._started_at = time.monotonic()
 
         if self._progress is not None:
             self._progress.update_max_value(len(data))
@@ -314,12 +314,12 @@ class Processor:
         with ThreadPoolExecutor(max_workers=self._num_workers,
                                 thread_name_prefix="CPF_PROCESS_WORKER") as self._executor:
             for item in data:
-                start_time = time.time()
+                start_time = time.monotonic()
 
                 future = self._executor.submit(self._process, func, item, *args, **kwargs)
                 self._future_to_data.add(future)
 
-                elapsed_time = time.time() - start_time
+                elapsed_time = time.monotonic() - start_time
                 # Verifica quanto tempo passou após enviar um dado, caso o tempo for menor que o intervalo
                 # configurado espera a diferença antes de enviar o próximo lote
                 if elapsed_time < self.interval_seconds:
@@ -346,7 +346,7 @@ class Processor:
     def restart_process(self):
         self.stop_process()  # espera terminar execução do processo anterior
         self._stopped = False
-        self._started_at = time.time()
+        self._started_at = time.monotonic()
         self._failure_data = []
         self._total_success = 0
         self._create_process_result_service().start()

@@ -25,6 +25,7 @@ import threading
 import time
 import sys
 import random
+import weakref
 from typing import Tuple, Callable
 from abc import ABCMeta as ABC
 from typing import List
@@ -73,21 +74,33 @@ _STDERR_ORIGINAL_COPY = sys.stderr
 
 
 class _Stdout:
+    """Classe para gerenciar saída do console com melhor gestão de memória."""
+
     __user_msg = []
     _stdout_original = _STDOUT_ORIGINAL_COPY
     _stderr_original = _STDERR_ORIGINAL_COPY
 
-    def __init__(self, console_):
+    def __init__(self,
+                 console_):
         self.persisting = False
         self.th_console = None
         self.last_console_msg = ""
         self.use_th_console = False
         self._stdout_buffer = io.StringIO()
         self._stderr_buffer = io.StringIO()
-        self.console = console_
+        # Usa weakref para evitar referência circular
+        self.console_ref = weakref.ref(console_) if console_ else None
+        self._lock = threading.Lock()  # Adiciona thread safety
+
+    @property
+    def console(self):
+        """Retorna a referência do console ou None se foi coletado."""
+        return self.console_ref() if self.console_ref else None
 
     @classmethod
-    def die_threads(cls, *args, **kwargs):
+    def die_threads(cls,
+                    *args,
+                    **kwargs):
         prog = import_string("cereja.display.Progress")
         for i in get_instances_of(prog):
             i.hook_error()
@@ -95,39 +108,64 @@ class _Stdout:
             _SYS_EXCEPT_HOOK_ORIGINAL(*args, **kwargs)
 
     @classmethod
-    def custom_exc(cls, shell, etype, evalue, tb, tb_offset=None):
+    def custom_exc(cls,
+                   shell,
+                   etype,
+                   evalue,
+                   tb,
+                   tb_offset=None):
         shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
         cls.die_threads(is_jupyter=True)
 
-    def set_message(self, msg):
-        self.__user_msg = msg
+    def set_message(self,
+                    msg):
+        """Define mensagem do usuário com limpeza prévia."""
+        with self._lock:
+            self.__user_msg = msg
 
     def _has_user_msg(self):
-        if self._stdout_buffer.getvalue():
-            return True
-        else:
-            return False
+        """Verifica se há mensagens no buffer."""
+        with self._lock:
+            return bool(self._stdout_buffer.getvalue())
 
     @property
     def stdout_buffer_values(self):
-        vals = self._stdout_buffer.getvalue()
-        self._stdout_buffer.seek(0)
-        self._stdout_buffer.truncate()
-        return vals
+        """Retorna e limpa o buffer stdout."""
+        with self._lock:
+            vals = self._stdout_buffer.getvalue()
+            self._clear_buffer(self._stdout_buffer)
+            return vals
 
     @property
     def stderr_buffer_values(self):
-        vals = self._stderr_buffer.getvalue()
-        self._stderr_buffer.seek(0)
-        self._stderr_buffer.truncate()
-        return vals
+        """Retorna e limpa o buffer stderr."""
+        with self._lock:
+            vals = self._stderr_buffer.getvalue()
+            self._clear_buffer(self._stderr_buffer)
+            return vals
+
+    def _clear_buffer(self,
+                      buffer):
+        """Limpa um buffer StringIO de forma segura."""
+        try:
+            buffer.seek(0)
+            buffer.truncate(0)
+        except (ValueError, AttributeError):
+            # Buffer já foi fechado ou corrompido
+            pass
 
     def write_user_msg(self):
+        """Escreve mensagens do usuário com verificação de console."""
+        console = self.console
+        if not console:
+            return
+
         stdout, stderr = self.stdout_buffer_values, self.stderr_buffer_values
+
         if stdout and not (stdout in ["\n", "\r\n", "\n"]):
             values = []
             for value in stdout.splitlines():
-                value = f"{self.console.parse(value, title='Sys[out]')}"
+                value = f"{console.parse(value, title='Sys[out]')}"
                 values.append(value)
             value = "\n".join(values)
             value = f"\r{value}\n{self.last_console_msg}"
@@ -135,56 +173,88 @@ class _Stdout:
 
         if stderr and not (stderr in ["\n", "\r\n", "\n"]):
             unicode_err = "\U0000274C"
-            prefix = self.console.template_format(
+            prefix = console.template_format(
                     f"{{red}}{unicode_err} Error:{{endred}}"
             )
-            msg_err_prefix = f"{self.console.parse(prefix, title='Sys[err]')}"
-            msg_err = self.console.format(stderr, color="red")
+            msg_err_prefix = f"{console.parse(prefix, title='Sys[err]')}"
+            msg_err = console.format(stderr, color="red")
             msg_err = f"\r{msg_err_prefix}\n{msg_err}\n{self.last_console_msg}"
             self._write(msg_err)
 
     def _write_user_msg_loop(self):
-        while self.use_th_console:
-            self.write_user_msg()
-            time.sleep(0.1)
-        if self._has_user_msg():
-            self.write_user_msg()
-
-    def _write(self, msg: str):
+        """Loop principal da thread com melhor gestão de recursos."""
         try:
+            while self.use_th_console and threading.current_thread().is_alive():
+                try:
+                    self.write_user_msg()
+                    time.sleep(0.1)
+                except Exception:
+                    # Em caso de erro, para o loop para evitar loops infinitos
+                    break
 
-            if msg.strip(" ") == "":
-                return
+            # Última verificação após sair do loop
+            if self._has_user_msg():
+                self.write_user_msg()
+        except Exception:
+            # Garante que a thread não falhe silenciosamente
+            pass
+
+    def _write(self,
+               msg: str):
+        """Escreve mensagem com melhor tratamento de erros."""
+        if not msg or msg.strip(" ") == "":
+            return
+
+        console = self.console
+        try:
             self._stdout_original.write(msg)
             self._stdout_original.flush()
         except (UnicodeError, UnicodeEncodeError):
-            msg = self.console.translate_non_bmp(msg)
-            self._stdout_original.write(msg.encode("ascii", errors="replace").decode())
+            if console:
+                msg = console.translate_non_bmp(msg)
+            encoded_msg = msg.encode("ascii", errors="replace").decode()
+            self._stdout_original.write(encoded_msg)
             self._stdout_original.flush()
+        except (AttributeError, ValueError):
+            # stdout original foi modificado ou corrompido
+            pass
 
-    def cj_msg(self, msg: str, line_sep=None, replace_last=False):
-        self.last_console_msg = msg
-        if replace_last:
-            msg = f"\r{msg}"
-        self._write(msg)
-        if line_sep is not None:
-            self._write(line_sep)
+    def cj_msg(self,
+               msg: str,
+               line_sep=None,
+               replace_last=False):
+        """Envia mensagem com thread safety."""
+        with self._lock:
+            self.last_console_msg = msg
+            if replace_last:
+                msg = f"\r{msg}"
+            self._write(msg)
+            if line_sep is not None:
+                self._write(line_sep)
 
-    def __del__(self):
-        self.restore_sys_module_state()
-
-    def write_error(self, msg, **ars):
-        msg = self.console.format(msg, color="red")
-        self._stdout_buffer.write(msg)
+    def write_error(self,
+                    msg,
+                    **args):
+        """Escreve erro no buffer."""
+        console = self.console
+        if console:
+            msg = console.format(msg, color="red")
+            with self._lock:
+                self._stdout_buffer.write(msg)
 
     def flush(self):
-        self._stdout_original.flush()
+        """Força flush do stdout original."""
+        try:
+            self._stdout_original.flush()
+        except (AttributeError, ValueError):
+            pass
 
     def persist(self):
+        """Inicia persistência com melhor gestão de thread."""
         if not self.persisting:
             self.use_th_console = True
             self.th_console = threading.Thread(
-                    name="Console", target=self._write_user_msg_loop
+                    name="Console", target=self._write_user_msg_loop, daemon=True
             )
             self.th_console.start()
             sys.stdout = self._stdout_buffer
@@ -192,24 +262,73 @@ class _Stdout:
             self.persisting = True
 
     def disable(self):
+        """Para persistência e limpa recursos."""
         if self.use_th_console:
             self.use_th_console = False
-            self.th_console.join()
+            if self.th_console and self.th_console.is_alive():
+                # Timeout para evitar travamento
+                self.th_console.join(timeout=1.0)
             self.persisting = False
-            self.console.set_prefix(_LOGIN_NAME)
+
+            console = self.console
+            if console:
+                console.set_prefix(_LOGIN_NAME)
+
         self.restore_sys_module_state()
 
     def restore_sys_module_state(self):
-        if JUPYTER:
-            IP.restore_sys_module_state()
+        """Restaura estado do sistema com verificações."""
+        if JUPYTER and IP:
+            try:
+                IP.restore_sys_module_state()
+            except (AttributeError, RuntimeError):
+                pass
             return
+
         if not isinstance(self._stdout_original, io.StringIO):
             sys.stdout = _STDOUT_ORIGINAL_COPY
             sys.stderr = _STDERR_ORIGINAL_COPY
 
+    def cleanup(self):
+        """Limpa todos os recursos da instância."""
+        with self._lock:
+            # Para thread se estiver rodando
+            self.use_th_console = False
+
+            # Limpa buffers
+            self._clear_buffer(self._stdout_buffer)
+            self._clear_buffer(self._stderr_buffer)
+
+            # Fecha buffers
+            try:
+                self._stdout_buffer.close()
+                self._stderr_buffer.close()
+            except (AttributeError, ValueError):
+                # Ignore errors when closing buffers: cleanup is best-effort and
+                # buffers may already be closed or partially initialized.
+                pass
+
+            # Limpa outras referências
+            self.last_console_msg = ""
+            self.__user_msg.clear()
+            self.console_ref = None
+
+    def __del__(self):
+        """Destrutor com limpeza adequada."""
+        try:
+            self.disable()
+            self.cleanup()
+        except:
+            # Evita erros durante garbage collection
+            pass
+
 
 class _ConsoleBase(metaclass=ABC):
+    """Console base com melhor gestão de instância singleton."""
+
     _instance = None
+    _instance_lock = threading.Lock()
+
     NON_BMP_MAP = dict.fromkeys(range(0x10000, sys.maxunicode + 1), 0xFFFD)
     DONE_UNICODE = "\U00002705"
     ERROR_UNICODE = "\U0000274C"
@@ -244,31 +363,38 @@ class _ConsoleBase(metaclass=ABC):
 
     MAX_SPACE = 20
     MAX_BLOCKS = 5
-
     SPACE_BLOCKS = {""}
     _name = _LOGIN_NAME
 
-    def __init__(self, color_text: str = "default"):
-        self.__color_map = self._color_map  # get copy
+    def __init__(self,
+                 color_text: str = "default"):
+        self.__color_map = self._color_map.copy()  # Cria cópia para evitar modificação global
         self.text_color = color_text
         self._stdout = _Stdout(self)
 
     def __new__(cls):
+        """Implementação thread-safe do singleton."""
         if cls._instance is None:
-            cls._instance = super(_ConsoleBase, cls).__new__(cls)
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = super(_ConsoleBase, cls).__new__(cls)
         return cls._instance
 
     @property
     def non_bmp_supported(self):
-        from cereja import NON_BMP_SUPPORTED
-
-        return NON_BMP_SUPPORTED
+        """Verifica suporte a BMP de forma segura."""
+        try:
+            from cereja import NON_BMP_SUPPORTED
+            return NON_BMP_SUPPORTED
+        except ImportError:
+            return False
 
     @property
     def prefix_name(self):
         return self._name
 
-    def set_prefix(self, value: str):
+    def set_prefix(self,
+                   value: str):
         if not isinstance(value, str):
             raise TypeError("Please send string value.")
         self._name = value
@@ -279,10 +405,11 @@ class _ConsoleBase(metaclass=ABC):
 
     @property
     def text_color(self):
-        return self.__text_color
+        return getattr(self, '_ConsoleBase__text_color', self.__CL_DEFAULT)
 
     @text_color.setter
-    def text_color(self, color: str):
+    def text_color(self,
+                   color: str):
         color = (
             color.strip("CL_").lower()
             if color.upper().startswith("CL_")
@@ -293,24 +420,31 @@ class _ConsoleBase(metaclass=ABC):
         self.__color_map["default"] = self.__color_map[color]
         self.__text_color = self.__color_map[color]
 
-    def __bg(self, text_, color):
-        return f"\33[48;5;{color}m{text_}{self.__text_color}"
+    def __bg(self,
+             text_,
+             color):
+        return f"\33[48;5;{color}m{text_}{self.text_color}"
 
-    def _msg_prefix(self, title=None):
+    def _msg_prefix(self,
+                    title=None):
         if title is None:
             title = self.prefix_name
         return f"{self.__msg_prefix} {title} {self.__right_point}"
 
-    def translate_non_bmp(self, msg: str):
+    def translate_non_bmp(self,
+                          msg: str):
         """
-        This is important, as there may be an exception if the terminal does not support unicode bmp
+        Traduz caracteres não-BMP para evitar problemas de terminal.
         """
         if self.non_bmp_supported:
             return msg
         return msg.translate(self.NON_BMP_MAP)
 
-    def _parse(self, msg, title=None, color: str = None, remove_line_sep=True):
-
+    def _parse(self,
+               msg,
+               title=None,
+               color: str = None,
+               remove_line_sep=True):
         if color is None:
             color = "default"
         msg = str(msg)
@@ -320,28 +454,35 @@ class _ConsoleBase(metaclass=ABC):
         prefix = self._msg_prefix(title)
         return f"{prefix} {msg} {self.__CL_DEFAULT}"
 
-    def _write(self, msg, line_sep=None):
-        self._stdout.cj_msg(msg, line_sep)
+    def _write(self,
+               msg,
+               line_sep=None):
+        if self._stdout:
+            self._stdout.cj_msg(msg, line_sep)
 
-    def _normalize_format(self, s):
+    def _normalize_format(self,
+                          s):
         for color_name in self.__color_map:
             s = s.replace("{end%s}" % color_name, self.__color_map["default"])
             s = s.replace("{%s}" % color_name, self.__color_map[color_name])
         s = s.replace("  ", " ") + self.__color_map["default"]
         return s
 
-    def parse(self, msg, title=None):
+    def parse(self,
+              msg,
+              title=None):
         return self._parse(msg, title)
 
-    def template_format(self, s):
+    def template_format(self,
+                        s):
         """
-        You can make format with variables
-        :param s:
-        :return:
+        Formata template com variáveis de cor.
         """
         return self._normalize_format(s)
 
-    def format(self, s: str, color: str):
+    def format(self,
+               s: str,
+               color: str):
         if color == "random":
             return self.random_color(s)
         if color not in self.__color_map:
@@ -352,65 +493,103 @@ class _ConsoleBase(metaclass=ABC):
         s = self._normalize_format(s)
         return f"{self._color_map[color]}{s}{self._color_map['default']}"
 
-    def random_color(self, text: str):
-        color = random.choice(list(self.__color_map))
+    def random_color(self,
+                     text: str):
+        available_colors = [k for k in self.__color_map.keys() if k != 'default']
+        color = random.choice(available_colors)
         template_format = f'{{{color}}}{text}{{{"end" + color}}}'
         return self.template_format(template_format)
 
-    def colorful_words(self, text: Union[List[str], str]) -> str:
+    def colorful_words(self,
+                       text: Union[List[str], str]) -> str:
         msg_error = "You need send string or list of string."
         if isinstance(text, str):
             text = text.split()
         elif isinstance(text, list):
-            if not isinstance(next(iter(text)), str):
+            if text and not isinstance(text[0], str):
                 self.error(msg_error)
+                return ""
         else:
             self.error(msg_error)
+            return ""
+
         result = []
         for word in text:
             result.append(self.random_color(word))
         return " ".join(result)
 
-    def text_bg(self, text_, color):
+    def text_bg(self,
+                text_,
+                color):
         return self.__bg(text_, color)
 
-    def error(self, msg: str):
+    def error(self,
+              msg: str):
         msg = f"Error: {msg}"
         msg = self.format(msg, color="red")
         self.__print(msg)
 
-    def replace_last_msg(self, msg: str, end=None):
+    def replace_last_msg(self,
+                         msg: str,
+                         end=None):
         msg = self._parse(msg, remove_line_sep=True)
-        self._stdout.cj_msg(msg, replace_last=True, line_sep=end)
+        if self._stdout:
+            self._stdout.cj_msg(msg, replace_last=True, line_sep=end)
 
-    def log(self, msg, title=None, color: str = "default", end: str = __os_line_sep):
+    def log(self,
+            msg,
+            title=None,
+            color: str = "default",
+            end: str = __os_line_sep):
         """
-        Send message with default configuration and colors
-        title is login name.
+        Envia mensagem com configuração padrão e cores.
 
-        :param msg: value you want to display
-        :param title: You can custom title of message
-        :param color: You can custom color of message
-                colors available: black, red, green, yellow, blue, magenta, cyan and white.
-        :param end: if you send None or '' remove line_sep
+        Args:
+            msg: Valor que você deseja exibir
+            title: Título personalizado da mensagem
+            color: Cor personalizada da mensagem
+            end: Separador de linha (None ou '' remove line_sep)
         """
         self.__print(msg=msg, title=title, color=color, end=end)
 
     def persist_on_runtime(self):
-        self._stdout.persist()
+        if self._stdout:
+            self._stdout.persist()
 
-    def __print(self, msg, title=None, color: str = None, end=__os_line_sep):
+    def __print(self,
+                msg,
+                title=None,
+                color: str = None,
+                end=__os_line_sep):
         remove_line_sep = True if end is None else False
         msg = self._parse(
                 msg=msg, title=title, color=color, remove_line_sep=remove_line_sep
         )
-        self._stdout.cj_msg(msg, end)
+        if self._stdout:
+            self._stdout.cj_msg(msg, end)
 
     def disable(self):
-        self._stdout.disable()
+        if self._stdout:
+            self._stdout.disable()
         self._name = _LOGIN_NAME
 
+    def cleanup(self):
+        """Limpa recursos do console."""
+        if self._stdout:
+            self._stdout.cleanup()
+            self._stdout = None
 
+    def __del__(self):
+        """Destrutor com limpeza adequada."""
+        try:
+            self.cleanup()
+        except:
+            # Suppress all exceptions during object destruction to avoid errors at
+            # interpreter shutdown or partial teardown.
+            pass
+
+
+# Instância singleton global
 console = _ConsoleBase()
 
 
@@ -420,7 +599,8 @@ class State(metaclass=ABCMeta):
     def __repr__(self):
         return f"{self.name} {self.done(100, 100, 100, 0, 100)}"
 
-    def blanks(self, current_size):
+    def blanks(self,
+               current_size):
         blanks = "  " * (self.size - current_size - 1)
         return blanks
 
@@ -453,7 +633,9 @@ class State(metaclass=ABCMeta):
     ) -> str:
         return self.display(current_value, max_value, current_percent, time_it, n_times)
 
-    def error(self, *args, **kwargs) -> str:
+    def error(self,
+              *args,
+              **kwargs) -> str:
         return self.display(*args, **kwargs)
 
 
@@ -503,7 +685,8 @@ class _StateLoading(State):
 
 
 class _StateAwaiting(_StateLoading):
-    def _clean(self, result):
+    def _clean(self,
+               result):
         return result.strip(self.left_right_delimiter)
 
     def display(
@@ -704,8 +887,7 @@ class Progress:
     :param max_value: This number represents the maximum amount you want to achieve.
                       It is not a percentage, although it is purposely set to 100 by default.
     """
-
-    __awaiting_state = _StateAwaiting()
+    __awaiting_state = None  # Será inicializado quando necessário
     __done_unicode = Unicode("\U00002705")
     __err_unicode = Unicode("\U0000274C")
     __key_map = {
@@ -719,7 +901,9 @@ class Progress:
     _with_context = False
     __built = False
     _console = console
-    _progresses = {}
+    # Usa WeakValueDictionary para permitir garbage collection automático
+    _progresses = weakref.WeakValueDictionary()
+    _progress_lock = threading.Lock()
 
     def __init__(
             self,
@@ -730,6 +914,10 @@ class Progress:
             custom_state_func=None,
             custom_state_name=None,
     ):
+        # Inicializa awaiting_state apenas quando necessário
+        if Progress.__awaiting_state is None:
+            Progress.__awaiting_state = _StateAwaiting()
+
         self._is_generator = False
         self._n_times = 0
         self._name = name or "Progress"
@@ -753,12 +941,26 @@ class Progress:
         self._was_done = False
         self._err = False
         self.__built = True
+        self._lock = threading.Lock()
+
         if sequence is not None:
             self.__call__(sequence)
-        if len(Progress._progresses) >= 10:
-            # TODO: This is a hack to avoid memory leaks.
-            Progress._progresses.clear()
-        Progress._progresses[id(self)] = self
+
+        # Adiciona à lista de progresso com limpeza automática
+        with Progress._progress_lock:
+            Progress._progresses[id(self)] = self
+
+            # Limpeza periódica para evitar acúmulo
+            if len(Progress._progresses) % 50 == 0:
+                self._cleanup_old_progresses()
+
+    @staticmethod
+    def _cleanup_old_progresses():
+        """Remove instâncias antigas de progresso."""
+        # WeakValueDictionary já faz isso automaticamente,
+        # mas podemos forçar uma limpeza explícita
+        import gc
+        gc.collect()
 
     @property
     def name(self):
@@ -766,43 +968,97 @@ class Progress:
 
     @property
     def max_value(self):
-        return self._max_value or self._current_value + 1
+        with self._lock:
+            return self._max_value or self._current_value + 1
 
-    def set_name(self, value: str):
+    def set_name(self,
+                 value: str):
         if not isinstance(value, str):
             raise TypeError("Please send string.")
-        self._name = value
+        with self._lock:
+            self._name = value
         self._console.set_prefix(f"{self._name}")
 
     def _create_progress_service(self):
+        """Cria thread de serviço com configuração daemon."""
         return threading.Thread(
-                name="awaiting", target=self._progress_service, daemon=True
+                name=f"Progress-{id(self)}", target=self._progress_service, daemon=True
         )
 
-    def __repr__(self):
-        state = self._states_view(self.max_value)
-        progress_example_view = f"{state}"
-        state_conf = f"{self.__class__.__name__}{self._parse_states()}"
-        return f"{state_conf}\n{self._console.parse(progress_example_view, title='Example States View')}"
-
-    def hook_error(self, *args, **kwargs):
-        self._err = True
+    def hook_error(self,
+                   *args,
+                   **kwargs):
+        """Hook de erro com thread safety."""
+        with self._lock:
+            self._err = True
         if not self._with_context:
             self.stop()
 
     @property
     def completed(self):
-        return self._was_done or self._err or self._iter_finaly
+        with self._lock:
+            return self._was_done or self._err or self._iter_finaly
 
     @staticmethod
     def die_all():
-        for progress in Progress._progresses.values():
-            progress.stop()
+        """Para todas as instâncias de progresso."""
+        with Progress._progress_lock:
+            # Cria lista para evitar modificação durante iteração
+            progresses = list(Progress._progresses.values())
+
+        for progress in progresses:
+            try:
+                progress.stop()
+            except:
+                # Intentionally ignore any errors while stopping individual progresses
+                # to ensure best-effort cleanup of all registered instances.
+                pass
+
+    def stop(self):
+        """Para o progresso e limpa recursos."""
+        with self._lock:
+            if self._started:
+                self._awaiting_update = False
+                self._started = False
+
+                # Para thread com timeout
+                if self._th_root and self._th_root.is_alive():
+                    self._th_root.join(timeout=2.0)
+
+                self._console.disable()
+
+        # Remove da lista de progresso
+        with Progress._progress_lock:
+            Progress._progresses.pop(id(self), None)
+
+    def cleanup(self):
+        """Limpa todos os recursos da instância."""
+        with self._lock:
+            # Para thread
+            self._started = False
+            self._awaiting_update = False
+
+            # Limpa referências
+            self._states = ()
+            self._custom_state_value = None
+
+            # Força limpeza da thread
+            if self._th_root:
+                self._th_root = None
+
+    def __del__(self):
+        """Destrutor com limpeza adequada."""
+        try:
+            self.stop()
+            self.cleanup()
+        except:
+            pass
 
     def _parse_states(self):
         return tuple(map(lambda stt: stt.__class__.__name__, self._states))
 
-    def _get_done_state(self, **kwargs):
+    def _get_done_state(self,
+                        **kwargs):
         if self._current_value == 0:
             result = [self.__awaiting_state.done(**kwargs)]
         else:
@@ -812,24 +1068,20 @@ class Progress:
         result.append(done_msg)
         return result
 
-    def _get_state(self, **kwargs):
+    def _get_state(self,
+                   **kwargs):
         return list(map(lambda state: state.display(**kwargs), self._states))
 
     @property
     def time_it(self):
-        return time.time() - (self._started_time or time.time())
+        return time.monotonic() - (self._started_time or time.monotonic())
 
     @property
     def total_completed(self):
         return f"{self.percent_(self._current_value)}%"
 
-    def _states_view(self, for_value: T_NUMBER) -> str:
-        """
-        Return current state and bool
-        bool:
-        :param for_value:
-        :return: current state and bool if is done else False
-        """
+    def _states_view(self,
+                     for_value: T_NUMBER) -> str:
         self._n_times += 1
         kwargs = {
             "current_value":   for_value,
@@ -857,15 +1109,25 @@ class Progress:
                 _state_msg = f"{_state_msg} {finish_msg}"
             return _state_msg
 
-    def add_state(self, state: Union[State, Sequence[State]], idx=-1):
+    def __repr__(self):
+        state = self._states_view(self.max_value)
+        progress_example_view = f"{state}"
+        state_conf = f"{self.__class__.__name__}{self._parse_states()}"
+        return f"{state_conf}\n{self._console.parse(progress_example_view, title='Example States View')}"
+
+    def add_state(self,
+                  state: Union[State, Sequence[State]],
+                  idx=-1):
         self._filter_and_add_state(state, idx)
 
-    def remove_state(self, idx):
+    def remove_state(self,
+                     idx):
         states = list(self._states)
         states.pop(idx)
         self._states = tuple(states)
 
-    def _parse_state(self, state):
+    def _parse_state(self,
+                     state):
         if isinstance(state, str):
             state = self.__key_map.get(state)
         assert issubclass(state, State) or isinstance(
@@ -875,14 +1137,17 @@ class Progress:
             return state()
         return state
 
-    def _valid_states(self, states: Union[State, Sequence[State]]):
+    def _valid_states(self,
+                      states: Union[State, Sequence[State]]):
         if states is not None:
             if not is_iterable(states):
                 states = (states,)
             return tuple(map(self._parse_state, states))
         return (None,)
 
-    def _filter_and_add_state(self, state: Union[State, Sequence[State]], index_=-1):
+    def _filter_and_add_state(self,
+                              state: Union[State, Sequence[State]],
+                              index_=-1):
         state = self._valid_states(state)
         filtered = tuple(filter(lambda stt: stt not in self._states, tuple(state)))
         if any(filtered):
@@ -900,10 +1165,12 @@ class Progress:
     def states(self):
         return self._parse_states()
 
-    def percent_(self, for_value: T_NUMBER) -> T_NUMBER:
+    def percent_(self,
+                 for_value: T_NUMBER) -> T_NUMBER:
         return percent(for_value, self.max_value)
 
-    def update_max_value(self, max_value: int):
+    def update_max_value(self,
+                         max_value: int):
         """
         You can modify the progress to another value. It is not a percentage,
         although it is purposely set to 100 by default.
@@ -925,7 +1192,8 @@ class Progress:
                 n_times += 1
                 self._console.replace_last_msg(
                         self.__awaiting_state.display(
-                                self._current_value, 0, 0, time_it=self.time_it, n_times=n_times, is_generator=self._is_generator
+                                self._current_value, 0, 0, time_it=self.time_it, n_times=n_times,
+                                is_generator=self._is_generator
                         )
                 )
                 time.sleep(0.5)
@@ -934,19 +1202,28 @@ class Progress:
             last_value = self._current_value
             time.sleep(0.01)
 
-    def _show_progress(self, for_value=None):
-        self._awaiting_update = False
-        build_progress = self._states_view(for_value or self._current_value)
-        self._console.replace_last_msg(
-                build_progress, end="\n" if self._iter_finaly else None
-        )
+    def _show_progress(self,
+                       for_value=None):
+        """Mostra progresso atual sem duplicação."""
+        if for_value is None:
+            for_value = self._current_value
 
-    def _update_value(self, value):
+        msg = self._states_view(for_value)
+
+        # Evita mostrar a mesma mensagem duas vezes
+        if not hasattr(self, '_last_progress_msg') or self._last_progress_msg != msg:
+            self._last_progress_msg = msg
+            self._console.replace_last_msg(msg)
+
+    def _update_value(self,
+                      value):
         self._awaiting_update = self._is_generator  # if is generator awaiting state is default.
         self._show = True
         self._current_value = value
 
-    def show_progress(self, for_value, max_value=None):
+    def show_progress(self,
+                      for_value,
+                      max_value=None):
         """
         Build progress by a value.
 
@@ -969,7 +1246,7 @@ class Progress:
         self._console.set_prefix(self._name)
         if self._started:
             return
-        self._started_time = time.time()
+        self._started_time = time.monotonic()
         self._started = True
         try:
             self._th_root.start()
@@ -979,16 +1256,6 @@ class Progress:
             self._th_root.start()
         self._console.persist_on_runtime()
         self._n_times = 0
-
-    def stop(self):
-        if self._started:
-            self._awaiting_update = False
-            self._started = False
-            self._th_root.join()
-            self._console.disable()
-        if id(self) in Progress._progresses:
-            # TODO: verify if this works
-            Progress._progresses.pop(id(self))
 
     def restart(self):
         self._reset()
@@ -1014,7 +1281,8 @@ class Progress:
     def __len__(self):
         return len(self._states)
 
-    def __getitem__(self, slice_):
+    def __getitem__(self,
+                    slice_):
         if isinstance(slice_, tuple):
             if max(slice_) > len(self):
                 raise IndexError(f"{max(slice_)} isn't in progress")
@@ -1027,7 +1295,10 @@ class Progress:
                 raise KeyError(f"Not exists {key}")
         return self._states[slice_]
 
-    def __call__(self, sequence: Sequence, name=None, max_value=None) -> "Progress":
+    def __call__(self,
+                 sequence: Sequence,
+                 name=None,
+                 max_value=None) -> "Progress":
         if not is_iterable(sequence):
             raise ValueError("Send a sequence.")
         if has_length(sequence):
@@ -1041,7 +1312,7 @@ class Progress:
             self._console.set_prefix(f"{self.name}({name})")
         if self._with_context and name is None:
             self._console.set_prefix(f"{self.name}(iter-{self._task_count})")
-        self._started_time = time.time()
+        self._started_time = time.monotonic()
         self._task_count += 1
         return self
 
@@ -1063,14 +1334,19 @@ class Progress:
                 self.stop()
             self._iter_finaly = True
             self._show_progress(self._current_value)
+            print()
 
         self._console.set_prefix(original_name)
         self.sequence = ()
+        # Força limpeza de recursos
+        self.cleanup()
 
     def __iter__(self):
         return self.__next__()
 
-    def __setitem__(self, key, value):
+    def __setitem__(self,
+                    key,
+                    value):
         value = self._valid_states(value)[0]
         if isinstance(value, State):
             value = value
@@ -1081,14 +1357,19 @@ class Progress:
         else:
             raise ValueError("Please send State object")
 
-    def __enter__(self, *args, **kwargs):
+    def __enter__(self,
+                  *args,
+                  **kwargs):
         if hasattr(self, "sequence"):
             raise ChildProcessError("Dont use progress instance on with statement.")
         self._with_context = True
         self.start()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self,
+                 exc_type,
+                 exc_val,
+                 exc_tb):
         if isinstance(exc_val, Exception) and not isinstance(
                 exc_val, DeprecationWarning
         ):

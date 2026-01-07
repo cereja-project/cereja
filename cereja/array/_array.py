@@ -55,8 +55,8 @@ __all__ = [
     "apply_proportional_mask",
 ]
 
+from .. import check_type_on_sequence
 from ..utils import is_iterable, is_sequence, is_numeric_sequence, chunk, dict_to_tuple
-from ..utils.decorators import time_exec
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,8 @@ def get_shape(sequence: Sequence) -> Tuple[Union[int, None], ...]:
     return tuple(shape)
 
 
-def reshape(sequence: Sequence, shape):
+def reshape(sequence: Sequence,
+            shape):
     sequence = flatten(sequence)
 
     expected_size = prod(shape)
@@ -124,7 +125,8 @@ def reshape(sequence: Sequence, shape):
 
 
 def array_gen(
-        shape: Tuple[int, ...], v: Union[Sequence[Any], Any] = None
+        shape: Tuple[int, ...],
+        v: Union[Sequence[Any], Any] = None
 ) -> List[Union[float, Any]]:
     """
     Generates array based on passed shape
@@ -163,77 +165,6 @@ def array_gen(
     return v[0]
 
 
-def flatten2(
-        sequence: Union[Sequence[Any], "Matrix"],
-        depth: Optional[int] = -1,
-        return_shapes=False,
-        **kwargs,
-) -> Union[List[Any], Any]:
-    """
-    Receives values, whether arrays of values, regardless of their shape and flatness
-
-    :param return_shapes: should return the shapes of the original values?
-    :param sequence: Is sequence of values.
-    :param depth: allows you to control a max depth, for example if you send a
-    sequence=[1,2, [[3]]] and depth=1 your return will be [1, 2, [3]].
-    :return: flattened array
-
-    # thanks https://github.com/rickards
-
-    e.g usage:
-
-    >>> sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
-    >>> flatten(sequence)
-    [1, 2, 3, 2, 3, 4, 6]
-    >>> flatten(sequence, depth=2)
-    [1, 2, 3, 2, [3], 4, 6]
-    """
-    if isinstance(sequence, dict):
-        sequence = dict_to_tuple(sequence)
-    else:
-        assert is_sequence(sequence), f"Invalid value {sequence}"
-
-    depth = kwargs.get("max_recursion") or depth
-
-    if not isinstance(depth, int):
-        raise TypeError(
-                f"Type {type(depth)} is not valid for max depth. Please send integer."
-        )
-
-    flattened = []
-    i = 0
-    jump = len(sequence)
-    deep = 0
-    deep_counter = {deep: jump}
-    shapes = {deep: [jump]}
-    while i < len(sequence):
-        element = sequence[i]
-        if is_sequence(element) and (depth == -1 or depth > deep):
-            jump = len(element)
-            deep += 1
-            deep_counter[deep] = deep_counter.get(deep, 0) + jump
-            shapes[deep] = shapes.get(deep, []) + [jump]
-            sequence = list(element) + list(sequence[i + 1:])
-            if jump == 0:
-                deep -= 1
-            i = 0
-        else:
-            flattened.append(element)
-            deep_counter[deep] -= 1
-            i += 1
-            if i >= jump:
-                for d in range(deep, 0, -1):
-                    if deep_counter[d] == 0:
-                        deep_counter[d - 1] -= 1
-                        deep -= 1
-                    else:
-                        break
-
-    if return_shapes:
-        return flattened, shapes
-    return flattened
-
-
 def flatten(
         sequence: Union[Sequence[Any], "Matrix"],
         depth: Optional[int] = -1,
@@ -241,35 +172,64 @@ def flatten(
         **kwargs,
 ) -> Union[List[Any], Any]:
     """
-    Receives values, whether arrays of values, regardless of their shape and flatness
+    Flattens arrays of values regardless of their shape and depth.
 
-    :param return_shapes: should return the shapes of the original values?
-    :param sequence: Is sequence of values.
-    :param depth: allows you to control a max depth, for example if you send a
-    sequence=[1,2, [[3]]] and depth=1 your return will be [1, 2, [3]].
-    :return: flattened array
+    This function recursively flattens nested sequences to a specified depth level,
+    with support for various sequence types including lists, tuples, sets, and custom
+    objects with 'tolist' or 'to_list' methods (like numpy arrays or Matrix objects).
 
-    # thanks https://github.com/rickards
+    Args:
+        sequence: The sequence of values to be flattened. Can be a nested list, tuple,
+            set, Matrix object, or any object with 'tolist'/'to_list' methods.
+        depth: Maximum flattening depth. -1 means completely flatten (default).
+            A value of 0 returns the original sequence, 1 flattens one level, etc.
+        return_shapes: If True, returns a tuple containing both the flattened array
+            and a dictionary mapping depth levels to the shapes at each level.
+        **kwargs: Additional keyword arguments. Supports 'max_recursion' as an
+            alias for the depth parameter.
 
-    e.g usage:
+    Returns:
+        Union[List[Any], Tuple[List[Any], Dict[int, List[int]]]]: If return_shapes
+            is False, returns the flattened list. If True, returns a tuple containing
+            the flattened list and a dictionary of shapes at each depth level.
 
-    >>> sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
-    >>> flatten(sequence)
-    [1, 2, 3, 2, 3, 4, 6]
-    >>> flatten(sequence, depth=2)
-    [1, 2, 3, 2, [3], 4, 6]
+    Raises:
+        AssertionError: If the sequence is not a valid sequence type.
+        TypeError: If depth is not an integer value.
+        Exception: If the sequence cannot be copied.
+
+    Examples:
+        >>> sequence = [[1, 2, 3], [], [[2, [3], 4], 6]]
+        >>> flatten(sequence)
+        [1, 2, 3, 2, 3, 4, 6]
+        >>> flatten(sequence, depth=2)
+        [1, 2, 3, 2, [3], 4, 6]
+        >>> flatten([[1, 2], [3, 4]], return_shapes=True)
+        ([1, 2, 3, 4], {0: [2], 1: [2, 2]})
     """
-    if isinstance(sequence, dict):
+
+    # Types that should be treated as sequences
+    SEQUENCE_TYPES = (list, tuple, set)
+    # Types that should NOT be flattened
+    NON_FLATTENABLE = (str, bytes, bytearray, dict)
+
+    # Initial type conversion
+    if hasattr(sequence, 'tolist'):
+        sequence = sequence.tolist()
+    elif hasattr(sequence, 'to_list'):
+        sequence = sequence.to_list()
+    elif isinstance(sequence, dict):
         sequence = list(dict_to_tuple(sequence))
     elif isinstance(sequence, (tuple, set)):
         sequence = list(sequence)
-    else:
-        assert is_sequence(sequence), f"Invalid value to sequence"
+    elif not isinstance(sequence, SEQUENCE_TYPES):
+        raise AssertionError(f"Invalid value to sequence: {type(sequence)}")
 
     try:
         sequence = sequence.copy()
     except:
-        raise Exception(f"Invalid value to sequence")
+        raise Exception("Invalid value to sequence")
+
     depth = kwargs.get("max_recursion") or depth
 
     if not isinstance(depth, int):
@@ -277,40 +237,55 @@ def flatten(
                 f"Type {type(depth)} is not valid for max depth. Please send integer."
         )
 
-    def _iter(seq_, take_shapes=False):
-        _has_sequence = False
-        len_seqs = []
-        for n, i in enumerate(seq_):
-            if is_sequence(i):
-                _has_sequence = True
-                if take_shapes:
-                    len_seqs.append(len(i))
-                continue
-            else:
-                seq_[n] = [i]
-        return list(chain.from_iterable(seq_)), _has_sequence, len_seqs
-
     deep = 0
-    shapes = {deep: [len(sequence)]}
+    shapes = {deep: [len(sequence)]} if return_shapes else None
+    depth_ = len(get_shape(sequence)) - 1 if depth == -1 else depth # max depth to flatten
+
     while deep < depth or depth == -1:
-        try:
-            sequence, has_sequence, shape = _iter(sequence, take_shapes=return_shapes)
-        except TypeError:
-            sequence, has_sequence, shape = _iter(sequence, take_shapes=return_shapes)
+        result = []
+        len_seqs = [] if return_shapes else None
+        has_nested = False
+        for item in sequence:
+            # Direct type checking - much faster than is_sequence
+            # Checks if it's a valid sequence (not string, bytes, etc)
+            if type(item) in SEQUENCE_TYPES or (
+                    hasattr(item, '__iter__') and
+                    not isinstance(item, NON_FLATTENABLE)
+            ):
+                has_nested = True
+                if return_shapes:
+                    len_seqs.append(len(item))
+                result.extend(item)
+            else:
+                result.append(item)
+
+        sequence = result
         deep += 1
+
         if return_shapes:
-            shapes[deep] = shape
-        if not any(map(is_sequence, sequence)):
+            shapes[deep] = len_seqs
+
+        if deep == depth_:
+            # Final check to avoid unnecessary iterations
+            if check_type_on_sequence(sequence, (int, float, str, bool, type(None), complex, bytes)):
+                break
+
+        # Stop immediately if there are no nested sequences
+        if not has_nested:
             break
+
     return (sequence, shapes) if return_shapes else sequence
 
 
-def rand_uniform(_from: T_NUMBER, to: T_NUMBER):
+def rand_uniform(_from: T_NUMBER,
+                 to: T_NUMBER):
     return _from + (to - _from) * random.random()
 
 
 def rand_n(
-        _from: T_NUMBER = 0.0, to: T_NUMBER = 1.0, n: int = 1
+        _from: T_NUMBER = 0.0,
+        to: T_NUMBER = 1.0,
+        n: int = 1
 ) -> Union[float, List[float]]:
     """
     All values ​​are random and their sum is equal to 1 (default) or the value sent in parameter (to)
@@ -350,7 +325,9 @@ def rand_n(
     return values
 
 
-def array_randn(shape: Tuple[int, ...], *args, **kwargs) -> List[Union[float, Any]]:
+def array_randn(shape: Tuple[int, ...],
+                *args,
+                **kwargs) -> List[Union[float, Any]]:
     """
     Responsible for creating matrix in the requested form. All values ​​are random and their sum is equal to 1 (
     default) or the value sent in parameter (to)
@@ -420,7 +397,8 @@ def get_cols(sequence: Union[Sequence, "Matrix"]):
     return list(zip(*sequence))
 
 
-def prod(sequence: Sequence[T_NUMBER], start=1) -> T_NUMBER:
+def prod(sequence: Sequence[T_NUMBER],
+         start=1) -> T_NUMBER:
     """
     Calculate the product of all the elements in the input iterable.
 
@@ -442,7 +420,8 @@ def prod(sequence: Sequence[T_NUMBER], start=1) -> T_NUMBER:
                 f"Value of {sequence} is not valid. Please send a numeric list."
         )
 
-    return reduce((lambda x, y: x * y), [start, *sequence])
+    return reduce((lambda x,
+                          y: x * y), [start, *sequence])
 
 
 def sub(sequence: Sequence[T_NUMBER]) -> T_NUMBER:
@@ -451,10 +430,12 @@ def sub(sequence: Sequence[T_NUMBER]) -> T_NUMBER:
                 f"Value of {sequence} is not valid. Please send a numeric list."
         )
 
-    return reduce((lambda x, y: x - y), sequence)
+    return reduce((lambda x,
+                          y: x - y), sequence)
 
 
-def _div(a, b):
+def _div(a,
+         b):
     if not isinstance(a, (int, float)) and not isinstance(b, (int, float)):
         temp_res = []
         for _a, _b in zip(a, b):
@@ -472,15 +453,18 @@ def div(sequence: Sequence[T_NUMBER]) -> T_NUMBER:
     return reduce(_div, sequence)
 
 
-def dotproduct(vec1, vec2):
+def dotproduct(vec1,
+               vec2):
     return sum(map(operator.mul, vec1, vec2))
 
 
-def dot(a, b):
+def dot(a,
+        b):
     shape_a = get_shape(a)
     shape_b = get_shape(b)
     assert shape_a[-2] == shape_b[-1]
     return [[dotproduct(line, col) for col in get_cols(b)] for line in a]
+
 
 def determinant(sequence: Sequence[Union[Sequence[T_NUMBER], "Matrix"]]) -> T_NUMBER:
     """
@@ -492,16 +476,17 @@ def determinant(sequence: Sequence[Union[Sequence[T_NUMBER], "Matrix"]]) -> T_NU
     :param matrix: Is an (nxn) matrix of numbers
     :return:
     """
-    assert(
-        len(get_shape(sequence)) == 2 and get_shape(sequence)[0] == get_shape(sequence)[1]
+    assert (
+            len(get_shape(sequence)) == 2 and get_shape(sequence)[0] == get_shape(sequence)[1]
     ), f"Matrix: {sequence} is not (nxn), please provide a square matrix."
     if len(sequence) == 2:
         return sequence[0][0] * sequence[1][1] - sequence[0][1] * sequence[1][0]
     det = 0
     for c in range(len(sequence)):
-        sub_matrix = [row[:c] + row[c+1:] for row in sequence[1:]]
+        sub_matrix = [row[:c] + row[c + 1:] for row in sequence[1:]]
         det += ((-1) ** c) * sequence[0][c] * determinant(sub_matrix)
     return det
+
 
 def get_min_max(values: List[Any]) -> Tuple[Any, ...]:
     if not values or len(values) == 0:
@@ -574,166 +559,463 @@ def apply_proportional_mask(
     return matrix
 
 
-class Matrix(object):
+class Matrix:
     """
-    Matrix is ​​a tool similar to the numpy array
-    TODO: add documentation for all class
+    Ferramenta de manipulação de matrizes similar ao numpy array.
+
+    Esta classe fornece funcionalidades básicas de álgebra linear e operações
+    matriciais, incluindo operações aritméticas, produto escalar, reshape e
+    cálculo de determinantes.
+
+    Args:
+        values: Sequência de valores para inicializar a matriz. Pode ser uma
+                lista aninhada, tupla ou qualquer sequência iterável.
+
+    Attributes:
+        shape: Tupla representando as dimensões da matriz.
+
+    Examples:
+        >>> m = Matrix([[1, 2], [3, 4]])
+        >>> m.shape
+        (2, 2)
+        >>> m.mean()
+        2.5
     """
 
-    def __init__(self, values):
-        self.values = values
-        self.shape = get_shape(values)
-        self.cols = self._get_cols()
-        self._n_max_repr = min(50, len(values))
+    # Limite de linhas para representação visual
+    _MAX_REPR_LINES = 50
+
+    def __init__(self,
+                 values):
+        """
+        Inicializa uma nova instância de Matrix.
+
+        Args:
+            values: Valores para inicializar a matriz.
+
+        Raises:
+            ValueError: Se os valores fornecidos não formarem uma matriz válida.
+        """
+        self._values = self._validate_values(values)
+        self._shape = get_shape(self._values)
+        self._cols = None  # Cache para colunas
+
+    @staticmethod
+    def _validate_values(values):
+        """
+        Valida e normaliza os valores de entrada.
+
+        Args:
+            values: Valores a serem validados.
+
+        Returns:
+            Lista normalizada dos valores.
+
+        Raises:
+            ValueError: Se os valores não forem válidos.
+        """
+        if not is_sequence(values):
+            raise ValueError("Matrix values must be a valid sequence")
+        return list(values) if not isinstance(values, list) else values
+
+    @property
+    def values(self):
+        """Retorna os valores internos da matriz."""
+        return self._values
+
+    @property
+    def shape(self):
+        """Retorna a forma (dimensões) da matriz."""
+        return self._shape
+
+    @property
+    def cols(self):
+        """
+        Retorna as colunas da matriz.
+
+        Para matrizes unidimensionais, retorna a própria lista de valores.
+        Para matrizes multidimensionais, calcula e armazena em cache as colunas.
+        """
+        if self._cols is None:
+            if len(self._shape) > 1:
+                self._cols = get_cols(self._values)
+            else:
+                self._cols = self._values
+        return self._cols
 
     def __iter__(self):
-        return iter(self.to_list())
+        """Permite iteração sobre os elementos da matriz."""
+        return iter(self._values)
 
-    def __eq__(self, other):
+    def __eq__(self,
+               other):
+        """
+        Verifica igualdade entre duas matrizes.
+
+        Args:
+            other: Matriz ou sequência a ser comparada.
+
+        Returns:
+            True se as matrizes forem iguais, False caso contrário.
+        """
         return flatten(self) == flatten(other)
 
     def __len__(self):
-        return len(self.to_list())
+        """Retorna o número de elementos na primeira dimensão."""
+        return len(self._values)
 
-    def __matmul__(self, other):
+    def __matmul__(self,
+                   other):
+        """
+        Implementa o operador @ para multiplicação matricial.
+
+        Args:
+            other: Matriz a ser multiplicada.
+
+        Returns:
+            Nova Matrix resultante da multiplicação.
+        """
         return self.dot(other)
 
-    def __add__(self, other):
-        assert self.shape == get_shape(other), "the shape must be the same"
-        if len(self.shape) == 1:
-            return Matrix([sum(t) for t in zip(self, other)])
-        else:
-            return Matrix([list(map(sum, zip(*t))) for t in zip(self, other)])
+    def __add__(self,
+                other):
+        """
+        Implementa a adição de matrizes ou escalar.
 
-    def __sub__(self, other):
+        Args:
+            other: Matrix, sequência ou valor escalar a ser adicionado.
+
+        Returns:
+            Nova Matrix com o resultado da adição.
+
+        Raises:
+            ValueError: Se as formas das matrizes não forem compatíveis.
+        """
+        other_shape = get_shape(other)
+        if self._shape != other_shape:
+            raise ValueError(
+                    f"Cannot add matrices with shapes {self._shape} and {other_shape}"
+            )
+
+        if len(self._shape) == 1:
+            return Matrix([sum(pair) for pair in zip(self, other)])
+
+        return Matrix([
+            [sum(pair) for pair in zip(*rows)]
+            for rows in zip(self, other)
+        ])
+
+    def __sub__(self,
+                other):
+        """
+        Implementa a subtração de matrizes ou escalar.
+
+        Args:
+            other: Matrix, sequência ou valor escalar a ser subtraído.
+
+        Returns:
+            Nova Matrix com o resultado da subtração.
+
+        Raises:
+            ValueError: Se as formas das matrizes não forem compatíveis.
+        """
         if is_numeric_sequence(other):
-            assert self.shape == get_shape(other), "the shape must be the same"
-            if len(self.shape) == 1:
-                return Matrix([sub(t) for t in zip(self, other)])
-            else:
-                return Matrix([list(map(sub, zip(*t))) for t in zip(self, other)])
-        return Matrix(
-                array_gen(self.shape, list(map(lambda x: x - other, self.flatten())))
-        )
+            other_shape = get_shape(other)
+            if self._shape != other_shape:
+                raise ValueError(
+                        f"Cannot subtract matrices with shapes {self._shape} and {other_shape}"
+                )
 
-    def __mul__(self, other):
-        return Matrix(
-                array_gen(self.shape, list(map(lambda x: x * other, self.flatten())))
-        )
+            if len(self._shape) == 1:
+                return Matrix([sub(pair) for pair in zip(self, other)])
 
-    def __rmul__(self, other):
+            return Matrix([
+                [sub(pair) for pair in zip(*rows)]
+                for rows in zip(self, other)
+            ])
+
+        # Subtração por escalar
+        flat_values = [x - other for x in self.flatten()]
+        return Matrix(array_gen(self._shape, flat_values))
+
+    def __mul__(self,
+                other):
+        """
+        Multiplicação elemento a elemento por escalar.
+
+        Args:
+            other: Valor escalar para multiplicação.
+
+        Returns:
+            Nova Matrix com valores multiplicados.
+        """
+        flat_values = [x * other for x in self.flatten()]
+        return Matrix(array_gen(self._shape, flat_values))
+
+    def __rmul__(self,
+                 other):
+        """Multiplicação reversa (permite escalar * Matrix)."""
         return self.__mul__(other)
 
-    def __truediv__(self, other):
+    def __truediv__(self,
+                    other):
+        """
+        Divisão elemento a elemento.
+
+        Args:
+            other: Valor escalar, Matrix ou sequência.
+
+        Returns:
+            Nova Matrix com o resultado da divisão.
+
+        Raises:
+            ValueError: Se as formas não forem compatíveis.
+            ZeroDivisionError: Se houver divisão por zero.
+        """
         if isinstance(other, (float, int)):
-            other = Matrix(array_gen(self.shape, other))
-        assert self.shape == get_shape(other), "the shape must be the same"
-        if len(self.shape) == 1:
-            result = Matrix([div(t) for t in zip(self, other)])
+            if other == 0:
+                raise ZeroDivisionError("Cannot divide by zero")
+            other = Matrix(array_gen(self._shape, other))
+
+        other_shape = get_shape(other)
+        if self._shape != other_shape:
+            raise ValueError(
+                    f"Cannot divide matrices with shapes {self._shape} and {other_shape}"
+            )
+
+        if len(self._shape) == 1:
+            result = Matrix([div(pair) for pair in zip(self, other)])
         else:
-            result = Matrix([list(map(div, zip(*t))) for t in zip(self, other)])
-        assert self.shape == result.shape, "the shape must be the same"
+            result = Matrix([
+                [div(pair) for pair in zip(*rows)]
+                for rows in zip(self, other)
+            ])
+
         return result
 
-    def __iadd__(self, other):
-        return Matrix(list(map(lambda x: x + other, self.flatten())))
+    def __iadd__(self,
+                 other):
+        """
+        Adição in-place com escalar.
 
-    def __getitem__(self, slice_):
-        if isinstance(slice_, int):
-            result = self.to_list()[slice_]
+        Args:
+            other: Valor escalar a ser adicionado.
+
+        Returns:
+            Nova Matrix com valores somados.
+        """
+        flat_values = [x + other for x in self.flatten()]
+        return Matrix(array_gen(self._shape, flat_values))
+
+    def __getitem__(self,
+                    key):
+        """
+        Acesso a elementos via indexação.
+
+        Args:
+            key: Índice inteiro, slice ou tupla de índices/slices.
+
+        Returns:
+            Elemento escalar, Matrix ou submatriz.
+        """
+        if isinstance(key, int):
+            result = self._values[key]
+            # Retorna escalar se for número
             if isinstance(result, (float, int)):
                 return result
             return Matrix(result)
-        if isinstance(slice_, tuple):
-            slice_1, slice_2 = slice_
-            values = Matrix(self.to_list()[slice_1])
-            if isinstance(slice_2, int):
-                if len(values.shape) <= 1:
-                    return values[slice_2]
-                return values.cols[slice_2]
-            if (
-                    not any((slice_2.start, slice_2.step, slice_2.stop))
-                    or len(values.shape) <= 1
-            ):
-                return values[slice_2]
-            if values.cols:
-                return values.cols[slice_2].cols
-            return values.values[slice_2]
-        return Matrix(self.to_list()[slice_])
+
+        if isinstance(key, tuple):
+            row_index, col_index = key
+            row_values = Matrix(self._values[row_index])
+
+            if isinstance(col_index, int):
+                if len(row_values.shape) <= 1:
+                    return row_values[col_index]
+                return row_values.cols[col_index]
+
+            # Slice de colunas
+            if not any((col_index.start, col_index.step, col_index.stop)) or \
+                    len(row_values.shape) <= 1:
+                return row_values[col_index]
+
+            if row_values.cols:
+                return Matrix(row_values.cols[col_index]).cols
+
+            return row_values._values[col_index]
+
+        return Matrix(self._values[key])
 
     def __repr__(self):
-        if len(self.values) >= 50:
-            dott = f"""
-            .
-            .
-            .
-            """
-            msg_max_display = (
-                f"\n\ndisplaying {self._n_max_repr} of {len(self.values)} lines"
-            )
-        else:
-            msg_max_display = ""
-            dott = ""
-        return f"{self.__class__.__name__}({self.__repr()}{dott}){msg_max_display}"
+        """Representação em string da matriz."""
+        if len(self._values) >= self._MAX_REPR_LINES:
+            preview = self._format_values()
+            dots = "\n            .\n            .\n            ."
+            footer = f"\n\n[displaying {self._MAX_REPR_LINES} of {len(self._values)} rows]"
+            return f"{self.__class__.__name__}({preview}{dots}){footer}"
 
-    def __getattribute__(self, item):
-        obj = object.__getattribute__(self, item)
-        if isinstance(obj, list):
-            return Matrix(obj)
-        return obj
+        preview = self._format_values()
+        return f"{self.__class__.__name__}({preview})"
 
-    def std(self):
-        return statistics.pstdev(self.flatten())
+    def _format_values(self):
+        """
+        Formata os valores para exibição.
 
-    def sqrt(self):
-        return Matrix(list(map(math.sqrt, self.flatten()))).reshape(self.shape)
+        Returns:
+            String formatada com os valores da matriz.
+        """
+        values = self._values[:self._MAX_REPR_LINES]
+        if len(self._shape) <= 1:
+            return str(values)
 
-    def copy(self):
-        return copy.copy(self)
-
-    def __repr(self):
-        values = self.to_list()[: self._n_max_repr]
-        if len(self.shape) <= 1:
-            return values
-        return "\n      ".join(
-                f"{val}" for i, val in enumerate(values) if i <= self._n_max_repr
-        )
+        return "\n      ".join(str(val) for val in values)
 
     def to_list(self):
-        return object.__getattribute__(self, "values")
+        """
+        Converte a matriz para lista Python nativa.
 
-    def _get_cols(self):
-        if len(self.shape) > 1:
-            return get_cols(self)
-        return self.to_list()
-
-    def dot(self, b):
-        b = Matrix(b)
-        n_cols = -1 if len(b.shape) == 1 else -2
-        assert (
-                self.shape[-1] == b.shape[n_cols]
-        ), f"Number of columns {self.shape[-1]} != number of rows {b.shape[n_cols]}"
-        if not len(b.shape) == 1:
-            return Matrix([[dotproduct(line, col) for col in b.cols] for line in self])
-        return Matrix([dotproduct(line, col) for col in b.cols for line in self])
+        Returns:
+            Lista com os valores da matriz.
+        """
+        return self._values
 
     def flatten(self):
-        return Matrix(flatten(self))
+        """
+        Retorna uma versão achatada (1D) da matriz.
+
+        Returns:
+            Nova Matrix unidimensional.
+        """
+        return Matrix(flatten(self._values))
+
+    def reshape(self,
+                shape: T_SHAPE):
+        """
+        Redimensiona a matriz para nova forma.
+
+        Args:
+            shape: Tupla com as novas dimensões.
+
+        Returns:
+            Nova Matrix com a forma especificada.
+
+        Raises:
+            ValueError: Se o número total de elementos não for compatível.
+        """
+        return Matrix(reshape(self._values, shape))
+
+    def dot(self,
+            other):
+        """
+        Calcula o produto escalar (dot product) com outra matriz.
+
+        Args:
+            other: Matrix ou sequência para multiplicação.
+
+        Returns:
+            Nova Matrix resultante do produto escalar.
+
+        Raises:
+            ValueError: Se as dimensões não forem compatíveis.
+        """
+        other = Matrix(other) if not isinstance(other, Matrix) else other
+        n_cols = -1 if len(other.shape) == 1 else -2
+
+        if self._shape[-1] != other.shape[n_cols]:
+            raise ValueError(
+                    f"Cannot multiply: columns {self._shape[-1]} != rows {other.shape[n_cols]}"
+            )
+
+        if len(other.shape) == 1:
+            return Matrix([
+                dotproduct(line, col)
+                for col in other.cols
+                for line in self
+            ])
+
+        return Matrix([
+            [dotproduct(line, col) for col in other.cols]
+            for line in self
+        ])
+
+    def determinant(self):
+        """
+        Calcula o determinante da matriz.
+
+        Returns:
+            Valor numérico do determinante.
+
+        Raises:
+            ValueError: Se a matriz não for quadrada.
+        """
+        return determinant(self._values)
 
     def mean(self):
+        """
+        Calcula a média de todos os elementos.
+
+        Returns:
+            Valor médio dos elementos.
+        """
         flattened = self.flatten()
         return sum(flattened) / len(flattened)
 
-    def reshape(self, shape: T_SHAPE):
-        return Matrix(reshape(self, shape))
-    
-    def determinant(self):
-        return Matrix(determinant(self))
+    def std(self):
+        """
+        Calcula o desvio padrão populacional.
+
+        Returns:
+            Desvio padrão dos elementos.
+        """
+        return statistics.pstdev(self.flatten())
+
+    def sqrt(self):
+        """
+        Calcula a raiz quadrada de cada elemento.
+
+        Returns:
+            Nova Matrix com raízes quadradas.
+
+        Raises:
+            ValueError: Se houver valores negativos.
+        """
+        sqrt_values = [math.sqrt(x) for x in self.flatten()]
+        return Matrix(array_gen(self._shape, sqrt_values))
+
+    def argmax(self):
+        """
+        Retorna o índice do valor máximo na matriz achatada.
+
+        Returns:
+            Índice do elemento máximo.
+        """
+        flattened = self.flatten()
+        return flattened.to_list().index(max(flattened))
+
+    def copy(self):
+        """
+        Cria uma cópia superficial da matriz.
+
+        Returns:
+            Nova instância de Matrix com os mesmos valores.
+        """
+        return copy.copy(self)
 
     @staticmethod
     def arange(*args):
-        return Matrix(list(range(*args)))
+        """
+        Cria uma matriz a partir de um intervalo numérico.
 
-    def argmax(self):
-        flattened = self.flatten()
-        return flattened.to_list().index(max(flattened))
+        Args:
+            *args: Argumentos passados para range() (start, stop, step).
+
+        Returns:
+            Nova Matrix com valores sequenciais.
+
+        Examples:
+            >>> Matrix.arange(5)
+            Matrix([0, 1, 2, 3, 4])
+            >>> Matrix.arange(1, 10, 2)
+            Matrix([1, 3, 5, 7, 9])
+        """
+        return Matrix(list(range(*args)))

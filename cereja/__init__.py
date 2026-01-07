@@ -42,6 +42,8 @@ from .system.unicode import *
 from . import date
 from .date import *
 from . import hashtools
+from .hashtools import *
+
 from . import mathtools
 from .mathtools import *
 from . import experimental
@@ -50,7 +52,7 @@ from . import scraping
 from . import wcag
 from .utils import time
 
-VERSION = "2.1.1.final.0"
+VERSION = "2.1.2.final.0"
 
 __version__ = get_version_pep440_compliant(VERSION)
 
