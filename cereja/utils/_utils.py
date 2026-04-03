@@ -235,9 +235,8 @@ def chunk(
     @return: list of batches
     """
 
-    assert (
-            is_iterable(data) and len(data) > 0
-    ), f"Chunk isn't possible, because value {data} isn't valid."
+    if not (is_iterable(data) and len(data) > 0):
+        raise ValueError(f"Chunk isn't possible, because value {data} isn't valid.")
     if batch_size is None and max_batches is None:
         return [data]
 
@@ -310,8 +309,8 @@ def truncate(data: Union[Sequence],
     Returns:
         truncated data
     """
-    assert all(isinstance(k, int) and k >= 0 for k in
-               (k_iter, k_str, k_dict_keys)), 'k parameters should be an integer equal to or larger than 0'
+    if not all(isinstance(k, int) and k >= 0 for k in (k_iter, k_str, k_dict_keys)):
+        raise TypeError('k parameters should be an integer equal to or larger than 0')
 
     data = copy(data)
     if isinstance(data, dict):
@@ -690,9 +689,8 @@ def module_references(instance: types.ModuleType,
     :param instance:
     :return: List[str]
     """
-    assert isinstance(
-            instance, types.ModuleType
-    ), "You need to submit a module instance."
+    if not isinstance(instance, types.ModuleType):
+        raise TypeError("You need to submit a module instance.")
     logger.debug(f"Checking module {instance.__name__}")
     definitions = {}
     for i in dir(instance):
@@ -729,7 +727,8 @@ def get_python_executable():
             if _exec_python.exists:
                 exec_python = _exec_python
                 break
-        assert exec_python is not None, 'Error to install dependences: Python executable not founded.'
+        if exec_python is None:
+            raise RuntimeError('Error to install dependences: Python executable not founded.')
 
     else:
         exec_python = sys.executable
@@ -1034,9 +1033,8 @@ if __name__ == '__main__':
 
     def _valid_attr(self,
                     attr_name: str):
-        assert hasattr(
-                self._instance_obj, attr_name
-        ), f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined."
+        if not hasattr(self._instance_obj, attr_name):
+            raise AttributeError(f"{self.__prefix_attr_err.format(attr_=repr(attr_name))} isn't defined.")
         return attr_name
 
     def add_check(self,
@@ -1133,7 +1131,8 @@ def _add_license(base_dir,
 
 def _rescale_down(input_list,
                   size):
-    assert len(input_list) >= size, f"{len(input_list), size}"
+    if len(input_list) < size:
+        raise ValueError(f"input_list length {len(input_list)} is less than requested size {size}")
 
     skip = len(input_list) // size
     for n, i in enumerate(range(0, len(input_list), skip), start=1):
@@ -1147,7 +1146,8 @@ def _rescale_up(values,
                 fill_with=None,
                 filling="inner"):
     size = len(values)
-    assert size <= k, f"Error while resizing: {size} < {k}"
+    if size > k:
+        raise ValueError(f"Error while resizing: {size} > {k}")
 
     clones = math.ceil(abs(size - k) / size)
     refill_values = abs(k - size * clones)
@@ -1252,9 +1252,8 @@ def rescale_values(
                     _rescale_up(values, granularity, fill_with=fill_with, filling=filling)
             )
 
-    assert (
-            len(result) == granularity
-    ), f"Error while resizing the list size {len(result)} != {granularity}"
+    if len(result) != granularity:
+        raise ValueError(f"Error while resizing the list size {len(result)} != {granularity}")
     return result
 
 
@@ -1331,7 +1330,8 @@ class SourceCodeAnalyzer:
         path = Path(path)
         if path.is_dir:
             path = path.join(f"{self.name}.py")
-        assert path.suffix == ".py", "Only Python source code is allowed."
+        if path.suffix != ".py":
+            raise ValueError("Only Python source code is allowed.")
         FileIO.create(path, self.source_code).save(**kwargs)
 
 
@@ -1414,9 +1414,8 @@ def sort_dict(
 
 
 def list_to_tuple(obj):
-    assert isinstance(
-            obj, (list, set, tuple)
-    ), f"Isn't possible convert {type(obj)} into {tuple}"
+    if not isinstance(obj, (list, set, tuple)):
+        raise TypeError(f"Isn't possible convert {type(obj)} into {tuple}")
     result = []
     for i in obj:
         if isinstance(i, list):
@@ -1440,9 +1439,8 @@ def dict_values_len(obj,
 
 
 def dict_to_tuple(obj):
-    assert isinstance(
-            obj, (dict, set)
-    ), f"Isn't possible convert {type(obj)} into {tuple}"
+    if not isinstance(obj, (dict, set)):
+        raise TypeError(f"Isn't possible convert {type(obj)} into {tuple}")
     result = []
     if isinstance(obj, set):
         return tuple(obj)
@@ -1637,7 +1635,8 @@ def prune_values(values: Sequence,
     Raises:
         TypeError: If the input values are not subscriptable.
     """
-    assert is_indexable(values), TypeError("object is not subscriptable")
+    if not is_indexable(values):
+        raise TypeError("object is not subscriptable")
 
     if len(values) <= factor:
         return values
@@ -1784,12 +1783,14 @@ class DataIterator:
             AssertionError: If the provided data is not iterable.
         """
 
-        assert is_iterable(data), "Data must be an iterable object."
+        if not is_iterable(data):
+            raise TypeError("Data must be an iterable object.")
         self._data = None
         self._length = None
         self._first = None
         if self._element_type:
-            assert check_type_on_sequence(data, self._element_type), "Data elements are not of the specified type."
+            if not check_type_on_sequence(data, self._element_type):
+                raise TypeError("Data elements are not of the specified type.")
 
         self._iter = self._get_data(data) if not isinstance(data, Iterator) else data
 

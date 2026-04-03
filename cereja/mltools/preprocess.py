@@ -45,7 +45,8 @@ def split_by_punct(text: str, punct: str = '.!?') -> list:
     :param punct: string of chars
     :return:
     """
-    assert isinstance(punct, str), 'Send punct send the strings in string format: "!.?"'
+    if not isinstance(punct, str):
+        raise TypeError('Send punct send the strings in string format: "!.?"')
     # Regular expression to split text by periods
     pattern = r'(?<=[%s])\s+' % punct
     texts = re.split(pattern, text)
@@ -121,10 +122,10 @@ def separate(
     """
     if isinstance(sep, str):
         sep = (sep,)
-    assert isinstance(
-            sep, (tuple, list)
-    ), f"{type(sep)} is not acceptable. Only (str, list and tuple) types"
-    assert isinstance(text, str), f"{type(text)} is not acceptable. Only str type."
+    if not isinstance(sep, (tuple, list)):
+        raise TypeError(f"{type(sep)} is not acceptable. Only (str, list and tuple) types")
+    if not isinstance(text, str):
+        raise TypeError(f"{type(text)} is not acceptable. Only str type.")
     new_text = []
     for word in text.split():
         for i in sep:

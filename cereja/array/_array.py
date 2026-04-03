@@ -116,9 +116,8 @@ def reshape(sequence: Sequence,
     expected_size = prod(shape)
     current_size = len(sequence)
 
-    assert (
-            current_size == expected_size
-    ), f"cannot reshape array of size {current_size} into shape {shape}"
+    if current_size != expected_size:
+        raise ValueError(f"cannot reshape array of size {current_size} into shape {shape}")
     for batch in shape[::-1]:
         sequence = chunk(sequence, batch_size=batch)
     return sequence[0]
@@ -223,7 +222,7 @@ def flatten(
     elif isinstance(sequence, (tuple, set)):
         sequence = list(sequence)
     elif not isinstance(sequence, SEQUENCE_TYPES):
-        raise AssertionError(f"Invalid value to sequence: {type(sequence)}")
+        raise TypeError(f"Invalid value to sequence: {type(sequence)}")
 
     try:
         sequence = sequence.copy()
@@ -301,10 +300,10 @@ def rand_n(
     >>>sum(flatten(array))
     15
     """
-    assert isinstance(n, int) is True, "ValueError: n: int is a integer value."
-    assert (
-            _from < to
-    ), "please send a valid range. The first value must not be greater than the second"
+    if not isinstance(n, int):
+        raise TypeError("n must be an integer value.")
+    if _from >= to:
+        raise ValueError("please send a valid range. The first value must not be greater than the second")
 
     _to = to
     values = [rand_uniform(_from, to) / n]
@@ -462,7 +461,8 @@ def dot(a,
         b):
     shape_a = get_shape(a)
     shape_b = get_shape(b)
-    assert shape_a[-2] == shape_b[-1]
+    if shape_a[-2] != shape_b[-1]:
+        raise ValueError(f"shapes {shape_a} and {shape_b} are not aligned for dot product")
     return [[dotproduct(line, col) for col in get_cols(b)] for line in a]
 
 
@@ -476,9 +476,9 @@ def determinant(sequence: Sequence[Union[Sequence[T_NUMBER], "Matrix"]]) -> T_NU
     :param matrix: Is an (nxn) matrix of numbers
     :return:
     """
-    assert (
-            len(get_shape(sequence)) == 2 and get_shape(sequence)[0] == get_shape(sequence)[1]
-    ), f"Matrix: {sequence} is not (nxn), please provide a square matrix."
+    shape = get_shape(sequence)
+    if not (len(shape) == 2 and shape[0] == shape[1]):
+        raise ValueError(f"Matrix: {sequence} is not (nxn), please provide a square matrix.")
     if len(sequence) == 2:
         return sequence[0][0] * sequence[1][1] - sequence[0][1] * sequence[1][0]
     det = 0
