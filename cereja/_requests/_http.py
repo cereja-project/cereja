@@ -21,6 +21,7 @@ SOFTWARE.
 """
 import threading
 import time
+from typing import Any, Dict, Optional, Tuple
 from urllib import request as urllib_req
 import json
 import io
@@ -36,10 +37,10 @@ from cereja import Progress
 
 class _Http:
     def __init__(self,
-                 url,
-                 data=None,
-                 headers=None,
-                 port=None):
+                 url: str,
+                 data: Any = None,
+                 headers: Optional[Dict[str, str]] = None,
+                 port: Optional[int] = None) -> None:
         self.headers = headers or {}
         self._protocol, self._port, self._domains, self._endpoint = self.parse_url(
                 url=url, port=port
@@ -47,7 +48,7 @@ class _Http:
         self._data = data or None
 
     @staticmethod
-    def is_url(val):
+    def is_url(val: Any) -> bool:
         try:
             result = urlparse(val)
             return all([result.scheme, result.netloc])
@@ -55,43 +56,43 @@ class _Http:
             return False
 
     @property
-    def protocol(self):
+    def protocol(self) -> str:
         return self._protocol
 
     @property
-    def port(self):
+    def port(self) -> Any:
         return self._port
 
     @property
-    def domains(self):
+    def domains(self) -> str:
         return self._domains
 
     @property
-    def endpoint(self):
+    def endpoint(self) -> str:
         return self._endpoint
 
     @property
-    def data(self):
+    def data(self) -> Any:
         return self._data
 
     @property
-    def url(self):
+    def url(self) -> str:
         port = f":{self._port}" if self._port else self._port
         endpoint = f"/{self._endpoint}" if self._endpoint else self._endpoint
         return f"{self._protocol}://{self._domains}{port}{endpoint}"
 
     @property
-    def content_type(self):
+    def content_type(self) -> Optional[str]:
         return self.headers.get("Content-type")
 
     @property
-    def content_length(self):
+    def content_length(self) -> Optional[str]:
         return self.headers.get("Content-length")
 
     @classmethod
     def parse_url(cls,
                   url: str,
-                  port=None):
+                  port: Optional[int] = None) -> Tuple[str, Any, str, str]:
 
         url = url.replace("://", ".")
         url = url.split("/", maxsplit=1)
