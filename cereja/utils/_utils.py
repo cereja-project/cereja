@@ -479,7 +479,7 @@ def type_table_of(o: Union[list, tuple, dict]):
     elif isinstance(o, dict):
         type_table = {}
         for k, v in o.items():
-            if isinstance(o, dict):
+            if isinstance(v, dict):
                 v = type_table_of(v)
             type_table[k] = (v, type(v))
     else:
@@ -742,7 +742,7 @@ def install_if_not(lib_name: str):
 
     try:
         importlib.import_module(lib_name)
-        output = "Alredy Installed"
+        output = "Already Installed"
     except ImportError:
         from ..system.commons import run_on_terminal
 
