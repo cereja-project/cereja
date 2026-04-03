@@ -36,7 +36,7 @@ from ..system import Path
 __all__ = ["LanguageData", "Preprocessor", "LanguageDetector"]
 
 _LANGUAGE_ISO_639_2 = {"eng": "English", "por": "Portuguese"}
-_LANGUAGE_ISO_639_1 = {"pt": "English", "en": "Portuguese"}
+_LANGUAGE_ISO_639_1 = {"pt": "Portuguese", "en": "English"}
 
 
 def separate(
