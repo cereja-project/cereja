@@ -261,7 +261,6 @@ class HttpRequest(_Http):
     @classmethod
     def get_proxies_list(cls):
         if cls.PROXIES:
-            print("já tem proxies")
             return cls.PROXIES
         try:
             cls.PROXIES = json.loads(cls("GET", PROXIES_URL).send_request().data)
