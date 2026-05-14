@@ -39,7 +39,7 @@ from copy import copy, deepcopy
 import inspect
 from pprint import PrettyPrinter
 
-from .decorators import depreciation
+from .decorators import deprecation
 # Needed init configs
 from ..config.cj_types import T_CLASS, T_FUNC, T_NUMBER
 from itertools import combinations as itertools_combinations
@@ -497,7 +497,7 @@ def camel_case_to_snake(value: str):
     return "".join(snaked_).lower()
 
 
-@depreciation(alternative="camel_case_to_snake")
+@deprecation(alternative="camel_case_to_snake")
 def camel_to_snake(value: str):
     return camel_case_to_snake(value)
 
@@ -673,7 +673,7 @@ def string_to_literal(val: Union[str, bytes]):
     if isinstance(val, (str, bytes)):
         try:
             return ast.literal_eval(val)
-        except:
+        except (ValueError, SyntaxError):
             pass
     return val
 
@@ -1335,7 +1335,7 @@ class SourceCodeAnalyzer:
         FileIO.create(path, self.source_code).save(**kwargs)
 
 
-@depreciation(alternative="SourceCodeAnalyzer")
+@deprecation(alternative="SourceCodeAnalyzer")
 class Source(SourceCodeAnalyzer):
     def __init__(self,
                  reference: Any):

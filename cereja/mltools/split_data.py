@@ -149,7 +149,7 @@ class Corpus(object):
                 ):
                     return True
                 break
-        except:
+        except (TypeError, ValueError, StopIteration):
             pass
         return False
 
