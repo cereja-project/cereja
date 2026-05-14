@@ -336,6 +336,10 @@ cj.utils.is_numeric_sequence(data)  # True
 
 [See Usage - Jupyter Notebook](./docs/cereja_example.ipynb)
 
+## Citation
+
+If you use Cereja in academic work, please cite it. GitHub will use `CITATION.cff` for the "Cite this repository" button, and a BibTeX entry is available in `CITATION.bib`.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
