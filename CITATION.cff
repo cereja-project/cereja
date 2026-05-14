@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "Cereja"
+type: software
+authors:
+  - family-names: "Leite"
+    given-names: "Joab"
+    email: "leitejoab@gmail.com"
+url: "https://github.com/cereja-project/cereja"
+repository-code: "https://github.com/cereja-project/cereja"
+license: "MIT"
+version: "2.1.2"
+
