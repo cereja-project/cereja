@@ -318,8 +318,8 @@ class _Stdout:
         try:
             self.disable()
             self.cleanup()
-        except:
-            # Evita erros durante garbage collection
+        except Exception:
+            # Avoid errors during garbage collection
             pass
 
 
@@ -583,7 +583,7 @@ class _ConsoleBase(metaclass=ABC):
         """Destructor with proper cleanup."""
         try:
             self.cleanup()
-        except:
+        except Exception:
             # Suppress all exceptions during object destruction to avoid errors at
             # interpreter shutdown or partial teardown.
             pass
@@ -1009,7 +1009,7 @@ class Progress:
         for progress in progresses:
             try:
                 progress.stop()
-            except:
+            except Exception:
                 # Intentionally ignore any errors while stopping individual progresses
                 # to ensure best-effort cleanup of all registered instances.
                 pass
@@ -1051,7 +1051,7 @@ class Progress:
         try:
             self.stop()
             self.cleanup()
-        except:
+        except Exception:
             pass
 
     def _parse_states(self):
@@ -1250,7 +1250,7 @@ class Progress:
         self._started = True
         try:
             self._th_root.start()
-        except:
+        except RuntimeError:
             self._th_root.join()
             self._th_root = self._create_progress_service()
             self._th_root.start()
@@ -1324,7 +1324,7 @@ class Progress:
             for n, obj in enumerate(self.sequence):
                 self._update_value(n + 1)
                 yield obj
-        except:
+        except Exception:
             self._err = True
         finally:
             if self._is_generator:
