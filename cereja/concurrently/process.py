@@ -79,7 +79,7 @@ class MultiProcess(_IMultiProcess):
         else:
             self._store_response(response)
 
-    @decorators.depreciation(alternative='map')
+    @decorators.deprecation(alternative='map')
     def execute(self, function, values, *args, verbose=True, **kwargs) -> list:
         return self.map(function, values, *args, verbose=verbose, **kwargs)
 
