@@ -36,7 +36,7 @@ from ..system import Path
 __all__ = ["LanguageData", "Preprocessor", "LanguageDetector"]
 
 _LANGUAGE_ISO_639_2 = {"eng": "English", "por": "Portuguese"}
-_LANGUAGE_ISO_639_1 = {"pt": "English", "en": "Portuguese"}
+_LANGUAGE_ISO_639_1 = {"pt": "Portuguese", "en": "English"}
 
 
 def separate(
@@ -207,6 +207,7 @@ class LanguageData(BaseData):
             return True
         if item in self.phrases_freq:
             return True
+        return False
 
     def __repr__(self):
         return f"LanguageData(examples: {len(self)} - vocab_size: {self.vocab_size})"
@@ -312,11 +313,10 @@ class LanguageData(BaseData):
 
 
 class LanguageDetector:
-    __language_data: Dict[str, Union[LanguageData, dict]] = {}
-    __memory = {}
-
     def __init__(self):
         self._is_model = False
+        self.__language_data: Dict[str, Union[LanguageData, dict]] = {}
+        self.__memory = {}
 
     def load(self, filepath: str):
         self._is_model = True

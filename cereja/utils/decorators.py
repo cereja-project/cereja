@@ -30,7 +30,8 @@ import warnings
 import random
 
 __all__ = [
-    "depreciation",
+    "deprecation",
+    "depreciation",  # backward-compatible alias
     "synchronized",
     "thread_safe_generator",
     "singleton",
@@ -154,7 +155,7 @@ __deprecated = __Deprecated()
 
 
 # Function version
-def depreciation(alternative: str = None):
+def deprecation(alternative: str = None):
     alternative = (
             f"You can use {alternative}" or "There is no alternative to this function"
     )
@@ -175,6 +176,10 @@ def depreciation(alternative: str = None):
         return wrapper
 
     return register
+
+
+# Backward-compatible alias (was misspelled as "depreciation")
+depreciation = deprecation
 
 
 def on_except(return_value=None,

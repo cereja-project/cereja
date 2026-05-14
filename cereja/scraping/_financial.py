@@ -16,20 +16,20 @@ def _parse_keys_to_snake(obj: dict):
 
 class FinancialResult:
     def __init__(self,
-                 describle,
+                 describe,
                  value,
                  value2='-'):
-        self.describle = describle
+        self.describe = describe
         self.value = value
         self.value2 = value2
 
     def __repr__(self):
-        return f"FinancialResult(describle={self.describle}, value={self.value}, value2={self.value2})"
+        return f"FinancialResult(describe={self.describe}, value={self.value}, value2={self.value2})"
 
     @property
     def __dict__(self):
         return {
-            "describle": self.describle,
+            "describe": self.describe,
             "value":     self.value,
             "value2":    self.value2
         }
@@ -37,22 +37,22 @@ class FinancialResult:
 
 class FinancialResultShareholders:
     def __init__(self,
-                 describle,
+                 describe,
                  on,
                  pn,
                  total):
-        self.describle = describle
+        self.describe = describe
         self.on = on
         self.pn = pn
         self.total = total
 
     def __repr__(self):
-        return f"FinancialResultShareholders(describle={self.describle}, on={self.on}, pn={self.pn}, total={self.total})"
+        return f"FinancialResultShareholders(describe={self.describe}, on={self.on}, pn={self.pn}, total={self.total})"
 
     @property
     def __dict__(self):
         return {
-            "describle": self.describle,
+            "describe": self.describe,
             "on":        self.on,
             "pn":        self.pn,
             "total":     self.total
@@ -86,24 +86,24 @@ class FinancialStatement:
 class FreeFloatResult:
     def __init__(self,
                  title,
-                 describle,
+                 describe,
                  quantity,
                  perc,
                  results):
         self.title = title
-        self.describle = describle
+        self.describe = describe
         self.quantity = quantity
         self.perc = perc
         self.results = [FinancialResult(**result) for result in results]
 
     def __repr__(self):
-        return f"FreeFloatResult(title={self.title}, describle={self.describle}, quantity={self.quantity}, perc={self.perc}, results={self.results})"
+        return f"FreeFloatResult(title={self.title}, describe={self.describe}, quantity={self.quantity}, perc={self.perc}, results={self.results})"
 
     @property
     def __dict__(self):
         return {
             "title":     self.title,
-            "describle": self.describle,
+            "describe": self.describe,
             "quantity":  self.quantity,
             "perc":      self.perc,
             "results":   [result.__dict__ for result in self.results]
