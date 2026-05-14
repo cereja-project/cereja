@@ -98,7 +98,7 @@ class DateTime(datetime):
         r'\d{2}\s[A-Za-z]+\s\d{4}':                  ['%d %B %Y'],  # DD Month YYYY
         r'[A-Za-z]+\s\d{2},\s\d{4}':                 ['%B %d, %Y'],  # Month DD, YYYY
         r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}':      ['%Y-%m-%dT%H:%M:%S'],  # ISO 8601
-        r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}':      ['%Y-%m-%d %H:%M:%S'],  # Com tempo
+        r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}':      ['%Y-%m-%d %H:%M:%S'],  # With time
         r'\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}':      ['%d/%m/%Y %H:%M:%S'],  # DD/MM/YYYY HH:MM:SS
         r'\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2}':      ['%d-%m-%Y %H:%M:%S'],  # DD-MM-YYYY HH:MM:SS
         r'\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}':      ['%Y/%m/%d %H:%M:%S'],  # YYYY/MM/DD HH:MM:SS
@@ -335,8 +335,8 @@ class DateTime(datetime):
         else:
             return None
 
-    # criar uma utilitário para converter facilmente entre esses formatos
-    # ex. DateTime("25/12/2023").parser.DDMMYYYY -> "2023-12-25"
+    # Utility to easily convert between date formats
+    # e.g. DateTime("25/12/2023").format.YYYYMMDD_DASH -> "2023-12-25"
     @property
     def format(self) -> Annotated[DateFormatsEnum, "Access date formats as attributes"]:
         class Parser:

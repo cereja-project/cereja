@@ -658,7 +658,7 @@ class Window:
             if IsWindowVisible(hwnd):
                 windows = ctypes.cast(lParam, ctypes.py_object).value
                 windows.append(Window(hwnd))
-        except:
+        except Exception:
             return False
         return True
 
