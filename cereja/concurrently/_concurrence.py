@@ -39,10 +39,7 @@ logger = logging.getLogger(__name__)
 # intern
 _exclude = ["AsyncToSync", "SyncToAsync", "TaskList", "sync_to_async", "async_to_sync"]
 
-try:
-    import contextvars  # Python 3.7+ only.
-except ImportError:
-    contextvars = None
+import contextvars
 
 
 class AsyncToSync:
@@ -62,10 +59,10 @@ class AsyncToSync:
             self.main_event_loop = None
         else:
             try:
-                self.main_event_loop = asyncio.get_event_loop()
+                self.main_event_loop = asyncio.get_running_loop()
             except RuntimeError:
-                # There's no event loop in this thread. Look for the threadlocal if
-                # we're inside SyncToAsync
+                # There's no running event loop in this thread. Look for the
+                # threadlocal if we're inside SyncToAsync
                 self.main_event_loop = getattr(
                         SyncToAsync.threadlocal, "main_event_loop", None
                 )
@@ -73,7 +70,7 @@ class AsyncToSync:
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
         try:
-            event_loop = asyncio.get_event_loop()
+            event_loop = asyncio.get_running_loop()
         except RuntimeError:
             pass
         else:
@@ -142,12 +139,9 @@ class SyncToAsync:
     calls to AsyncToSync can escape it.
     """
 
-    # If they've set ASGI_THREADS, update the default asyncio executor for now
-    if "ASGI_THREADS" in os.environ:
-        loop = asyncio.get_event_loop()
-        loop.set_default_executor(
-                ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"]))
-        )
+    # ASGI_THREADS executor is configured lazily in __call__ to avoid
+    # module-level side effects and deprecated asyncio.get_event_loop() calls.
+    _asgi_threads = os.environ.get("ASGI_THREADS")
 
     # Maps launched threads to the coroutines that spawned them
     launch_map = {}
@@ -159,16 +153,20 @@ class SyncToAsync:
         self.func = func
 
     async def __call__(self, *args, **kwargs):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
-        if contextvars is not None:
-            context = contextvars.copy_context()
-            child = functools.partial(self.func, *args, **kwargs)
-            func = context.run
-            args = (child,)
-            kwargs = {}
-        else:
-            func = self.func
+        # Configure ASGI_THREADS executor on first use if set
+        if self._asgi_threads is not None:
+            loop.set_default_executor(
+                    ThreadPoolExecutor(max_workers=int(self._asgi_threads))
+            )
+            SyncToAsync._asgi_threads = None  # Only configure once
+
+        context = contextvars.copy_context()
+        child = functools.partial(self.func, *args, **kwargs)
+        func = context.run
+        args = (child,)
+        kwargs = {}
 
         future = loop.run_in_executor(
                 None,
@@ -207,16 +205,10 @@ class SyncToAsync:
     @staticmethod
     def get_current_task():
         """
-        Cross-version implementation of asyncio.current_task()
-        Returns None if there is no task.
+        Returns the currently running asyncio Task, or None.
         """
         try:
-            if hasattr(asyncio, "current_task"):
-                # Python 3.7 and up
-                return asyncio.current_task()
-            else:
-                # Python 3.6
-                return asyncio.Task.current_task()
+            return asyncio.current_task()
         except RuntimeError:
             return None
 
@@ -260,12 +252,14 @@ class TaskList:
 
     @property
     def loop(self):
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_closed():
+                raise RuntimeError("closed")
             return loop
-        return loop
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            return loop
 
     @SyncToAsync
     def _wrapper(self, val):
@@ -275,11 +269,7 @@ class TaskList:
         return await asyncio.gather(*map(self._wrapper, self.sequence))
 
     def run(self):
-        if hasattr(asyncio, "run"):  # Only python 3.7
-            return asyncio.run(self._run())
-        return self.loop.run_until_complete(
-                asyncio.gather(*map(self._wrapper, self.sequence))
-        )
+        return asyncio.run(self._run())
 
     def _run_functional(self):
         return list(map(self.func, self.sequence))
