@@ -287,12 +287,12 @@ class Processor:
             return result
         except Exception as exc:
             print(
-                    f"Falha ao processa dado, mas será armazenado para conferência.\n"
+                    f"Failed to process item, storing for review.\n"
                     f"Error: {exc}")
             self._failure_data.append(item)
 
     def get_status(self):
-        return f"{round(self.total_processed / (time.monotonic() - self._started_at), 2)} cpf/s " \
+        return f"{round(self.total_processed / (time.monotonic() - self._started_at), 2)} items/s " \
                f"- processing: {self.in_progress_count} " \
                f"- success: {self._total_success} " \
                f"- fail: {len(self._failure_data)} "
@@ -312,7 +312,7 @@ class Processor:
             self._progress.start()
 
         with ThreadPoolExecutor(max_workers=self._num_workers,
-                                thread_name_prefix="CPF_PROCESS_WORKER") as self._executor:
+                                thread_name_prefix="PROCESS_WORKER") as self._executor:
             for item in data:
                 start_time = time.monotonic()
 
@@ -326,7 +326,7 @@ class Processor:
                     time.sleep(self.interval_seconds - elapsed_time)
                 if self.in_progress_count >= self._max_in_progress:
                     print(
-                        f"O Total de dados sendo processado {self.in_progress_count} é maior que o predefinido {self._max_in_progress}")
+                        f"In-progress count {self.in_progress_count} exceeds limit {self._max_in_progress}")
                     while self.in_progress_count >= self._max_in_progress * 0.9:
                         time.sleep(0.05)
                         if self.stopped:

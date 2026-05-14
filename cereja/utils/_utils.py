@@ -673,7 +673,7 @@ def string_to_literal(val: Union[str, bytes]):
     if isinstance(val, (str, bytes)):
         try:
             return ast.literal_eval(val)
-        except:
+        except (ValueError, SyntaxError):
             pass
     return val
 

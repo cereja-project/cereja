@@ -80,7 +80,7 @@ def is_empty(sequence: Sequence) -> bool:
     if is_sequence(sequence):
         try:
             sequence[0]
-        except:
+        except (IndexError, KeyError, TypeError):
             return True
     return False
 
@@ -227,8 +227,8 @@ def flatten(
 
     try:
         sequence = sequence.copy()
-    except:
-        raise Exception("Invalid value to sequence")
+    except (AttributeError, TypeError):
+        raise TypeError("Invalid value to sequence")
 
     depth = kwargs.get("max_recursion") or depth
 
@@ -561,18 +561,18 @@ def apply_proportional_mask(
 
 class Matrix:
     """
-    Ferramenta de manipulação de matrizes similar ao numpy array.
+    Matrix manipulation tool similar to numpy array.
 
-    Esta classe fornece funcionalidades básicas de álgebra linear e operações
-    matriciais, incluindo operações aritméticas, produto escalar, reshape e
-    cálculo de determinantes.
+    This class provides basic linear algebra and matrix operations,
+    including arithmetic operations, dot product, reshape and
+    determinant calculation.
 
     Args:
-        values: Sequência de valores para inicializar a matriz. Pode ser uma
-                lista aninhada, tupla ou qualquer sequência iterável.
+        values: Sequence of values to initialize the matrix. Can be a
+                nested list, tuple, or any iterable sequence.
 
     Attributes:
-        shape: Tupla representando as dimensões da matriz.
+        shape: Tuple representing the matrix dimensions.
 
     Examples:
         >>> m = Matrix([[1, 2], [3, 4]])
@@ -582,37 +582,37 @@ class Matrix:
         2.5
     """
 
-    # Limite de linhas para representação visual
+    # Maximum lines for visual representation
     _MAX_REPR_LINES = 50
 
     def __init__(self,
                  values):
         """
-        Inicializa uma nova instância de Matrix.
+        Initialize a new Matrix instance.
 
         Args:
-            values: Valores para inicializar a matriz.
+            values: Values to initialize the matrix.
 
         Raises:
-            ValueError: Se os valores fornecidos não formarem uma matriz válida.
+            ValueError: If the provided values do not form a valid matrix.
         """
         self._values = self._validate_values(values)
         self._shape = get_shape(self._values)
-        self._cols = None  # Cache para colunas
+        self._cols = None  # Column cache
 
     @staticmethod
     def _validate_values(values):
         """
-        Valida e normaliza os valores de entrada.
+        Validate and normalize input values.
 
         Args:
-            values: Valores a serem validados.
+            values: Values to be validated.
 
         Returns:
-            Lista normalizada dos valores.
+            Normalized list of values.
 
         Raises:
-            ValueError: Se os valores não forem válidos.
+            ValueError: If the values are not valid.
         """
         if not is_sequence(values):
             raise ValueError("Matrix values must be a valid sequence")
@@ -620,21 +620,21 @@ class Matrix:
 
     @property
     def values(self):
-        """Retorna os valores internos da matriz."""
+        """Return the internal matrix values."""
         return self._values
 
     @property
     def shape(self):
-        """Retorna a forma (dimensões) da matriz."""
+        """Return the shape (dimensions) of the matrix."""
         return self._shape
 
     @property
     def cols(self):
         """
-        Retorna as colunas da matriz.
+        Return the matrix columns.
 
-        Para matrizes unidimensionais, retorna a própria lista de valores.
-        Para matrizes multidimensionais, calcula e armazena em cache as colunas.
+        For one-dimensional matrices, returns the values list itself.
+        For multi-dimensional matrices, computes and caches the columns.
         """
         if self._cols is None:
             if len(self._shape) > 1:
@@ -644,52 +644,52 @@ class Matrix:
         return self._cols
 
     def __iter__(self):
-        """Permite iteração sobre os elementos da matriz."""
+        """Allow iteration over the matrix elements."""
         return iter(self._values)
 
     def __eq__(self,
                other):
         """
-        Verifica igualdade entre duas matrizes.
+        Check equality between two matrices.
 
         Args:
-            other: Matriz ou sequência a ser comparada.
+            other: Matrix or sequence to be compared.
 
         Returns:
-            True se as matrizes forem iguais, False caso contrário.
+            True if the matrices are equal, False otherwise.
         """
         return flatten(self) == flatten(other)
 
     def __len__(self):
-        """Retorna o número de elementos na primeira dimensão."""
+        """Return the number of elements in the first dimension."""
         return len(self._values)
 
     def __matmul__(self,
                    other):
         """
-        Implementa o operador @ para multiplicação matricial.
+        Implement the @ operator for matrix multiplication.
 
         Args:
-            other: Matriz a ser multiplicada.
+            other: Matrix to be multiplied.
 
         Returns:
-            Nova Matrix resultante da multiplicação.
+            New Matrix resulting from the multiplication.
         """
         return self.dot(other)
 
     def __add__(self,
                 other):
         """
-        Implementa a adição de matrizes ou escalar.
+        Implement matrix or scalar addition.
 
         Args:
-            other: Matrix, sequência ou valor escalar a ser adicionado.
+            other: Matrix, sequence, or scalar value to be added.
 
         Returns:
-            Nova Matrix com o resultado da adição.
+            New Matrix with the addition result.
 
         Raises:
-            ValueError: Se as formas das matrizes não forem compatíveis.
+            ValueError: If the matrix shapes are not compatible.
         """
         other_shape = get_shape(other)
         if self._shape != other_shape:
@@ -708,16 +708,16 @@ class Matrix:
     def __sub__(self,
                 other):
         """
-        Implementa a subtração de matrizes ou escalar.
+        Implement matrix or scalar subtraction.
 
         Args:
-            other: Matrix, sequência ou valor escalar a ser subtraído.
+            other: Matrix, sequence, or scalar value to be subtracted.
 
         Returns:
-            Nova Matrix com o resultado da subtração.
+            New Matrix with the subtraction result.
 
         Raises:
-            ValueError: Se as formas das matrizes não forem compatíveis.
+            ValueError: If the matrix shapes are not compatible.
         """
         if is_numeric_sequence(other):
             other_shape = get_shape(other)
@@ -734,43 +734,43 @@ class Matrix:
                 for rows in zip(self, other)
             ])
 
-        # Subtração por escalar
+        # Scalar subtraction
         flat_values = [x - other for x in self.flatten()]
         return Matrix(array_gen(self._shape, flat_values))
 
     def __mul__(self,
                 other):
         """
-        Multiplicação elemento a elemento por escalar.
+        Element-wise scalar multiplication.
 
         Args:
-            other: Valor escalar para multiplicação.
+            other: Scalar value for multiplication.
 
         Returns:
-            Nova Matrix com valores multiplicados.
+            New Matrix with multiplied values.
         """
         flat_values = [x * other for x in self.flatten()]
         return Matrix(array_gen(self._shape, flat_values))
 
     def __rmul__(self,
                  other):
-        """Multiplicação reversa (permite escalar * Matrix)."""
+        """Reverse multiplication (allows scalar * Matrix)."""
         return self.__mul__(other)
 
     def __truediv__(self,
                     other):
         """
-        Divisão elemento a elemento.
+        Element-wise division.
 
         Args:
-            other: Valor escalar, Matrix ou sequência.
+            other: Scalar value, Matrix, or sequence.
 
         Returns:
-            Nova Matrix com o resultado da divisão.
+            New Matrix with the division result.
 
         Raises:
-            ValueError: Se as formas não forem compatíveis.
-            ZeroDivisionError: Se houver divisão por zero.
+            ValueError: If the shapes are not compatible.
+            ZeroDivisionError: If division by zero occurs.
         """
         if isinstance(other, (float, int)):
             if other == 0:
@@ -796,13 +796,13 @@ class Matrix:
     def __iadd__(self,
                  other):
         """
-        Adição in-place com escalar.
+        In-place scalar addition.
 
         Args:
-            other: Valor escalar a ser adicionado.
+            other: Scalar value to be added.
 
         Returns:
-            Nova Matrix com valores somados.
+            New Matrix with summed values.
         """
         flat_values = [x + other for x in self.flatten()]
         return Matrix(array_gen(self._shape, flat_values))
@@ -810,17 +810,17 @@ class Matrix:
     def __getitem__(self,
                     key):
         """
-        Acesso a elementos via indexação.
+        Access elements via indexing.
 
         Args:
-            key: Índice inteiro, slice ou tupla de índices/slices.
+            key: Integer index, slice, or tuple of indices/slices.
 
         Returns:
-            Elemento escalar, Matrix ou submatriz.
+            Scalar element, Matrix, or sub-matrix.
         """
         if isinstance(key, int):
             result = self._values[key]
-            # Retorna escalar se for número
+            # Return scalar if it's a number
             if isinstance(result, (float, int)):
                 return result
             return Matrix(result)
@@ -834,7 +834,7 @@ class Matrix:
                     return row_values[col_index]
                 return row_values.cols[col_index]
 
-            # Slice de colunas
+            # Column slice
             if not any((col_index.start, col_index.step, col_index.stop)) or \
                     len(row_values.shape) <= 1:
                 return row_values[col_index]
@@ -847,7 +847,7 @@ class Matrix:
         return Matrix(self._values[key])
 
     def __repr__(self):
-        """Representação em string da matriz."""
+        """String representation of the matrix."""
         if len(self._values) >= self._MAX_REPR_LINES:
             preview = self._format_values()
             dots = "\n            .\n            .\n            ."
@@ -859,10 +859,10 @@ class Matrix:
 
     def _format_values(self):
         """
-        Formata os valores para exibição.
+        Format values for display.
 
         Returns:
-            String formatada com os valores da matriz.
+            Formatted string with the matrix values.
         """
         values = self._values[:self._MAX_REPR_LINES]
         if len(self._shape) <= 1:
@@ -872,51 +872,51 @@ class Matrix:
 
     def to_list(self):
         """
-        Converte a matriz para lista Python nativa.
+        Convert the matrix to a native Python list.
 
         Returns:
-            Lista com os valores da matriz.
+            List with the matrix values.
         """
         return self._values
 
     def flatten(self):
         """
-        Retorna uma versão achatada (1D) da matriz.
+        Return a flattened (1D) version of the matrix.
 
         Returns:
-            Nova Matrix unidimensional.
+            New one-dimensional Matrix.
         """
         return Matrix(flatten(self._values))
 
     def reshape(self,
                 shape: T_SHAPE):
         """
-        Redimensiona a matriz para nova forma.
+        Reshape the matrix to a new form.
 
         Args:
-            shape: Tupla com as novas dimensões.
+            shape: Tuple with the new dimensions.
 
         Returns:
-            Nova Matrix com a forma especificada.
+            New Matrix with the specified shape.
 
         Raises:
-            ValueError: Se o número total de elementos não for compatível.
+            ValueError: If the total number of elements is not compatible.
         """
         return Matrix(reshape(self._values, shape))
 
     def dot(self,
             other):
         """
-        Calcula o produto escalar (dot product) com outra matriz.
+        Compute the dot product with another matrix.
 
         Args:
-            other: Matrix ou sequência para multiplicação.
+            other: Matrix or sequence for multiplication.
 
         Returns:
-            Nova Matrix resultante do produto escalar.
+            New Matrix resulting from the dot product.
 
         Raises:
-            ValueError: Se as dimensões não forem compatíveis.
+            ValueError: If the dimensions are not compatible.
         """
         other = Matrix(other) if not isinstance(other, Matrix) else other
         n_cols = -1 if len(other.shape) == 1 else -2
@@ -940,77 +940,77 @@ class Matrix:
 
     def determinant(self):
         """
-        Calcula o determinante da matriz.
+        Compute the matrix determinant.
 
         Returns:
-            Valor numérico do determinante.
+            Numeric value of the determinant.
 
         Raises:
-            ValueError: Se a matriz não for quadrada.
+            ValueError: If the matrix is not square.
         """
         return determinant(self._values)
 
     def mean(self):
         """
-        Calcula a média de todos os elementos.
+        Compute the mean of all elements.
 
         Returns:
-            Valor médio dos elementos.
+            Mean value of the elements.
         """
         flattened = self.flatten()
         return sum(flattened) / len(flattened)
 
     def std(self):
         """
-        Calcula o desvio padrão populacional.
+        Compute the population standard deviation.
 
         Returns:
-            Desvio padrão dos elementos.
+            Standard deviation of the elements.
         """
         return statistics.pstdev(self.flatten())
 
     def sqrt(self):
         """
-        Calcula a raiz quadrada de cada elemento.
+        Compute the square root of each element.
 
         Returns:
-            Nova Matrix com raízes quadradas.
+            New Matrix with square roots.
 
         Raises:
-            ValueError: Se houver valores negativos.
+            ValueError: If there are negative values.
         """
         sqrt_values = [math.sqrt(x) for x in self.flatten()]
         return Matrix(array_gen(self._shape, sqrt_values))
 
     def argmax(self):
         """
-        Retorna o índice do valor máximo na matriz achatada.
+        Return the index of the maximum value in the flattened matrix.
 
         Returns:
-            Índice do elemento máximo.
+            Index of the maximum element.
         """
         flattened = self.flatten()
         return flattened.to_list().index(max(flattened))
 
     def copy(self):
         """
-        Cria uma cópia superficial da matriz.
+        Create a shallow copy of the matrix.
 
         Returns:
-            Nova instância de Matrix com os mesmos valores.
+            New Matrix instance with the same values.
         """
         return copy.copy(self)
 
     @staticmethod
     def arange(*args):
         """
-        Cria uma matriz a partir de um intervalo numérico.
+        Create a matrix from a numeric range.
 
         Args:
-            *args: Argumentos passados para range() (start, stop, step).
+            *args: Arguments passed to range() (start, stop, step).
 
         Returns:
-            Nova Matrix com valores sequenciais.
+            New Matrix with sequential values.
 
         Examples:
             >>> Matrix.arange(5)
