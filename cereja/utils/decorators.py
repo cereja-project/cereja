@@ -53,6 +53,7 @@ _exclude = ["BaseDecorator", "Decorator", "logger"]
 def synchronized(func):
     func.__lock__ = threading.Lock()
 
+    @functools.wraps(func)
     def synced_func(*args,
                     **kws):
         with func.__lock__:
@@ -62,6 +63,7 @@ def synchronized(func):
 
 
 def use_thread(func):
+    @functools.wraps(func)
     def threaded_func(*args,
                       **kws):
         th = threading.Thread(target=func, args=args, kwargs=kws)
@@ -86,6 +88,7 @@ class _ThreadSafeIterator:
 
 
 def thread_safe_generator(func):
+    @functools.wraps(func)
     def gen(*a,
             **kw):
         return _ThreadSafeIterator(func(*a, **kw))
@@ -158,6 +161,7 @@ def deprecation(alternative: str = None):
     )
 
     def register(func):
+        @functools.wraps(func)
         def wrapper(*args,
                     **kwargs):
             warnings.warn(
@@ -181,6 +185,7 @@ depreciation = deprecation
 def on_except(return_value=None,
               warn_text=None):
     def register(func):
+        @functools.wraps(func)
         def wrapper(*args,
                     **kwargs):
             try:
@@ -201,6 +206,7 @@ def retry_on_failure(retries: int = 3,
                      exceptions: tuple = (Exception,),
                      verbose: bool = False):
     def register(func):
+        @functools.wraps(func)
         def wrapper(*args,
                     **kwargs):
             delay = initial_delay
