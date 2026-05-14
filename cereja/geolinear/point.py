@@ -58,7 +58,7 @@ class Point:
                       and (isinstance(z, (int, float)) or z is None)):
                 raise ValueError
         except Exception:
-            msg = x if y is None else f"({x}, {y}, {x})"
+            msg = x if y is None else f"({x}, {y}, {z})"
             raise ValueError(
                     f"A point must have 2 or 3 coordinates. Amount received {msg}")
 
@@ -163,7 +163,7 @@ class Point:
             w (int): Width of the bounding box.
             h (int): Height of the bounding box.
             position (str, optional): Position of the bounding box relative to the point.
-                Valid positions: "center", "left-top", "left-bottom", "right_top", "right_bottom".
+                Valid positions: "center", "left-top", "left-bottom", "right-top", "right-bottom".
                 Defaults to "center".
 
         Raises:
@@ -181,13 +181,13 @@ class Point:
             start_x, start_y = self.x, self.y
         elif position == "left-bottom":
             start_x, start_y = self.x, self.y - (h // 2)
-        elif position == "right_top":
+        elif position == "right-top":
             start_x, start_y = self.x - w, self.y
-        elif position == "right_bottom":
+        elif position == "right-bottom":
             start_x, start_y = self.x - w, self.y - h
         else:
             raise ValueError('Invalid position. Enter a valid position for the point. Valid positions: ('
-                             '"center", "left-top", "left-bottom", "right_top", "right_bottom")')
+                             '"center", "left-top", "left-bottom", "right-top", "right-bottom")')
 
         end_x = start_x + w
         end_y = start_y + h
