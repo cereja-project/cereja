@@ -186,7 +186,7 @@ def remove_stop_words(
     """
     language = language.lower()
     if language not in LANGUAGES:
-        print(f'Idioma "{language}" não encontrado. Idiomas disponíveis: {LANGUAGES}')
+        print(f'Language "{language}" not found. Available languages: {LANGUAGES}')
 
     stop_words = stop_words if stop_words else STOP_WORDS.get(language, None)
     sentence = (
