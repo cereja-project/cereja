@@ -74,7 +74,7 @@ _STDERR_ORIGINAL_COPY = sys.stderr
 
 
 class _Stdout:
-    """Classe para gerenciar saída do console com melhor gestão de memória."""
+    """Class to manage console output with improved memory management."""
 
     __user_msg = []
     _stdout_original = _STDOUT_ORIGINAL_COPY
@@ -88,13 +88,13 @@ class _Stdout:
         self.use_th_console = False
         self._stdout_buffer = io.StringIO()
         self._stderr_buffer = io.StringIO()
-        # Usa weakref para evitar referência circular
+        # Use weakref to avoid circular reference
         self.console_ref = weakref.ref(console_) if console_ else None
-        self._lock = threading.Lock()  # Adiciona thread safety
+        self._lock = threading.Lock()  # Add thread safety
 
     @property
     def console(self):
-        """Retorna a referência do console ou None se foi coletado."""
+        """Return the console reference or None if garbage collected."""
         return self.console_ref() if self.console_ref else None
 
     @classmethod
@@ -119,18 +119,18 @@ class _Stdout:
 
     def set_message(self,
                     msg):
-        """Define mensagem do usuário com limpeza prévia."""
+        """Set user message with prior cleanup."""
         with self._lock:
             self.__user_msg = msg
 
     def _has_user_msg(self):
-        """Verifica se há mensagens no buffer."""
+        """Check if there are messages in the buffer."""
         with self._lock:
             return bool(self._stdout_buffer.getvalue())
 
     @property
     def stdout_buffer_values(self):
-        """Retorna e limpa o buffer stdout."""
+        """Return and clear the stdout buffer."""
         with self._lock:
             vals = self._stdout_buffer.getvalue()
             self._clear_buffer(self._stdout_buffer)
@@ -138,7 +138,7 @@ class _Stdout:
 
     @property
     def stderr_buffer_values(self):
-        """Retorna e limpa o buffer stderr."""
+        """Return and clear the stderr buffer."""
         with self._lock:
             vals = self._stderr_buffer.getvalue()
             self._clear_buffer(self._stderr_buffer)
@@ -146,16 +146,16 @@ class _Stdout:
 
     def _clear_buffer(self,
                       buffer):
-        """Limpa um buffer StringIO de forma segura."""
+        """Safely clear a StringIO buffer."""
         try:
             buffer.seek(0)
             buffer.truncate(0)
         except (ValueError, AttributeError):
-            # Buffer já foi fechado ou corrompido
+            # Buffer already closed or corrupted
             pass
 
     def write_user_msg(self):
-        """Escreve mensagens do usuário com verificação de console."""
+        """Write user messages with console verification."""
         console = self.console
         if not console:
             return
@@ -182,26 +182,26 @@ class _Stdout:
             self._write(msg_err)
 
     def _write_user_msg_loop(self):
-        """Loop principal da thread com melhor gestão de recursos."""
+        """Main thread loop with improved resource management."""
         try:
             while self.use_th_console and threading.current_thread().is_alive():
                 try:
                     self.write_user_msg()
                     time.sleep(0.1)
                 except Exception:
-                    # Em caso de erro, para o loop para evitar loops infinitos
+                    # On error, stop the loop to avoid infinite loops
                     break
 
-            # Última verificação após sair do loop
+            # Final check after exiting the loop
             if self._has_user_msg():
                 self.write_user_msg()
         except Exception:
-            # Garante que a thread não falhe silenciosamente
+            # Ensure the thread doesn't fail silently
             pass
 
     def _write(self,
                msg: str):
-        """Escreve mensagem com melhor tratamento de erros."""
+        """Write message with improved error handling."""
         if not msg or msg.strip(" ") == "":
             return
 
@@ -216,14 +216,14 @@ class _Stdout:
             self._stdout_original.write(encoded_msg)
             self._stdout_original.flush()
         except (AttributeError, ValueError):
-            # stdout original foi modificado ou corrompido
+            # Original stdout was modified or corrupted
             pass
 
     def cj_msg(self,
                msg: str,
                line_sep=None,
                replace_last=False):
-        """Envia mensagem com thread safety."""
+        """Send message with thread safety."""
         with self._lock:
             self.last_console_msg = msg
             if replace_last:
@@ -235,7 +235,7 @@ class _Stdout:
     def write_error(self,
                     msg,
                     **args):
-        """Escreve erro no buffer."""
+        """Write error to the buffer."""
         console = self.console
         if console:
             msg = console.format(msg, color="red")
@@ -243,14 +243,14 @@ class _Stdout:
                 self._stdout_buffer.write(msg)
 
     def flush(self):
-        """Força flush do stdout original."""
+        """Force flush of the original stdout."""
         try:
             self._stdout_original.flush()
         except (AttributeError, ValueError):
             pass
 
     def persist(self):
-        """Inicia persistência com melhor gestão de thread."""
+        """Start persistence with improved thread management."""
         if not self.persisting:
             self.use_th_console = True
             self.th_console = threading.Thread(
@@ -262,11 +262,11 @@ class _Stdout:
             self.persisting = True
 
     def disable(self):
-        """Para persistência e limpa recursos."""
+        """Stop persistence and clean up resources."""
         if self.use_th_console:
             self.use_th_console = False
             if self.th_console and self.th_console.is_alive():
-                # Timeout para evitar travamento
+                # Timeout to avoid hanging
                 self.th_console.join(timeout=1.0)
             self.persisting = False
 
@@ -277,7 +277,7 @@ class _Stdout:
         self.restore_sys_module_state()
 
     def restore_sys_module_state(self):
-        """Restaura estado do sistema com verificações."""
+        """Restore system state with verifications."""
         if JUPYTER and IP:
             try:
                 IP.restore_sys_module_state()
@@ -290,16 +290,16 @@ class _Stdout:
             sys.stderr = _STDERR_ORIGINAL_COPY
 
     def cleanup(self):
-        """Limpa todos os recursos da instância."""
+        """Clean up all instance resources."""
         with self._lock:
-            # Para thread se estiver rodando
+            # Stop thread if running
             self.use_th_console = False
 
-            # Limpa buffers
+            # Clear buffers
             self._clear_buffer(self._stdout_buffer)
             self._clear_buffer(self._stderr_buffer)
 
-            # Fecha buffers
+            # Close buffers
             try:
                 self._stdout_buffer.close()
                 self._stderr_buffer.close()
@@ -308,13 +308,13 @@ class _Stdout:
                 # buffers may already be closed or partially initialized.
                 pass
 
-            # Limpa outras referências
+            # Clear other references
             self.last_console_msg = ""
             self.__user_msg.clear()
             self.console_ref = None
 
     def __del__(self):
-        """Destrutor com limpeza adequada."""
+        """Destructor with proper cleanup."""
         try:
             self.disable()
             self.cleanup()
@@ -382,7 +382,7 @@ class _ConsoleBase(metaclass=ABC):
 
     @property
     def non_bmp_supported(self):
-        """Verifica suporte a BMP de forma segura."""
+        """Safely check BMP support."""
         try:
             from cereja import NON_BMP_SUPPORTED
             return NON_BMP_SUPPORTED
@@ -580,7 +580,7 @@ class _ConsoleBase(metaclass=ABC):
             self._stdout = None
 
     def __del__(self):
-        """Destrutor com limpeza adequada."""
+        """Destructor with proper cleanup."""
         try:
             self.cleanup()
         except:
@@ -887,7 +887,7 @@ class Progress:
     :param max_value: This number represents the maximum amount you want to achieve.
                       It is not a percentage, although it is purposely set to 100 by default.
     """
-    __awaiting_state = None  # Será inicializado quando necessário
+    __awaiting_state = None  # Initialized when needed
     __done_unicode = Unicode("\U00002705")
     __err_unicode = Unicode("\U0000274C")
     __key_map = {
@@ -914,7 +914,7 @@ class Progress:
             custom_state_func=None,
             custom_state_name=None,
     ):
-        # Inicializa awaiting_state apenas quando necessário
+        # Initialize awaiting_state only when needed
         if Progress.__awaiting_state is None:
             Progress.__awaiting_state = _StateAwaiting()
 
@@ -946,7 +946,7 @@ class Progress:
         if sequence is not None:
             self.__call__(sequence)
 
-        # Adiciona à lista de progresso com limpeza automática
+        # Add to the progress list with automatic cleanup
         with Progress._progress_lock:
             Progress._progresses[id(self)] = self
 
@@ -1021,33 +1021,33 @@ class Progress:
                 self._awaiting_update = False
                 self._started = False
 
-                # Para thread com timeout
+                # Stop thread with timeout
                 if self._th_root and self._th_root.is_alive():
                     self._th_root.join(timeout=2.0)
 
                 self._console.disable()
 
-        # Remove da lista de progresso
+        # Remove from the progress list
         with Progress._progress_lock:
             Progress._progresses.pop(id(self), None)
 
     def cleanup(self):
-        """Limpa todos os recursos da instância."""
+        """Clean up all instance resources."""
         with self._lock:
-            # Para thread
+            # Stop thread
             self._started = False
             self._awaiting_update = False
 
-            # Limpa referências
+            # Clear references
             self._states = ()
             self._custom_state_value = None
 
-            # Força limpeza da thread
+            # Force thread cleanup
             if self._th_root:
                 self._th_root = None
 
     def __del__(self):
-        """Destrutor com limpeza adequada."""
+        """Destructor with proper cleanup."""
         try:
             self.stop()
             self.cleanup()
@@ -1338,7 +1338,7 @@ class Progress:
 
         self._console.set_prefix(original_name)
         self.sequence = ()
-        # Força limpeza de recursos
+        # Force resource cleanup
         self.cleanup()
 
     def __iter__(self):
