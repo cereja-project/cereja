@@ -80,7 +80,7 @@ def is_empty(sequence: Sequence) -> bool:
     if is_sequence(sequence):
         try:
             sequence[0]
-        except:
+        except (IndexError, KeyError, TypeError):
             return True
     return False
 
@@ -226,8 +226,8 @@ def flatten(
 
     try:
         sequence = sequence.copy()
-    except:
-        raise Exception("Invalid value to sequence")
+    except (AttributeError, TypeError):
+        raise TypeError("Invalid value to sequence")
 
     depth = kwargs.get("max_recursion") or depth
 

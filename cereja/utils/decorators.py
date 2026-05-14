@@ -30,7 +30,8 @@ import warnings
 import random
 
 __all__ = [
-    "depreciation",
+    "deprecation",
+    "depreciation",  # backward-compatible alias
     "synchronized",
     "thread_safe_generator",
     "singleton",
@@ -52,6 +53,7 @@ _exclude = ["BaseDecorator", "Decorator", "logger"]
 def synchronized(func):
     func.__lock__ = threading.Lock()
 
+    @functools.wraps(func)
     def synced_func(*args,
                     **kws):
         with func.__lock__:
@@ -61,6 +63,7 @@ def synchronized(func):
 
 
 def use_thread(func):
+    @functools.wraps(func)
     def threaded_func(*args,
                       **kws):
         th = threading.Thread(target=func, args=args, kwargs=kws)
@@ -85,6 +88,7 @@ class _ThreadSafeIterator:
 
 
 def thread_safe_generator(func):
+    @functools.wraps(func)
     def gen(*a,
             **kw):
         return _ThreadSafeIterator(func(*a, **kw))
@@ -151,12 +155,13 @@ __deprecated = __Deprecated()
 
 
 # Function version
-def depreciation(alternative: str = None):
+def deprecation(alternative: str = None):
     alternative = (
             f"You can use {alternative}" or "There is no alternative to this function"
     )
 
     def register(func):
+        @functools.wraps(func)
         def wrapper(*args,
                     **kwargs):
             warnings.warn(
@@ -173,9 +178,14 @@ def depreciation(alternative: str = None):
     return register
 
 
+# Backward-compatible alias (was misspelled as "depreciation")
+depreciation = deprecation
+
+
 def on_except(return_value=None,
               warn_text=None):
     def register(func):
+        @functools.wraps(func)
         def wrapper(*args,
                     **kwargs):
             try:
@@ -196,6 +206,7 @@ def retry_on_failure(retries: int = 3,
                      exceptions: tuple = (Exception,),
                      verbose: bool = False):
     def register(func):
+        @functools.wraps(func)
         def wrapper(*args,
                     **kwargs):
             delay = initial_delay
