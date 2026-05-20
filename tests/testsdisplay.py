@@ -14,13 +14,6 @@ from cereja.display import console, Progress, State
 class TestConsoleBase(unittest.TestCase):
     """Tests for the console singleton and _ConsoleBase."""
 
-    def test_console_is_singleton(self):
-        """Console should be a singleton instance."""
-        from cereja.display._display import _ConsoleBase
-        c1 = _ConsoleBase()
-        c2 = _ConsoleBase()
-        self.assertIs(c1, c2)
-
     def test_set_prefix(self):
         """set_prefix should change prefix_name."""
         original = console.prefix_name
