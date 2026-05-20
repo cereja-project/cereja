@@ -341,7 +341,8 @@ class Processor:
     def stop_process(self):
         self._stopped = True
         self._process_result_service.join()
-        self._progress.stop()
+        if self._progress is not None:
+            self._progress.stop()
 
     def restart_process(self):
         self.stop_process()  # espera terminar execução do processo anterior

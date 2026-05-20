@@ -226,7 +226,7 @@ class CompressTest(unittest.TestCase):
     
     def test_compression_stats(self):
         """Test compression statistics."""
-        original = "Test data " * 100
+        original = "Test data " * 1000
         compressed, stats = hashtools.compress(original)
         
         self.assertIsInstance(stats, hashtools.CompressionStats)
