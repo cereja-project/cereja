@@ -126,13 +126,15 @@ class DateTime(datetime):
     @classmethod
     def _validate_timestamp(cls,
                             value) -> Union[int, float]:
-        assert isinstance(value, (int, float)), f"{value} is not valid."
+        if not isinstance(value, (int, float)):
+            raise TypeError(f"{value} is not valid. Expected int or float.")
         return value
 
     @classmethod
     def _validate_date(cls,
                        other):
-        assert isinstance(other, datetime), f"Send {datetime} obj"
+        if not isinstance(other, datetime):
+            raise TypeError(f"Expected {datetime} object, got {type(other)}")
         return other
 
     @classmethod

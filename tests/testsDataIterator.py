@@ -20,7 +20,7 @@ class TestDataIterator(unittest.TestCase):
         self.assertTrue(iterator.is_empty)
 
     def test_init_with_non_iterable(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             DataIterator(123)
 
     def test_get_first_element(self):

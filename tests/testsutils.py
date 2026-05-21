@@ -285,12 +285,12 @@ class UtilsTest(unittest.TestCase):
     def test_truncate(self):
         self.assertEqual(utils.truncate("Cereja is fun.", k_str=3), "Ce….")
         self.assertEqual(utils.truncate(b"Cereja is fun.", k_iter=3), b"Ce....")
-        self.assertRaises(AssertionError, utils.truncate, "Cereja is fun.", -1)
+        self.assertRaises(TypeError, utils.truncate, "Cereja is fun.", -1)
         self.assertEqual(utils.truncate(["Cereja is fun."], k_iter=1000), ["Cereja is fun."])
         self.assertEqual(utils.truncate("Cereja is fun.", k_str=10), "Cerej… fun.")
 
         self.assertEqual(utils.truncate([0, 1, 2, 3], k_iter=3), [0, 1, '<…>', 3])
-        self.assertRaises(AssertionError, utils.truncate, [0, 1, 2, 3], -1)
+        self.assertRaises(TypeError, utils.truncate, [0, 1, 2, 3], -1)
         self.assertEqual(utils.truncate([0, 1, 2, 3], k_iter=1000), [0, 1, 2, 3])
         self.assertEqual(utils.truncate(list(range(50)), k_iter=5), [0, 1, 2, '<…>', 48, 49])
 

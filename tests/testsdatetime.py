@@ -8,13 +8,13 @@ class TestDateTime(unittest.TestCase):
     def test_validate_timestamp(self):
         self.assertEqual(DateTime._validate_timestamp(1609459200), 1609459200)
         self.assertEqual(DateTime._validate_timestamp(1609459200.0), 1609459200.0)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             DateTime._validate_timestamp("1609459200")
 
     def test_validate_date(self):
         now = datetime.now()
         self.assertEqual(DateTime._validate_date(now), now)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             DateTime._validate_date("2021-01-01")
 
     def test_days_from_timestamp(self):
