@@ -104,6 +104,24 @@ class TestProgress(unittest.TestCase):
         result = list(Progress.prog(items, name="all_items"))
         self.assertEqual(result, items)
 
+    def test_progress_restores_runtime_std_streams(self):
+        """Progress should restore stdout/stderr to the active runtime streams."""
+        default_stdout = sys.stdout
+        default_stderr = sys.stderr
+        runtime_stdout = io.StringIO()
+        runtime_stderr = io.StringIO()
+        try:
+            sys.stdout = runtime_stdout
+            sys.stderr = runtime_stderr
+
+            result = list(Progress.prog([1, 2, 3], name="restore_streams"))
+            self.assertEqual(result, [1, 2, 3])
+            self.assertIs(sys.stdout, runtime_stdout)
+            self.assertIs(sys.stderr, runtime_stderr)
+        finally:
+            sys.stdout = default_stdout
+            sys.stderr = default_stderr
+
 
 class TestState(unittest.TestCase):
     """Tests for State abstract class and concrete implementations."""
@@ -128,5 +146,5 @@ class TestState(unittest.TestCase):
         self.assertIn("field", result)
 
 
-if __name__ == "__main__":
-    unittest.main()
+# if __name__ == "__main__":
+#     unittest.main()

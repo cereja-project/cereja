@@ -86,6 +86,10 @@ class _Stdout:
         self.th_console = None
         self.last_console_msg = ""
         self.use_th_console = False
+        # Keep the active runtime streams as defaults. They are refreshed when
+        # persistence starts, before replacing sys.stdout/sys.stderr.
+        self._stdout_original = sys.stdout
+        self._stderr_original = sys.stderr
         self._stdout_buffer = io.StringIO()
         self._stderr_buffer = io.StringIO()
         # Use weakref to avoid circular reference
@@ -253,6 +257,10 @@ class _Stdout:
         """Start persistence with improved thread management."""
         if not self.persisting:
             self.use_th_console = True
+            # Capture the current streams at runtime so restoration does not
+            # clobber external runners (e.g. PyCharm TeamCity unittest runner).
+            self._stdout_original = sys.stdout
+            self._stderr_original = sys.stderr
             self.th_console = threading.Thread(
                     name="Console", target=self._write_user_msg_loop, daemon=True
             )
@@ -285,9 +293,12 @@ class _Stdout:
                 pass
             return
 
-        if not isinstance(self._stdout_original, io.StringIO):
-            sys.stdout = _STDOUT_ORIGINAL_COPY
-            sys.stderr = _STDERR_ORIGINAL_COPY
+        # Restore only if our buffers are currently installed. This avoids
+        # overriding third-party redirections made after persist().
+        if sys.stdout is self._stdout_buffer:
+            sys.stdout = self._stdout_original
+        if sys.stderr is self._stderr_buffer:
+            sys.stderr = self._stderr_original
 
     def cleanup(self):
         """Clean up all instance resources."""
