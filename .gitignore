@@ -112,3 +112,4 @@ CMakeLists.txt
 MANIFEST.in
 *.png
 /local
+.ai
