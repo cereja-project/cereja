@@ -35,6 +35,9 @@ classifiers = [
 [tool.setuptools.dynamic]
 version = {attr = "cereja.__version__"}
 
+[project.scripts]
+cereja = "cereja.cli:main"
+
 [project.urls]
 "Homepage" = "https://github.com/cereja-project/cereja"
 "Bug Tracker" = "https://github.com/cereja-project/cereja/issues/new/choose"
