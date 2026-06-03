@@ -29,6 +29,8 @@ from ..utils import decorators
 
 __all__ = ["MultiProcess", "Processor"]
 
+logger = logging.getLogger(__name__)
+
 
 class _IMultiProcess(abc.ABC):
     """Minimal protocol for classes that store and retrieve async responses."""
@@ -140,7 +142,7 @@ class MultiProcess(_IMultiProcess):
             try:
                 self._create_task(function, value, indx, *args, **kwargs)
             except ChildProcessError:
-                print("Terminating due to an exception in one of the threads. Returning processed data...")
+                logger.error("Terminating due to an exception in one of the threads. Returning processed data.")
                 break
 
         if self._on_result is None:
@@ -163,7 +165,7 @@ class MultiProcess(_IMultiProcess):
             if not self._terminate:
                 self._process_response((indx, function(value, *args, **kwargs)))
         except Exception as err:
-            print(f"Error encountered in thread: {err}")
+            logger.exception("Error encountered in worker thread %s", indx)
             self._terminate = True
             self._exception_err = err
         finally:
@@ -223,7 +225,8 @@ class WorkerQueue(MultiProcess):
 
     def _get(self, take_indx=False, timeout=30):
         """Internal single-result retrieval helper."""
-        assert self._on_result is None, "task results are being sent to the callback defined 'on_result'"
+        if self._on_result is not None:
+            raise RuntimeError("task results are being sent to the callback defined 'on_result'")
         while (self._results.qsize() > 0 or self._active_threads > 0) or not self.is_empty:
             indx, item = self._results.get(timeout=timeout)
             self._results.task_done()
@@ -233,7 +236,8 @@ class WorkerQueue(MultiProcess):
 
     def _get_response(self, take_indx=False):
         """Wait for queue drain and return all collected responses ordered."""
-        assert self._on_result is None, "task results are being sent to the callback defined 'on_result'"
+        if self._on_result is not None:
+            raise RuntimeError("task results are being sent to the callback defined 'on_result'")
         self._q.join()
         self._indx = -1
         result = []
@@ -258,7 +262,7 @@ class WorkerQueue(MultiProcess):
             try:
                 self._create_task(self._func_task, item, indx, **kwargs)
             except ChildProcessError as err:
-                print(f"WorkerQueue failed to enqueue item {indx}: {err}")
+                logger.exception("WorkerQueue failed to enqueue item %s: %s", indx, err)
             finally:
                 self._q.task_done()
 
@@ -397,8 +401,8 @@ class Processor:
                 result = future.result()
                 if self._on_result is not None:
                     self._on_result(result)
-            except Exception as exc:
-                print(f"Failed to process future result.\nError: {exc}")
+            except Exception:
+                logger.exception("Failed to process future result.")
             finally:
                 with self._future_lock:
                     self._future_to_data.discard(future)
@@ -413,8 +417,8 @@ class Processor:
             with self._metrics_lock:
                 self._total_success += 1
             return result
-        except Exception as exc:
-            print(f"Failed to process item, storing for review.\nError: {exc}")
+        except Exception:
+            logger.exception("Failed to process item, storing for review.")
             with self._metrics_lock:
                 self._failure_data.append(item)
 

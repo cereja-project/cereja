@@ -85,6 +85,17 @@ class TestConsoleBase(unittest.TestCase):
 class TestProgress(unittest.TestCase):
     """Tests for Progress class."""
 
+    def setUp(self):
+        self.default_stdout = sys.stdout
+        self.default_stderr = sys.stderr
+        sys.stdout = io.StringIO()
+        sys.stderr = io.StringIO()
+
+    def tearDown(self):
+        console.disable()
+        sys.stdout = self.default_stdout
+        sys.stderr = self.default_stderr
+
     def test_progress_with_sequence(self):
         """Progress.prog should iterate over a sequence."""
         items = list(range(10))
@@ -119,6 +130,119 @@ class TestProgress(unittest.TestCase):
             self.assertIs(sys.stdout, runtime_stdout)
             self.assertIs(sys.stderr, runtime_stderr)
         finally:
+            sys.stdout = default_stdout
+            sys.stderr = default_stderr
+
+    def test_progress_flushes_prints_while_active(self):
+        """Progress should keep user prints visible while stdout is managed."""
+        default_stdout = sys.stdout
+        default_stderr = sys.stderr
+        runtime_stdout = io.StringIO()
+        runtime_stderr = io.StringIO()
+        try:
+            sys.stdout = runtime_stdout
+            sys.stderr = runtime_stderr
+
+            for item in Progress.prog([1], name="flush_prints"):
+                print(f"current: {item}")
+
+            output = runtime_stdout.getvalue()
+            self.assertIn("current: 1", output)
+            self.assertIn("flush_prints", output)
+            self.assertIs(sys.stdout, runtime_stdout)
+            self.assertIs(sys.stderr, runtime_stderr)
+        finally:
+            console.disable()
+            sys.stdout = default_stdout
+            sys.stderr = default_stderr
+
+    def test_progress_propagates_iteration_errors(self):
+        """Progress should not swallow exceptions raised by the iterable."""
+        def failing_sequence():
+            yield 1
+            raise RuntimeError("boom")
+
+        with self.assertRaisesRegex(RuntimeError, "boom"):
+            list(Progress.prog(failing_sequence(), name="failing"))
+
+    def test_progress_does_not_start_background_thread(self):
+        """Progress rendering should not create a background progress thread."""
+        progress = Progress(name="no_thread", max_value=1)
+        try:
+            with progress:
+                progress.show_progress(1)
+
+            self.assertIsNone(progress._th_root)
+        finally:
+            console.disable()
+
+    def test_show_progress_from_threads_finishes(self):
+        """Concurrent show_progress calls should finish without deadlock."""
+        progress = Progress(name="threaded_updates", max_value=30)
+        workers = [
+            threading.Thread(target=progress.show_progress, args=(value,))
+            for value in range(1, 6)
+        ]
+
+        try:
+            with progress:
+                for worker in workers:
+                    worker.start()
+                for worker in workers:
+                    worker.join(timeout=1)
+
+            self.assertTrue(all(not worker.is_alive() for worker in workers))
+        finally:
+            console.disable()
+
+    def test_nested_progress_keeps_outer_stream_capture(self):
+        """Disabling an inner progress should not restore streams for the outer one."""
+        default_stdout = sys.stdout
+        default_stderr = sys.stderr
+        runtime_stdout = io.StringIO()
+        runtime_stderr = io.StringIO()
+        try:
+            sys.stdout = runtime_stdout
+            sys.stderr = runtime_stderr
+
+            with Progress(name="outer", max_value=2) as outer:
+                print("outer-start")
+                with Progress(name="inner", max_value=1) as inner:
+                    inner.show_progress(1)
+                print("outer-after-inner")
+                outer.show_progress(2)
+
+            output = runtime_stdout.getvalue()
+            self.assertIn("outer-start", output)
+            self.assertIn("outer-after-inner", output)
+            self.assertIs(sys.stdout, runtime_stdout)
+            self.assertIs(sys.stderr, runtime_stderr)
+        finally:
+            console.disable()
+            sys.stdout = default_stdout
+            sys.stderr = default_stderr
+
+    def test_context_progress_reuses_instance_for_multiple_sequences(self):
+        """A context-managed Progress should reset counters between sequences."""
+        default_stdout = sys.stdout
+        default_stderr = sys.stderr
+        runtime_stdout = io.StringIO()
+        runtime_stderr = io.StringIO()
+        try:
+            sys.stdout = runtime_stdout
+            sys.stderr = runtime_stderr
+
+            with Progress(name="reuse", max_value=2) as progress:
+                first = list(progress([1, 2]))
+                second = list(progress([3]))
+
+            self.assertEqual(first, [1, 2])
+            self.assertEqual(second, [3])
+            self.assertIn("reuse", runtime_stdout.getvalue())
+            self.assertIs(sys.stdout, runtime_stdout)
+            self.assertIs(sys.stderr, runtime_stderr)
+        finally:
+            console.disable()
             sys.stdout = default_stdout
             sys.stderr = default_stderr
 

@@ -22,7 +22,7 @@ See [CONTRIBUTING](CONTRIBUTING.md) 💻
 
 ## Setup
 
-* [Python 3.6+](https://www.python.org/downloads/ "Download python")
+* [Python 3.11+](https://www.python.org/downloads/ "Download python")
 * [Pip3](https://pip.pypa.io "Download Pip")
 
 ## Install

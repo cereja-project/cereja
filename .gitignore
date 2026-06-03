@@ -112,3 +112,6 @@ CMakeLists.txt
 MANIFEST.in
 *.png
 /local
+.ai
+.aiassistant
+AGENTS.md

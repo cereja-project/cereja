@@ -19,14 +19,13 @@ description = "Cereja is a bundle of useful functions that I don't want to rewri
 readme = "README.md"
 license = {file = "LICENSE"}
 keywords = ["progress bar", "utils", "array", "pln", "file utils"]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3 :: Only",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -34,6 +33,9 @@ classifiers = [
 
 [tool.setuptools.dynamic]
 version = {attr = "cereja.__version__"}
+
+[project.scripts]
+cereja = "cereja.cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/cereja-project/cereja"

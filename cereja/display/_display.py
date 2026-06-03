@@ -19,6 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from __future__ import annotations
+
 import io
 import os
 import threading
@@ -26,21 +28,27 @@ import time
 import sys
 import random
 import weakref
-from typing import Tuple, Callable
-from abc import ABCMeta as ABC
-from typing import List
+from collections.abc import Callable, Iterable, Iterator, Sized
 from abc import ABCMeta, abstractmethod
-from typing import Sequence, Any, Union, AnyStr
+from typing import Any, AnyStr, cast
 
-from cereja import has_length
 from cereja.utils import is_iterable
-from cereja.config.cj_types import T_NUMBER
 from cereja.system.unicode import Unicode
 from cereja.utils import fill, get_instances_of, import_string
 from cereja.utils.time import time_format
 from cereja.mathtools import proportional, estimate, percent
 
 __all__ = ["Progress", "State", "console"]
+
+ProgressNumber = int | float
+
+
+def _as_float(value: int | float | complex) -> float:
+    if isinstance(value, int):
+        return float(value)
+    if isinstance(value, float):
+        return value
+    return float(value.real)
 
 _exclude = [
     "_Stdout",
@@ -76,28 +84,29 @@ _STDERR_ORIGINAL_COPY = sys.stderr
 class _Stdout:
     """Class to manage console output with improved memory management."""
 
-    __user_msg = []
+    __user_msg: list[str] = []
     _stdout_original = _STDOUT_ORIGINAL_COPY
     _stderr_original = _STDERR_ORIGINAL_COPY
 
     def __init__(self,
-                 console_):
-        self.persisting = False
-        self.th_console = None
-        self.last_console_msg = ""
-        self.use_th_console = False
+                 console_: _ConsoleBase | None):
+        self.persisting: bool = False
+        self.th_console: threading.Thread | None = None
+        self.last_console_msg: str = ""
+        self.use_th_console: bool = False
+        self._persist_depth: int = 0
         # Keep the active runtime streams as defaults. They are refreshed when
         # persistence starts, before replacing sys.stdout/sys.stderr.
         self._stdout_original = sys.stdout
         self._stderr_original = sys.stderr
-        self._stdout_buffer = io.StringIO()
-        self._stderr_buffer = io.StringIO()
+        self._stdout_buffer: io.StringIO = io.StringIO()
+        self._stderr_buffer: io.StringIO = io.StringIO()
         # Use weakref to avoid circular reference
-        self.console_ref = weakref.ref(console_) if console_ else None
-        self._lock = threading.Lock()  # Add thread safety
+        self.console_ref: weakref.ReferenceType[_ConsoleBase] | None = weakref.ref(console_) if console_ else None
+        self._lock: threading.RLock = threading.RLock()
 
     @property
-    def console(self):
+    def console(self) -> _ConsoleBase | None:
         """Return the console reference or None if garbage collected."""
         return self.console_ref() if self.console_ref else None
 
@@ -130,7 +139,7 @@ class _Stdout:
     def _has_user_msg(self):
         """Check if there are messages in the buffer."""
         with self._lock:
-            return bool(self._stdout_buffer.getvalue())
+            return bool(self._stdout_buffer.getvalue() or self._stderr_buffer.getvalue())
 
     @property
     def stdout_buffer_values(self):
@@ -160,8 +169,8 @@ class _Stdout:
 
     def write_user_msg(self):
         """Write user messages with console verification."""
-        console = self.console
-        if not console:
+        active_console = self.console
+        if active_console is None:
             return
 
         stdout, stderr = self.stdout_buffer_values, self.stderr_buffer_values
@@ -169,7 +178,7 @@ class _Stdout:
         if stdout and not (stdout in ["\n", "\r\n", "\n"]):
             values = []
             for value in stdout.splitlines():
-                value = f"{console.parse(value, title='Sys[out]')}"
+                value = f"{active_console.parse(value, title='Sys[out]')}"
                 values.append(value)
             value = "\n".join(values)
             value = f"\r{value}\n{self.last_console_msg}"
@@ -177,30 +186,24 @@ class _Stdout:
 
         if stderr and not (stderr in ["\n", "\r\n", "\n"]):
             unicode_err = "\U0000274C"
-            prefix = console.template_format(
+            prefix = active_console.template_format(
                     f"{{red}}{unicode_err} Error:{{endred}}"
             )
-            msg_err_prefix = f"{console.parse(prefix, title='Sys[err]')}"
-            msg_err = console.format(stderr, color="red")
+            msg_err_prefix = f"{active_console.parse(prefix, title='Sys[err]')}"
+            msg_err = active_console.format(stderr, color="red")
             msg_err = f"\r{msg_err_prefix}\n{msg_err}\n{self.last_console_msg}"
             self._write(msg_err)
 
     def _write_user_msg_loop(self):
-        """Main thread loop with improved resource management."""
-        try:
-            while self.use_th_console and threading.current_thread().is_alive():
-                try:
-                    self.write_user_msg()
-                    time.sleep(0.1)
-                except Exception:
-                    # On error, stop the loop to avoid infinite loops
-                    break
+        """Flush buffered user messages.
 
-            # Final check after exiting the loop
+        Kept for compatibility with older internal callers; progress rendering is
+        now synchronous and does not rely on a background polling thread.
+        """
+        try:
             if self._has_user_msg():
                 self.write_user_msg()
-        except Exception:
-            # Ensure the thread doesn't fail silently
+        except (AttributeError, ValueError, RuntimeError):
             pass
 
     def _write(self,
@@ -209,13 +212,13 @@ class _Stdout:
         if not msg or msg.strip(" ") == "":
             return
 
-        console = self.console
+        active_console = self.console
         try:
             self._stdout_original.write(msg)
             self._stdout_original.flush()
         except (UnicodeError, UnicodeEncodeError):
-            if console:
-                msg = console.translate_non_bmp(msg)
+            if active_console:
+                msg = active_console.translate_non_bmp(msg)
             encoded_msg = msg.encode("ascii", errors="replace").decode()
             self._stdout_original.write(encoded_msg)
             self._stdout_original.flush()
@@ -229,6 +232,8 @@ class _Stdout:
                replace_last=False):
         """Send message with thread safety."""
         with self._lock:
+            if self.persisting:
+                self.write_user_msg()
             self.last_console_msg = msg
             if replace_last:
                 msg = f"\r{msg}"
@@ -240,9 +245,9 @@ class _Stdout:
                     msg,
                     **args):
         """Write error to the buffer."""
-        console = self.console
-        if console:
-            msg = console.format(msg, color="red")
+        active_console = self.console
+        if active_console:
+            msg = active_console.format(msg, color="red")
             with self._lock:
                 self._stdout_buffer.write(msg)
 
@@ -255,40 +260,47 @@ class _Stdout:
 
     def persist(self):
         """Start persistence with improved thread management."""
-        if not self.persisting:
-            self.use_th_console = True
+        with self._lock:
+            if self.persisting:
+                self._persist_depth += 1
+                return
             # Capture the current streams at runtime so restoration does not
             # clobber external runners (e.g. PyCharm TeamCity unittest runner).
             self._stdout_original = sys.stdout
             self._stderr_original = sys.stderr
-            self.th_console = threading.Thread(
-                    name="Console", target=self._write_user_msg_loop, daemon=True
-            )
-            self.th_console.start()
             sys.stdout = self._stdout_buffer
             sys.stderr = self._stderr_buffer
+            self._persist_depth = 1
             self.persisting = True
 
     def disable(self):
         """Stop persistence and clean up resources."""
-        if self.use_th_console:
-            self.use_th_console = False
-            if self.th_console and self.th_console.is_alive():
-                # Timeout to avoid hanging
-                self.th_console.join(timeout=1.0)
+        with self._lock:
+            if not self.persisting:
+                self.restore_sys_module_state()
+                return
+
+            self.write_user_msg()
+            if self._persist_depth > 1:
+                self._persist_depth -= 1
+                return
+
+            self._persist_depth = 0
             self.persisting = False
 
-            console = self.console
-            if console:
-                console.set_prefix(_LOGIN_NAME)
+            active_console = self.console
+            if active_console:
+                active_console.set_prefix(_LOGIN_NAME)
 
-        self.restore_sys_module_state()
+            self.restore_sys_module_state()
 
     def restore_sys_module_state(self):
         """Restore system state with verifications."""
-        if JUPYTER and IP:
+        active_ip = IP
+        if JUPYTER and active_ip is not None:
             try:
-                IP.restore_sys_module_state()
+                restore_sys_module_state = getattr(active_ip, "restore_sys_module_state")
+                restore_sys_module_state()
             except (AttributeError, RuntimeError):
                 pass
             return
@@ -305,6 +317,7 @@ class _Stdout:
         with self._lock:
             # Stop thread if running
             self.use_th_console = False
+            self._persist_depth = 0
 
             # Clear buffers
             self._clear_buffer(self._stdout_buffer)
@@ -334,7 +347,7 @@ class _Stdout:
             pass
 
 
-class _ConsoleBase(metaclass=ABC):
+class _ConsoleBase:
     """Console base com melhor gestão de instância singleton."""
 
     _instance = None
@@ -454,7 +467,7 @@ class _ConsoleBase(metaclass=ABC):
     def _parse(self,
                msg,
                title=None,
-               color: str = None,
+               color: str | None = None,
                remove_line_sep=True):
         if color is None:
             color = "default"
@@ -512,7 +525,7 @@ class _ConsoleBase(metaclass=ABC):
         return self.template_format(template_format)
 
     def colorful_words(self,
-                       text: Union[List[str], str]) -> str:
+                       text: list[str] | str) -> str:
         msg_error = "You need send string or list of string."
         if isinstance(text, str):
             text = text.split()
@@ -570,7 +583,7 @@ class _ConsoleBase(metaclass=ABC):
     def __print(self,
                 msg,
                 title=None,
-                color: str = None,
+                color: str | None = None,
                 end=__os_line_sep):
         remove_line_sep = True if end is None else False
         msg = self._parse(
@@ -622,10 +635,10 @@ class State(metaclass=ABCMeta):
     @abstractmethod
     def display(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
     ) -> str:
         """
@@ -636,10 +649,10 @@ class State(metaclass=ABCMeta):
 
     def done(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
     ) -> str:
         return self.display(current_value, max_value, current_percent, time_it, n_times)
@@ -648,6 +661,9 @@ class State(metaclass=ABCMeta):
               *args,
               **kwargs) -> str:
         return self.display(*args, **kwargs)
+
+
+StateInput = str | State | type[State]
 
 
 class _StateLoading(State):
@@ -669,10 +685,10 @@ class _StateLoading(State):
 
     def display(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -684,10 +700,10 @@ class _StateLoading(State):
 
     def done(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -702,10 +718,10 @@ class _StateAwaiting(_StateLoading):
 
     def display(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -724,10 +740,10 @@ class _StateAwaiting(_StateLoading):
 
     def done(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -739,10 +755,10 @@ class _StateDownloadData(State):
 
     def display(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -767,10 +783,10 @@ class _StateBar(State):
 
     def display(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> AnyStr:
@@ -785,10 +801,10 @@ class _StateBar(State):
 
     def done(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -804,10 +820,10 @@ class _StatePercent(State):
 
     def display(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -815,10 +831,10 @@ class _StatePercent(State):
 
     def done(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -832,10 +848,10 @@ class _StateTime(State):
 
     def display(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -845,16 +861,16 @@ class _StateTime(State):
                 time_it,
         )
         idx = int(proportional(current_value, max_value, self.__max_sequence))
-        t_format = f"{time_format(time_estimate)}"
+        t_format = f"{time_format(_as_float(time_estimate))}"
         value = f"{self.__clock + idx} {time_format(time_it)}/{t_format}"
         return f"{value}{self.blanks(len(value))} estimated"
 
     def done(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: float,
             **kwargs,
     ) -> str:
@@ -867,10 +883,10 @@ class _StateValue(State):
 
     def display(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -879,10 +895,10 @@ class _StateValue(State):
 
     def done(
             self,
-            current_value: T_NUMBER,
-            max_value: T_NUMBER,
-            current_percent: T_NUMBER,
-            time_it: T_NUMBER,
+            current_value: ProgressNumber,
+            max_value: ProgressNumber,
+            current_percent: ProgressNumber,
+            time_it: ProgressNumber,
             n_times: int,
             **kwargs,
     ) -> str:
@@ -901,7 +917,7 @@ class Progress:
     __awaiting_state = None  # Initialized when needed
     __done_unicode = Unicode("\U00002705")
     __err_unicode = Unicode("\U0000274C")
-    __key_map = {
+    __key_map: dict[str, type[State]] = {
         "loading":  _StateLoading,
         "time":     _StateTime,
         "percent":  _StatePercent,
@@ -909,8 +925,8 @@ class Progress:
         "value":    _StateValue,
         "download": _StateDownloadData,
     }
-    _with_context = False
-    __built = False
+    _with_context: bool = False
+    __built: bool = False
     _console = console
     # Usa WeakValueDictionary para permitir garbage collection automático
     _progresses = weakref.WeakValueDictionary()
@@ -918,17 +934,18 @@ class Progress:
 
     def __init__(
             self,
-            sequence=None,
-            name="Progress",
-            max_value: int = None,
-            states=("value", "bar", "percent", "time"),
-            custom_state_func=None,
-            custom_state_name=None,
-    ):
+            sequence: Iterable[Any] | None = None,
+            name: str | None = "Progress",
+            max_value: ProgressNumber | None = None,
+            states: StateInput | Iterable[StateInput] | None = ("value", "bar", "percent", "time"),
+            custom_state_func: Callable[[], Any] | None = None,
+            custom_state_name: str | None = None,
+    ) -> None:
         # Initialize awaiting_state only when needed
         if Progress.__awaiting_state is None:
             Progress.__awaiting_state = _StateAwaiting()
 
+        self._lock = threading.RLock()
         self._is_generator = False
         self._n_times = 0
         self._name = name or "Progress"
@@ -944,15 +961,17 @@ class Progress:
             custom_state_name if custom_state_name else "Custom State"
         )
         self._started_time = None
-        self._states = ()
+        self._states: tuple[State, ...] = ()
         self.add_state(states)
-        self._max_value = max_value
-        self._current_value = 0
-        self._th_root = self._create_progress_service()
+        self._max_value: ProgressNumber | None = max_value
+        self._current_value: ProgressNumber = 0
+        self._th_root: threading.Thread | None = None
         self._was_done = False
         self._err = False
         self.__built = True
-        self._lock = threading.Lock()
+        self._last_progress_msg = None
+        self._last_render_time = 0.0
+        self._min_render_interval = 0.05
 
         if sequence is not None:
             self.__call__(sequence)
@@ -974,23 +993,23 @@ class Progress:
         gc.collect()
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @property
-    def max_value(self):
+    def max_value(self) -> ProgressNumber:
         with self._lock:
             return self._max_value or self._current_value + 1
 
     def set_name(self,
-                 value: str):
+                 value: str) -> None:
         if not isinstance(value, str):
             raise TypeError("Please send string.")
         with self._lock:
             self._name = value
         self._console.set_prefix(f"{self._name}")
 
-    def _create_progress_service(self):
+    def _create_progress_service(self) -> threading.Thread:
         """Cria thread de serviço com configuração daemon."""
         return threading.Thread(
                 name=f"Progress-{id(self)}", target=self._progress_service, daemon=True
@@ -1006,7 +1025,7 @@ class Progress:
             self.stop()
 
     @property
-    def completed(self):
+    def completed(self) -> bool:
         with self._lock:
             return self._was_done or self._err or self._iter_finaly
 
@@ -1025,24 +1044,21 @@ class Progress:
                 # to ensure best-effort cleanup of all registered instances.
                 pass
 
-    def stop(self):
+    def stop(self) -> None:
         """Para o progresso e limpa recursos."""
         with self._lock:
             if self._started:
+                if self.completed and not self._err:
+                    self._show_progress(self._max_value, force=True)
                 self._awaiting_update = False
                 self._started = False
-
-                # Stop thread with timeout
-                if self._th_root and self._th_root.is_alive():
-                    self._th_root.join(timeout=2.0)
-
                 self._console.disable()
 
         # Remove from the progress list
         with Progress._progress_lock:
             Progress._progresses.pop(id(self), None)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up all instance resources."""
         with self._lock:
             # Stop thread
@@ -1065,11 +1081,11 @@ class Progress:
         except Exception:
             pass
 
-    def _parse_states(self):
+    def _parse_states(self) -> tuple[str, ...]:
         return tuple(map(lambda stt: stt.__class__.__name__, self._states))
 
     def _get_done_state(self,
-                        **kwargs):
+                        **kwargs) -> list[str]:
         if self._current_value == 0:
             result = [self.__awaiting_state.done(**kwargs)]
         else:
@@ -1080,19 +1096,19 @@ class Progress:
         return result
 
     def _get_state(self,
-                   **kwargs):
+                   **kwargs) -> list[str]:
         return list(map(lambda state: state.display(**kwargs), self._states))
 
     @property
-    def time_it(self):
+    def time_it(self) -> float:
         return time.monotonic() - (self._started_time or time.monotonic())
 
     @property
-    def total_completed(self):
+    def total_completed(self) -> str:
         return f"{self.percent_(self._current_value)}%"
 
     def _states_view(self,
-                     for_value: T_NUMBER) -> str:
+                     for_value: ProgressNumber) -> str:
         self._n_times += 1
         kwargs = {
             "current_value":   for_value,
@@ -1127,38 +1143,40 @@ class Progress:
         return f"{state_conf}\n{self._console.parse(progress_example_view, title='Example States View')}"
 
     def add_state(self,
-                  state: Union[State, Sequence[State]],
-                  idx=-1):
+                  state: StateInput | Iterable[StateInput] | None,
+                  idx: int = -1) -> None:
         self._filter_and_add_state(state, idx)
 
     def remove_state(self,
-                     idx):
+                     idx: int) -> None:
         states = list(self._states)
         states.pop(idx)
         self._states = tuple(states)
 
     def _parse_state(self,
-                     state):
+                     state: StateInput) -> State:
         if isinstance(state, str):
-            state = self.__key_map.get(state)
-        assert issubclass(state, State) or isinstance(
-                state, State
-        ), f"State `{state}` not found in valid values [{list(self.__key_map)}]"
-        if not isinstance(state, State):
+            state_class = self.__key_map.get(state)
+            if state_class is None:
+                raise ValueError(f"State `{state}` not found in valid values [{list(self.__key_map)}]")
+            return state_class()
+        if isinstance(state, State):
+            return state
+        if isinstance(state, type) and issubclass(state, State):
             return state()
-        return state
+        raise ValueError(f"State `{state}` not found in valid values [{list(self.__key_map)}]")
 
     def _valid_states(self,
-                      states: Union[State, Sequence[State]]):
-        if states is not None:
-            if not is_iterable(states):
-                states = (states,)
-            return tuple(map(self._parse_state, states))
-        return (None,)
+                      states: StateInput | Iterable[StateInput] | None) -> tuple[State, ...]:
+        if states is None:
+            return ()
+        if isinstance(states, (str, State, type)):
+            return (self._parse_state(states),)
+        return tuple(self._parse_state(state) for state in states)
 
     def _filter_and_add_state(self,
-                              state: Union[State, Sequence[State]],
-                              index_=-1):
+                              state: StateInput | Iterable[StateInput] | None,
+                              index_: int = -1) -> None:
         state = self._valid_states(state)
         filtered = tuple(filter(lambda stt: stt not in self._states, tuple(state)))
         if any(filtered):
@@ -1173,27 +1191,27 @@ class Progress:
                 self._console.log(f"Added new states! {filtered}")
 
     @property
-    def states(self):
+    def states(self) -> tuple[str, ...]:
         return self._parse_states()
 
     def percent_(self,
-                 for_value: T_NUMBER) -> T_NUMBER:
-        return percent(for_value, self.max_value)
+                 for_value: ProgressNumber) -> ProgressNumber:
+        return _as_float(percent(for_value, self.max_value))
 
     def update_max_value(self,
-                         max_value: int):
+                         max_value: ProgressNumber) -> None:
         """
         You can modify the progress to another value. It is not a percentage,
         although it is purposely set to 100 by default.
 
         :param max_value: This number represents the maximum amount you want to achieve.
         """
-        if not isinstance(max_value, (int, float, complex)):
+        if not isinstance(max_value, (int, float)):
             raise Exception(f"Current value {max_value} isn't valid.")
         if max_value != self.max_value:
             self._max_value = max_value
 
-    def _progress_service(self):
+    def _progress_service(self) -> None:
         last_value = self._current_value
         n_times = 0
         while self._started and not self._iter_finaly:
@@ -1214,27 +1232,35 @@ class Progress:
             time.sleep(0.01)
 
     def _show_progress(self,
-                       for_value=None):
+                       for_value: ProgressNumber | None = None,
+                       force: bool = False) -> None:
         """Mostra progresso atual sem duplicação."""
         if for_value is None:
             for_value = self._current_value
 
-        msg = self._states_view(for_value)
+        with self._lock:
+            msg = self._states_view(for_value)
+            now = time.monotonic()
+            can_render = force or (now - self._last_render_time) >= self._min_render_interval
 
-        # Evita mostrar a mesma mensagem duas vezes
-        if not hasattr(self, '_last_progress_msg') or self._last_progress_msg != msg:
-            self._last_progress_msg = msg
-            self._console.replace_last_msg(msg)
+            # Evita mostrar a mesma mensagem duas vezes e reduz overhead em loops muito rápidos.
+            if can_render and self._last_progress_msg != msg:
+                self._last_progress_msg = msg
+                self._last_render_time = now
+                self._console.replace_last_msg(msg)
 
     def _update_value(self,
-                      value):
-        self._awaiting_update = self._is_generator  # if is generator awaiting state is default.
-        self._show = True
-        self._current_value = value
+                       value: ProgressNumber) -> None:
+        with self._lock:
+            self._awaiting_update = self._is_generator  # if is generator awaiting state is default.
+            self._show = True
+            self._current_value = value
+        if self._started:
+            self._show_progress(value)
 
     def show_progress(self,
-                      for_value,
-                      max_value=None):
+                      for_value: ProgressNumber,
+                      max_value: ProgressNumber | None = None) -> None:
         """
         Build progress by a value.
 
@@ -1248,39 +1274,34 @@ class Progress:
             self.update_max_value(max_value)
         self._update_value(for_value)
 
-    def _reset(self):
+    def _reset(self) -> None:
         self._current_value = 0
         self._n_times = 0
         self._started_time = None
 
-    def start(self):
+    def start(self) -> None:
         self._console.set_prefix(self._name)
         if self._started:
             return
         self._started_time = time.monotonic()
         self._started = True
-        try:
-            self._th_root.start()
-        except RuntimeError:
-            self._th_root.join()
-            self._th_root = self._create_progress_service()
-            self._th_root.start()
         self._console.persist_on_runtime()
         self._n_times = 0
+        self._show_progress(self._current_value, force=True)
 
-    def restart(self):
+    def restart(self) -> None:
         self._reset()
 
     @classmethod
     def prog(
             cls,
-            sequence: Sequence[Any],
-            name: str = None,
-            max_value: int = None,
-            states=("value", "bar", "percent", "time"),
-            custom_state_func=None,
-            custom_state_name=None,
-    ) -> "Progress":
+            sequence: Iterable[Any],
+            name: str | None = None,
+            max_value: ProgressNumber | None = None,
+            states: StateInput | Iterable[StateInput] | None = ("value", "bar", "percent", "time"),
+            custom_state_func: Callable[[], Any] | None = None,
+            custom_state_name: str | None = None,
+    ) -> Iterable[Any]:
         return cls(
                 name=name,
                 max_value=max_value,
@@ -1289,36 +1310,49 @@ class Progress:
                 custom_state_name=custom_state_name,
         )(sequence, name, max_value)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._states)
 
     def __getitem__(self,
-                    slice_):
+                    slice_: int | slice | tuple[int, ...] | str) -> State | tuple[State, ...]:
         if isinstance(slice_, tuple):
             if max(slice_) > len(self):
                 raise IndexError(f"{max(slice_)} isn't in progress")
             return tuple(self._states[idx] for idx in slice_ if idx < len(self))
         if isinstance(slice_, str):
             key = self.__key_map[slice_]
-            if key in self._states:
-                slice_ = self._states.index(key)
-            else:
+            state_index = next(
+                    (idx for idx, state in enumerate(self._states) if isinstance(state, key)),
+                    None,
+            )
+            if state_index is None:
                 raise KeyError(f"Not exists {key}")
+            slice_ = state_index
+        if isinstance(slice_, slice):
+            return self._states[slice_]
         return self._states[slice_]
 
     def __call__(self,
-                 sequence: Sequence,
-                 name=None,
-                 max_value=None) -> "Progress":
+                 sequence: Iterable[Any],
+                 name: str | None = None,
+                 max_value: ProgressNumber | None = None) -> Iterable[Any]:
         if not is_iterable(sequence):
             raise ValueError("Send a sequence.")
-        if has_length(sequence):
+        with self._lock:
+            self._iter_finaly = False
+            self._was_done = False
+            self._err = False
+            self._is_generator = False
+            self._current_value = 0
+            self._n_times = 0
+            self._last_progress_msg = None
+        if isinstance(sequence, Sized):
             self.update_max_value(len(sequence))
         elif max_value is not None:
             self.update_max_value(max_value)
         else:
             self._is_generator = True
-        self.sequence = sequence
+        self.sequence: Iterable[Any] = iter(cast(Iterable[Any], sequence))
         if name is not None:
             self._console.set_prefix(f"{self.name}({name})")
         if self._with_context and name is None:
@@ -1327,7 +1361,7 @@ class Progress:
         self._task_count += 1
         return self
 
-    def __next__(self):
+    def __next__(self) -> Any:
         original_name = self._name
         if not self._with_context:
             self.start()
@@ -1336,28 +1370,29 @@ class Progress:
                 self._update_value(n + 1)
                 yield obj
         except Exception:
-            self._err = True
+            with self._lock:
+                self._err = True
+            raise
         finally:
             if self._is_generator:
                 self.update_max_value(self._current_value)
-            self._was_done = (self._current_value >= self.max_value) and not self._err
+            with self._lock:
+                self._was_done = (self._current_value >= self.max_value) and not self._err
+                self._iter_finaly = True
+            self._show_progress(self._current_value, force=True)
+            print()
             if not self._with_context:
                 self.stop()
-            self._iter_finaly = True
-            self._show_progress(self._current_value)
-            print()
 
         self._console.set_prefix(original_name)
         self.sequence = ()
-        # Force resource cleanup
-        self.cleanup()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return self.__next__()
 
     def __setitem__(self,
-                    key,
-                    value):
+                    key: int,
+                    value: StateInput) -> None:
         value = self._valid_states(value)[0]
         if isinstance(value, State):
             value = value
@@ -1370,7 +1405,7 @@ class Progress:
 
     def __enter__(self,
                   *args,
-                  **kwargs):
+                  **kwargs) -> "Progress":
         if hasattr(self, "sequence"):
             raise ChildProcessError("Dont use progress instance on with statement.")
         self._with_context = True
@@ -1380,7 +1415,7 @@ class Progress:
     def __exit__(self,
                  exc_type,
                  exc_val,
-                 exc_tb):
+                 exc_tb) -> None:
         if isinstance(exc_val, Exception) and not isinstance(
                 exc_val, DeprecationWarning
         ):
@@ -1393,8 +1428,10 @@ class Progress:
         self._with_context = False
 
 
-if IP:
-    IP.set_custom_exc(
+ip = IP
+if ip is not None:
+    set_custom_exc = getattr(ip, "set_custom_exc")
+    set_custom_exc(
             (Exception, GeneratorExit, SystemExit, KeyboardInterrupt), _Stdout.custom_exc
     )
 else:
