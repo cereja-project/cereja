@@ -1,7 +1,9 @@
 import unittest
 import os
 import tempfile
+from unittest import mock
 from cereja import hashtools
+from cereja.hashtools import _compress
 
 
 class CompressTest(unittest.TestCase):
@@ -357,6 +359,251 @@ class CompressTest(unittest.TestCase):
         # Both should decompress correctly
         self.assertEqual(hashtools.decompress(compressed_low).decode('utf-8'), original)
         self.assertEqual(hashtools.decompress(compressed_high).decode('utf-8'), original)
+
+    def test_compress_dir_decompress_dir_preserves_nested_files(self):
+        """Test directory compression and decompression with nested files."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_dir = os.path.join(temp_dir, 'source')
+            output_dir = os.path.join(temp_dir, 'output')
+            os.makedirs(os.path.join(source_dir, 'nested'))
+            archive_path = os.path.join(temp_dir, 'archive.cjz')
+
+            with open(os.path.join(source_dir, 'root.txt'), 'wb') as f:
+                f.write(b'root data\n' * 50)
+            with open(os.path.join(source_dir, 'nested', 'child.bin'), 'wb') as f:
+                f.write(bytes(range(256)) * 4)
+
+            compressed_file, stats = hashtools.compress_dir(source_dir, archive_path)
+            extracted_dir = hashtools.decompress_dir(compressed_file, output_dir)
+
+            self.assertEqual(extracted_dir, output_dir)
+            self.assertEqual(stats.original_size, (len(b'root data\n') * 50) + (256 * 4))
+            with open(os.path.join(output_dir, 'root.txt'), 'rb') as f:
+                self.assertEqual(f.read(), b'root data\n' * 50)
+            with open(os.path.join(output_dir, 'nested', 'child.bin'), 'rb') as f:
+                self.assertEqual(f.read(), bytes(range(256)) * 4)
+
+    def test_compress_dir_supports_streaming_and_mapped_strategies(self):
+        """Test directory compression with streaming-compatible strategy mapping."""
+        strategies = ('auto', 'zlib', 'bz2', 'lzma', 'rle')
+
+        for strategy in strategies:
+            with self.subTest(strategy=strategy):
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    source_dir = os.path.join(temp_dir, 'source')
+                    output_dir = os.path.join(temp_dir, 'output')
+                    archive_path = os.path.join(temp_dir, f'{strategy}.cjz')
+                    os.makedirs(source_dir)
+                    with open(os.path.join(source_dir, 'data.txt'), 'wb') as f:
+                        f.write(b'streaming directory compression\n' * 100)
+
+                    compressed_file, stats = hashtools.compress_dir(source_dir, archive_path, strategy=strategy)
+                    hashtools.decompress_dir(compressed_file, output_dir)
+
+                    with open(os.path.join(output_dir, 'data.txt'), 'rb') as f:
+                        self.assertEqual(f.read(), b'streaming directory compression\n' * 100)
+                    self.assertIn(
+                        stats.strategy,
+                        {
+                            hashtools.CompressionStrategy.ZLIB,
+                            hashtools.CompressionStrategy.BZ2,
+                            hashtools.CompressionStrategy.LZMA,
+                        },
+                    )
+
+    def test_decompress_dir_supports_legacy_archive_format(self):
+        """Test decompression of directory archives created by the legacy format."""
+        import json
+        import struct
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            archive_path = os.path.join(temp_dir, 'legacy.cjz')
+            output_dir = os.path.join(temp_dir, 'output')
+            file_content = b'legacy format data' * 20
+            compressed_content, _ = hashtools.compress(file_content, strategy='zlib')
+            metadata = {
+                'version': 1,
+                'file_count': 1,
+                'total_size': len(file_content),
+                'files': [
+                    {
+                        'path': 'nested/legacy.txt',
+                        'original_size': len(file_content),
+                        'compressed_size': len(compressed_content),
+                    }
+                ],
+            }
+            metadata_json = json.dumps(metadata).encode('utf-8')
+            with open(archive_path, 'wb') as f:
+                f.write(struct.pack('>I', len(metadata_json)))
+                f.write(metadata_json)
+                f.write(compressed_content)
+
+            hashtools.decompress_dir(archive_path, output_dir)
+
+            with open(os.path.join(output_dir, 'nested', 'legacy.txt'), 'rb') as f:
+                self.assertEqual(f.read(), file_content)
+
+    def test_compress_dir_handles_large_file_without_api_changes(self):
+        """Test directory compression round-trip with a larger file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_dir = os.path.join(temp_dir, 'source')
+            output_dir = os.path.join(temp_dir, 'output')
+            archive_path = os.path.join(temp_dir, 'large.cjz')
+            os.makedirs(source_dir)
+            chunk = b'large file compression data\n' * 1024
+            with open(os.path.join(source_dir, 'large.bin'), 'wb') as f:
+                for _ in range(128):
+                    f.write(chunk)
+
+            compressed_file, stats = hashtools.compress_dir(source_dir, archive_path)
+            hashtools.decompress_dir(compressed_file, output_dir)
+
+            self.assertEqual(stats.original_size, len(chunk) * 128)
+            with open(os.path.join(output_dir, 'large.bin'), 'rb') as f:
+                self.assertEqual(f.read(), chunk * 128)
+
+    def test_compress_dir_does_not_include_output_archive_inside_source_dir(self):
+        """Test directory compression excludes the archive being written."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_dir = os.path.join(temp_dir, 'source')
+            output_dir = os.path.join(temp_dir, 'output')
+            archive_path = os.path.join(source_dir, 'archive.cjz')
+            os.makedirs(source_dir)
+            with open(os.path.join(source_dir, 'data.txt'), 'wb') as f:
+                f.write(b'archive self exclusion data')
+
+            compressed_file, stats = hashtools.compress_dir(source_dir, archive_path)
+            hashtools.decompress_dir(compressed_file, output_dir)
+
+            self.assertEqual(stats.original_size, len(b'archive self exclusion data'))
+            self.assertEqual(os.listdir(output_dir), ['data.txt'])
+            with open(os.path.join(output_dir, 'data.txt'), 'rb') as f:
+                self.assertEqual(f.read(), b'archive self exclusion data')
+
+    def test_decompress_dir_rejects_streaming_archive_path_traversal(self):
+        """Test path traversal protection for streaming directory archives."""
+        import struct
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            archive_path = os.path.join(temp_dir, 'unsafe.cjz')
+            unsafe_path = b'../escape.txt'
+            with open(archive_path, 'wb') as f:
+                f.write(b"CJZD\x02")
+                f.write(b'\x01')
+                f.write(struct.pack('>I', len(unsafe_path)))
+                f.write(unsafe_path)
+                f.write(struct.pack('>Q', 0))
+                f.write(b'\x10')
+
+            with self.assertRaises(hashtools.CompressionError):
+                hashtools.decompress_dir(archive_path, os.path.join(temp_dir, 'output'))
+
+    def test_compress_dir_emits_info_logs(self):
+        """Test directory compression logs start and finish events."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_dir = os.path.join(temp_dir, 'source')
+            archive_path = os.path.join(temp_dir, 'archive.cjz')
+            os.makedirs(source_dir)
+            with open(os.path.join(source_dir, 'data.txt'), 'wb') as f:
+                f.write(b'logged compression data' * 10)
+
+            with self.assertLogs('cereja.hashtools._compress', level='INFO') as logs:
+                hashtools.compress_dir(source_dir, archive_path)
+
+            self.assertTrue(any('Starting directory compression' in message for message in logs.output))
+            self.assertTrue(any('Directory compression finished' in message for message in logs.output))
+
+    def test_compress_dir_verbose_updates_progress(self):
+        """Test directory compression updates progress when verbose is enabled."""
+        class FakeProgress:
+            def __init__(self):
+                self.values = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def show_progress(self, value):
+                self.values.append(value)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_dir = os.path.join(temp_dir, 'source')
+            archive_path = os.path.join(temp_dir, 'archive.cjz')
+            os.makedirs(source_dir)
+            data = b'progress compression data' * 100
+            with open(os.path.join(source_dir, 'data.txt'), 'wb') as f:
+                f.write(data)
+            progress = FakeProgress()
+
+            with mock.patch.object(_compress, '_create_progress', return_value=progress) as create_progress:
+                hashtools.compress_dir(source_dir, archive_path, verbose=True)
+
+            create_progress.assert_called_once()
+            self.assertEqual(progress.values[-1], 1)
+
+    def test_compress_dir_verbose_tracks_completed_file_count(self):
+        """Test directory compression progress advances by completed files."""
+        class FakeProgress:
+            def __init__(self):
+                self.values = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def show_progress(self, value):
+                self.values.append(value)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_dir = os.path.join(temp_dir, 'source')
+            archive_path = os.path.join(temp_dir, 'archive.cjz')
+            os.makedirs(source_dir)
+            with open(os.path.join(source_dir, 'first.txt'), 'wb') as f:
+                f.write(b'first file')
+            with open(os.path.join(source_dir, 'second.txt'), 'wb') as f:
+                f.write(b'second file')
+            progress = FakeProgress()
+
+            with mock.patch.object(_compress, '_create_progress', return_value=progress):
+                hashtools.compress_dir(source_dir, archive_path, verbose=True)
+
+            self.assertEqual(progress.values, [1, 2])
+
+    def test_decompress_dir_verbose_updates_progress(self):
+        """Test directory decompression updates progress when verbose is enabled."""
+        class FakeProgress:
+            def __init__(self):
+                self.values = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def show_progress(self, value):
+                self.values.append(value)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_dir = os.path.join(temp_dir, 'source')
+            output_dir = os.path.join(temp_dir, 'output')
+            archive_path = os.path.join(temp_dir, 'archive.cjz')
+            os.makedirs(source_dir)
+            with open(os.path.join(source_dir, 'data.txt'), 'wb') as f:
+                f.write(b'progress decompression data' * 100)
+            hashtools.compress_dir(source_dir, archive_path)
+            progress = FakeProgress()
+
+            with mock.patch.object(_compress, '_create_progress', return_value=progress) as create_progress:
+                hashtools.decompress_dir(archive_path, output_dir, verbose=True)
+
+            create_progress.assert_called_once()
+            self.assertEqual(progress.values[-1], 1)
 
 
 if __name__ == "__main__":

@@ -97,6 +97,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Compression strategy.",
     )
     compress_parser.add_argument("--force", action="store_true", help="Overwrite existing output.")
+    compress_parser.add_argument("--quiet", action="store_true", help="Disable progress output.")
     compress_parser.set_defaults(handler=_handle_compress)
 
     decompress_parser = subparsers.add_parser("decompress", help="Decompress a file or directory archive.")
@@ -109,6 +110,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Archive type to decompress.",
     )
     decompress_parser.add_argument("--force", action="store_true", help="Overwrite existing output.")
+    decompress_parser.add_argument("--quiet", action="store_true", help="Disable progress output.")
     decompress_parser.set_defaults(handler=_handle_decompress)
 
     encrypt_parser = subparsers.add_parser("encrypt", help="Encrypt a file.")
@@ -128,28 +130,30 @@ def create_parser() -> argparse.ArgumentParser:
 
 def _handle_compress(args: argparse.Namespace) -> int:
     input_path = Path(args.input)
+    verbose = not args.quiet
     if input_path.is_dir():
-        output_path = Path(args.output) if args.output else Path(str(input_path).rstrip("/\\") + ".cjz")
+        output_path = _compressed_dir_output(input_path, args.output)
         _ensure_output_available(output_path, args.force)
-        result_path, stats = compress_dir(str(input_path), str(output_path), strategy=args.strategy)
+        result_path, stats = compress_dir(str(input_path), str(output_path), strategy=args.strategy, verbose=verbose)
     else:
-        output_path = Path(args.output) if args.output else Path(str(input_path) + ".cjz")
+        output_path = _compressed_file_output(input_path, args.output)
         _ensure_output_available(output_path, args.force)
-        result_path, stats = compress_file(str(input_path), str(output_path), strategy=args.strategy)
+        result_path, stats = compress_file(str(input_path), str(output_path), strategy=args.strategy, verbose=verbose)
 
     _print_compression_result(result_path, stats)
     return 0
 
 
 def _handle_decompress(args: argparse.Namespace) -> int:
+    verbose = not args.quiet
     if args.archive_type == "file":
         output_path = _decompressed_file_output(args.input, args.output)
         _ensure_output_available(output_path, args.force)
-        result_path = decompress_file(args.input, str(output_path))
+        result_path = decompress_file(args.input, str(output_path), verbose=verbose)
     elif args.archive_type == "dir":
         output_path = _decompressed_dir_output(args.input, args.output)
         _ensure_output_available(output_path, args.force)
-        result_path = decompress_dir(args.input, str(output_path))
+        result_path = decompress_dir(args.input, str(output_path), verbose=verbose)
     else:
         result_path = _decompress_auto(args)
 
@@ -184,13 +188,36 @@ def _handle_decrypt(args: argparse.Namespace) -> int:
 def _decompress_auto(args: argparse.Namespace) -> str:
     file_output = _decompressed_file_output(args.input, args.output)
     _ensure_output_available(file_output, args.force)
+    verbose = not args.quiet
 
     try:
-        return decompress_file(args.input, str(file_output))
+        return decompress_file(args.input, str(file_output), verbose=verbose)
     except CompressionError:
         dir_output = _decompressed_dir_output(args.input, args.output)
         _ensure_output_available(dir_output, args.force)
-        return decompress_dir(args.input, str(dir_output))
+        return decompress_dir(args.input, str(dir_output), verbose=verbose)
+
+
+def _ensure_cjz_suffix(output_path: Path) -> Path:
+    if output_path.suffix:
+        return output_path
+    return output_path.with_name(output_path.name + ".cjz")
+
+
+def _compressed_dir_output(input_path: Path, output_path: Optional[str]) -> Path:
+    if output_path:
+        return _ensure_cjz_suffix(Path(output_path))
+
+    if str(input_path) in (".", ""):
+        return Path(input_path.resolve().name + ".cjz")
+
+    return Path(str(input_path).rstrip("/\\") + ".cjz")
+
+
+def _compressed_file_output(input_path: Path, output_path: Optional[str]) -> Path:
+    if output_path:
+        return _ensure_cjz_suffix(Path(output_path))
+    return Path(str(input_path) + ".cjz")
 
 
 def _decompressed_file_output(input_path: str, output_path: Optional[str]) -> Path:
