@@ -1048,6 +1048,8 @@ class Progress:
         """Para o progresso e limpa recursos."""
         with self._lock:
             if self._started:
+                if self.completed and not self._err:
+                    self._show_progress(self._max_value, force=True)
                 self._awaiting_update = False
                 self._started = False
                 self._console.disable()

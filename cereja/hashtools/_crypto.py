@@ -70,16 +70,19 @@ def _generate_keystream(key: bytes, iv: bytes, length: int) -> bytes:
     Generate keystream using HMAC-based key expansion.
     This creates a cryptographically secure stream cipher.
     """
-    keystream = b''
+    chunks = []
     counter = 0
+    remaining = length
     
-    while len(keystream) < length:
+    while remaining > 0:
         # Use HMAC with counter for key expansion
         h = hmac.new(key, iv + counter.to_bytes(4, 'big'), hashlib.sha256)
-        keystream += h.digest()
+        digest = h.digest()
+        chunks.append(digest)
+        remaining -= len(digest)
         counter += 1
     
-    return keystream[:length]
+    return b''.join(chunks)[:length]
 
 
 def generate_key(password: Union[str, bytes], salt: bytes = None, iterations: int = 100000) -> Tuple[bytes, bytes]:

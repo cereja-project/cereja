@@ -2,6 +2,7 @@ import unittest
 import os
 import tempfile
 from cereja import hashtools
+from cereja.hashtools import _crypto
 
 
 class CryptoTest(unittest.TestCase):
@@ -84,6 +85,29 @@ class CryptoTest(unittest.TestCase):
         decrypted = hashtools.decrypt(encrypted, password)
         
         self.assertEqual(decrypted.decode('utf-8'), original)
+
+    def test_large_binary_data(self):
+        """Test encryption and decryption of larger binary data."""
+        original = bytes(range(256)) * 4096
+        password = "large_binary_password"
+
+        encrypted = hashtools.encrypt(original, password)
+        decrypted = hashtools.decrypt(encrypted, password)
+
+        self.assertEqual(decrypted, original)
+
+    def test_generate_keystream_sizes_and_determinism(self):
+        """Test keystream generation preserves requested size and deterministic output."""
+        key = b"k" * 16
+        iv = b"i" * 16
+
+        for size in (0, 1, 31, 32, 33, 100):
+            with self.subTest(size=size):
+                first = _crypto._generate_keystream(key, iv, size)
+                second = _crypto._generate_keystream(key, iv, size)
+
+                self.assertEqual(len(first), size)
+                self.assertEqual(first, second)
     
     def test_special_characters(self):
         """Test encryption with special characters."""

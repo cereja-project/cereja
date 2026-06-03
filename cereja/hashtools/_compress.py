@@ -24,9 +24,16 @@ import bz2
 import lzma
 import struct
 import base64
+import logging
 from enum import Enum
-from typing import Union, Tuple, Dict, Any
+from typing import Union, Tuple, Dict, Any, Optional
 from collections import Counter
+
+from cereja.hashtools._crypto import CryptoError
+from cereja.hashtools._crypto import decrypt as _decrypt_data
+from cereja.hashtools._crypto import encrypt as _encrypt_data
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "compress",
@@ -35,6 +42,7 @@ __all__ = [
     "decompress_file",
     "compress_dir",
     "decompress_dir",
+    "is_encrypted_archive",
     "analyze_data",
     "suggest_strategy",
     "get_compression_ratio",
@@ -648,8 +656,37 @@ def decompress(data: bytes) -> bytes:
         raise CompressionError(f"Decompression failed: {str(e)}")
 
 
-def compress_file(file_path: str, output_path: str = None, 
-                  strategy: Union[str, CompressionStrategy] = 'auto') -> Tuple[str, CompressionStats]:
+_ENCRYPTED_ARCHIVE_MAGIC = b"CJZE\x01\n"
+
+
+def _encrypt_archive_payload(data: bytes, password: Union[str, bytes]) -> bytes:
+    return _ENCRYPTED_ARCHIVE_MAGIC + _encrypt_data(data, password).encode('ascii')
+
+
+def _decrypt_archive_payload(data: bytes, password: Optional[Union[str, bytes]]) -> bytes:
+    if not data.startswith(_ENCRYPTED_ARCHIVE_MAGIC):
+        return data
+
+    if password is None:
+        raise CompressionError("Password is required to decompress encrypted archive")
+
+    encrypted_data = data[len(_ENCRYPTED_ARCHIVE_MAGIC):].decode('ascii')
+    try:
+        return _decrypt_data(encrypted_data, password)
+    except CryptoError as exc:
+        raise CompressionError(str(exc)) from exc
+
+
+def is_encrypted_archive(file_path: str) -> bool:
+    """Return True when file starts with the Cereja encrypted archive marker."""
+    with open(file_path, 'rb') as archive:
+        return archive.read(len(_ENCRYPTED_ARCHIVE_MAGIC)) == _ENCRYPTED_ARCHIVE_MAGIC
+
+
+def compress_file(file_path: str, output_path: str = None,
+                  strategy: Union[str, CompressionStrategy] = 'auto',
+                  verbose: bool = False,
+                  password: Optional[Union[str, bytes]] = None) -> Tuple[str, CompressionStats]:
     """
     Compress file contents.
     
@@ -657,6 +694,8 @@ def compress_file(file_path: str, output_path: str = None,
         file_path: Path to file to compress
         output_path: Path for compressed file (if None, uses file_path + '.cjz')
         strategy: Compression strategy (default: 'auto')
+        verbose: Whether to show progress while compressing (default: False)
+        password: Password used to encrypt the compressed archive (default: None)
     
     Returns:
         Tuple of (output_path, compression_stats)
@@ -665,13 +704,22 @@ def compress_file(file_path: str, output_path: str = None,
         CompressionError: If compression fails
         FileNotFoundError: If input file doesn't exist
     """
+    import os
+    from contextlib import nullcontext
+
     try:
-        # Read file
-        with open(file_path, 'rb') as f:
-            data = f.read()
+        progress = _create_progress(verbose, "Compressing file", 1)
+
+        with progress if progress is not None else nullcontext() as active_progress:
+            with open(file_path, 'rb') as f:
+                data = f.read()
+            if active_progress is not None:
+                active_progress.show_progress(1)
         
         # Compress
         compressed, stats = compress(data, strategy=strategy)
+        archive_data = _encrypt_archive_payload(compressed, password) if password is not None else compressed
+        stats = CompressionStats(len(data), len(archive_data), stats.strategy, stats.time_ms)
         
         # Determine output path
         if output_path is None:
@@ -679,7 +727,7 @@ def compress_file(file_path: str, output_path: str = None,
         
         # Write compressed file
         with open(output_path, 'wb') as f:
-            f.write(compressed)
+            f.write(archive_data)
         
         return output_path, stats
     
@@ -689,13 +737,17 @@ def compress_file(file_path: str, output_path: str = None,
         raise CompressionError(f"File compression failed: {str(e)}")
 
 
-def decompress_file(file_path: str, output_path: str = None) -> str:
+def decompress_file(file_path: str, output_path: str = None,
+                    verbose: bool = False,
+                    password: Optional[Union[str, bytes]] = None) -> str:
     """
     Decompress file contents.
     
     Args:
         file_path: Path to compressed file
         output_path: Path for decompressed file (if None, removes '.cjz' extension)
+        verbose: Whether to show progress while decompressing (default: False)
+        password: Password used when archive is encrypted (default: None)
     
     Returns:
         Path to decompressed file
@@ -704,11 +756,20 @@ def decompress_file(file_path: str, output_path: str = None) -> str:
         CompressionError: If decompression fails
         FileNotFoundError: If input file doesn't exist
     """
+    import os
+    from contextlib import nullcontext
+
     try:
-        # Read compressed file
-        with open(file_path, 'rb') as f:
-            compressed_data = f.read()
+        progress = _create_progress(verbose, "Decompressing file", 1)
+
+        with progress if progress is not None else nullcontext() as active_progress:
+            with open(file_path, 'rb') as f:
+                compressed_data = f.read()
+            if active_progress is not None:
+                active_progress.show_progress(1)
         
+        compressed_data = _decrypt_archive_payload(compressed_data, password)
+
         # Decompress
         decompressed = decompress(compressed_data)
         
@@ -751,8 +812,171 @@ def get_compression_ratio(original: Union[str, bytes], compressed: bytes) -> flo
     return len(original) / len(compressed)
 
 
-def compress_dir(dir_path: str, output_path: str = None, 
-                 strategy: Union[str, CompressionStrategy] = 'auto') -> Tuple[str, CompressionStats]:
+_DIR_ARCHIVE_MAGIC = b"CJZD\x02"
+_DIR_RECORD_FILE = b"\x01"
+_DIR_RECORD_END = b"\x00"
+_DIR_CHUNK_SIZE = 1024 * 1024
+_DIR_STREAM_MARKERS = {
+    CompressionStrategy.ZLIB: b'\x10',
+    CompressionStrategy.BZ2: b'\x11',
+    CompressionStrategy.LZMA: b'\x12',
+}
+_DIR_STREAM_STRATEGIES = {marker: strategy for strategy, marker in _DIR_STREAM_MARKERS.items()}
+
+
+def _iter_directory_files(dir_path: str, exclude_path: str = None, exclude_paths=None):
+    import os
+
+    excluded_abs = set()
+    if exclude_path is not None:
+        excluded_abs.add(os.path.abspath(exclude_path))
+    if exclude_paths is not None:
+        excluded_abs.update(os.path.abspath(path) for path in exclude_paths if path is not None)
+
+    for root, dirs, files in os.walk(dir_path):
+        dirs.sort()
+        files.sort()
+
+        for filename in files:
+            file_path = os.path.join(root, filename)
+            if os.path.abspath(file_path) in excluded_abs:
+                continue
+            rel_path = os.path.relpath(file_path, dir_path).replace('\\', '/')
+            yield file_path, rel_path
+
+
+def _get_directory_file_count(dir_path: str, exclude_path: str = None, exclude_paths=None) -> int:
+    return sum(1 for _ in _iter_directory_files(dir_path, exclude_path=exclude_path, exclude_paths=exclude_paths))
+
+
+def _create_progress(enabled: bool, name: str, max_value: Optional[int] = None):
+    if not enabled:
+        return None
+
+    from cereja.display import Progress
+
+    return Progress(name=name, max_value=max_value, states=("value", "bar", "percent", "time"))
+
+
+def _normalize_dir_strategy(strategy: Union[str, CompressionStrategy]) -> CompressionStrategy:
+    if isinstance(strategy, str):
+        if strategy == 'auto':
+            strategy = CompressionStrategy.AUTO
+        else:
+            strategy = CompressionStrategy(strategy)
+
+    if strategy in (CompressionStrategy.BZ2, CompressionStrategy.LZMA):
+        return strategy
+
+    return CompressionStrategy.ZLIB
+
+
+def _create_dir_compressor(strategy: CompressionStrategy, level: int = 6):
+    if strategy == CompressionStrategy.BZ2:
+        return bz2.BZ2Compressor(level)
+    if strategy == CompressionStrategy.LZMA:
+        return lzma.LZMACompressor(preset=level)
+    return zlib.compressobj(level)
+
+
+def _create_dir_decompressor(strategy: CompressionStrategy):
+    if strategy == CompressionStrategy.BZ2:
+        return bz2.BZ2Decompressor()
+    if strategy == CompressionStrategy.LZMA:
+        return lzma.LZMADecompressor()
+    return zlib.decompressobj()
+
+
+def _read_exact(file_obj, size: int) -> bytes:
+    data = file_obj.read(size)
+    if len(data) != size:
+        raise CompressionError("Unexpected end of directory archive")
+    return data
+
+
+def _write_sized_chunk(file_obj, data: bytes) -> None:
+    if data:
+        file_obj.write(struct.pack('>I', len(data)))
+        file_obj.write(data)
+
+
+def _read_uint32(file_obj) -> int:
+    return struct.unpack('>I', _read_exact(file_obj, 4))[0]
+
+
+def _read_uint64(file_obj) -> int:
+    return struct.unpack('>Q', _read_exact(file_obj, 8))[0]
+
+
+def _count_dir_stream_files(archive_path: str) -> int:
+    file_count = 0
+
+    with open(archive_path, 'rb') as archive:
+        _read_exact(archive, len(_DIR_ARCHIVE_MAGIC))
+
+        while True:
+            record_type = _read_exact(archive, 1)
+            if record_type == _DIR_RECORD_END:
+                break
+            if record_type != _DIR_RECORD_FILE:
+                raise CompressionError(f"Invalid directory archive record: {record_type}")
+
+            path_length = _read_uint32(archive)
+            _read_exact(archive, path_length)
+            _read_uint64(archive)
+            marker = _read_exact(archive, 1)
+
+            if marker not in _DIR_STREAM_STRATEGIES:
+                raise CompressionError(f"Unknown directory compression marker: {marker}")
+
+            while True:
+                chunk_size = _read_uint32(archive)
+                if chunk_size == 0:
+                    break
+                _read_exact(archive, chunk_size)
+
+            file_count += 1
+
+    return file_count
+
+
+def _safe_archive_path(output_dir: str, archive_file_path: str) -> str:
+    import os
+
+    normalized_path = archive_file_path.replace('\\', '/')
+    if not normalized_path or normalized_path.startswith('/') or normalized_path.startswith('../'):
+        raise CompressionError(f"Unsafe archive path: {archive_file_path}")
+
+    output_dir_abs = os.path.abspath(output_dir)
+    file_path = os.path.abspath(os.path.join(output_dir_abs, normalized_path.replace('/', os.sep)))
+
+    if os.path.commonpath([output_dir_abs, file_path]) != output_dir_abs:
+        raise CompressionError(f"Unsafe archive path: {archive_file_path}")
+
+    return file_path
+
+
+def _get_default_output_dir(archive_path: str) -> str:
+    if archive_path.endswith('.cjz'):
+        return archive_path[:-4]
+    return archive_path + '_extracted'
+
+
+def _create_temp_archive_path(output_path: str) -> str:
+    import os
+    import tempfile
+
+    output_dir = os.path.dirname(output_path) or os.curdir
+    prefix = os.path.basename(output_path) + '.'
+    fd, temp_path = tempfile.mkstemp(prefix=prefix, suffix='.tmp', dir=output_dir)
+    os.close(fd)
+    return temp_path
+
+
+def compress_dir(dir_path: str, output_path: str = None,
+                 strategy: Union[str, CompressionStrategy] = 'auto',
+                 verbose: bool = False,
+                 password: Optional[Union[str, bytes]] = None) -> Tuple[str, CompressionStats]:
     """
     Compress entire directory recursively.
     
@@ -763,6 +987,8 @@ def compress_dir(dir_path: str, output_path: str = None,
         dir_path: Path to directory to compress
         output_path: Path for compressed archive (if None, uses dir_path + '.cjz')
         strategy: Compression strategy (default: 'auto')
+        verbose: Whether to show progress while compressing (default: False)
+        password: Password used to encrypt the compressed archive (default: None)
     
     Returns:
         Tuple of (output_path, compression_stats)
@@ -779,7 +1005,10 @@ def compress_dir(dir_path: str, output_path: str = None,
         >>> print(f"Compressed to {archive} with {stats.ratio:.2f}x ratio")
     """
     import os
-    import json
+    import time
+    from contextlib import nullcontext
+
+    temp_archive_path = None
     
     try:
         if not os.path.exists(dir_path):
@@ -787,96 +1016,223 @@ def compress_dir(dir_path: str, output_path: str = None,
         
         if not os.path.isdir(dir_path):
             raise NotADirectoryError(f"Path is not a directory: {dir_path}")
-        
-        # Collect all files recursively
-        files_data = []
-        total_size = 0
-        
-        for root, dirs, files in os.walk(dir_path):
-            for filename in files:
-                file_path = os.path.join(root, filename)
-                # Get relative path from base directory
-                rel_path = os.path.relpath(file_path, dir_path)
-                
-                # Read file content
-                try:
-                    with open(file_path, 'rb') as f:
-                        content = f.read()
-                    
-                    files_data.append({
-                        'path': rel_path.replace('\\', '/'),  # Use forward slashes for cross-platform
-                        'size': len(content),
-                        'content': content
-                    })
-                    total_size += len(content)
-                except Exception as e:
-                    # Skip files that can't be read
-                    print(f"Warning: Skipping {file_path}: {str(e)}")
-                    continue
-        
-        if not files_data:
-            raise CompressionError("No files found in directory")
-        
-        # Create archive structure
-        # Format: [metadata_json_length:4bytes][metadata_json][file1_compressed][file2_compressed]...
-        archive = bytearray()
-        
-        # Build metadata
-        metadata = {
-            'version': 1,
-            'file_count': len(files_data),
-            'total_size': total_size,
-            'files': []
-        }
-        
-        # Compress each file
-        compressed_files = []
-        for file_info in files_data:
-            compressed_content, _ = compress(file_info['content'], strategy=strategy)
-            compressed_files.append(compressed_content)
-            
-            metadata['files'].append({
-                'path': file_info['path'],
-                'original_size': file_info['size'],
-                'compressed_size': len(compressed_content)
-            })
-        
-        # Serialize metadata
-        metadata_json = json.dumps(metadata).encode('utf-8')
-        metadata_length = len(metadata_json)
-        
-        # Build archive
-        archive.extend(struct.pack('>I', metadata_length))
-        archive.extend(metadata_json)
-        
-        for compressed_content in compressed_files:
-            archive.extend(compressed_content)
-        
-        # Determine output path
+
         if output_path is None:
             output_path = dir_path.rstrip('/\\') + '.cjz'
-        
-        # Write archive
-        with open(output_path, 'wb') as f:
-            f.write(archive)
-        
-        # Calculate stats
+        output_path_abs = os.path.abspath(output_path)
+        archive_write_path = output_path_abs
+        if password is not None:
+            temp_archive_path = _create_temp_archive_path(output_path_abs)
+            archive_write_path = temp_archive_path
+        excluded_paths = [output_path_abs, temp_archive_path]
+
+        start_time = time.time()
+        total_size = 0
+        file_count = 0
+        effective_strategy = _normalize_dir_strategy(strategy)
+        marker = _DIR_STREAM_MARKERS[effective_strategy]
+        progress_total = max(_get_directory_file_count(dir_path, exclude_paths=excluded_paths), 1) if verbose else None
+        progress = _create_progress(verbose, "Compressing directory", progress_total)
+
+        logger.info(
+            "Starting directory compression: %s",
+            dir_path,
+            extra={
+                "dir_path": dir_path,
+                "output_path": output_path,
+                "strategy": effective_strategy.value,
+            },
+        )
+
+        with progress if progress is not None else nullcontext() as active_progress:
+            with open(archive_write_path, 'wb') as archive:
+                archive.write(_DIR_ARCHIVE_MAGIC)
+
+                for file_path, rel_path in _iter_directory_files(dir_path, exclude_paths=excluded_paths):
+                    try:
+                        original_size = os.path.getsize(file_path)
+                        source = open(file_path, 'rb')
+                    except OSError:
+                        logger.warning("Skipping unreadable file during directory compression: %s", file_path, exc_info=True)
+                        continue
+
+                    with source:
+                        path_bytes = rel_path.encode('utf-8')
+                        compressor = _create_dir_compressor(effective_strategy)
+
+                        archive.write(_DIR_RECORD_FILE)
+                        archive.write(struct.pack('>I', len(path_bytes)))
+                        archive.write(path_bytes)
+                        archive.write(struct.pack('>Q', original_size))
+                        archive.write(marker)
+
+                        while True:
+                            chunk = source.read(_DIR_CHUNK_SIZE)
+                            if not chunk:
+                                break
+                            total_size += len(chunk)
+                            _write_sized_chunk(archive, compressor.compress(chunk))
+
+                        _write_sized_chunk(archive, compressor.flush())
+                        archive.write(struct.pack('>I', 0))
+                        file_count += 1
+                        if active_progress is not None:
+                            active_progress.show_progress(file_count)
+
+                archive.write(_DIR_RECORD_END)
+
+        if file_count == 0:
+            try:
+                os.remove(archive_write_path)
+            except OSError:
+                # Best effort cleanup of an archive created by this failed call.
+                pass
+            raise CompressionError("No files found in directory")
+
+        if password is not None:
+            with open(archive_write_path, 'rb') as archive:
+                archive_data = archive.read()
+            with open(output_path_abs, 'wb') as archive:
+                archive.write(_encrypt_archive_payload(archive_data, password))
+            try:
+                os.remove(archive_write_path)
+            except OSError:
+                pass
+            temp_archive_path = None
+
+        elapsed_ms = (time.time() - start_time) * 1000
+        compressed_size = os.path.getsize(output_path_abs)
         stats = CompressionStats(
             total_size,
-            len(archive),
-            CompressionStrategy.HYBRID,  # Directory uses multiple strategies
-            0
+            compressed_size,
+            effective_strategy,
+            elapsed_ms
         )
-        
+
+        logger.info(
+            "Directory compression finished: %s",
+            output_path,
+            extra={
+                "dir_path": dir_path,
+                "output_path": output_path,
+                "file_count": file_count,
+                "original_size": total_size,
+                "compressed_size": compressed_size,
+                "strategy": effective_strategy.value,
+            },
+        )
+
         return output_path, stats
-    
+
     except (FileNotFoundError, NotADirectoryError):
         raise
     except Exception as e:
-        raise CompressionError(f"Directory compression failed: {str(e)}")
+        if temp_archive_path is not None:
+            try:
+                os.remove(temp_archive_path)
+            except OSError:
+                pass
+        raise CompressionError(f"Directory compression failed: {str(e)}") from e
 
 
-def decompress_dir(archive_path: str, output_dir: str = None) -> str:
+def _decompress_dir_stream(archive_path: str, output_dir: str, verbose: bool = False) -> str:
+    import os
+    from contextlib import nullcontext
+
+    os.makedirs(output_dir, exist_ok=True)
+    file_count = _count_dir_stream_files(archive_path) if verbose else None
+    progress = _create_progress(verbose, "Decompressing directory", max(file_count or 0, 1))
+    extracted_count = 0
+
+    with progress if progress is not None else nullcontext() as active_progress:
+        with open(archive_path, 'rb') as archive:
+            _read_exact(archive, len(_DIR_ARCHIVE_MAGIC))
+
+            while True:
+                record_type = _read_exact(archive, 1)
+                if record_type == _DIR_RECORD_END:
+                    break
+                if record_type != _DIR_RECORD_FILE:
+                    raise CompressionError(f"Invalid directory archive record: {record_type}")
+
+                path_length = _read_uint32(archive)
+                path = _read_exact(archive, path_length).decode('utf-8')
+                _read_uint64(archive)
+                marker = _read_exact(archive, 1)
+
+                if marker not in _DIR_STREAM_STRATEGIES:
+                    raise CompressionError(f"Unknown directory compression marker: {marker}")
+
+                file_path = _safe_archive_path(output_dir, path)
+                parent_dir = os.path.dirname(file_path)
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+
+                decompressor = _create_dir_decompressor(_DIR_STREAM_STRATEGIES[marker])
+                with open(file_path, 'wb') as output_file:
+                    while True:
+                        chunk_size = _read_uint32(archive)
+                        if chunk_size == 0:
+                            break
+
+                        compressed_chunk = _read_exact(archive, chunk_size)
+                        decompressed_chunk = decompressor.decompress(compressed_chunk)
+                        if decompressed_chunk:
+                            output_file.write(decompressed_chunk)
+
+                    flush = getattr(decompressor, "flush", None)
+                    if flush is not None:
+                        remaining = flush()
+                        if remaining:
+                            output_file.write(remaining)
+
+                extracted_count += 1
+                if active_progress is not None:
+                    active_progress.show_progress(extracted_count)
+
+    return output_dir
+
+
+def _decompress_dir_legacy(archive_path: str, output_dir: str, verbose: bool = False) -> str:
+    import os
+    import json
+    from contextlib import nullcontext
+
+    with open(archive_path, 'rb') as f:
+        archive_data = f.read()
+
+    metadata_length = struct.unpack('>I', archive_data[0:4])[0]
+    metadata_json = archive_data[4:4+metadata_length]
+    metadata = json.loads(metadata_json.decode('utf-8'))
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    offset = 4 + metadata_length
+    progress = _create_progress(verbose, "Decompressing directory", max(len(metadata['files']), 1))
+
+    with progress if progress is not None else nullcontext() as active_progress:
+        for index, file_info in enumerate(metadata['files'], start=1):
+            compressed_size = file_info['compressed_size']
+            compressed_content = archive_data[offset:offset+compressed_size]
+            offset += compressed_size
+
+            decompressed_content = decompress(compressed_content)
+            file_path = _safe_archive_path(output_dir, file_info['path'])
+            parent_dir = os.path.dirname(file_path)
+            if parent_dir:
+                os.makedirs(parent_dir, exist_ok=True)
+
+            with open(file_path, 'wb') as f:
+                f.write(decompressed_content)
+            if active_progress is not None:
+                active_progress.show_progress(index)
+
+    return output_dir
+
+
+def decompress_dir(archive_path: str, output_dir: str = None,
+                   verbose: bool = False,
+                   password: Optional[Union[str, bytes]] = None) -> str:
     """
     Decompress directory archive.
     
@@ -885,6 +1241,8 @@ def decompress_dir(archive_path: str, output_dir: str = None) -> str:
     Args:
         archive_path: Path to compressed archive (.cjz)
         output_dir: Path for extracted directory (if None, removes '.cjz' extension)
+        verbose: Whether to show progress while decompressing (default: False)
+        password: Password used when archive is encrypted (default: None)
     
     Returns:
         Path to extracted directory
@@ -900,57 +1258,54 @@ def decompress_dir(archive_path: str, output_dir: str = None) -> str:
         >>> print(f"Extracted to {extracted_dir}")
     """
     import os
-    import json
+
+    temp_archive_path = None
     
     try:
         if not os.path.exists(archive_path):
             raise FileNotFoundError(f"Archive not found: {archive_path}")
-        
-        # Read archive
-        with open(archive_path, 'rb') as f:
-            archive_data = f.read()
-        
-        # Read metadata length
-        metadata_length = struct.unpack('>I', archive_data[0:4])[0]
-        
-        # Read metadata
-        metadata_json = archive_data[4:4+metadata_length]
-        metadata = json.loads(metadata_json.decode('utf-8'))
-        
-        # Determine output directory
+
         if output_dir is None:
-            if archive_path.endswith('.cjz'):
-                output_dir = archive_path[:-4]
-            else:
-                output_dir = archive_path + '_extracted'
-        
-        # Create output directory
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # Decompress files
-        offset = 4 + metadata_length
-        
-        for file_info in metadata['files']:
-            compressed_size = file_info['compressed_size']
-            compressed_content = archive_data[offset:offset+compressed_size]
-            offset += compressed_size
-            
-            # Decompress
-            decompressed_content = decompress(compressed_content)
-            
-            # Create file path
-            file_path = os.path.join(output_dir, file_info['path'].replace('/', os.sep))
-            
-            # Create parent directories if needed
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            
-            # Write file
-            with open(file_path, 'wb') as f:
-                f.write(decompressed_content)
-        
-        return output_dir
+            output_dir = _get_default_output_dir(archive_path)
+
+        logger.info(
+            "Starting directory decompression: %s",
+            archive_path,
+            extra={"archive_path": archive_path, "output_dir": output_dir},
+        )
+
+        archive_read_path = archive_path
+        if is_encrypted_archive(archive_path):
+            with open(archive_path, 'rb') as archive:
+                encrypted_archive = archive.read()
+            decrypted_archive = _decrypt_archive_payload(encrypted_archive, password)
+            temp_archive_path = _create_temp_archive_path(os.path.abspath(archive_path))
+            with open(temp_archive_path, 'wb') as archive:
+                archive.write(decrypted_archive)
+            archive_read_path = temp_archive_path
+
+        with open(archive_read_path, 'rb') as archive:
+            magic = archive.read(len(_DIR_ARCHIVE_MAGIC))
+
+        if magic == _DIR_ARCHIVE_MAGIC:
+            result = _decompress_dir_stream(archive_read_path, output_dir, verbose=verbose)
+        else:
+            result = _decompress_dir_legacy(archive_read_path, output_dir, verbose=verbose)
+
+        logger.info(
+            "Directory decompression finished: %s",
+            output_dir,
+            extra={"archive_path": archive_path, "output_dir": output_dir},
+        )
+        return result
     
     except FileNotFoundError:
         raise
     except Exception as e:
-        raise CompressionError(f"Directory decompression failed: {str(e)}")
+        raise CompressionError(f"Directory decompression failed: {str(e)}") from e
+    finally:
+        if temp_archive_path is not None:
+            try:
+                os.remove(temp_archive_path)
+            except OSError:
+                pass
