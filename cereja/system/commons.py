@@ -19,11 +19,19 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import logging
 import os
 import subprocess
 import sys
 
 __all__ = ["memory_of_this", "memory_usage", "run_on_terminal"]
+
+from concurrent.futures import ThreadPoolExecutor
+
+from typing import List
+
+# Configuração de log para acompanhamento no Colab
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def memory_of_this(obj):
@@ -32,19 +40,35 @@ def memory_of_this(obj):
 
 def memory_usage(n_most=10):
     return sorted(
-            map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()),
-            key=lambda x: x[1],
-            reverse=True,
+        map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()),
+        key=lambda x: x[1],
+        reverse=True,
     )[:n_most]
 
 
-def run_on_terminal(cmd: str):
+def run_on_terminal(cmd: str) -> None:
     try:
-        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
-        result.check_returncode()
-        return result.stdout
-    except subprocess.CalledProcessError as err:
-        err_output = err.output.decode()
-        raise Exception(f"{err}:{err_output}")
-    except Exception as err:
-        raise Exception(err)
+        logging.info(f"Running: {cmd}")
+        subprocess.run(
+            cmd,
+            shell=True,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE
+        )
+        logging.info(f"Done: {cmd}")
+    except subprocess.CalledProcessError as e:
+        logging.exception(f"Failed: {e.stderr.decode('utf-8')}")
+
+
+def run_commands_in_parallel(commands: List[str], max_workers: int = 6) -> None:
+    """
+    Executes a list of shell commands in parallel using a thread pool.
+
+    Args:
+        commands (List[str]): A list of commands to be executed.
+        max_workers (int): Maximum number of concurrent commands.
+    """
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor.map(run_on_terminal, commands)
