@@ -228,8 +228,18 @@ def _handle_decrypt(args: argparse.Namespace) -> int:
 
 
 def _handle_tree(args: argparse.Namespace) -> int:
-    print(render_repository_tree(args.path, depth=args.depth))
+    _print_tree(render_repository_tree(args.path, depth=args.depth))
     return 0
+
+
+def _print_tree(tree: str) -> None:
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        try:
+            reconfigure(encoding="utf-8")
+        except (OSError, ValueError):
+            pass
+    print(tree)
 
 
 def _decompress_auto(args: argparse.Namespace, password: Optional[str] = None) -> str:

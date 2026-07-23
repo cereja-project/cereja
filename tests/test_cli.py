@@ -404,6 +404,22 @@ class CliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("must be non-negative", result.stderr)
 
+    def test_tree_command_reconfigures_legacy_console_encoding(self):
+        with temporary_workspace_directory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            (root / "README.md").write_text("readme", encoding="utf-8")
+            buffer = io.BytesIO()
+            stream = io.TextIOWrapper(buffer, encoding="cp1252")
+
+            with patch("sys.stdout", stream):
+                exit_code = main(["tree", str(root)])
+                stream.flush()
+
+            self.assertEqual(exit_code, 0)
+            output = buffer.getvalue().decode("utf-8").replace("\r\n", "\n")
+            self.assertEqual(output, "project/\n└── README.md\n")
+
 
 if __name__ == "__main__":
     unittest.main()
