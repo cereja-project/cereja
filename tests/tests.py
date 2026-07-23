@@ -22,9 +22,12 @@ SOFTWARE.
 """
 
 import os
+import shutil
 import time
 import unittest
 import logging
+import uuid
+from contextlib import contextmanager
 
 from cereja.array import (
     remove_duplicate_items,
@@ -47,6 +50,16 @@ from cereja.utils import CjTest
 from cereja.hashtools import base64_decode, base64_encode, is_base64, md5
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def path_test_directory():
+    root = Path.work_dir().join(f"test_path_{uuid.uuid4().hex}")
+    root.mkdir()
+    try:
+        yield root
+    finally:
+        shutil.rmtree(root.path, ignore_errors=True)
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -179,8 +192,7 @@ class PathTest(unittest.TestCase):
             self.assertEqual(suffix_case.suffix, "")
 
     def test_list_dir_hides_dotfiles_by_default(self):
-        with TempDir() as temp_dir:
-            root = Path(temp_dir)
+        with path_test_directory() as root:
             with open(root.join("visible.txt").path, "w", encoding="utf-8") as file:
                 file.write("visible")
             with open(root.join(".hidden.txt").path, "w", encoding="utf-8") as file:
@@ -191,8 +203,7 @@ class PathTest(unittest.TestCase):
             self.assertEqual(names, ["visible.txt"])
 
     def test_list_dir_includes_dotfiles_when_requested(self):
-        with TempDir() as temp_dir:
-            root = Path(temp_dir)
+        with path_test_directory() as root:
             with open(root.join("visible.txt").path, "w", encoding="utf-8") as file:
                 file.write("visible")
             with open(root.join(".hidden.txt").path, "w", encoding="utf-8") as file:
