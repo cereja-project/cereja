@@ -35,7 +35,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def memory_of_this(obj):
-    return sys.getsizeof(obj)
+        return sys.getsizeof(obj)
 
 
 def memory_usage(n_most=10):
@@ -46,19 +46,22 @@ def memory_usage(n_most=10):
     )[:n_most]
 
 
-def run_on_terminal(cmd: str) -> None:
+def run_on_terminal(cmd: str, get_output: bool = True) -> bytes | None:
     try:
-        logging.info(f"Running: {cmd}")
-        subprocess.run(
+        result = subprocess.run(
             cmd,
             shell=True,
             check=True,
-            stdout=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        logging.info(f"Done: {cmd}")
+        result.check_returncode()
+        if get_output:
+            return result.stdout
     except subprocess.CalledProcessError as e:
         logging.exception(f"Failed: {e.stderr.decode('utf-8')}")
+        if get_output:
+            return e.stderr
 
 
 def run_commands_in_parallel(commands: List[str], max_workers: int = 6) -> None:
