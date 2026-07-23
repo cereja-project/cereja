@@ -471,7 +471,10 @@ class Path(os.PathLike):
             self,
             search_match="*",
             only_name=False,
-            recursive=False
+            recursive=False,
+            *,
+            include_hidden=False,
+            raise_errors=False,
     ) -> List["Path"]:
         """
         Extension of the listdir function of module os.
@@ -486,9 +489,15 @@ class Path(os.PathLike):
         try:
             return [
                 self.__class__(p).stem if only_name else self.__class__(p)
-                for p in glob.glob(self.join(search_match).path, recursive=recursive)
+                for p in glob.glob(
+                    self.join(search_match).path,
+                    recursive=recursive,
+                    include_hidden=include_hidden,
+                )
             ]
         except PermissionError as err:
+            if raise_errors:
+                raise
             logger.error(f"{err}")
             return []
 

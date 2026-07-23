@@ -178,6 +178,30 @@ class PathTest(unittest.TestCase):
             mkdir(suffix_case)
             self.assertEqual(suffix_case.suffix, "")
 
+    def test_list_dir_hides_dotfiles_by_default(self):
+        with TempDir() as temp_dir:
+            root = Path(temp_dir)
+            with open(root.join("visible.txt").path, "w", encoding="utf-8") as file:
+                file.write("visible")
+            with open(root.join(".hidden.txt").path, "w", encoding="utf-8") as file:
+                file.write("hidden")
+
+            names = [item.name for item in root.list_dir()]
+
+            self.assertEqual(names, ["visible.txt"])
+
+    def test_list_dir_includes_dotfiles_when_requested(self):
+        with TempDir() as temp_dir:
+            root = Path(temp_dir)
+            with open(root.join("visible.txt").path, "w", encoding="utf-8") as file:
+                file.write("visible")
+            with open(root.join(".hidden.txt").path, "w", encoding="utf-8") as file:
+                file.write("hidden")
+
+            names = sorted(item.name for item in root.list_dir(include_hidden=True))
+
+            self.assertEqual(names, [".hidden.txt", "visible.txt"])
+
 
 class UnicodeToolTestCase(unittest.TestCase):
     def test_sanity(self):
