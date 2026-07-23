@@ -59,6 +59,7 @@ class CliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("Cereja Tools.", result.stdout)
         self.assertIn("compress", result.stdout)
+        self.assertIn("tree", result.stdout)
 
     def test_module_version_returns_success(self):
         result = subprocess.run(
@@ -356,6 +357,52 @@ class CliTest(unittest.TestCase):
             self.assertEqual(exit_code, 1)
             self.assertEqual(output_path.read_bytes(), b"existing")
             self.assertIn("Output already exists", stderr.getvalue())
+
+    def test_tree_command_renders_explicit_path(self):
+        with temporary_workspace_directory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            (root / "README.md").write_text("readme", encoding="utf-8")
+            output = io.StringIO()
+
+            with redirect_stdout(output):
+                exit_code = main(["tree", str(root)])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(output.getvalue(), "project/\n└── README.md\n")
+
+    def test_tree_command_defaults_to_current_directory(self):
+        with temporary_workspace_directory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            (root / "README.md").write_text("readme", encoding="utf-8")
+            output = io.StringIO()
+
+            with working_directory(root), redirect_stdout(output):
+                exit_code = main(["tree"])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(output.getvalue(), "project/\n└── README.md\n")
+
+    def test_tree_command_reports_missing_path(self):
+        stderr = io.StringIO()
+
+        with redirect_stderr(stderr):
+            exit_code = main(["tree", "missing-tree-root"])
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("Path not found", stderr.getvalue())
+
+    def test_tree_command_rejects_negative_depth(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "cereja", "tree", "--depth", "-1"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("must be non-negative", result.stderr)
 
 
 if __name__ == "__main__":
