@@ -224,17 +224,17 @@ class Path(os.PathLike):
                 return
             part_split = part.name.split(".")
             if part_split[-1] == ".":
-                logger.info(
+                logger.debug(
                         f"It is not common to use dot <{part.name}> in the end of name."
                 )
                 break
             if (part.suffix or part_split[-1] == ".") and i > 0:
-                logger.info(
+                logger.debug(
                         f"It is not common to use dot in the middle or end of directory name <{part.name}>"
                 )
                 break
             if len(part_split) > 2:
-                logger.info(f"<{part.name}> has more dot than usual.")
+                logger.debug(f"<{part.name}> has more dot than usual.")
             part = part.parent
         self._verified.add(str(self.__path.parent))
 
