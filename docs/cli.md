@@ -6,6 +6,20 @@ Cereja exposes a `cereja` command when installed from PyPI or from the local pro
 cereja --help
 ```
 
+## Repository Tree
+
+Draw a filtered Unicode tree for the current directory or an explicit path:
+
+```bash
+cereja tree
+cereja tree path/to/repository --depth 2
+```
+
+The command includes non-ignored hidden files, shows directories before files,
+and respects common `.gitignore` rules, including nested files and negated
+patterns. `.git`, Python/tool caches, and compiled Python files are always
+hidden. Symbolic links are shown but are not traversed.
+
 ## Compress
 
 Compress a file or directory:
