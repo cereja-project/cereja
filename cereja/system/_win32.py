@@ -174,19 +174,19 @@ class Keyboard:
 
     __KEY_NAME_TO_CODE = {
         'BACKSPACE': 8, 'TAB': 9, 'CLEAR': 12, 'ENTER': 13, 'SHIFT': 16, 'CTRL': 17,
-        'ALT':       18, 'PAUSE': 19, 'CAPS_LOCK': 20, 'ESC': 27, 'SPACEBAR': 32,
-        'PAGE_UP':   33, 'PAGE_DOWN': 34, 'END': 35, 'HOME': 36, 'LEFT_ARROW': 37,
-        'UP_ARROW':  38, 'RIGHT_ARROW': 39, 'DOWN_ARROW': 40, 'INSERT': 45,
-        'DELETE':    46, '0': 48, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53,
-        '6':         54, '7': 55, '8': 56, '9': 57,
-        'A':         65, 'B': 66, 'C': 67, 'D': 68, 'E': 69, 'F': 70, 'G': 71, 'H': 72,
-        'I':         73, 'J': 74, 'K': 75, 'L': 76, 'M': 77, 'N': 78, 'O': 79, 'P': 80,
-        'Q':         81, 'R': 82, 'S': 83, 'T': 84, 'U': 85, 'V': 86, 'W': 87, 'X': 88,
-        'Y':         89, 'Z': 90,
-        'F1':        112, 'F2': 113, 'F3': 114, 'F4': 115, 'F5': 116, 'F6': 117,
-        'F7':        118, 'F8': 119, 'F9': 120, 'F10': 121, 'F11': 122, 'F12': 123,
-        '+':         187, ',': 188, '-': 189, '.': 190, '/': 191, '`': 192, ';': 186,
-        '[':         219, '\\': 220, ']': 221, "'": 222
+        'ALT': 18, 'PAUSE': 19, 'CAPS_LOCK': 20, 'ESC': 27, 'SPACEBAR': 32,
+        'PAGE_UP': 33, 'PAGE_DOWN': 34, 'END': 35, 'HOME': 36, 'LEFT_ARROW': 37,
+        'UP_ARROW': 38, 'RIGHT_ARROW': 39, 'DOWN_ARROW': 40, 'INSERT': 45,
+        'DELETE': 46, '0': 48, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53,
+        '6': 54, '7': 55, '8': 56, '9': 57,
+        'A': 65, 'B': 66, 'C': 67, 'D': 68, 'E': 69, 'F': 70, 'G': 71, 'H': 72,
+        'I': 73, 'J': 74, 'K': 75, 'L': 76, 'M': 77, 'N': 78, 'O': 79, 'P': 80,
+        'Q': 81, 'R': 82, 'S': 83, 'T': 84, 'U': 85, 'V': 86, 'W': 87, 'X': 88,
+        'Y': 89, 'Z': 90,
+        'F1': 112, 'F2': 113, 'F3': 114, 'F4': 115, 'F5': 116, 'F6': 117,
+        'F7': 118, 'F8': 119, 'F9': 120, 'F10': 121, 'F11': 122, 'F12': 123,
+        '+': 187, ',': 188, '-': 189, '.': 190, '/': 191, '`': 192, ';': 186,
+        '[': 219, '\\': 220, ']': 221, "'": 222
     }
     # Adiciona códigos ASCII imprimíveis (32–127)
     for c in range(32, 128):
@@ -446,31 +446,31 @@ class Keyboard:
 
 class Mouse:
     _button_envent_map = {
-        "move":        1,
-        "left_down":   2,
-        "left_up":     4,
-        "right_down":  8,
-        "right_up":    10,
-        "left_click":  6,
+        "move": 1,
+        "left_down": 2,
+        "left_up": 4,
+        "right_down": 8,
+        "right_up": 10,
+        "left_click": 6,
         "right_click": 24
     }
 
     _mouse_messages_map = {
-        "move":             0x0200,
-        "left_down":        0x0201,
-        "left_up":          0x0202,
+        "move": 0x0200,
+        "left_down": 0x0201,
+        "left_up": 0x0202,
         "WM_LBUTTONDBLCLK": 0x0203,
-        "right_down":       0x0204,
-        "right_up":         0x0205,
+        "right_down": 0x0204,
+        "right_up": 0x0205,
         "WM_RBUTTONDBLCLK": 0x0206,
-        "WM_MBUTTONDOWN":   0x0207,
-        "WM_MBUTTONUP":     0x0208,
+        "WM_MBUTTONDOWN": 0x0207,
+        "WM_MBUTTONUP": 0x0208,
         "WM_MBUTTONDBLCLK": 0x0209,
-        "WM_MOUSEWHEEL":    0x020A,
-        "WM_XBUTTONDOWN":   0x020B,
-        "WM_XBUTTONUP":     0x020C,
+        "WM_MOUSEWHEEL": 0x020A,
+        "WM_XBUTTONDOWN": 0x020B,
+        "WM_XBUTTONUP": 0x020C,
         "WM_XBUTTONDBLCLK": 0x020D,
-        "WM_MOUSEHWHEEL":   0x020E
+        "WM_MOUSEHWHEEL": 0x020E
     }
 
     def __init__(self,
@@ -505,6 +505,12 @@ class Mouse:
                      x,
                      y):
         self.user32.SetCursorPos(x, y)
+
+    def set_random_position(self):
+        w, h = self.window_size
+        x = random.randint(0, w - 1)
+        y = random.randint(0, h - 1)
+        self.set_position(x, y)
 
     def _click(self,
                button: str,
@@ -848,8 +854,8 @@ class Window:
                 f.write((0).to_bytes(4, "little"))  # reservado
                 f.write((54).to_bytes(4, "little"))  # offset do pixel data
                 f.write(ctypes.string_at(
-                        ctypes.byref(bmi.bmiHeader),
-                        ctypes.sizeof(BITMAPINFOHEADER)
+                    ctypes.byref(bmi.bmiHeader),
+                    ctypes.sizeof(BITMAPINFOHEADER)
                 ))
                 f.write(bitmap_data.raw)
 

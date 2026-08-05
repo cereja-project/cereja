@@ -20,22 +20,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import logging
-import os
 import subprocess
+import threading
 import sys
-
-__all__ = ["memory_of_this", "memory_usage", "run_on_terminal"]
-
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from typing import List
+
+__all__ = ["memory_of_this", "memory_usage", "run_on_terminal", 'thread_monitor']
 
 # Configuração de log para acompanhamento no Colab
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def memory_of_this(obj):
-        return sys.getsizeof(obj)
+    return sys.getsizeof(obj)
 
 
 def memory_usage(n_most=10):
@@ -44,6 +44,25 @@ def memory_usage(n_most=10):
         key=lambda x: x[1],
         reverse=True,
     )[:n_most]
+
+
+def thread_monitor(name_thread=None):
+    # Obtém todos os frames de execução ativos no interpretador
+    for thread_id, frame in sys._current_frames().items():
+        # Encontra a thread correspondente pelo ID de identificação
+        thread = threading._active.get(thread_id)
+        if thread and (name_thread is None or thread.name == name_thread):
+            print(f"--- Stack Trace da Thread: {name_thread} ---")
+            # Extrai o último frame (a função atual)
+            summary = traceback.extract_stack(frame)
+            last_line = summary[-1]
+
+            print(f"Arquivo: {last_line.filename}")
+            print(f"Linha: {last_line.lineno}")
+            print(f"Função que está rodando: {last_line.name}")
+            print(f"Código exato: {last_line.line}")
+            if name_thread is not None:
+                return
 
 
 def run_on_terminal(cmd: str, get_output: bool = True) -> bytes | None:
