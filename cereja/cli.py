@@ -42,6 +42,7 @@ from cereja.hashtools import (
     encrypt_file,
     is_encrypted_archive,
 )
+from cereja.system import render_repository_tree
 
 COMPRESSION_STRATEGIES = (
     "auto",
@@ -75,7 +76,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 0
 
         return args.handler(args)
-    except (CliError, CompressionError, CryptoError, FileNotFoundError, NotADirectoryError) as exc:
+    except (
+        CliError,
+        CompressionError,
+        CryptoError,
+        FileNotFoundError,
+        NotADirectoryError,
+        PermissionError,
+    ) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
@@ -126,6 +134,11 @@ def create_parser() -> argparse.ArgumentParser:
     decrypt_parser.add_argument("-o", "--output", help="Output path.")
     decrypt_parser.add_argument("--force", action="store_true", help="Overwrite existing output.")
     decrypt_parser.set_defaults(handler=_handle_decrypt)
+
+    tree_parser = subparsers.add_parser("tree", help="Draw a repository tree.")
+    tree_parser.add_argument("path", nargs="?", default=".", help="Root directory.")
+    tree_parser.add_argument("--depth", type=_non_negative_int, help="Maximum depth.")
+    tree_parser.set_defaults(handler=_handle_tree)
 
     return parser
 
@@ -214,6 +227,21 @@ def _handle_decrypt(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_tree(args: argparse.Namespace) -> int:
+    _print_tree(render_repository_tree(args.path, depth=args.depth))
+    return 0
+
+
+def _print_tree(tree: str) -> None:
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        try:
+            reconfigure(encoding="utf-8")
+        except (OSError, ValueError):
+            pass
+    print(tree)
+
+
 def _decompress_auto(args: argparse.Namespace, password: Optional[str] = None) -> str:
     file_output = _decompressed_file_output(args.input, args.output)
     _ensure_output_available(file_output, args.force)
@@ -239,6 +267,13 @@ def _prompt_new_password() -> str:
     if password != confirmation:
         raise CliError("Password confirmation does not match.")
     return password
+
+
+def _non_negative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
+    return parsed
 
 
 def _prompt_existing_password(input_path: str) -> Optional[str]:

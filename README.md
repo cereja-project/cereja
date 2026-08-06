@@ -46,6 +46,7 @@ file.save()
 
 ```bash
 cereja --help
+cereja tree .
 cereja compress path/to/input
 cereja decompress archive.cjz
 ```
