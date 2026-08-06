@@ -10,6 +10,15 @@ compression, hashing, text processing, data preparation, arrays, dates, and smal
 
 The package is published on PyPI and supports Python 3.11 and newer.
 
+## Design principles
+
+- Zero runtime dependencies
+- Standard-library-first implementations
+- Small, reusable and composable APIs
+- Backward compatibility where practical
+- Educational implementations without hiding Python internals
+
+
 ## Installation
 
 ```bash
