@@ -24,6 +24,7 @@ SOFTWARE.
 
 import argparse
 import getpass
+import json
 import sys
 from pathlib import Path
 from typing import Optional, Sequence
@@ -42,7 +43,12 @@ from cereja.hashtools import (
     encrypt_file,
     is_encrypted_archive,
 )
-from cereja.system import render_repository_tree
+from cereja.system import (
+    context_response_to_dict,
+    list_text_context,
+    render_repository_tree,
+    search_text_context,
+)
 
 COMPRESSION_STRATEGIES = (
     "auto",
@@ -83,6 +89,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         FileNotFoundError,
         NotADirectoryError,
         PermissionError,
+        ValueError,
     ) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -139,6 +146,33 @@ def create_parser() -> argparse.ArgumentParser:
     tree_parser.add_argument("path", nargs="?", default=".", help="Root directory.")
     tree_parser.add_argument("--depth", type=_non_negative_int, help="Maximum depth.")
     tree_parser.set_defaults(handler=_handle_tree)
+
+    context_parser = subparsers.add_parser(
+        "context", help="Search or list bounded textual context."
+    )
+    context_subparsers = context_parser.add_subparsers(
+        dest="context_command", required=True
+    )
+    context_search_parser = context_subparsers.add_parser(
+        "search", help="Search textual context."
+    )
+    _add_context_common_options(context_search_parser)
+    context_search_parser.add_argument("--query", required=True, help="Search terms.")
+    context_search_parser.add_argument(
+        "--max-snippets", type=_positive_int, default=2,
+        help="Maximum snippets per result."
+    )
+    context_search_parser.add_argument(
+        "--max-snippet-chars", type=_positive_int, default=240,
+        help="Maximum characters per snippet."
+    )
+    context_search_parser.set_defaults(handler=_handle_context_search)
+
+    context_list_parser = context_subparsers.add_parser(
+        "list", help="List textual file metadata."
+    )
+    _add_context_common_options(context_list_parser)
+    context_list_parser.set_defaults(handler=_handle_context_list)
 
     return parser
 
@@ -232,6 +266,71 @@ def _handle_tree(args: argparse.Namespace) -> int:
     return 0
 
 
+def _add_context_common_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--root", action="append", required=True, help="Explicit root directory."
+    )
+    parser.add_argument(
+        "--extension", action="append", help="File suffix to include; repeatable."
+    )
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", help="Output format."
+    )
+    parser.add_argument(
+        "--max-results", type=_positive_int, default=10,
+        help="Maximum returned files."
+    )
+    parser.add_argument(
+        "--max-file-bytes", type=_positive_int, default=1_048_576,
+        help="Maximum bytes read from each file."
+    )
+
+
+def _handle_context_search(args: argparse.Namespace) -> int:
+    response = search_text_context(
+        args.root,
+        args.query,
+        extensions=args.extension,
+        max_results=args.max_results,
+        max_snippets=args.max_snippets,
+        max_snippet_chars=args.max_snippet_chars,
+        max_file_bytes=args.max_file_bytes,
+    )
+    _print_context_response(response, args.format)
+    return 0
+
+
+def _handle_context_list(args: argparse.Namespace) -> int:
+    response = list_text_context(
+        args.root,
+        extensions=args.extension,
+        max_results=args.max_results,
+        max_file_bytes=args.max_file_bytes,
+    )
+    _print_context_response(response, args.format)
+    return 0
+
+
+def _print_context_response(response, output_format: str) -> None:
+    if output_format == "json":
+        print(json.dumps(context_response_to_dict(response), ensure_ascii=False, indent=2))
+        return
+    for result in response.results:
+        if response.mode == "search":
+            print(
+                f"{result.path} ({result.size_bytes} bytes, score={result.score}, "
+                f"matches={result.match_count})"
+            )
+            for snippet in result.snippets:
+                print(f"  {snippet.line}: {snippet.text}")
+        else:
+            print(f"{result.path} ({result.size_bytes} bytes)")
+    for skipped in response.skipped:
+        print(f"Skipped: {skipped.path} ({skipped.reason})")
+    if response.truncated:
+        print("Results truncated.")
+
+
 def _print_tree(tree: str) -> None:
     reconfigure = getattr(sys.stdout, "reconfigure", None)
     if reconfigure is not None:
@@ -273,6 +372,13 @@ def _non_negative_int(value: str) -> int:
     parsed = int(value)
     if parsed < 0:
         raise argparse.ArgumentTypeError("must be non-negative")
+    return parsed
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
     return parsed
 
 

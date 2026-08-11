@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -419,6 +420,105 @@ class CliTest(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             output = buffer.getvalue().decode("utf-8").replace("\r\n", "\n")
             self.assertEqual(output, "project/\n└── README.md\n")
+
+    def test_context_search_emits_stable_json(self):
+        with temporary_workspace_directory() as temp_dir:
+            root = Path(temp_dir) / "docs"
+            root.mkdir()
+            (root / "guide.md").write_text("auth cache", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                exit_code = main([
+                    "context", "search", "--root", str(root),
+                    "--query", "auth cache", "--format", "json",
+                ])
+
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(payload["schema_version"], 1)
+            self.assertEqual(payload["mode"], "search")
+            self.assertEqual(payload["results"][0]["relative_path"], "guide.md")
+
+    def test_context_search_supports_multiple_roots_and_extensions(self):
+        with temporary_workspace_directory() as temp_dir:
+            first = Path(temp_dir) / "first"
+            second = Path(temp_dir) / "second"
+            first.mkdir()
+            second.mkdir()
+            (first / "one.md").write_text("needle", encoding="utf-8")
+            (second / "two.TXT").write_text("needle", encoding="utf-8")
+            (second / "ignored.py").write_text("needle", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                exit_code = main([
+                    "context", "search", "--root", str(first),
+                    "--root", str(second), "--query", "needle",
+                    "--extension", "md", "--extension", ".txt",
+                    "--format", "json",
+                ])
+
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(
+                [item["relative_path"] for item in payload["results"]],
+                ["one.md", "two.TXT"],
+            )
+
+    def test_context_list_emits_text_metadata_without_content(self):
+        with temporary_workspace_directory() as temp_dir:
+            root = Path(temp_dir) / "docs"
+            root.mkdir()
+            (root / "guide.md").write_text("private full content", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                exit_code = main(["context", "list", "--root", str(root)])
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("guide.md", stdout.getvalue())
+            self.assertIn("bytes", stdout.getvalue())
+            self.assertNotIn("private full content", stdout.getvalue())
+
+    def test_context_reports_missing_root_only_to_stderr(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = main([
+                "context", "list", "--root", "missing-context-root",
+                "--format", "json",
+            ])
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Path not found", stderr.getvalue())
+
+    def test_context_rejects_zero_limit(self):
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "cereja", "context", "search",
+                "--root", ".", "--query", "needle", "--max-results", "0",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("must be greater than zero", result.stderr)
+
+    def test_context_search_requires_query(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "cereja", "context", "search", "--root", "."],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--query", result.stderr)
 
 
 if __name__ == "__main__":
