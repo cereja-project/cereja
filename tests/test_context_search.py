@@ -67,6 +67,34 @@ class ContextSearchTest(unittest.TestCase):
             self.assertLessEqual(len(response.results[0].snippets[0].text), 12)
             self.assertTrue(response.truncated)
 
+    def test_snippet_window_contains_first_match_on_long_line(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "long.txt").write_text(
+                "x" * 500 + "NEEDLE tail", encoding="utf-8"
+            )
+
+            response = search_text_context(
+                [root], "needle", max_snippet_chars=40
+            )
+
+            snippet = response.results[0].snippets[0]
+            self.assertLessEqual(len(snippet.text), 40)
+            self.assertIn("needle", snippet.text.casefold())
+
+    def test_snippet_character_cut_marks_response_truncated(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "long.txt").write_text(
+                "x" * 500 + "NEEDLE tail", encoding="utf-8"
+            )
+
+            response = search_text_context(
+                [root], "needle", max_snippet_chars=40
+            )
+
+            self.assertTrue(response.truncated)
+
     def test_reports_large_binary_and_invalid_utf8_files(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -85,6 +113,18 @@ class ContextSearchTest(unittest.TestCase):
                     "large.txt": "file_too_large",
                 },
             )
+
+    def test_limits_skipped_files_deterministically(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            for index in range(25):
+                (root / f"{index:02}.bin").write_bytes(b"\x00binary")
+
+            response = search_text_context([root], "needle", max_results=1)
+
+            self.assertEqual(len(response.skipped), 1)
+            self.assertEqual(Path(response.skipped[0].path).name, "00.bin")
+            self.assertTrue(response.truncated)
 
     def test_list_returns_only_text_metadata_and_serializes_schema_v1(self):
         with tempfile.TemporaryDirectory() as temp_dir:
