@@ -53,6 +53,26 @@ cereja decompress archive.cjz
 
 Progress is enabled by default for CLI compression and decompression. Use `--quiet` for script-friendly output.
 
+### Bounded context search
+
+Search for all whitespace-separated terms in UTF-8 text under one or more
+explicit roots:
+
+```bash
+cereja context search --root docs --query "context search" --extension md
+cereja context search --root docs --root cereja --query "Path FileIO" --format json
+```
+
+Inventory text files without returning their content:
+
+```bash
+cereja context list --root docs --max-results 20
+```
+
+Use `--max-file-bytes`, `--max-results`, `--max-snippets`, and
+`--max-snippet-chars` to bound search output. The commands are read-only,
+decode only UTF-8 text, skip binary files, and do not follow symbolic links.
+
 ## Development
 
 ```bash

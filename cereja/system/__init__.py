@@ -23,6 +23,8 @@ SOFTWARE.
 from ._path import *
 from ..system.commons import *
 from ._repository_tree import *
+from ._repository_files import *
+from ._context_search import *
 
 try:
     from ._win32 import Window, Keyboard, Mouse, play_alert_sound
