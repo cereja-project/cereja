@@ -51,7 +51,20 @@ print(path.list_files())
 ```
 
 `Path` exposes common file and directory operations such as joining paths, listing files, moving files, removing files,
-and reading metadata.
+and reading metadata. `Path.list_dir(include_hidden=True)` includes dotfiles;
+`raise_errors=True` propagates permission errors instead of returning an empty
+list.
+
+Render a repository tree from Python or use the equivalent CLI command:
+
+```python
+import cereja as cj
+
+print(cj.render_repository_tree(".", depth=2))
+```
+
+The renderer applies common `.gitignore` rules and excludes common caches while
+keeping the implementation dependency-free.
 
 ## Supported File Formats
 

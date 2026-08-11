@@ -19,11 +19,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import os
+import logging
 import subprocess
+import threading
 import sys
+import traceback
+from concurrent.futures import ThreadPoolExecutor
 
-__all__ = ["memory_of_this", "memory_usage", "run_on_terminal"]
+from typing import List
+
+__all__ = ["memory_of_this", "memory_usage", "run_on_terminal", 'thread_monitor']
+
+logger = logging.getLogger(__name__)
 
 
 def memory_of_this(obj):
@@ -32,19 +39,65 @@ def memory_of_this(obj):
 
 def memory_usage(n_most=10):
     return sorted(
-            map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()),
-            key=lambda x: x[1],
-            reverse=True,
+        map(lambda x: (x[0], sys.getsizeof(x[1])), globals().items()),
+        key=lambda x: x[1],
+        reverse=True,
     )[:n_most]
 
 
-def run_on_terminal(cmd: str):
+def thread_monitor(name_thread=None):
+    # Obtém todos os frames de execução ativos no interpretador
+    for thread_id, frame in sys._current_frames().items():
+        # Encontra a thread correspondente pelo ID de identificação
+        thread = threading._active.get(thread_id)
+        if thread and (name_thread is None or thread.name == name_thread):
+            print(f"--- Stack Trace da Thread: {thread.name} ---")
+            # Extrai o último frame (a função atual)
+            summary = traceback.extract_stack(frame)
+            last_line = summary[-1]
+
+            print(f"Arquivo: {last_line.filename}")
+            print(f"Linha: {last_line.lineno}")
+            print(f"Função que está rodando: {last_line.name}")
+            print(f"Código exato: {last_line.line}")
+            if name_thread is not None:
+                return
+
+
+def run_on_terminal(
+        cmd: str,
+        get_output: bool = True,
+        raise_errors: bool = True,
+) -> bytes | None:
     try:
-        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
-        result.check_returncode()
-        return result.stdout
-    except subprocess.CalledProcessError as err:
-        err_output = err.output.decode()
-        raise Exception(f"{err}:{err_output}")
-    except Exception as err:
-        raise Exception(err)
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        if get_output:
+            return result.stdout
+    except subprocess.CalledProcessError as e:
+        if raise_errors:
+            raise
+        logger.exception(
+            "Failed: %s",
+            e.stderr.decode("utf-8", errors="replace"),
+        )
+        if get_output:
+            return e.stderr
+
+
+def run_commands_in_parallel(commands: List[str], max_workers: int = 6) -> None:
+    """
+    Executes a list of shell commands in parallel using a thread pool.
+
+    Args:
+        commands (List[str]): A list of commands to be executed.
+        max_workers (int): Maximum number of concurrent commands.
+    """
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor.map(run_on_terminal, commands)
