@@ -89,7 +89,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         FileNotFoundError,
         NotADirectoryError,
         PermissionError,
-        ValueError,
     ) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -287,26 +286,32 @@ def _add_context_common_options(parser: argparse.ArgumentParser) -> None:
 
 
 def _handle_context_search(args: argparse.Namespace) -> int:
-    response = search_text_context(
-        args.root,
-        args.query,
-        extensions=args.extension,
-        max_results=args.max_results,
-        max_snippets=args.max_snippets,
-        max_snippet_chars=args.max_snippet_chars,
-        max_file_bytes=args.max_file_bytes,
-    )
+    try:
+        response = search_text_context(
+            args.root,
+            args.query,
+            extensions=args.extension,
+            max_results=args.max_results,
+            max_snippets=args.max_snippets,
+            max_snippet_chars=args.max_snippet_chars,
+            max_file_bytes=args.max_file_bytes,
+        )
+    except ValueError as exc:
+        raise CliError(str(exc)) from exc
     _print_context_response(response, args.format)
     return 0
 
 
 def _handle_context_list(args: argparse.Namespace) -> int:
-    response = list_text_context(
-        args.root,
-        extensions=args.extension,
-        max_results=args.max_results,
-        max_file_bytes=args.max_file_bytes,
-    )
+    try:
+        response = list_text_context(
+            args.root,
+            extensions=args.extension,
+            max_results=args.max_results,
+            max_file_bytes=args.max_file_bytes,
+        )
+    except ValueError as exc:
+        raise CliError(str(exc)) from exc
     _print_context_response(response, args.format)
     return 0
 

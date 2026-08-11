@@ -495,6 +495,24 @@ class CliTest(unittest.TestCase):
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("Path not found", stderr.getvalue())
 
+    def test_context_translates_api_value_error_to_cli_error(self):
+        stderr = io.StringIO()
+
+        with patch(
+            "cereja.cli.search_text_context", side_effect=ValueError("invalid context")
+        ), redirect_stderr(stderr):
+            exit_code = main([
+                "context", "search", "--root", ".", "--query", "needle"
+            ])
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("invalid context", stderr.getvalue())
+
+    def test_non_context_value_error_is_not_translated(self):
+        with patch("cereja.cli._handle_tree", side_effect=ValueError("unrelated")):
+            with self.assertRaisesRegex(ValueError, "unrelated"):
+                main(["tree", "."])
+
     def test_context_rejects_zero_limit(self):
         result = subprocess.run(
             [

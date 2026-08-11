@@ -191,25 +191,52 @@ def _collect_context(
         results.sort(key=lambda item: (-item.score, item.path.casefold(), item.path))
     else:
         results.sort(key=lambda item: (item.path.casefold(), item.path))
+    sorted_skipped = tuple(
+        sorted(skipped, key=lambda item: (item.path.casefold(), item.path))
+    )
     results_truncated = len(results) > max_results
+    skipped_truncated = len(sorted_skipped) > max_results
     return ContextResponse(
         schema_version=1,
         mode=mode,
         query=query,
         roots=normalized_roots,
         results=tuple(results[:max_results]),
-        skipped=tuple(sorted(skipped, key=lambda item: (item.path.casefold(), item.path))),
-        truncated=results_truncated or snippets_truncated,
+        skipped=sorted_skipped[:max_results],
+        truncated=results_truncated or skipped_truncated or snippets_truncated,
     )
 
 
 def _extract_snippets(text, terms, max_snippets, max_snippet_chars):
     matching = []
+    characters_truncated = False
     for line_number, line in enumerate(text.splitlines(), start=1):
         folded_line = line.casefold()
         if any(term in folded_line for term in terms):
-            matching.append(ContextSnippet(line_number, line[:max_snippet_chars]))
-    return tuple(matching[:max_snippets]), len(matching) > max_snippets
+            matching.append(ContextSnippet(
+                line_number,
+                _snippet_window(line, folded_line, terms, max_snippet_chars),
+            ))
+            characters_truncated = characters_truncated or len(line) > max_snippet_chars
+    return (
+        tuple(matching[:max_snippets]),
+        len(matching) > max_snippets or characters_truncated,
+    )
+
+
+def _snippet_window(line, folded_line, terms, max_snippet_chars):
+    if len(line) <= max_snippet_chars:
+        return line
+    occurrences = [
+        (folded_line.find(term), term)
+        for term in terms
+        if folded_line.find(term) >= 0
+    ]
+    first_match, term = min(occurrences, key=lambda item: item[0])
+    leading_context = max(0, max_snippet_chars - len(term)) // 2
+    start = max(0, first_match - leading_context)
+    start = min(start, len(line) - max_snippet_chars)
+    return line[start:start + max_snippet_chars]
 
 
 def _normalized_path(value):
