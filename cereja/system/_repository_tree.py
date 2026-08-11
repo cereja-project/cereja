@@ -62,4 +62,3 @@ def _render_directory(
         if is_directory and can_descend:
             child_prefix = prefix + ("    " if is_last else "│   ")
             _render_directory(entry, root, rules, level + 1, depth, child_prefix, lines)
-
