@@ -30,8 +30,7 @@ from typing import List
 
 __all__ = ["memory_of_this", "memory_usage", "run_on_terminal", 'thread_monitor']
 
-# Configuração de log para acompanhamento no Colab
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def memory_of_this(obj):
@@ -52,7 +51,7 @@ def thread_monitor(name_thread=None):
         # Encontra a thread correspondente pelo ID de identificação
         thread = threading._active.get(thread_id)
         if thread and (name_thread is None or thread.name == name_thread):
-            print(f"--- Stack Trace da Thread: {name_thread} ---")
+            print(f"--- Stack Trace da Thread: {thread.name} ---")
             # Extrai o último frame (a função atual)
             summary = traceback.extract_stack(frame)
             last_line = summary[-1]
@@ -65,7 +64,11 @@ def thread_monitor(name_thread=None):
                 return
 
 
-def run_on_terminal(cmd: str, get_output: bool = True) -> bytes | None:
+def run_on_terminal(
+        cmd: str,
+        get_output: bool = True,
+        raise_errors: bool = True,
+) -> bytes | None:
     try:
         result = subprocess.run(
             cmd,
@@ -74,11 +77,15 @@ def run_on_terminal(cmd: str, get_output: bool = True) -> bytes | None:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        result.check_returncode()
         if get_output:
             return result.stdout
     except subprocess.CalledProcessError as e:
-        logging.exception(f"Failed: {e.stderr.decode('utf-8')}")
+        if raise_errors:
+            raise
+        logger.exception(
+            "Failed: %s",
+            e.stderr.decode("utf-8", errors="replace"),
+        )
         if get_output:
             return e.stderr
 

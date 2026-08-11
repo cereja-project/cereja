@@ -1,7 +1,6 @@
 import os
-import shutil
+import tempfile
 import unittest
-import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -10,12 +9,8 @@ from cereja.system import render_repository_tree
 
 @contextmanager
 def temporary_workspace_directory():
-    temp_dir = Path.cwd() / f"test_repository_tree_{uuid.uuid4().hex}"
-    temp_dir.mkdir()
-    try:
-        yield temp_dir
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        yield Path(temp_dir)
 
 
 def write_text(path: Path, content: str = "content") -> None:
@@ -162,7 +157,20 @@ class RepositoryTreeTest(unittest.TestCase):
 
             rendered = render_repository_tree(root)
 
-            self.assertEqual(rendered, "project/\n├── linked\n└── real/\n    └── inside.txt")
+            self.assertEqual(rendered, "project/\n├── real/\n│   └── inside.txt\n└── linked")
+
+    def test_render_repository_tree_rejects_directory_symlink_as_root(self):
+        with temporary_workspace_directory() as temp_dir:
+            root = temp_dir / "project"
+            root.mkdir()
+            link = temp_dir / "linked-project"
+            try:
+                os.symlink(root, link, target_is_directory=True)
+            except (OSError, NotImplementedError) as error:
+                self.skipTest(f"directory symlinks unavailable: {error}")
+
+            with self.assertRaises(NotADirectoryError):
+                render_repository_tree(link)
 
 
 if __name__ == "__main__":

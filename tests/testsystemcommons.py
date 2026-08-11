@@ -3,11 +3,21 @@ Tests for cereja.system.commons module.
 
 Covers memory_of_this, memory_usage, and run_on_terminal functions.
 """
+import importlib
+import io
+import logging
 import subprocess
 import sys
 import unittest
+from contextlib import redirect_stdout
 
-from cereja.system.commons import memory_of_this, memory_usage, run_on_terminal
+import cereja.system.commons as system_commons
+from cereja.system.commons import (
+    memory_of_this,
+    memory_usage,
+    run_on_terminal,
+    thread_monitor,
+)
 
 
 class TestMemoryOfThis(unittest.TestCase):
@@ -84,10 +94,63 @@ class TestRunOnTerminal(unittest.TestCase):
         with self.assertRaises(Exception):
             run_on_terminal("false")
 
+    def test_failing_command_can_return_stderr(self):
+        """Non-raising execution should preserve captured stderr."""
+        command = (
+            f'"{sys.executable}" -c '
+            '"import sys; sys.stderr.write(\'failed\'); sys.exit(2)"'
+        )
+
+        result = run_on_terminal(command, raise_errors=False)
+
+        self.assertEqual(result, b"failed")
+
+    def test_failing_command_without_output_returns_none(self):
+        """Non-raising execution should honor get_output=False on failure."""
+        command = f'"{sys.executable}" -c "import sys; sys.exit(2)"'
+
+        result = run_on_terminal(
+            command,
+            get_output=False,
+            raise_errors=False,
+        )
+
+        self.assertIsNone(result)
+
     def test_returns_bytes(self):
         """run_on_terminal should return bytes output."""
         result = run_on_terminal("echo test")
         self.assertIsInstance(result, bytes)
+
+
+class TestModuleDiagnostics(unittest.TestCase):
+    """Tests for logging ownership and thread diagnostics."""
+
+    def test_reloading_module_does_not_configure_root_logger(self):
+        """Library import must not install handlers on the root logger."""
+        root_logger = logging.getLogger()
+        previous_handlers = root_logger.handlers[:]
+        previous_level = root_logger.level
+        root_logger.handlers.clear()
+        try:
+            importlib.reload(system_commons)
+
+            self.assertEqual(root_logger.handlers, [])
+            self.assertEqual(root_logger.level, previous_level)
+        finally:
+            root_logger.handlers[:] = previous_handlers
+            root_logger.setLevel(previous_level)
+
+    def test_thread_monitor_without_filter_prints_actual_thread_name(self):
+        """Unfiltered diagnostics must identify threads instead of printing None."""
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            thread_monitor()
+
+        rendered = output.getvalue()
+        self.assertIn("Stack Trace da Thread: MainThread", rendered)
+        self.assertNotIn("Stack Trace da Thread: None", rendered)
 
 
 if __name__ == "__main__":
