@@ -4,6 +4,7 @@ import stat
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from cereja.system._context.cache_db import (
@@ -17,6 +18,14 @@ from cereja.system._context.cache_db import (
 
 
 class ContextCacheDatabaseTest(unittest.TestCase):
+    def test_windows_rejects_any_reparse_point_attribute(self):
+        path = Path("reparse-target")
+        result = SimpleNamespace(st_file_attributes=0x400)
+        with patch("cereja.system._context.cache_db.os.name", "nt"), \
+             patch.object(Path, "lstat", return_value=result), \
+             patch.object(Path, "is_symlink", return_value=False):
+            self.assertTrue(ContextCacheDatabase._is_link(path))
+
     def test_windows_default_path_uses_local_app_data(self):
         with patch("cereja.system._context.cache_db.os.name", "nt"), \
              patch.dict(os.environ, {"LOCALAPPDATA": "C:/Users/test/AppData/Local"}):
@@ -201,6 +210,48 @@ class ContextCacheDatabaseTest(unittest.TestCase):
             with self.assertRaisesRegex(CacheDatabaseError, "schema"):
                 with ContextCacheDatabase(path):
                     pass
+
+    def test_open_rejects_schema_with_altered_collation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(path):
+                pass
+            connection = sqlite3.connect(path)
+            sql = connection.execute(
+                "SELECT sql FROM sqlite_master WHERE name = 'metadata'"
+            ).fetchone()[0]
+            connection.execute("PRAGMA writable_schema = ON")
+            connection.execute(
+                "UPDATE sqlite_master SET sql = ? WHERE name = 'metadata'",
+                (sql.replace("value TEXT NOT NULL", "value TEXT COLLATE NOCASE NOT NULL"),),
+            )
+            version = connection.execute("PRAGMA schema_version").fetchone()[0]
+            connection.execute(f"PRAGMA schema_version = {version + 1}")
+            connection.commit()
+            connection.close()
+            with self.assertRaisesRegex(CacheDatabaseError, "schema"):
+                with ContextCacheDatabase(path):
+                    pass
+
+    def test_posix_open_does_not_change_process_umask(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with patch("cereja.system._context.cache_db.os.umask") as umask:
+                with ContextCacheDatabase(path):
+                    pass
+            umask.assert_not_called()
+
+    @unittest.skipIf(os.name == "nt", "POSIX sidecar modes are not portable on Windows")
+    def test_posix_new_sidecars_are_restricted_immediately(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            path.touch()
+            sidecar = Path(f"{path}-wal")
+            sidecar.touch()
+            sidecar.chmod(0o666)
+            database = ContextCacheDatabase(path)
+            database._secure_new_sidecars(set())
+            self.assertEqual(stat.S_IMODE(sidecar.stat().st_mode), 0o600)
 
     def test_open_rejects_symlink_cache_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:

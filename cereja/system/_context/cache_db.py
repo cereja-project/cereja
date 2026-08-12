@@ -16,6 +16,52 @@ DEFAULT_NAMESPACE = "default"
 DEFAULT_MAX_BYTES = 256 * 1024 * 1024
 BUSY_TIMEOUT_MS = 500
 
+_SCHEMA_DDL = {
+    "metadata": """CREATE TABLE metadata (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )""",
+    "namespaces": """CREATE TABLE namespaces (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        last_access_ns INTEGER NOT NULL
+    )""",
+    "roots": """CREATE TABLE roots (
+        id INTEGER PRIMARY KEY,
+        canonical_path TEXT NOT NULL UNIQUE,
+        last_access_ns INTEGER NOT NULL
+    )""",
+    "namespace_roots": """CREATE TABLE namespace_roots (
+        namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
+        root_id INTEGER NOT NULL REFERENCES roots(id) ON DELETE CASCADE,
+        PRIMARY KEY (namespace_id, root_id)
+    )""",
+    "files": """CREATE TABLE files (
+        id INTEGER PRIMARY KEY,
+        canonical_path TEXT NOT NULL UNIQUE,
+        device INTEGER,
+        inode INTEGER,
+        size_bytes INTEGER NOT NULL,
+        mtime_ns INTEGER NOT NULL,
+        ctime_ns INTEGER NOT NULL,
+        state TEXT NOT NULL CHECK (
+            state IN ('text', 'binary_file', 'invalid_utf8', 'file_too_large')
+        ),
+        content_sha256 TEXT,
+        folded_text TEXT,
+        created_ns INTEGER NOT NULL,
+        validated_ns INTEGER NOT NULL,
+        last_access_ns INTEGER NOT NULL
+    )""",
+    "root_files": """CREATE TABLE root_files (
+        root_id INTEGER NOT NULL REFERENCES roots(id) ON DELETE CASCADE,
+        file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+        relative_path TEXT NOT NULL,
+        last_seen_scan TEXT NOT NULL,
+        PRIMARY KEY (root_id, file_id)
+    )""",
+}
+
 _TABLE_NAMES = frozenset(
     {"metadata", "namespaces", "namespace_roots", "roots", "root_files", "files"}
 )
@@ -41,10 +87,14 @@ _EXPECTED_COLUMNS = {
 }
 
 _EXPECTED_FOREIGN_KEYS = {
-    "namespace_roots": {("root_id", "roots", "id", "CASCADE"),
-                        ("namespace_id", "namespaces", "id", "CASCADE")},
-    "root_files": {("file_id", "files", "id", "CASCADE"),
-                   ("root_id", "roots", "id", "CASCADE")},
+    "namespace_roots": {
+        ("root_id", "roots", "id", "NO ACTION", "CASCADE", "NONE"),
+        ("namespace_id", "namespaces", "id", "NO ACTION", "CASCADE", "NONE"),
+    },
+    "root_files": {
+        ("file_id", "files", "id", "NO ACTION", "CASCADE", "NONE"),
+        ("root_id", "roots", "id", "NO ACTION", "CASCADE", "NONE"),
+    },
 }
 
 _EXPECTED_UNIQUE_COLUMNS = {
@@ -75,7 +125,12 @@ def default_cache_path() -> Path:
 
 
 class ContextCacheDatabase:
-    """Own the lifecycle and schema identity of one context-cache database."""
+    """Own the lifecycle and schema identity of one context-cache database.
+
+    POSIX creation uses exclusive/no-follow flags when available. On Windows,
+    stdlib SQLite must reopen by path, so protection is best-effort: reparse
+    points and identity changes are rejected before any database operation.
+    """
 
     def __init__(self, path: Union[Path, str]):
         self.path = Path(path)
@@ -90,17 +145,14 @@ class ContextCacheDatabase:
 
     def __enter__(self) -> "ContextCacheDatabase":
         try:
-            database_is_empty, directory_identity, file_identity = self._prepare_path()
-            previous_umask = os.umask(0o077) if os.name != "nt" else None
-            try:
-                self._connection = sqlite3.connect(str(self.path), timeout=0.5)
-                self._validate_identity(directory_identity, file_identity)
-                self._configure_connection(database_is_empty)
-                self._validate_sidecars()
-            finally:
-                if previous_umask is not None:
-                    os.umask(previous_umask)
+            prepared = self._prepare_path()
+            database_is_empty, directory_identity, file_identity, sidecars = prepared
+            self._connection = sqlite3.connect(str(self.path), timeout=0.5)
+            self._validate_identity(directory_identity, file_identity)
+            self._configure_connection(database_is_empty)
+            self._secure_new_sidecars(sidecars)
             self._verify_or_create_schema()
+            self._secure_new_sidecars(sidecars)
         except CacheDatabaseError:
             self._close_connection()
             raise
@@ -129,6 +181,13 @@ class ContextCacheDatabase:
 
     @staticmethod
     def _is_link(path: Path) -> bool:
+        try:
+            attributes = getattr(path.lstat(), "st_file_attributes", 0)
+        except FileNotFoundError:
+            attributes = 0
+        reparse_point = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+        if os.name == "nt" and attributes & reparse_point:
+            return True
         is_junction = getattr(path, "is_junction", None)
         return path.is_symlink() or (is_junction is not None and is_junction())
 
@@ -168,7 +227,9 @@ class ContextCacheDatabase:
             directory.mkdir(mode=0o700)
         return directory
 
-    def _prepare_path(self) -> tuple[bool, tuple[int, int], tuple[int, int]]:
+    def _prepare_path(
+        self,
+    ) -> tuple[bool, tuple[int, int], tuple[int, int], set[Path]]:
         if self._is_link(self.path):
             raise CacheDatabaseError("context cache database must not be a symlink")
         try:
@@ -191,8 +252,9 @@ class ContextCacheDatabase:
         file_identity = self._identity(self.path)
         self._validate_secure_file(self.path)
         self._validate_sidecars()
+        sidecars = self._existing_sidecars()
         database_is_empty = self.path.stat(follow_symlinks=False).st_size == 0
-        return database_is_empty, directory_identity, file_identity
+        return database_is_empty, directory_identity, file_identity, sidecars
 
     def _validate_identity(
         self, directory_identity: tuple[int, int], file_identity: tuple[int, int]
@@ -207,13 +269,28 @@ class ContextCacheDatabase:
     def _validate_secure_file(self, path: Path) -> None:
         if self._is_link(path) or not path.is_file():
             raise CacheDatabaseError("context cache file is unsafe")
-        if os.name != "nt" and stat.S_IMODE(path.stat().st_mode) & 0o077:
+        if _uses_posix_permissions() and stat.S_IMODE(path.stat().st_mode) & 0o077:
             raise CacheDatabaseError("context cache file permissions are unsafe")
 
+    def _existing_sidecars(self) -> set[Path]:
+        return {
+            sidecar for sidecar in self._sidecar_paths()
+            if sidecar.exists() or self._is_link(sidecar)
+        }
+
+    def _sidecar_paths(self) -> tuple[Path, Path]:
+        return Path(f"{self.path}-wal"), Path(f"{self.path}-shm")
+
     def _validate_sidecars(self) -> None:
-        for suffix in ("-wal", "-shm"):
-            sidecar = Path(f"{self.path}{suffix}")
+        for sidecar in self._sidecar_paths():
             if sidecar.exists() or self._is_link(sidecar):
+                self._validate_secure_file(sidecar)
+
+    def _secure_new_sidecars(self, existing: set[Path]) -> None:
+        for sidecar in self._sidecar_paths():
+            if sidecar.exists() and sidecar not in existing:
+                if _uses_posix_permissions():
+                    sidecar.chmod(0o600)
                 self._validate_secure_file(sidecar)
 
     def _configure_connection(self, database_is_empty: bool) -> None:
@@ -250,6 +327,15 @@ class ContextCacheDatabase:
             raise CacheDatabaseError("context cache database default namespace is missing")
 
     def _validate_schema_structure(self) -> None:
+        actual_ddl = dict(self.connection.execute(
+            "SELECT name, sql FROM sqlite_schema WHERE type = 'table' "
+            "AND name NOT LIKE 'sqlite_%'"
+        ))
+        expected_ddl = {
+            name: _canonical_ddl(ddl) for name, ddl in _SCHEMA_DDL.items()
+        }
+        if {name: _canonical_ddl(ddl) for name, ddl in actual_ddl.items()} != expected_ddl:
+            raise CacheDatabaseError("context cache database schema DDL differs")
         for table, expected in _EXPECTED_COLUMNS.items():
             actual = tuple(
                 (row[1], row[2].upper(), row[3], row[5])
@@ -259,7 +345,7 @@ class ContextCacheDatabase:
                 raise CacheDatabaseError(f"context cache database schema differs: {table}")
         for table, expected in _EXPECTED_FOREIGN_KEYS.items():
             actual = {
-                (row[3], row[2], row[4], row[6].upper())
+                (row[3], row[2], row[4], row[5].upper(), row[6].upper(), row[7].upper())
                 for row in self.connection.execute(f'PRAGMA foreign_key_list("{table}")')
             }
             if actual != expected:
@@ -289,54 +375,13 @@ class ContextCacheDatabase:
 
     def _create_schema(self) -> None:
         timestamp = time.time_ns()
+        schema_ddl = ";\n".join(_SCHEMA_DDL.values())
         self.connection.executescript(
             f"""
                 BEGIN;
                 PRAGMA application_id = {APPLICATION_ID};
                 PRAGMA user_version = {SCHEMA_VERSION};
-                CREATE TABLE metadata (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
-                CREATE TABLE namespaces (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT NOT NULL UNIQUE,
-                    last_access_ns INTEGER NOT NULL
-                );
-                CREATE TABLE roots (
-                    id INTEGER PRIMARY KEY,
-                    canonical_path TEXT NOT NULL UNIQUE,
-                    last_access_ns INTEGER NOT NULL
-                );
-                CREATE TABLE namespace_roots (
-                    namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
-                    root_id INTEGER NOT NULL REFERENCES roots(id) ON DELETE CASCADE,
-                    PRIMARY KEY (namespace_id, root_id)
-                );
-                CREATE TABLE files (
-                    id INTEGER PRIMARY KEY,
-                    canonical_path TEXT NOT NULL UNIQUE,
-                    device INTEGER,
-                    inode INTEGER,
-                    size_bytes INTEGER NOT NULL,
-                    mtime_ns INTEGER NOT NULL,
-                    ctime_ns INTEGER NOT NULL,
-                    state TEXT NOT NULL CHECK (
-                        state IN ('text', 'binary_file', 'invalid_utf8', 'file_too_large')
-                    ),
-                    content_sha256 TEXT,
-                    folded_text TEXT,
-                    created_ns INTEGER NOT NULL,
-                    validated_ns INTEGER NOT NULL,
-                    last_access_ns INTEGER NOT NULL
-                );
-                CREATE TABLE root_files (
-                    root_id INTEGER NOT NULL REFERENCES roots(id) ON DELETE CASCADE,
-                    file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
-                    relative_path TEXT NOT NULL,
-                    last_seen_scan TEXT NOT NULL,
-                    PRIMARY KEY (root_id, file_id)
-                );
+                {schema_ddl};
                 INSERT INTO namespaces (name, last_access_ns)
                     VALUES ('{DEFAULT_NAMESPACE}', {timestamp});
                 COMMIT;
@@ -347,3 +392,11 @@ class ContextCacheDatabase:
         if self._connection is not None:
             self._connection.close()
             self._connection = None
+
+
+def _uses_posix_permissions() -> bool:
+    return os.name != "nt"
+
+
+def _canonical_ddl(ddl: str) -> str:
+    return re.sub(r"\s+", "", ddl).rstrip(";").casefold()
