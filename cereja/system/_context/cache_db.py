@@ -5,6 +5,7 @@ import re
 import sqlite3
 import stat
 import sys
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -17,6 +18,9 @@ SCHEMA_VERSION = 1
 DEFAULT_NAMESPACE = "default"
 DEFAULT_MAX_BYTES = 256 * 1024 * 1024
 BUSY_TIMEOUT_MS = 500
+
+_SCAN_TOKEN_LOCK = threading.Lock()
+_LAST_SCAN_STARTED_NS = 0
 
 _SCHEMA_DDL = {
     "metadata": """CREATE TABLE metadata (
@@ -32,7 +36,9 @@ _SCHEMA_DDL = {
         id INTEGER PRIMARY KEY,
         canonical_path TEXT NOT NULL UNIQUE,
         last_access_ns INTEGER NOT NULL,
-        scan_generation INTEGER NOT NULL DEFAULT 0
+        scan_generation INTEGER NOT NULL DEFAULT 0,
+        scan_started_ns INTEGER NOT NULL DEFAULT 0,
+        scan_nonce TEXT NOT NULL DEFAULT ''
     )""",
     "namespace_roots": """CREATE TABLE namespace_roots (
         namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
@@ -65,6 +71,14 @@ _SCHEMA_DDL = {
     )""",
 }
 
+_LEGACY_SCHEMA_DDL = dict(_SCHEMA_DDL)
+_LEGACY_SCHEMA_DDL["roots"] = """CREATE TABLE roots (
+        id INTEGER PRIMARY KEY,
+        canonical_path TEXT NOT NULL UNIQUE,
+        last_access_ns INTEGER NOT NULL,
+        scan_generation INTEGER NOT NULL DEFAULT 0
+    )"""
+
 _EXPECTED_AUTOINDEXES = {
     ("sqlite_autoindex_metadata_1", "metadata"),
     ("sqlite_autoindex_namespaces_1", "namespaces"),
@@ -84,7 +98,9 @@ _EXPECTED_COLUMNS = {
                    ("last_access_ns", "INTEGER", 1, 0)),
     "roots": (("id", "INTEGER", 0, 1), ("canonical_path", "TEXT", 1, 0),
               ("last_access_ns", "INTEGER", 1, 0),
-              ("scan_generation", "INTEGER", 1, 0)),
+              ("scan_generation", "INTEGER", 1, 0),
+              ("scan_started_ns", "INTEGER", 1, 0),
+              ("scan_nonce", "TEXT", 1, 0)),
     "namespace_roots": (("namespace_id", "INTEGER", 1, 1),
                         ("root_id", "INTEGER", 1, 2)),
     "files": (("id", "INTEGER", 0, 1), ("canonical_path", "TEXT", 1, 0),
@@ -118,6 +134,8 @@ _EXPECTED_UNIQUE_COLUMNS = {
 
 _EXPECTED_COLUMN_DEFAULTS = {
     ("roots", "scan_generation"): "0",
+    ("roots", "scan_started_ns"): "0",
+    ("roots", "scan_nonce"): "''",
 }
 
 
@@ -127,6 +145,16 @@ class CacheDatabaseError(RuntimeError):
 
 class CacheDatabaseUnavailable(CacheDatabaseError):
     """Raised when the cache database cannot be opened."""
+
+
+@dataclass(frozen=True, slots=True)
+class ScanToken:
+    """Total-order token generated in memory when a scan starts."""
+
+    namespace: str
+    canonical_root: str
+    started_ns: int
+    nonce: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,8 +216,6 @@ class ContextCacheDatabase:
     def __init__(self, path: Union[Path, str]):
         self.path = Path(path)
         self._connection: Optional[sqlite3.Connection] = None
-        self._scans: dict[str, tuple[str, str, int]] = {}
-        self._active_scans: dict[tuple[str, str], str] = {}
 
     @property
     def connection(self) -> sqlite3.Connection:
@@ -229,63 +255,22 @@ class ContextCacheDatabase:
             if not row[0].startswith("sqlite_")
         }
 
-    def begin_scan(self, namespace: str, canonical_root: str) -> str:
-        """Persist a new generation without removing cached associations."""
-        scan_token = str(uuid.uuid4())
-        scan_key = namespace, canonical_root
-        timestamp = time.time_ns()
-        connection = self.connection
-        try:
-            connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                """INSERT INTO namespaces (name, last_access_ns)
-                   VALUES (?, ?)
-                   ON CONFLICT(name) DO UPDATE SET
-                       last_access_ns = excluded.last_access_ns""",
-                (namespace, timestamp),
-            )
-            namespace_id = connection.execute(
-                "SELECT id FROM namespaces WHERE name = ?", (namespace,)
-            ).fetchone()[0]
-            connection.execute(
-                """INSERT INTO roots (
-                       canonical_path, last_access_ns, scan_generation
-                   ) VALUES (?, ?, 1)
-                   ON CONFLICT(canonical_path) DO UPDATE SET
-                       last_access_ns = excluded.last_access_ns,
-                       scan_generation = roots.scan_generation + 1""",
-                (canonical_root, timestamp),
-            )
-            root_id, generation = connection.execute(
-                """SELECT id, scan_generation FROM roots
-                   WHERE canonical_path = ?""",
-                (canonical_root,),
-            ).fetchone()
-            connection.execute(
-                """INSERT INTO namespace_roots (namespace_id, root_id)
-                   VALUES (?, ?)
-                   ON CONFLICT(namespace_id, root_id) DO NOTHING""",
-                (namespace_id, root_id),
-            )
-            connection.commit()
-        except BaseException:
-            if connection.in_transaction:
-                connection.rollback()
-            raise
-        previous_token = self._active_scans.get(scan_key)
-        if previous_token is not None:
-            self._scans.pop(previous_token, None)
-        self._scans[scan_token] = namespace, canonical_root, generation
-        self._active_scans[scan_key] = scan_token
-        return scan_token
+    def begin_scan(self, namespace: str, canonical_root: str) -> ScanToken:
+        """Return an immutable in-memory scan token without writing SQLite."""
+        return ScanToken(
+            namespace=namespace,
+            canonical_root=canonical_root,
+            started_ns=_next_scan_started_ns(),
+            nonce=str(uuid.uuid4()),
+        )
 
     def begin_scans_if_admitted(
         self,
         namespace: str,
         canonical_roots: Iterable[str],
         max_bytes: int,
-    ) -> dict[str, str] | None:
-        """Begin all root scans only when their minimum mutation fits quota."""
+    ) -> dict[str, ScanToken] | None:
+        """Prepare scan tokens after a read-only physical-capacity preflight."""
         if max_bytes < 0:
             raise ValueError("max_bytes must not be negative")
         roots = tuple(dict.fromkeys(canonical_roots))
@@ -296,72 +281,7 @@ class ContextCacheDatabase:
         if self.aggregate_size_bytes() >= max_bytes:
             return None
 
-        connection = self.connection
-        timestamp = time.time_ns()
-        scans = {root: str(uuid.uuid4()) for root in roots}
-        generations = {}
-        connection.execute("PRAGMA cache_spill = OFF")
-        try:
-            connection.execute("BEGIN IMMEDIATE")
-            if self.aggregate_size_bytes() >= max_bytes:
-                connection.rollback()
-                return None
-            connection.execute(
-                """INSERT INTO namespaces (name, last_access_ns)
-                   VALUES (?, ?)
-                   ON CONFLICT(name) DO UPDATE SET
-                       last_access_ns = excluded.last_access_ns""",
-                (namespace, timestamp),
-            )
-            namespace_id = connection.execute(
-                "SELECT id FROM namespaces WHERE name = ?", (namespace,)
-            ).fetchone()[0]
-            for canonical_root in roots:
-                connection.execute(
-                    """INSERT INTO roots (
-                           canonical_path, last_access_ns, scan_generation
-                       ) VALUES (?, ?, 1)
-                       ON CONFLICT(canonical_path) DO UPDATE SET
-                           last_access_ns = excluded.last_access_ns,
-                           scan_generation = roots.scan_generation + 1""",
-                    (canonical_root, timestamp),
-                )
-                root_id, generation = connection.execute(
-                    """SELECT id, scan_generation FROM roots
-                       WHERE canonical_path = ?""",
-                    (canonical_root,),
-                ).fetchone()
-                generations[canonical_root] = generation
-                connection.execute(
-                    """INSERT INTO namespace_roots (namespace_id, root_id)
-                       VALUES (?, ?)
-                       ON CONFLICT(namespace_id, root_id) DO NOTHING""",
-                    (namespace_id, root_id),
-                )
-            if self._projected_aggregate_size() > max_bytes:
-                connection.rollback()
-                return None
-            connection.commit()
-            self._checkpoint_wal()
-        except BaseException:
-            if connection.in_transaction:
-                connection.rollback()
-            raise
-        finally:
-            connection.execute("PRAGMA cache_spill = ON")
-
-        for canonical_root, scan_token in scans.items():
-            scan_key = namespace, canonical_root
-            previous_token = self._active_scans.get(scan_key)
-            if previous_token is not None:
-                self._scans.pop(previous_token, None)
-            self._scans[scan_token] = (
-                namespace,
-                canonical_root,
-                generations[canonical_root],
-            )
-            self._active_scans[scan_key] = scan_token
-        return scans
+        return {root: self.begin_scan(namespace, root) for root in roots}
 
     def roots_requiring_scan(
         self,
@@ -394,38 +314,51 @@ class ContextCacheDatabase:
 
     def commit_scan(
         self,
-        scan_token: str,
+        scan_token: ScanToken,
         files: Iterable[CachedFile],
         max_bytes: int | None = None,
     ) -> tuple[CachedFile, ...] | None:
         """Atomically publish the deterministic prefix admitted by quota."""
         if max_bytes is not None and max_bytes < 0:
             raise ValueError("max_bytes must not be negative")
-        try:
-            namespace, canonical_root, generation = self._scans[scan_token]
-        except KeyError as error:
-            raise CacheDatabaseError("context cache scan token is unknown") from error
+        if not isinstance(scan_token, ScanToken):
+            raise CacheDatabaseError("context cache scan token is invalid")
+        namespace = scan_token.namespace
+        canonical_root = scan_token.canonical_root
 
         cached_files = tuple(files)
         connection = self.connection
         timestamp = time.time_ns()
         admitted = []
         if max_bytes is not None:
+            connection.execute("PRAGMA locking_mode = EXCLUSIVE")
             if self._checkpoint_wal()[0] != 0:
+                self._restore_normal_locking()
                 return None
             if self.aggregate_size_bytes() >= max_bytes:
+                self._restore_normal_locking()
                 return None
         if max_bytes is not None:
             connection.execute("PRAGMA cache_spill = OFF")
         try:
-            connection.execute("BEGIN IMMEDIATE")
+            try:
+                connection.execute(
+                    "BEGIN EXCLUSIVE" if max_bytes is not None else "BEGIN IMMEDIATE"
+                )
+            except sqlite3.OperationalError as error:
+                if "locked" in str(error).casefold():
+                    return None
+                raise
             current_root = connection.execute(
-                """SELECT id FROM roots
-                   WHERE canonical_path = ? AND scan_generation = ?""",
-                (canonical_root, generation),
+                """SELECT id, scan_started_ns, scan_nonce FROM roots
+                   WHERE canonical_path = ?""",
+                (canonical_root,),
             ).fetchone()
-            if current_root is None:
-                raise CacheDatabaseError("context cache scan token is stale")
+            if current_root is not None:
+                published_order = int(current_root[1]), str(current_root[2])
+                token_order = scan_token.started_ns, scan_token.nonce
+                if published_order >= token_order:
+                    raise CacheDatabaseError("context cache scan token is stale")
             connection.execute(
                 """INSERT INTO namespaces (name, last_access_ns)
                    VALUES (?, ?)
@@ -437,13 +370,17 @@ class ContextCacheDatabase:
                 "SELECT id FROM namespaces WHERE name = ?", (namespace,)
             ).fetchone()[0]
             connection.execute(
-                """INSERT INTO roots (canonical_path, last_access_ns)
-                   VALUES (?, ?)
+                """INSERT INTO roots (
+                       canonical_path, last_access_ns, scan_started_ns, scan_nonce
+                   ) VALUES (?, ?, 0, '')
                    ON CONFLICT(canonical_path) DO UPDATE SET
                        last_access_ns = excluded.last_access_ns""",
                 (canonical_root, timestamp),
             )
-            root_id = current_root[0]
+            root_id = connection.execute(
+                "SELECT id FROM roots WHERE canonical_path = ?",
+                (canonical_root,),
+            ).fetchone()[0]
             connection.execute(
                 """INSERT INTO namespace_roots (namespace_id, root_id)
                    VALUES (?, ?)
@@ -498,7 +435,7 @@ class ContextCacheDatabase:
                        ON CONFLICT(root_id, file_id) DO UPDATE SET
                            relative_path = excluded.relative_path,
                            last_seen_scan = excluded.last_seen_scan""",
-                    (root_id, file_id, cached_file.relative_path, scan_token),
+                    (root_id, file_id, cached_file.relative_path, scan_token.nonce),
                 )
                 if (max_bytes is not None
                         and self._projected_aggregate_size() > max_bytes):
@@ -512,7 +449,14 @@ class ContextCacheDatabase:
             connection.execute(
                 """DELETE FROM root_files
                    WHERE root_id = ? AND last_seen_scan <> ?""",
-                (root_id, scan_token),
+                (root_id, scan_token.nonce),
+            )
+            connection.execute(
+                """UPDATE roots SET
+                       scan_generation = scan_generation + 1,
+                       scan_started_ns = ?, scan_nonce = ?, last_access_ns = ?
+                   WHERE id = ?""",
+                (scan_token.started_ns, scan_token.nonce, timestamp, root_id),
             )
             if (max_bytes is not None
                     and self._projected_aggregate_size() > max_bytes):
@@ -525,13 +469,18 @@ class ContextCacheDatabase:
             if connection.in_transaction:
                 connection.rollback()
             raise
-        else:
-            del self._scans[scan_token]
-            self._active_scans.pop((namespace, canonical_root), None)
         finally:
             if max_bytes is not None:
                 connection.execute("PRAGMA cache_spill = ON")
+                self._restore_normal_locking()
         return tuple(admitted)
+
+    def _restore_normal_locking(self) -> None:
+        """Restore normal locking and force release on the next file access."""
+        self.connection.execute("PRAGMA locking_mode = NORMAL")
+        self.connection.execute(
+            "SELECT name FROM sqlite_schema ORDER BY name LIMIT 1"
+        ).fetchone()
 
     def iter_root_files(
         self, namespace: str, canonical_root: str
@@ -961,17 +910,19 @@ class ContextCacheDatabase:
             raise CacheDatabaseError("context cache database auto_vacuum is incompatible")
         if tables != _TABLE_NAMES:
             raise CacheDatabaseError("context cache database schema is incomplete")
-        self._validate_schema_structure()
         namespace = self.connection.execute(
             "SELECT id FROM namespaces WHERE name = ?", (DEFAULT_NAMESPACE,)
         ).fetchone()
         if namespace is None:
             raise CacheDatabaseError("context cache database default namespace is missing")
+        if self._schema_objects_match(_LEGACY_SCHEMA_DDL):
+            self._migrate_legacy_schema()
+        self._validate_schema_structure()
 
-    def _validate_schema_structure(self) -> None:
+    def _schema_objects_match(self, schema_ddl: dict[str, str]) -> bool:
         expected_objects = {
             ("table", name, name, _canonical_ddl(ddl))
-            for name, ddl in _SCHEMA_DDL.items()
+            for name, ddl in schema_ddl.items()
         }
         expected_objects.update(
             ("index", name, table, None)
@@ -983,7 +934,32 @@ class ContextCacheDatabase:
                 "SELECT type, name, tbl_name, sql FROM sqlite_schema"
             )
         }
-        if actual_objects != expected_objects:
+        return actual_objects == expected_objects
+
+    def _migrate_legacy_schema(self) -> None:
+        connection = self.connection
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            if self._schema_objects_match(_LEGACY_SCHEMA_DDL):
+                connection.execute(
+                    "ALTER TABLE roots ADD COLUMN "
+                    "scan_started_ns INTEGER NOT NULL DEFAULT 0"
+                )
+                connection.execute(
+                    "ALTER TABLE roots ADD COLUMN "
+                    "scan_nonce TEXT NOT NULL DEFAULT ''"
+                )
+            elif not self._schema_objects_match(_SCHEMA_DDL):
+                raise CacheDatabaseError(
+                    "context cache database schema changed during migration"
+                )
+            connection.commit()
+        except BaseException:
+            connection.rollback()
+            raise
+
+    def _validate_schema_structure(self) -> None:
+        if not self._schema_objects_match(_SCHEMA_DDL):
             raise CacheDatabaseError("context cache database schema objects differ")
         actual_ddl = dict(self.connection.execute(
             "SELECT name, sql FROM sqlite_schema WHERE type = 'table' "
@@ -1059,12 +1035,18 @@ class ContextCacheDatabase:
         if self._connection is not None:
             self._connection.close()
             self._connection = None
-        self._scans.clear()
-        self._active_scans.clear()
 
 
 def _uses_posix_permissions() -> bool:
     return os.name != "nt"
+
+
+def _next_scan_started_ns() -> int:
+    """Return process-monotonic wall time for deterministic local ordering."""
+    global _LAST_SCAN_STARTED_NS
+    with _SCAN_TOKEN_LOCK:
+        _LAST_SCAN_STARTED_NS = max(time.time_ns(), _LAST_SCAN_STARTED_NS + 1)
+        return _LAST_SCAN_STARTED_NS
 
 
 def _canonical_ddl(ddl: str) -> str:

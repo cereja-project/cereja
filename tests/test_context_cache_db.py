@@ -3,6 +3,7 @@ import sqlite3
 import stat
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -21,6 +22,113 @@ from cereja.system._context.cache_db import (
 
 
 class ContextCacheDatabaseTest(unittest.TestCase):
+    def test_begin_scan_is_in_memory_only(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                database._checkpoint_wal()
+                baseline = database.aggregate_size_bytes()
+
+                token = database.begin_scan("default", "C:/repo")
+
+                self.assertEqual(token.namespace, "default")
+                self.assertEqual(token.canonical_root, "C:/repo")
+                self.assertEqual(database.aggregate_size_bytes(), baseline)
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT COUNT(*) FROM roots"
+                    ).fetchone()[0],
+                    0,
+                )
+
+    def test_begin_scan_orders_tied_clock_values_by_begin_order(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            nonces = [
+                uuid.UUID("00000000-0000-0000-0000-000000000002"),
+                uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            ]
+            with ContextCacheDatabase(database_path) as database, \
+                 patch("cereja.system._context.cache_db.time.time_ns", return_value=7), \
+                 patch("cereja.system._context.cache_db.uuid.uuid4", side_effect=nonces):
+                old_scan = database.begin_scan("default", "C:/repo")
+                new_scan = database.begin_scan("default", "C:/repo")
+
+            self.assertLess(
+                (old_scan.started_ns, old_scan.nonce),
+                (new_scan.started_ns, new_scan.nonce),
+            )
+
+    def test_reader_after_preflight_leaves_root_generation_and_storage_unchanged(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                seed = database.begin_scan("default", "C:/repo")
+                database.commit_scan(seed, [])
+                database._checkpoint_wal()
+                baseline = database.aggregate_size_bytes()
+                generation = database.connection.execute(
+                    "SELECT scan_generation FROM roots WHERE canonical_path = 'C:/repo'"
+                ).fetchone()[0]
+                scans = database.begin_scans_if_admitted(
+                    "default", ["C:/repo"], 10 ** 9
+                )
+                reader = sqlite3.connect(database_path)
+                try:
+                    reader.execute("BEGIN")
+                    reader.execute("SELECT COUNT(*) FROM roots").fetchone()
+                    admitted = database.commit_scan(
+                        scans["C:/repo"], [], max_bytes=10 ** 9
+                    )
+                finally:
+                    reader.close()
+
+                self.assertIsNone(admitted)
+                self.assertEqual(database.aggregate_size_bytes(), baseline)
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT scan_generation FROM roots WHERE canonical_path = 'C:/repo'"
+                    ).fetchone()[0],
+                    generation,
+                )
+
+    def test_bounded_commit_releases_exclusive_lock_before_returning(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as first:
+                scan = first.begin_scan("default", "C:/repo")
+                self.assertEqual(first.commit_scan(scan, [], max_bytes=10 ** 9), ())
+                with ContextCacheDatabase(database_path) as second:
+                    second.connection.execute("BEGIN IMMEDIATE")
+                    second.connection.rollback()
+
+    def test_equal_timestamp_uses_nonce_for_cross_connection_scan_order(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            old_file = CachedFile(
+                "C:/repo/a.txt", "a.txt", FileSignature(None, None, 1, 1, 1),
+                "text", "old", None,
+            )
+            new_file = CachedFile(
+                "C:/repo/a.txt", "a.txt", FileSignature(None, None, 1, 2, 2),
+                "text", "new", None,
+            )
+            nonces = [
+                uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                uuid.UUID("00000000-0000-0000-0000-000000000002"),
+            ]
+            with ContextCacheDatabase(database_path) as first, \
+                 ContextCacheDatabase(database_path) as second, \
+                 patch("cereja.system._context.cache_db.time.time_ns", return_value=7), \
+                 patch("cereja.system._context.cache_db.uuid.uuid4", side_effect=nonces):
+                old_scan = first.begin_scan("default", "C:/repo")
+                new_scan = second.begin_scan("default", "C:/repo")
+                second.commit_scan(new_scan, [new_file])
+                with self.assertRaises(CacheDatabaseError):
+                    first.commit_scan(old_scan, [old_file])
+                rows = list(first.iter_root_files("default", "C:/repo"))
+            self.assertEqual([row.folded_text for row in rows], ["new"])
+
     def test_commit_scan_at_physical_quota_is_read_only(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
@@ -727,6 +835,85 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 [("default",)],
             )
             connection.close()
+
+    def test_open_migrates_valid_previous_layout(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            connection = sqlite3.connect(path)
+            connection.execute("PRAGMA auto_vacuum = INCREMENTAL")
+            connection.execute("VACUUM")
+            connection.executescript(
+                f"""
+                PRAGMA application_id = {APPLICATION_ID};
+                PRAGMA user_version = {SCHEMA_VERSION};
+                CREATE TABLE metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+                CREATE TABLE namespaces (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE,
+                    last_access_ns INTEGER NOT NULL
+                );
+                CREATE TABLE roots (
+                    id INTEGER PRIMARY KEY,
+                    canonical_path TEXT NOT NULL UNIQUE,
+                    last_access_ns INTEGER NOT NULL,
+                    scan_generation INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE namespace_roots (
+                    namespace_id INTEGER NOT NULL
+                        REFERENCES namespaces(id) ON DELETE CASCADE,
+                    root_id INTEGER NOT NULL
+                        REFERENCES roots(id) ON DELETE CASCADE,
+                    PRIMARY KEY (namespace_id, root_id)
+                );
+                CREATE TABLE files (
+                    id INTEGER PRIMARY KEY,
+                    canonical_path TEXT NOT NULL UNIQUE,
+                    device INTEGER,
+                    inode INTEGER,
+                    size_bytes INTEGER NOT NULL,
+                    mtime_ns INTEGER NOT NULL,
+                    ctime_ns INTEGER NOT NULL,
+                    state TEXT NOT NULL CHECK (
+                        state IN (
+                            'text', 'binary_file', 'invalid_utf8', 'file_too_large'
+                        )
+                    ),
+                    content_sha256 TEXT,
+                    folded_text TEXT,
+                    created_ns INTEGER NOT NULL,
+                    validated_ns INTEGER NOT NULL,
+                    last_access_ns INTEGER NOT NULL
+                );
+                CREATE TABLE root_files (
+                    root_id INTEGER NOT NULL
+                        REFERENCES roots(id) ON DELETE CASCADE,
+                    file_id INTEGER NOT NULL
+                        REFERENCES files(id) ON DELETE CASCADE,
+                    relative_path TEXT NOT NULL,
+                    last_seen_scan TEXT NOT NULL,
+                    PRIMARY KEY (root_id, file_id)
+                );
+                INSERT INTO namespaces (id, name, last_access_ns)
+                    VALUES (1, 'default', 1);
+                INSERT INTO roots (
+                    id, canonical_path, last_access_ns, scan_generation
+                ) VALUES (1, 'C:/legacy', 2, 4);
+                INSERT INTO namespace_roots (namespace_id, root_id)
+                    VALUES (1, 1);
+                """
+            )
+            connection.close()
+
+            with ContextCacheDatabase(path) as database:
+                root = database.connection.execute(
+                    "SELECT scan_generation, scan_started_ns, scan_nonce "
+                    "FROM roots WHERE canonical_path = 'C:/legacy'"
+                ).fetchone()
+
+            self.assertEqual(root, (4, 0, ""))
 
     @unittest.skipIf(os.name == "nt", "POSIX permissions are not portable on Windows")
     def test_open_restricts_new_database_and_cache_directory_permissions(self):
