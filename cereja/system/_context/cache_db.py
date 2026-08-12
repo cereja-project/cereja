@@ -2,9 +2,12 @@
 
 import os
 import re
+import shutil
 import sqlite3
 import stat
+import struct
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -12,12 +15,30 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Optional, Union
 
+from .models import ContextCacheClearReport, ContextCacheInfo
+
 
 APPLICATION_ID = 0x434A4358  # "CJCX"
 SCHEMA_VERSION = 1
 DEFAULT_NAMESPACE = "default"
 DEFAULT_MAX_BYTES = 256 * 1024 * 1024
 BUSY_TIMEOUT_MS = 500
+
+_SQLITE_HEADER = b"SQLite format 3\x00"
+_SQLITE_USER_VERSION_OFFSET = 60
+_SQLITE_APPLICATION_ID_OFFSET = 68
+_SQLITE_IDENTITY_BYTES = 72
+_WAL_HEADER_BYTES = 32
+_WAL_FRAME_HEADER_BYTES = 24
+_WAL_FORMAT_VERSION = 3_007_000
+_WAL_CHECKSUM_BYTE_ORDERS = {
+    0x377F0682: "<",
+    0x377F0683: ">",
+}
+
+_PreparedPath = tuple[
+    bool, tuple[int, int], tuple[int, int], dict[Path, tuple[int, int]]
+]
 
 _SCAN_TOKEN_LOCK = threading.Lock()
 _LAST_SCAN_STARTED_NS = 0
@@ -147,6 +168,86 @@ class CacheDatabaseUnavailable(CacheDatabaseError):
     """Raised when the cache database cannot be opened."""
 
 
+class _RecognizedCacheCorruption(CacheDatabaseUnavailable):
+    """Signal corruption only after the main file proves cache ownership."""
+
+
+class _ReplacementPublicationError(CacheDatabaseUnavailable):
+    """Keep recovery inputs when a no-clobber publication cannot complete."""
+
+
+class _CachePathLock:
+    """Shared/exclusive advisory lock coordinated by every cache opener."""
+
+    def __init__(self, database_path: Path):
+        self.path = Path(f"{database_path}.lock")
+        self._descriptor: int | None = None
+        self._platform_state = None
+        self.exclusive = False
+
+    def acquire(self, exclusive: bool, *, create: bool = True) -> None:
+        if self._descriptor is not None:
+            raise CacheDatabaseError("context cache lock is already held")
+        if ContextCacheDatabase._is_link(self.path):
+            raise CacheDatabaseError("context cache lock file is unsafe")
+        flags = os.O_RDWR | getattr(os, "O_BINARY", 0)
+        if create:
+            flags |= os.O_CREAT
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(self.path, flags, 0o600)
+        try:
+            result = os.fstat(descriptor)
+            if not stat.S_ISREG(result.st_mode):
+                raise CacheDatabaseError(
+                    "context cache lock must be a regular file"
+                )
+            if _uses_posix_permissions() and stat.S_IMODE(result.st_mode) & 0o077:
+                raise CacheDatabaseError(
+                    "context cache lock permissions are unsafe"
+                )
+            if (ContextCacheDatabase._is_link(self.path)
+                    or ContextCacheDatabase._identity(self.path)
+                    != (result.st_dev, result.st_ino)):
+                raise CacheDatabaseError("context cache lock identity changed")
+            self._platform_state = _acquire_descriptor_lock(
+                descriptor, exclusive
+            )
+        except BaseException:
+            os.close(descriptor)
+            raise
+        self._descriptor = descriptor
+        self.exclusive = exclusive
+
+    def change(self, exclusive: bool) -> None:
+        if self._descriptor is None:
+            raise CacheDatabaseError("context cache lock is not held")
+        if self.exclusive == exclusive:
+            return
+        descriptor = self._descriptor
+        _release_descriptor_lock(descriptor, self._platform_state)
+        self._platform_state = None
+        try:
+            self._platform_state = _acquire_descriptor_lock(
+                descriptor, exclusive
+            )
+        except BaseException:
+            os.close(descriptor)
+            self._descriptor = None
+            raise
+        self.exclusive = exclusive
+
+    def release(self) -> None:
+        if self._descriptor is None:
+            return
+        descriptor = self._descriptor
+        self._descriptor = None
+        try:
+            _release_descriptor_lock(descriptor, self._platform_state)
+        finally:
+            self._platform_state = None
+            os.close(descriptor)
+
+
 @dataclass(frozen=True, slots=True)
 class ScanToken:
     """Scan identity with a process-monotonic start timestamp."""
@@ -216,6 +317,7 @@ class ContextCacheDatabase:
     def __init__(self, path: Union[Path, str]):
         self.path = Path(path)
         self._connection: Optional[sqlite3.Connection] = None
+        self._cache_lock: _CachePathLock | None = None
 
     @property
     def connection(self) -> sqlite3.Connection:
@@ -228,22 +330,460 @@ class ContextCacheDatabase:
         try:
             prepared = self._prepare_path()
             database_is_empty, directory_identity, file_identity, sidecars = prepared
-            self._connection = sqlite3.connect(str(self.path), timeout=0.5)
-            self._validate_identity(directory_identity, file_identity)
-            self._configure_connection(database_is_empty)
-            self._secure_new_sidecars(sidecars)
-            self._verify_or_create_schema()
-            self._secure_new_sidecars(sidecars)
+            recovery_required = False
+            schema_version = SCHEMA_VERSION
+            if not database_is_empty:
+                try:
+                    schema_version = self._read_header_identity(
+                        file_identity, sidecars
+                    )
+                except _RecognizedCacheCorruption:
+                    recovery_required = True
+            self._acquire_cache_lock(
+                database_is_empty or recovery_required or schema_version == 0
+            )
+            locked_prepared = self._prepare_path()
+            if locked_prepared[1] != directory_identity:
+                raise CacheDatabaseError(
+                    "context cache directory identity changed"
+                )
+            if locked_prepared[2] != file_identity:
+                raise CacheDatabaseError(
+                    "context cache database identity changed"
+                )
+            self._open_locked(locked_prepared)
         except CacheDatabaseError:
             self._close_connection()
+            self._release_cache_lock()
             raise
         except (OSError, sqlite3.Error) as error:
             self._close_connection()
+            self._release_cache_lock()
             raise CacheDatabaseUnavailable("context cache database is unavailable") from error
         return self
 
+    def _open_locked(self, prepared: _PreparedPath) -> None:
+        database_is_empty, _, file_identity, sidecars = prepared
+        if database_is_empty:
+            self._require_exclusive_lock()
+            self._open_prepared(prepared)
+            self._cache_lock.change(False)
+            return
+
+        try:
+            schema_version = self._read_header_identity(
+                file_identity, sidecars
+            )
+        except _RecognizedCacheCorruption:
+            self._require_exclusive_lock()
+            prepared = self._prepare_path()
+            try:
+                self._read_header_identity(prepared[2], prepared[3])
+            except _RecognizedCacheCorruption:
+                self._recover_database(prepared)
+                self._cache_lock.change(False)
+                return
+            return self._open_locked(prepared)
+        if schema_version == 0:
+            self._require_exclusive_lock()
+            prepared = self._prepare_path()
+            schema_version = self._read_header_identity(
+                prepared[2], prepared[3]
+            )
+            if schema_version == 0:
+                self._recover_database(prepared)
+                self._cache_lock.change(False)
+                return
+            return self._open_locked(prepared)
+
+        try:
+            self._open_prepared(prepared)
+        except sqlite3.DatabaseError as error:
+            self._close_connection()
+            if not self._is_corruption_error(error):
+                raise
+            self._require_exclusive_lock()
+            prepared = self._prepare_path()
+            try:
+                schema_version = self._read_header_identity(
+                    prepared[2], prepared[3]
+                )
+            except _RecognizedCacheCorruption:
+                self._recover_database(prepared)
+                self._cache_lock.change(False)
+                return
+            if schema_version == 0:
+                self._recover_database(prepared)
+                self._cache_lock.change(False)
+                return
+            try:
+                self._open_prepared(prepared)
+            except sqlite3.DatabaseError as retry_error:
+                self._close_connection()
+                if not self._is_corruption_error(retry_error):
+                    raise
+                self._recover_database(prepared)
+        if self._cache_lock.exclusive:
+            self._cache_lock.change(False)
+
+    def _acquire_cache_lock(self, exclusive: bool) -> None:
+        lock = _CachePathLock(self.path)
+        lock.acquire(exclusive)
+        self._cache_lock = lock
+
+    def _require_exclusive_lock(self) -> None:
+        if self._cache_lock is None:
+            raise CacheDatabaseError("context cache lock is not held")
+        self._cache_lock.change(True)
+
+    def _release_cache_lock(self) -> None:
+        if self._cache_lock is not None:
+            self._cache_lock.release()
+            self._cache_lock = None
+
+    def _open_prepared(
+        self,
+        prepared: _PreparedPath,
+    ) -> None:
+        database_is_empty, directory_identity, file_identity, sidecars = prepared
+        self._connection = sqlite3.connect(
+            str(self.path), timeout=BUSY_TIMEOUT_MS / 1000
+        )
+        self._validate_identity(directory_identity, file_identity)
+        self._configure_connection(database_is_empty)
+        self._secure_new_sidecars(sidecars)
+        self._verify_or_create_schema()
+        self._secure_new_sidecars(sidecars)
+
+    def _read_header_identity(
+        self,
+        file_identity: tuple[int, int],
+        sidecars: dict[Path, tuple[int, int]],
+    ) -> int:
+        """Return a recognized schema version without opening SQLite."""
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(self.path, flags)
+        try:
+            result = os.fstat(descriptor)
+            if (result.st_dev, result.st_ino) != file_identity:
+                raise CacheDatabaseError(
+                    "context cache database identity changed"
+                )
+            header = os.read(descriptor, _SQLITE_IDENTITY_BYTES)
+        finally:
+            os.close(descriptor)
+        self._validate_secure_file(self.path)
+        if (len(header) < _SQLITE_IDENTITY_BYTES
+                or header[:len(_SQLITE_HEADER)] != _SQLITE_HEADER):
+            raise CacheDatabaseUnavailable(
+                "context cache database identity is not recognized"
+            )
+        application_id, schema_version = _database_header_identity(header)
+        self._validate_header_values(application_id, schema_version)
+        write_ahead_log, _ = self._sidecar_paths()
+        if (write_ahead_log in sidecars
+                and write_ahead_log.stat(follow_symlinks=False).st_size > 32):
+            try:
+                application_id, schema_version = self._read_wal_identity(
+                    file_identity,
+                    sidecars,
+                    application_id,
+                    schema_version,
+                )
+            except CacheDatabaseUnavailable as error:
+                raise _RecognizedCacheCorruption(
+                    "recognized context cache WAL is corrupt"
+                ) from error
+        self._validate_header_values(application_id, schema_version)
+        return schema_version
+
+    def _read_wal_identity(
+        self,
+        file_identity: tuple[int, int],
+        sidecars: dict[Path, tuple[int, int]],
+        application_id: int,
+        schema_version: int,
+    ) -> tuple[int, int]:
+        write_ahead_log, _ = self._sidecar_paths()
+        descriptor = self._open_validated_wal(write_ahead_log, sidecars)
+        try:
+            page_one = _last_committed_wal_page_one(descriptor)
+        finally:
+            os.close(descriptor)
+        if self._identity(self.path) != file_identity:
+            raise CacheDatabaseError(
+                "context cache database identity changed"
+            )
+        for sidecar, identity in sidecars.items():
+            if self._identity(sidecar) != identity:
+                raise CacheDatabaseError(
+                    "context cache sidecar identity changed"
+                )
+        if page_one is not None:
+            application_id, schema_version = _database_header_identity(page_one)
+        return int(application_id), int(schema_version)
+
+    def _open_validated_wal(
+        self,
+        write_ahead_log: Path,
+        sidecars: dict[Path, tuple[int, int]],
+    ) -> int:
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(write_ahead_log, flags)
+        result = os.fstat(descriptor)
+        if (result.st_dev, result.st_ino) != sidecars[write_ahead_log]:
+            os.close(descriptor)
+            raise CacheDatabaseError(
+                "context cache WAL identity changed"
+            )
+        return descriptor
+
+    @staticmethod
+    def _validate_header_values(application_id: int, schema_version: int) -> None:
+        if application_id != APPLICATION_ID:
+            raise CacheDatabaseUnavailable(
+                "context cache database has an unknown application id"
+            )
+        if schema_version > SCHEMA_VERSION:
+            raise CacheDatabaseUnavailable(
+                "context cache database has a newer schema version"
+            )
+        if schema_version not in (0, SCHEMA_VERSION):
+            raise CacheDatabaseUnavailable(
+                "context cache database has an unsupported schema version"
+            )
+
+    @staticmethod
+    def _is_corruption_error(error: sqlite3.DatabaseError) -> bool:
+        message = str(error).casefold()
+        if "malformed database schema" in message:
+            return False
+        code = getattr(error, "sqlite_errorcode", None)
+        if code is not None:
+            primary_code = code & 0xFF
+            corruption_codes = {
+                value for value in (
+                    getattr(sqlite3, "SQLITE_CORRUPT", None),
+                    getattr(sqlite3, "SQLITE_NOTADB", None),
+                    getattr(sqlite3, "SQLITE_FORMAT", None),
+                ) if value is not None
+            }
+            if primary_code in corruption_codes:
+                return True
+        return "malformed" in message or "not a database" in message
+
+    def _recover_database(
+        self,
+        prepared: _PreparedPath,
+    ) -> None:
+        """Replace only a positively identified Cereja database."""
+        if self._cache_lock is None or not self._cache_lock.exclusive:
+            raise CacheDatabaseError(
+                "context cache recovery requires exclusive ownership"
+            )
+        _, directory_identity, file_identity, sidecars = prepared
+        self._close_connection()
+        self._validate_identity(directory_identity, file_identity)
+        self._validate_sidecars()
+        directory = self.path.parent.resolve(strict=True)
+        quarantine_paths = self._quarantine_paths(sidecars, directory)
+        self._move_to_quarantine(
+            quarantine_paths, file_identity, sidecars
+        )
+
+        replacement_path = self.path.with_name(
+            f"{self.path.name}.replacement-{time.time_ns()}-{uuid.uuid4().hex}"
+        )
+        self._validate_recovery_sibling(replacement_path, directory)
+        replacement_database = type(self)(replacement_path)
+        try:
+            replacement = replacement_database._prepare_path()
+            replacement_database._open_prepared(replacement)
+            replacement_database._checkpoint_wal()
+            replacement_database._close_connection()
+            replacement = replacement_database._prepare_path()
+            replacement_database._read_header_identity(
+                replacement[2], replacement[3]
+            )
+            if replacement[3]:
+                raise CacheDatabaseUnavailable(
+                    "context cache replacement has live sidecars"
+                )
+            replacement_identity = replacement[2]
+            self._publish_replacement(
+                replacement_path, replacement_identity
+            )
+            published = self._prepare_path()
+            if published[2] != replacement_identity:
+                raise _ReplacementPublicationError(
+                    "context cache replacement identity changed"
+                )
+            self._read_header_identity(published[2], published[3])
+            self._open_prepared(published)
+        except BaseException as error:
+            self._close_connection()
+            replacement_database._close_connection()
+            if not isinstance(error, _ReplacementPublicationError):
+                self._discard_failed_replacement(replacement_path)
+            if isinstance(error, CacheDatabaseError):
+                raise
+            if isinstance(error, (OSError, sqlite3.Error)):
+                raise CacheDatabaseUnavailable(
+                    "context cache replacement could not be created"
+                ) from error
+            raise
+
+        try:
+            self._discard_quarantine(
+                quarantine_paths, file_identity, sidecars
+            )
+        except BaseException:
+            self._close_connection()
+            raise
+
+    def _quarantine_paths(
+        self,
+        sidecars: dict[Path, tuple[int, int]],
+        directory: Path,
+    ) -> dict[Path, Path]:
+        quarantine = self.path.with_name(
+            f"{self.path.name}.quarantine-{time.time_ns()}-{uuid.uuid4().hex}"
+        )
+        self._validate_recovery_sibling(quarantine, directory)
+        quarantine_paths = {self.path: quarantine}
+        for sidecar in self._sidecar_paths():
+            if sidecar in sidecars:
+                suffix = sidecar.name[len(self.path.name):]
+                candidate = quarantine.with_name(quarantine.name + suffix)
+                self._validate_recovery_sibling(candidate, directory)
+                quarantine_paths[sidecar] = candidate
+        if any(
+            target.exists() or self._is_link(target)
+            for target in quarantine_paths.values()
+        ):
+            raise CacheDatabaseUnavailable(
+                "context cache quarantine path already exists"
+            )
+        return quarantine_paths
+
+    def _move_to_quarantine(
+        self,
+        quarantine_paths: dict[Path, Path],
+        file_identity: tuple[int, int],
+        sidecars: dict[Path, tuple[int, int]],
+    ) -> None:
+        moved = []
+        try:
+            for source, target in quarantine_paths.items():
+                expected_identity = (
+                    file_identity if source == self.path else sidecars[source]
+                )
+                if self._identity(source) != expected_identity:
+                    raise CacheDatabaseError(
+                        "context cache file identity changed during recovery"
+                    )
+                self._validate_secure_file(source)
+                if target.exists() or self._is_link(target):
+                    raise CacheDatabaseUnavailable(
+                        "context cache quarantine path already exists"
+                    )
+                os.rename(source, target)
+                moved.append((source, target, expected_identity))
+        except BaseException as primary_error:
+            rollback_errors = []
+            for source, target, expected_identity in reversed(moved):
+                try:
+                    if source.exists() or self._is_link(source):
+                        raise CacheDatabaseError(
+                            "context cache recovery rollback target exists"
+                        )
+                    if self._identity(target) != expected_identity:
+                        raise CacheDatabaseError(
+                            "context cache quarantine identity changed"
+                        )
+                    os.rename(target, source)
+                except BaseException as rollback_error:
+                    rollback_errors.append(rollback_error)
+            if rollback_errors:
+                raise BaseExceptionGroup(
+                    "context cache quarantine move and rollback failed",
+                    [primary_error, *rollback_errors],
+                )
+            raise
+
+    def _discard_failed_replacement(self, replacement_path: Path) -> None:
+        for candidate in (
+            *(
+                Path(f"{replacement_path}{suffix}")
+                for suffix in ("-wal", "-shm")
+            ),
+            replacement_path,
+        ):
+            if candidate.exists() or self._is_link(candidate):
+                self._validate_secure_file(candidate)
+                candidate.unlink()
+
+    def _publish_replacement(
+        self,
+        replacement_path: Path,
+        replacement_identity: tuple[int, int],
+    ) -> None:
+        """Publish a validated sibling without overwriting a new target."""
+        if self.path.exists() or self._is_link(self.path):
+            raise _ReplacementPublicationError(
+                "context cache path reappeared during recovery"
+            )
+        self._validate_secure_file(replacement_path)
+        if self._identity(replacement_path) != replacement_identity:
+            raise _ReplacementPublicationError(
+                "context cache replacement identity changed"
+            )
+        try:
+            if os.name == "nt":
+                os.rename(replacement_path, self.path)
+                return
+            os.link(
+                replacement_path,
+                self.path,
+                follow_symlinks=False,
+            )
+            if self._identity(self.path) != replacement_identity:
+                raise CacheDatabaseError(
+                    "context cache replacement identity changed"
+                )
+            replacement_path.unlink()
+        except OSError as error:
+            raise _ReplacementPublicationError(
+                "context cache replacement could not be published"
+            ) from error
+
+    def _discard_quarantine(
+        self,
+        quarantine_paths: dict[Path, Path],
+        file_identity: tuple[int, int],
+        sidecars: dict[Path, tuple[int, int]],
+    ) -> None:
+        for source, target in reversed(tuple(quarantine_paths.items())):
+            expected_identity = (
+                file_identity if source == self.path else sidecars[source]
+            )
+            if self._identity(target) != expected_identity:
+                raise CacheDatabaseError(
+                    "context cache quarantine identity changed"
+                )
+            self._validate_secure_file(target)
+            target.unlink()
+
+    @staticmethod
+    def _validate_recovery_sibling(path: Path, directory: Path) -> None:
+        if path.parent.resolve(strict=True) != directory:
+            raise CacheDatabaseError("context cache recovery escaped its directory")
+
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         self._close_connection()
+        self._release_cache_lock()
 
     def table_names(self) -> set[str]:
         """Return the set of application tables in the open database."""
@@ -254,6 +794,318 @@ class ContextCacheDatabase:
             )
             if not row[0].startswith("sqlite_")
         }
+
+    @classmethod
+    def read_info(cls, path: Union[Path, str]) -> ContextCacheInfo:
+        """Read default-namespace statistics through a read-only connection."""
+        database = cls(path)
+        directory_identity, file_identity, sidecars = (
+            database._prepare_read_only_path()
+        )
+        database._read_header_identity(file_identity, sidecars)
+        try:
+            database._acquire_existing_cache_lock(True)
+            directory_identity, file_identity, sidecars = (
+                database._prepare_read_only_path()
+            )
+            database._read_header_identity(file_identity, sidecars)
+            database_bytes, wal_bytes, shm_bytes = database._storage_sizes()
+            if wal_bytes:
+                return database._read_info_snapshot(
+                    directory_identity,
+                    file_identity,
+                    sidecars,
+                    database_bytes,
+                    wal_bytes,
+                    shm_bytes,
+                )
+            query = "mode=ro" if wal_bytes else "mode=ro&immutable=1"
+            uri = f"{database.path.absolute().as_uri()}?{query}"
+            database._connection = sqlite3.connect(
+                uri, uri=True, timeout=BUSY_TIMEOUT_MS / 1000
+            )
+            database._validate_identity(directory_identity, file_identity)
+            database.connection.execute("PRAGMA query_only = ON")
+            database.connection.execute(
+                f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}"
+            )
+            return database._query_info(
+                database_bytes, wal_bytes, shm_bytes
+            )
+        except CacheDatabaseError:
+            raise
+        except (OSError, sqlite3.Error) as error:
+            raise CacheDatabaseUnavailable(
+                "context cache database is unavailable"
+            ) from error
+        finally:
+            database._close_connection()
+            database._release_cache_lock()
+
+    def _acquire_existing_cache_lock(self, exclusive: bool) -> None:
+        lock = _CachePathLock(self.path)
+        if not lock.path.exists() and not self._is_link(lock.path):
+            return
+        lock.acquire(exclusive, create=False)
+        self._cache_lock = lock
+
+    def _read_info_snapshot(
+        self,
+        directory_identity: tuple[int, int],
+        file_identity: tuple[int, int],
+        sidecars: dict[Path, tuple[int, int]],
+        database_bytes: int,
+        wal_bytes: int,
+        shm_bytes: int,
+    ) -> ContextCacheInfo:
+        snapshot_sources = (self.path, Path(f"{self.path}-wal"))
+        before = {
+            source: _stable_file_identity(source)
+            for source in snapshot_sources
+        }
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            snapshot_path = Path(temporary_directory) / self.path.name
+            shutil.copyfile(self.path, snapshot_path)
+            shutil.copyfile(
+                Path(f"{self.path}-wal"),
+                Path(f"{snapshot_path}-wal"),
+            )
+            if _uses_posix_permissions():
+                snapshot_path.chmod(0o600)
+                Path(f"{snapshot_path}-wal").chmod(0o600)
+            self._validate_identity(directory_identity, file_identity)
+            for source, identity in sidecars.items():
+                if self._identity(source) != identity:
+                    raise CacheDatabaseError(
+                        "context cache sidecar identity changed"
+                    )
+            after = {
+                source: _stable_file_identity(source)
+                for source in snapshot_sources
+            }
+            if after != before:
+                raise CacheDatabaseUnavailable(
+                    "context cache changed while reading metadata"
+                )
+            lock_path = _CachePathLock(self.path).path
+            if self._cache_lock is None and (
+                lock_path.exists() or self._is_link(lock_path)
+            ):
+                raise CacheDatabaseUnavailable(
+                    "context cache changed while reading metadata"
+                )
+            snapshot = type(self)(snapshot_path)
+            uri = f"{snapshot_path.absolute().as_uri()}?mode=ro"
+            try:
+                snapshot._connection = sqlite3.connect(
+                    uri, uri=True, timeout=BUSY_TIMEOUT_MS / 1000
+                )
+                snapshot.connection.execute("PRAGMA query_only = ON")
+                info = snapshot._query_info(
+                    database_bytes, wal_bytes, shm_bytes
+                )
+            finally:
+                snapshot._close_connection()
+        return ContextCacheInfo(
+            path=self.path.absolute().as_posix(),
+            schema_version=info.schema_version,
+            namespace=info.namespace,
+            database_bytes=database_bytes,
+            wal_bytes=wal_bytes,
+            shm_bytes=shm_bytes,
+            roots=info.roots,
+            files=info.files,
+            text_files=info.text_files,
+            skipped_files=info.skipped_files,
+            last_access_ns=info.last_access_ns,
+        )
+
+    def _prepare_read_only_path(
+        self,
+    ) -> tuple[
+        tuple[int, int], tuple[int, int], dict[Path, tuple[int, int]]
+    ]:
+        if self._is_link(self.path):
+            raise CacheDatabaseError(
+                "context cache database must not be a symlink"
+            )
+        try:
+            mode = self.path.lstat().st_mode
+        except FileNotFoundError as error:
+            raise CacheDatabaseUnavailable(
+                "context cache database is unavailable"
+            ) from error
+        if not stat.S_ISREG(mode):
+            raise CacheDatabaseError(
+                "context cache database must be a regular file"
+            )
+        directory = self.path.parent
+        if self._is_link(directory) or not directory.is_dir():
+            raise CacheDatabaseError("context cache directory is unsafe")
+        directory_identity = self._identity(directory)
+        file_identity = self._identity(self.path)
+        self._validate_secure_file(self.path)
+        self._validate_sidecars()
+        return directory_identity, file_identity, self._existing_sidecars()
+
+    def _query_info(
+        self,
+        database_bytes: int,
+        wal_bytes: int,
+        shm_bytes: int,
+    ) -> ContextCacheInfo:
+        application_id = self.connection.execute(
+            "PRAGMA application_id"
+        ).fetchone()[0]
+        schema_version = self.connection.execute(
+            "PRAGMA user_version"
+        ).fetchone()[0]
+        if application_id != APPLICATION_ID:
+            raise CacheDatabaseUnavailable(
+                "context cache database has an unknown application id"
+            )
+        if schema_version != SCHEMA_VERSION:
+            raise CacheDatabaseUnavailable(
+                "context cache database has an unsupported schema version"
+            )
+        if self.table_names() != _TABLE_NAMES:
+            raise CacheDatabaseError(
+                "context cache database schema is incomplete"
+            )
+        namespace = self.connection.execute(
+            "SELECT id, last_access_ns FROM namespaces WHERE name = ?",
+            (DEFAULT_NAMESPACE,),
+        ).fetchone()
+        if namespace is None:
+            raise CacheDatabaseError(
+                "context cache database default namespace is missing"
+            )
+        namespace_id, last_access_ns = namespace
+        roots = self.connection.execute(
+            "SELECT COUNT(*) FROM namespace_roots WHERE namespace_id = ?",
+            (namespace_id,),
+        ).fetchone()[0]
+        files, text_files, skipped_files = self.connection.execute(
+            """SELECT COUNT(DISTINCT f.id),
+                      COUNT(DISTINCT CASE WHEN f.state = 'text' THEN f.id END),
+                      COUNT(DISTINCT CASE WHEN f.state <> 'text' THEN f.id END)
+               FROM namespace_roots AS nr
+               JOIN root_files AS rf ON rf.root_id = nr.root_id
+               JOIN files AS f ON f.id = rf.file_id
+               WHERE nr.namespace_id = ?""",
+            (namespace_id,),
+        ).fetchone()
+        return ContextCacheInfo(
+            path=self.path.absolute().as_posix(),
+            schema_version=int(schema_version),
+            namespace=DEFAULT_NAMESPACE,
+            database_bytes=database_bytes,
+            wal_bytes=wal_bytes,
+            shm_bytes=shm_bytes,
+            roots=int(roots),
+            files=int(files),
+            text_files=int(text_files),
+            skipped_files=int(skipped_files),
+            last_access_ns=int(last_access_ns),
+        )
+
+    def clear_default_namespace(self) -> ContextCacheClearReport:
+        """Clear default associations and rows made orphaned by that clear."""
+        connection = self.connection
+        before_bytes = 0
+        committed = False
+        primary_error = None
+        secondary_errors = []
+        associations_removed = 0
+        roots_removed = 0
+        files_removed = 0
+        try:
+            connection.execute("PRAGMA locking_mode = EXCLUSIVE")
+            connection.execute("BEGIN EXCLUSIVE")
+            before_bytes = self.aggregate_size_bytes()
+            namespace = connection.execute(
+                "SELECT id FROM namespaces WHERE name = ?",
+                (DEFAULT_NAMESPACE,),
+            ).fetchone()
+            if namespace is not None:
+                namespace_id = namespace[0]
+                associations_removed = connection.execute(
+                    "SELECT COUNT(*) FROM namespace_roots WHERE namespace_id = ?",
+                    (namespace_id,),
+                ).fetchone()[0]
+                connection.execute(
+                    "DELETE FROM namespace_roots WHERE namespace_id = ?",
+                    (namespace_id,),
+                )
+            roots_removed = connection.execute(
+                """DELETE FROM roots
+                   WHERE NOT EXISTS (
+                       SELECT 1 FROM namespace_roots
+                       WHERE namespace_roots.root_id = roots.id
+                   )"""
+            ).rowcount
+            files_removed = connection.execute(
+                """DELETE FROM files
+                   WHERE NOT EXISTS (
+                       SELECT 1 FROM root_files
+                       WHERE root_files.file_id = files.id
+                   )"""
+            ).rowcount
+            connection.commit()
+            committed = True
+            self._maintain_after_clear()
+        except BaseException as error:
+            primary_error = error
+            if connection.in_transaction:
+                try:
+                    connection.rollback()
+                except BaseException as rollback_error:
+                    secondary_errors.append(rollback_error)
+            raise
+        finally:
+            try:
+                self._restore_normal_locking()
+            except BaseException as error:
+                if not committed:
+                    secondary_errors.append(error)
+            if secondary_errors:
+                cleanup_error = secondary_errors[0]
+                if len(secondary_errors) > 1:
+                    cleanup_error = BaseExceptionGroup(
+                        "context cache clear cleanup failed",
+                        secondary_errors,
+                    )
+                if primary_error is not None:
+                    raise primary_error from cleanup_error
+                raise cleanup_error
+        return ContextCacheClearReport(
+            associations_removed=int(associations_removed),
+            roots_removed=int(roots_removed),
+            files_removed=int(files_removed),
+            before_bytes=before_bytes,
+            after_bytes=self.aggregate_size_bytes(),
+        )
+
+    def _maintain_after_clear(self) -> None:
+        """Best-effort physical reclaim after the logical clear committed."""
+        try:
+            checkpoint = self._checkpoint_wal()
+            if checkpoint[0] == 0 and self._freelist_pages():
+                self._run_bounded_vacuum()
+                self._checkpoint_wal()
+        except sqlite3.OperationalError as error:
+            message = str(error).casefold()
+            code = getattr(error, "sqlite_errorcode", None)
+            locked_codes = {
+                value for value in (
+                    getattr(sqlite3, "SQLITE_BUSY", None),
+                    getattr(sqlite3, "SQLITE_LOCKED", None),
+                ) if value is not None
+            }
+            if ((code is None or code & 0xFF not in locked_codes)
+                    and "locked" not in message
+                    and "busy" not in message):
+                raise
 
     def begin_scan(self, namespace: str, canonical_root: str) -> ScanToken:
         """Return an immutable in-memory scan token without writing SQLite."""
@@ -622,13 +1474,16 @@ class ContextCacheDatabase:
 
     def aggregate_size_bytes(self) -> int:
         """Return the current byte size of the database and WAL sidecars."""
-        total = 0
+        return sum(self._storage_sizes())
+
+    def _storage_sizes(self) -> tuple[int, int, int]:
+        sizes = []
         for path in (self.path, *self._sidecar_paths()):
             try:
-                total += path.stat(follow_symlinks=False).st_size
+                sizes.append(path.stat(follow_symlinks=False).st_size)
             except FileNotFoundError:
-                continue
-        return total
+                sizes.append(0)
+        return tuple(sizes)
 
     def _projected_aggregate_size(self) -> int:
         """Return a conservative aggregate size for a possible write."""
@@ -1056,6 +1911,11 @@ class ContextCacheDatabase:
                 COMMIT;
             """
         )
+        checkpoint = self._checkpoint_wal()
+        if checkpoint[0] != 0:
+            raise CacheDatabaseUnavailable(
+                "context cache identity could not be published"
+            )
 
     def _close_connection(self) -> None:
         if self._connection is not None:
@@ -1065,6 +1925,222 @@ class ContextCacheDatabase:
 
 def _uses_posix_permissions() -> bool:
     return os.name != "nt"
+
+
+def _acquire_descriptor_lock(descriptor: int, exclusive: bool):
+    deadline = time.monotonic() + BUSY_TIMEOUT_MS / 1000
+    while True:
+        try:
+            if os.name == "nt":
+                return _acquire_windows_descriptor_lock(
+                    descriptor, exclusive
+                )
+            import fcntl
+            operation = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+            fcntl.flock(descriptor, operation | fcntl.LOCK_NB)
+            return None
+        except (BlockingIOError, PermissionError):
+            if time.monotonic() >= deadline:
+                raise CacheDatabaseUnavailable(
+                    "context cache database is locked"
+                ) from None
+            time.sleep(0.01)
+
+
+def _release_descriptor_lock(descriptor: int, platform_state) -> None:
+    if os.name == "nt":
+        _release_windows_descriptor_lock(descriptor, platform_state)
+        return
+    import fcntl
+    fcntl.flock(descriptor, fcntl.LOCK_UN)
+
+
+def _acquire_windows_descriptor_lock(descriptor: int, exclusive: bool):
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    unsigned_pointer = (
+        ctypes.c_ulonglong
+        if ctypes.sizeof(ctypes.c_void_p) == 8
+        else ctypes.c_ulong
+    )
+
+    class Overlapped(ctypes.Structure):
+        _fields_ = [
+            ("Internal", unsigned_pointer),
+            ("InternalHigh", unsigned_pointer),
+            ("Offset", wintypes.DWORD),
+            ("OffsetHigh", wintypes.DWORD),
+            ("hEvent", wintypes.HANDLE),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    operation = kernel32.LockFileEx
+    operation.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.POINTER(Overlapped),
+    ]
+    operation.restype = wintypes.BOOL
+    flags = 0x00000001 | (0x00000002 if exclusive else 0)
+    overlapped = Overlapped()
+    handle = msvcrt.get_osfhandle(descriptor)
+    if not operation(handle, flags, 0, 1, 0, ctypes.byref(overlapped)):
+        error = ctypes.get_last_error()
+        if error in (32, 33):
+            raise BlockingIOError(error, "context cache database is locked")
+        raise ctypes.WinError(error)
+    return overlapped
+
+
+def _release_windows_descriptor_lock(descriptor: int, overlapped) -> None:
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    operation = kernel32.UnlockFileEx
+    operation.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.POINTER(type(overlapped)),
+    ]
+    operation.restype = wintypes.BOOL
+    handle = msvcrt.get_osfhandle(descriptor)
+    if not operation(handle, 0, 1, 0, ctypes.byref(overlapped)):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def _database_header_identity(header: bytes) -> tuple[int, int]:
+    if (len(header) < _SQLITE_IDENTITY_BYTES
+            or header[:len(_SQLITE_HEADER)] != _SQLITE_HEADER):
+        raise CacheDatabaseUnavailable(
+            "context cache database identity is not recognized"
+        )
+    schema_version = int.from_bytes(
+        header[_SQLITE_USER_VERSION_OFFSET:_SQLITE_USER_VERSION_OFFSET + 4],
+        "big",
+    )
+    application_id = int.from_bytes(
+        header[
+            _SQLITE_APPLICATION_ID_OFFSET:_SQLITE_APPLICATION_ID_OFFSET + 4
+        ],
+        "big",
+    )
+    return application_id, schema_version
+
+
+def _stable_file_identity(path: Path) -> tuple[int, int, int, int, int]:
+    result = path.stat(follow_symlinks=False)
+    return (
+        result.st_dev,
+        result.st_ino,
+        result.st_size,
+        result.st_mtime_ns,
+        result.st_ctime_ns,
+    )
+
+
+def _last_committed_wal_page_one(descriptor: int) -> bytes | None:
+    page_size, checksum_byte_order, checksum, salts = _read_wal_header(
+        descriptor
+    )
+    latest_page_one = None
+    committed_page_one = None
+    while True:
+        frame = _read_valid_wal_frame(
+            descriptor,
+            page_size,
+            salts,
+            checksum_byte_order,
+            checksum,
+        )
+        if frame is None:
+            break
+        page_number, database_pages, page, checksum = frame
+        if page_number == 1:
+            latest_page_one = page
+        if database_pages:
+            committed_page_one = latest_page_one
+    return committed_page_one
+
+
+def _read_wal_header(
+    descriptor: int,
+) -> tuple[int, str, tuple[int, int], bytes]:
+    header = _read_exact(descriptor, _WAL_HEADER_BYTES)
+    if len(header) != _WAL_HEADER_BYTES:
+        raise CacheDatabaseUnavailable("context cache WAL header is incomplete")
+    magic, version, page_size = struct.unpack(">III", header[:12])
+    checksum_byte_order = _WAL_CHECKSUM_BYTE_ORDERS.get(magic)
+    if checksum_byte_order is None or version != _WAL_FORMAT_VERSION:
+        raise CacheDatabaseUnavailable("context cache WAL header is incompatible")
+    if page_size == 1:
+        page_size = 65_536
+    if (page_size < 512 or page_size > 65_536
+            or page_size & (page_size - 1)):
+        raise CacheDatabaseUnavailable("context cache WAL page size is invalid")
+    checksum = _wal_checksum(header[:24], checksum_byte_order)
+    if checksum != struct.unpack(">II", header[24:32]):
+        raise CacheDatabaseUnavailable("context cache WAL header checksum failed")
+    return page_size, checksum_byte_order, checksum, header[16:24]
+
+
+def _read_valid_wal_frame(
+    descriptor: int,
+    page_size: int,
+    salts: bytes,
+    checksum_byte_order: str,
+    checksum: tuple[int, int],
+) -> tuple[int, int, bytes, tuple[int, int]] | None:
+    frame_header = _read_exact(descriptor, _WAL_FRAME_HEADER_BYTES)
+    if not frame_header:
+        return None
+    page = _read_exact(descriptor, page_size)
+    if len(frame_header) != _WAL_FRAME_HEADER_BYTES or len(page) != page_size:
+        return None
+    if frame_header[8:16] != salts:
+        return None
+    next_checksum = _wal_checksum(
+        frame_header[:8] + page,
+        checksum_byte_order,
+        checksum,
+    )
+    if next_checksum != struct.unpack(">II", frame_header[16:24]):
+        return None
+    page_number, database_pages = struct.unpack(">II", frame_header[:8])
+    return page_number, database_pages, page, next_checksum
+
+
+def _read_exact(descriptor: int, size: int) -> bytes:
+    chunks = []
+    remaining = size
+    while remaining:
+        chunk = os.read(descriptor, remaining)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def _wal_checksum(
+    data: bytes,
+    byte_order: str,
+    initial: tuple[int, int] = (0, 0),
+) -> tuple[int, int]:
+    values = struct.unpack(f"{byte_order}{len(data) // 4}I", data)
+    first, second = initial
+    for offset in range(0, len(values), 2):
+        first = (first + values[offset] + second) & 0xFFFFFFFF
+        second = (second + values[offset + 1] + first) & 0xFFFFFFFF
+    return first, second
 
 
 def _next_scan_started_ns() -> int:

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from cereja.system._repository_files import iter_repository_files
 
 from .cache_db import (
+    SCHEMA_VERSION,
     DEFAULT_MAX_BYTES,
     DEFAULT_NAMESPACE,
     CacheDatabaseUnavailable,
@@ -16,7 +17,12 @@ from .cache_db import (
     FileSignature,
     default_cache_path,
 )
-from .models import ContextResult, SkippedFile
+from .models import (
+    ContextCacheClearReport,
+    ContextCacheInfo,
+    ContextResult,
+    SkippedFile,
+)
 from .query import build_search_result, finalize_response
 
 
@@ -25,6 +31,42 @@ class _PreparedFile:
     path: str
     root: str
     cached: CachedFile
+
+
+def get_context_cache_info() -> ContextCacheInfo:
+    """Return metadata for the default cache without exposing cached text."""
+    path = default_cache_path()
+    if not path.exists() and not ContextCacheDatabase._is_link(path):
+        return ContextCacheInfo(
+            path=path.absolute().as_posix(),
+            schema_version=SCHEMA_VERSION,
+            namespace=DEFAULT_NAMESPACE,
+            database_bytes=0,
+            wal_bytes=0,
+            shm_bytes=0,
+            roots=0,
+            files=0,
+            text_files=0,
+            skipped_files=0,
+            last_access_ns=None,
+        )
+    return ContextCacheDatabase.read_info(path)
+
+
+def clear_context_cache() -> ContextCacheClearReport:
+    """Clear only the default context-cache namespace."""
+    path = default_cache_path()
+    if not path.exists() and not ContextCacheDatabase._is_link(path):
+        return ContextCacheClearReport(0, 0, 0, 0, 0)
+    try:
+        with ContextCacheDatabase(path) as database:
+            return database.clear_default_namespace()
+    except CacheDatabaseUnavailable:
+        raise
+    except (OSError, sqlite3.Error) as error:
+        raise CacheDatabaseUnavailable(
+            "context cache database is unavailable"
+        ) from error
 
 
 def _canonical_path(path):

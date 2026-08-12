@@ -13,6 +13,7 @@ from cereja.system._context.cache_db import (
     BUSY_TIMEOUT_MS,
     SCHEMA_VERSION,
     CacheDatabaseError,
+    CacheDatabaseUnavailable,
     CacheMaintenanceReport,
     CachedFile,
     ContextCacheDatabase,
@@ -29,6 +30,14 @@ def _storage_snapshot(database):
         for path in paths
     )
     return (*sizes, database.aggregate_size_bytes())
+
+
+def _truncate_recognized_database(path):
+    with ContextCacheDatabase(path):
+        pass
+    original = path.read_bytes()
+    path.write_bytes(original[:128])
+    return path.read_bytes()
 
 
 class _FailingPragmaConnection:
@@ -1190,6 +1199,444 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 [("default",)],
             )
             connection.close()
+
+    def test_open_leaves_unknown_application_database_byte_for_byte_unchanged(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            connection = sqlite3.connect(path)
+            connection.execute(f"PRAGMA application_id = {APPLICATION_ID + 1}")
+            connection.execute("CREATE TABLE foreign_data (value TEXT)")
+            connection.execute("INSERT INTO foreign_data VALUES ('keep me')")
+            connection.commit()
+            connection.close()
+            if os.name != "nt":
+                path.chmod(0o600)
+            before = path.read_bytes()
+
+            with self.assertRaises(CacheDatabaseUnavailable):
+                with ContextCacheDatabase(path):
+                    pass
+
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(list(path.parent.glob(f"{path.name}.quarantine-*")), [])
+
+    def test_open_does_not_mutate_unknown_database_active_wal_or_shm(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            writer = sqlite3.connect(path)
+            try:
+                writer.execute("PRAGMA journal_mode = WAL")
+                writer.execute("PRAGMA wal_autocheckpoint = 0")
+                writer.execute(f"PRAGMA application_id = {APPLICATION_ID + 1}")
+                writer.execute("CREATE TABLE foreign_data (value TEXT)")
+                writer.commit()
+                storage_paths = (
+                    path,
+                    Path(f"{path}-wal"),
+                    Path(f"{path}-shm"),
+                )
+                if os.name != "nt":
+                    for item in storage_paths:
+                        item.chmod(0o600)
+                before = tuple(item.read_bytes() for item in storage_paths)
+
+                with self.assertRaises(CacheDatabaseUnavailable):
+                    with ContextCacheDatabase(path):
+                        pass
+
+                after = tuple(item.read_bytes() for item in storage_paths)
+            finally:
+                writer.close()
+
+            self.assertEqual(after, before)
+            self.assertEqual(list(path.parent.glob(f"{path.name}.quarantine-*")), [])
+
+    def test_known_wal_cannot_override_unknown_main_database_identity(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source_path = directory / "source.sqlite3"
+            foreign_path = directory / "context.sqlite3"
+            with ContextCacheDatabase(source_path):
+                source_wal = Path(f"{source_path}-wal").read_bytes()
+                connection = sqlite3.connect(foreign_path)
+                connection.execute(
+                    f"PRAGMA application_id = {APPLICATION_ID + 1}"
+                )
+                connection.execute("CREATE TABLE foreign_data (value TEXT)")
+                connection.execute(
+                    "INSERT INTO foreign_data VALUES ('keep me')"
+                )
+                connection.commit()
+                connection.close()
+                foreign_wal = Path(f"{foreign_path}-wal")
+                foreign_wal.write_bytes(source_wal)
+                if os.name != "nt":
+                    foreign_path.chmod(0o600)
+                    foreign_wal.chmod(0o600)
+                before = (foreign_path.read_bytes(), foreign_wal.read_bytes())
+
+                with self.assertRaises(CacheDatabaseUnavailable):
+                    with ContextCacheDatabase(foreign_path):
+                        pass
+
+                self.assertEqual(
+                    (foreign_path.read_bytes(), foreign_wal.read_bytes()),
+                    before,
+                )
+                self.assertFalse(Path(f"{foreign_path}-shm").exists())
+                self.assertEqual(
+                    list(directory.glob(f"{foreign_path.name}.quarantine-*")),
+                    [],
+                )
+
+    def test_open_leaves_future_schema_version_unchanged(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(path):
+                pass
+            connection = sqlite3.connect(path)
+            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION + 1}")
+            connection.commit()
+            connection.close()
+            before = path.read_bytes()
+
+            with self.assertRaises(CacheDatabaseUnavailable):
+                with ContextCacheDatabase(path):
+                    pass
+
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(list(path.parent.glob(f"{path.name}.quarantine-*")), [])
+
+    def test_known_wal_cannot_downgrade_future_main_database_version(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source_path = directory / "source.sqlite3"
+            future_path = directory / "context.sqlite3"
+            with ContextCacheDatabase(future_path):
+                pass
+            connection = sqlite3.connect(future_path)
+            connection.execute(
+                f"PRAGMA user_version = {SCHEMA_VERSION + 1}"
+            )
+            connection.commit()
+            connection.close()
+            with ContextCacheDatabase(source_path):
+                source_wal = Path(f"{source_path}-wal").read_bytes()
+                future_wal = Path(f"{future_path}-wal")
+                future_wal.write_bytes(source_wal)
+                if os.name != "nt":
+                    future_wal.chmod(0o600)
+                before = (future_path.read_bytes(), future_wal.read_bytes())
+
+                with self.assertRaises(CacheDatabaseUnavailable):
+                    with ContextCacheDatabase(future_path):
+                        pass
+
+                self.assertEqual(
+                    (future_path.read_bytes(), future_wal.read_bytes()),
+                    before,
+                )
+                self.assertFalse(Path(f"{future_path}-shm").exists())
+                self.assertEqual(
+                    list(directory.glob(f"{future_path.name}.quarantine-*")),
+                    [],
+                )
+
+    def test_open_rebuilds_recognized_version_zero_database(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(path):
+                pass
+            connection = sqlite3.connect(path)
+            connection.execute("CREATE TABLE legacy_payload (value TEXT)")
+            connection.execute("INSERT INTO legacy_payload VALUES ('obsolete')")
+            connection.execute("PRAGMA user_version = 0")
+            connection.commit()
+            connection.close()
+
+            with ContextCacheDatabase(path) as database:
+                version = database.connection.execute(
+                    "PRAGMA user_version"
+                ).fetchone()[0]
+                tables = database.table_names()
+
+            self.assertEqual(version, SCHEMA_VERSION)
+            self.assertEqual(tables, {
+                "metadata", "namespaces", "namespace_roots",
+                "roots", "root_files", "files",
+            })
+            self.assertEqual(list(path.parent.glob(f"{path.name}.quarantine-*")), [])
+
+    def test_recovery_waits_for_active_cache_opener_before_quarantine(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(path) as active:
+                active.connection.execute("PRAGMA user_version = 0")
+                active.connection.commit()
+                storage_paths = (
+                    path,
+                    Path(f"{path}-wal"),
+                    Path(f"{path}-shm"),
+                )
+                before = tuple(
+                    item.read_bytes() if item.exists() else None
+                    for item in storage_paths
+                )
+                original_move = ContextCacheDatabase._move_to_quarantine
+                with patch.object(
+                    ContextCacheDatabase,
+                    "_move_to_quarantine",
+                    autospec=True,
+                    side_effect=original_move,
+                ) as move:
+                    with self.assertRaises(CacheDatabaseUnavailable):
+                        with ContextCacheDatabase(path):
+                            pass
+                after = tuple(
+                    item.read_bytes() if item.exists() else None
+                    for item in storage_paths
+                )
+                move.assert_not_called()
+                self.assertEqual(after, before)
+
+            with ContextCacheDatabase(path) as recovered:
+                self.assertEqual(
+                    recovered.connection.execute(
+                        "PRAGMA user_version"
+                    ).fetchone()[0],
+                    SCHEMA_VERSION,
+                )
+
+    def test_open_quarantines_and_replaces_recognized_corrupt_database(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            corrupt_bytes = _truncate_recognized_database(path)
+
+            with ContextCacheDatabase(path) as database:
+                version = database.connection.execute(
+                    "PRAGMA user_version"
+                ).fetchone()[0]
+
+            self.assertEqual(version, SCHEMA_VERSION)
+            self.assertNotEqual(path.read_bytes(), corrupt_bytes)
+            self.assertEqual(list(path.parent.glob(f"{path.name}.quarantine-*")), [])
+
+    def test_open_recovers_recognized_database_with_invalid_wal_header(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(path):
+                pass
+            wal_path = Path(f"{path}-wal")
+            wal_path.write_bytes(b"invalid WAL header".ljust(33, b"!"))
+            if os.name != "nt":
+                wal_path.chmod(0o600)
+
+            with ContextCacheDatabase(path) as database:
+                version = database.connection.execute(
+                    "PRAGMA user_version"
+                ).fetchone()[0]
+
+            self.assertEqual(version, SCHEMA_VERSION)
+            self.assertEqual(
+                list(path.parent.glob(f"{path.name}.quarantine-*")), []
+            )
+
+    def test_failed_replacement_keeps_timestamped_random_quarantine(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            corrupt_bytes = _truncate_recognized_database(path)
+
+            with patch.object(
+                ContextCacheDatabase,
+                "_create_schema",
+                side_effect=sqlite3.OperationalError("replacement failed"),
+            ):
+                with self.assertRaises(CacheDatabaseUnavailable):
+                    with ContextCacheDatabase(path):
+                        pass
+
+            quarantines = list(
+                path.parent.glob(f"{path.name}.quarantine-[0-9]*-[0-9a-f]*")
+            )
+            self.assertEqual(len(quarantines), 1)
+            self.assertEqual(quarantines[0].read_bytes(), corrupt_bytes)
+            self.assertFalse(path.exists())
+            self.assertEqual(
+                list(path.parent.glob(f"{path.name}.replacement-*")), []
+            )
+
+    def test_recovery_never_clobbers_path_recreated_before_publication(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            corrupt_bytes = _truncate_recognized_database(path)
+            foreign_bytes = None
+            original_publish = ContextCacheDatabase._publish_replacement
+
+            def recreate_then_publish(
+                database, replacement_path, replacement_identity=None
+            ):
+                nonlocal foreign_bytes
+                connection = sqlite3.connect(path)
+                connection.execute("PRAGMA application_id = 12345")
+                connection.execute("CREATE TABLE foreign_data (value TEXT)")
+                connection.execute(
+                    "INSERT INTO foreign_data VALUES ('keep me')"
+                )
+                connection.commit()
+                connection.close()
+                if os.name != "nt":
+                    path.chmod(0o600)
+                foreign_bytes = path.read_bytes()
+                if replacement_identity is None:
+                    return original_publish(database, replacement_path)
+                return original_publish(
+                    database, replacement_path, replacement_identity
+                )
+
+            with patch.object(
+                ContextCacheDatabase,
+                "_publish_replacement",
+                autospec=True,
+                side_effect=recreate_then_publish,
+            ), self.assertRaises(CacheDatabaseError):
+                with ContextCacheDatabase(path):
+                    pass
+
+            self.assertEqual(path.read_bytes(), foreign_bytes)
+            quarantines = list(
+                path.parent.glob(f"{path.name}.quarantine-*-")
+            )
+            if not quarantines:
+                quarantines = list(
+                    path.parent.glob(f"{path.name}.quarantine-*")
+                )
+            self.assertEqual(len(quarantines), 1)
+            self.assertEqual(quarantines[0].read_bytes(), corrupt_bytes)
+            replacements = list(
+                path.parent.glob(f"{path.name}.replacement-*")
+            )
+            self.assertEqual(len(replacements), 1)
+
+    def test_recovery_rejects_replacement_swapped_after_validation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            corrupt_bytes = _truncate_recognized_database(path)
+            foreign_bytes = None
+            original_publish = ContextCacheDatabase._publish_replacement
+
+            def swap_then_publish(
+                database, replacement_path, replacement_identity=None
+            ):
+                nonlocal foreign_bytes
+                replacement_path.unlink()
+                connection = sqlite3.connect(replacement_path)
+                connection.execute("PRAGMA application_id = 12345")
+                connection.execute("CREATE TABLE foreign_data (value TEXT)")
+                connection.execute(
+                    "INSERT INTO foreign_data VALUES ('keep me')"
+                )
+                connection.commit()
+                connection.close()
+                if os.name != "nt":
+                    replacement_path.chmod(0o600)
+                foreign_bytes = replacement_path.read_bytes()
+                if replacement_identity is None:
+                    return original_publish(database, replacement_path)
+                return original_publish(
+                    database, replacement_path, replacement_identity
+                )
+
+            with patch.object(
+                ContextCacheDatabase,
+                "_publish_replacement",
+                autospec=True,
+                side_effect=swap_then_publish,
+            ), self.assertRaises(CacheDatabaseError):
+                with ContextCacheDatabase(path):
+                    pass
+
+            self.assertFalse(path.exists())
+            quarantines = list(
+                path.parent.glob(f"{path.name}.quarantine-*")
+            )
+            self.assertEqual(len(quarantines), 1)
+            self.assertEqual(quarantines[0].read_bytes(), corrupt_bytes)
+            replacements = list(
+                path.parent.glob(f"{path.name}.replacement-*")
+            )
+            self.assertEqual(len(replacements), 1)
+            self.assertEqual(replacements[0].read_bytes(), foreign_bytes)
+
+    def test_quarantine_move_failure_restores_every_original_path(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(path):
+                pass
+            wal_path = Path(f"{path}-wal")
+            shm_path = Path(f"{path}-shm")
+            wal_path.write_bytes(b"wal sentinel")
+            shm_path.write_bytes(b"shm sentinel")
+            if os.name != "nt":
+                wal_path.chmod(0o600)
+                shm_path.chmod(0o600)
+            before = {
+                item: item.read_bytes() for item in (path, wal_path, shm_path)
+            }
+            database = ContextCacheDatabase(path)
+            prepared = database._prepare_path()
+            directory = path.parent.resolve(strict=True)
+            quarantine_paths = database._quarantine_paths(
+                prepared[3], directory
+            )
+            original_rename = os.rename
+            calls = 0
+
+            def fail_second_rename(source, target):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise OSError("injected quarantine move failure")
+                return original_rename(source, target)
+
+            with patch(
+                "cereja.system._context.cache_db.os.rename",
+                side_effect=fail_second_rename,
+            ), self.assertRaisesRegex(
+                OSError, "injected quarantine move failure"
+            ):
+                database._move_to_quarantine(
+                    quarantine_paths, prepared[2], prepared[3]
+                )
+
+            self.assertEqual(
+                {item: item.read_bytes() for item in before}, before
+            )
+            self.assertEqual(
+                list(path.parent.glob(f"{path.name}.quarantine-*")), []
+            )
+
+    def test_recovery_leaves_symlink_and_non_regular_targets_untouched(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            target = directory / "target.sqlite3"
+            corrupt_bytes = _truncate_recognized_database(target)
+            symlink = directory / "linked.sqlite3"
+            try:
+                symlink.symlink_to(target)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            with self.assertRaises(CacheDatabaseError):
+                with ContextCacheDatabase(symlink):
+                    pass
+            with self.assertRaises(CacheDatabaseError):
+                with ContextCacheDatabase(directory):
+                    pass
+
+            self.assertTrue(symlink.is_symlink())
+            self.assertEqual(target.read_bytes(), corrupt_bytes)
+            self.assertTrue(directory.is_dir())
+            self.assertEqual(list(directory.glob("*.quarantine-*")), [])
 
     def test_open_migrates_valid_previous_layout(self):
         with tempfile.TemporaryDirectory() as temp_dir:

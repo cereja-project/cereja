@@ -1,18 +1,26 @@
 """Compatibility facade for bounded textual context search."""
 
 from cereja.system._context import (
+    ContextCacheClearReport,
+    ContextCacheInfo,
     ContextCacheWarning,
+    CacheDatabaseUnavailable,
     ContextResponse,
     ContextResult,
     ContextSnippet,
     SkippedFile,
+    clear_context_cache,
     context_response_to_dict,
+    get_context_cache_info,
     list_text_context,
     search_text_context,
 )
 
 __all__ = [
+    "ContextCacheInfo",
+    "ContextCacheClearReport",
     "ContextCacheWarning",
+    "CacheDatabaseUnavailable",
     "ContextSnippet",
     "ContextResult",
     "SkippedFile",
@@ -20,4 +28,6 @@ __all__ = [
     "search_text_context",
     "list_text_context",
     "context_response_to_dict",
+    "get_context_cache_info",
+    "clear_context_cache",
 ]

@@ -37,5 +37,29 @@ class ContextResponse:
     truncated: bool
 
 
+@dataclass(frozen=True, slots=True)
+class ContextCacheInfo:
+    path: str
+    schema_version: int
+    namespace: str
+    database_bytes: int
+    wal_bytes: int
+    shm_bytes: int
+    roots: int
+    files: int
+    text_files: int
+    skipped_files: int
+    last_access_ns: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class ContextCacheClearReport:
+    associations_removed: int
+    roots_removed: int
+    files_removed: int
+    before_bytes: int
+    after_bytes: int
+
+
 class ContextCacheWarning(RuntimeWarning):
     """Warn that context search continued without its optional cache."""
