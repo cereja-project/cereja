@@ -104,10 +104,19 @@ def _collect_cached_context(
 
     try:
         with ContextCacheDatabase(default_cache_path()) as database:
-            _database_call(
-                database.enforce_quota,
-                canonical_roots,
-                max_bytes=DEFAULT_MAX_BYTES,
+            inventory_roots = {root: False for root in canonical_roots}
+            for repository_file in inventory:
+                inventory_roots[_canonical_path(repository_file.root.path)] = True
+            roots_to_sync = _database_call(
+                database.roots_requiring_scan,
+                DEFAULT_NAMESPACE,
+                inventory_roots.items(),
+            )
+            scan_tokens = _database_call(
+                database.begin_scans_if_admitted,
+                DEFAULT_NAMESPACE,
+                roots_to_sync,
+                DEFAULT_MAX_BYTES,
             )
             prepared, transient_skips = _synchronize_inventory(
                 database,
@@ -116,11 +125,7 @@ def _collect_cached_context(
                 max_file_bytes,
                 refresh_cache,
                 DEFAULT_MAX_BYTES,
-            )
-            _database_call(
-                database.enforce_quota,
-                canonical_roots,
-                max_bytes=DEFAULT_MAX_BYTES,
+                scan_tokens,
             )
             return _query_prepared_files(
                 prepared,
@@ -147,6 +152,7 @@ def _synchronize_inventory(
         max_file_bytes,
         refresh_cache,
         max_cache_bytes,
+        scan_tokens,
 ):
     by_root = {root: [] for root in canonical_roots}
     prepared = []
@@ -199,19 +205,19 @@ def _synchronize_inventory(
             cached=cached,
         ))
 
-    scans = [
-        (canonical_root, cached_files, _database_call(
-            database.begin_scan, DEFAULT_NAMESPACE, canonical_root
-        ))
-        for canonical_root, cached_files in by_root.items()
-    ]
-    for canonical_root, cached_files, scan_token in scans:
-        _database_call(
+    if scan_tokens is None:
+        return prepared, skipped
+    for canonical_root, cached_files in by_root.items():
+        if canonical_root not in scan_tokens:
+            continue
+        admitted = _database_call(
             database.commit_scan,
-            scan_token,
+            scan_tokens[canonical_root],
             cached_files,
             max_bytes=max_cache_bytes,
         )
+        if admitted is None:
+            break
     return prepared, skipped
 
 

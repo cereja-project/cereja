@@ -279,12 +279,125 @@ class ContextCacheDatabase:
         self._active_scans[scan_key] = scan_token
         return scan_token
 
+    def begin_scans_if_admitted(
+        self,
+        namespace: str,
+        canonical_roots: Iterable[str],
+        max_bytes: int,
+    ) -> dict[str, str] | None:
+        """Begin all root scans only when their minimum mutation fits quota."""
+        if max_bytes < 0:
+            raise ValueError("max_bytes must not be negative")
+        roots = tuple(dict.fromkeys(canonical_roots))
+        if not roots:
+            return {}
+        if self._checkpoint_wal()[0] != 0:
+            return None
+        if self.aggregate_size_bytes() >= max_bytes:
+            return None
+
+        connection = self.connection
+        timestamp = time.time_ns()
+        scans = {root: str(uuid.uuid4()) for root in roots}
+        generations = {}
+        connection.execute("PRAGMA cache_spill = OFF")
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            if self.aggregate_size_bytes() >= max_bytes:
+                connection.rollback()
+                return None
+            connection.execute(
+                """INSERT INTO namespaces (name, last_access_ns)
+                   VALUES (?, ?)
+                   ON CONFLICT(name) DO UPDATE SET
+                       last_access_ns = excluded.last_access_ns""",
+                (namespace, timestamp),
+            )
+            namespace_id = connection.execute(
+                "SELECT id FROM namespaces WHERE name = ?", (namespace,)
+            ).fetchone()[0]
+            for canonical_root in roots:
+                connection.execute(
+                    """INSERT INTO roots (
+                           canonical_path, last_access_ns, scan_generation
+                       ) VALUES (?, ?, 1)
+                       ON CONFLICT(canonical_path) DO UPDATE SET
+                           last_access_ns = excluded.last_access_ns,
+                           scan_generation = roots.scan_generation + 1""",
+                    (canonical_root, timestamp),
+                )
+                root_id, generation = connection.execute(
+                    """SELECT id, scan_generation FROM roots
+                       WHERE canonical_path = ?""",
+                    (canonical_root,),
+                ).fetchone()
+                generations[canonical_root] = generation
+                connection.execute(
+                    """INSERT INTO namespace_roots (namespace_id, root_id)
+                       VALUES (?, ?)
+                       ON CONFLICT(namespace_id, root_id) DO NOTHING""",
+                    (namespace_id, root_id),
+                )
+            if self._projected_aggregate_size() > max_bytes:
+                connection.rollback()
+                return None
+            connection.commit()
+            self._checkpoint_wal()
+        except BaseException:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        finally:
+            connection.execute("PRAGMA cache_spill = ON")
+
+        for canonical_root, scan_token in scans.items():
+            scan_key = namespace, canonical_root
+            previous_token = self._active_scans.get(scan_key)
+            if previous_token is not None:
+                self._scans.pop(previous_token, None)
+            self._scans[scan_token] = (
+                namespace,
+                canonical_root,
+                generations[canonical_root],
+            )
+            self._active_scans[scan_key] = scan_token
+        return scans
+
+    def roots_requiring_scan(
+        self,
+        namespace: str,
+        roots_with_inventory: Iterable[tuple[str, bool]],
+    ) -> tuple[str, ...]:
+        """Return roots whose current inventory requires cache publication."""
+        required = []
+        for canonical_root, has_inventory in roots_with_inventory:
+            if has_inventory:
+                required.append(canonical_root)
+                continue
+            row = self.connection.execute(
+                """SELECT EXISTS (
+                           SELECT 1 FROM namespace_roots AS nr
+                           JOIN namespaces AS n ON n.id = nr.namespace_id
+                           JOIN roots AS r ON r.id = nr.root_id
+                           WHERE n.name = ? AND r.canonical_path = ?
+                       ), EXISTS (
+                           SELECT 1 FROM root_files AS rf
+                           JOIN roots AS r ON r.id = rf.root_id
+                           WHERE r.canonical_path = ?
+                       )""",
+                (namespace, canonical_root, canonical_root),
+            ).fetchone()
+            is_published, has_cached_files = map(bool, row)
+            if not is_published or has_cached_files:
+                required.append(canonical_root)
+        return tuple(required)
+
     def commit_scan(
         self,
         scan_token: str,
         files: Iterable[CachedFile],
         max_bytes: int | None = None,
-    ) -> tuple[CachedFile, ...]:
+    ) -> tuple[CachedFile, ...] | None:
         """Atomically publish the deterministic prefix admitted by quota."""
         if max_bytes is not None and max_bytes < 0:
             raise ValueError("max_bytes must not be negative")
@@ -297,9 +410,11 @@ class ContextCacheDatabase:
         connection = self.connection
         timestamp = time.time_ns()
         admitted = []
-        admission_open = (
-            max_bytes is None or self._checkpoint_wal()[0] == 0
-        )
+        if max_bytes is not None:
+            if self._checkpoint_wal()[0] != 0:
+                return None
+            if self.aggregate_size_bytes() >= max_bytes:
+                return None
         if max_bytes is not None:
             connection.execute("PRAGMA cache_spill = OFF")
         try:
@@ -337,8 +452,6 @@ class ContextCacheDatabase:
             )
 
             for cached_file in cached_files:
-                if not admission_open:
-                    break
                 if max_bytes is not None:
                     connection.execute("SAVEPOINT cache_admission")
                 signature = cached_file.signature
@@ -401,6 +514,10 @@ class ContextCacheDatabase:
                    WHERE root_id = ? AND last_seen_scan <> ?""",
                 (root_id, scan_token),
             )
+            if (max_bytes is not None
+                    and self._projected_aggregate_size() > max_bytes):
+                connection.rollback()
+                return None
             connection.commit()
             if max_bytes is not None:
                 self._checkpoint_wal()

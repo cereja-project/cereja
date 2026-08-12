@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import tempfile
 import unittest
 import warnings
@@ -286,10 +287,16 @@ class ContextCacheTest(unittest.TestCase):
             (outer / "outer.txt").write_text("needle", encoding="utf-8")
             (inner / "inner.txt").write_text("needle", encoding="utf-8")
             cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with ContextCacheDatabase(cache_path) as database:
+                database._checkpoint_wal()
+                baseline = database.aggregate_size_bytes()
             with patch(
                 "cereja.system._context.cache.default_cache_path",
                 return_value=cache_path,
-            ), patch("cereja.system._context.cache.DEFAULT_MAX_BYTES", 0):
+            ), patch(
+                "cereja.system._context.cache.DEFAULT_MAX_BYTES",
+                baseline * 2 + 100_000,
+            ):
                 cached = search_text_context([outer, inner], "needle", cache=True)
             direct = search_text_context([outer, inner], "needle")
             self.assertEqual(cached, direct)
@@ -364,6 +371,132 @@ class ContextCacheTest(unittest.TestCase):
                 )
             self.assertEqual(warm, direct)
             self.assertEqual(reads, names[len(persisted):])
+
+    def test_busy_checkpoint_repeated_calls_do_not_mutate_cache(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "guide.txt").write_text("needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with ContextCacheDatabase(cache_path) as database:
+                database._checkpoint_wal()
+                reader = sqlite3.connect(cache_path)
+                try:
+                    reader.execute("BEGIN")
+                    reader.execute("SELECT COUNT(*) FROM roots").fetchone()
+                    seed = database.begin_scan(DEFAULT_NAMESPACE, "C:/seed")
+                    database.commit_scan(seed, [])
+                    baseline = database.aggregate_size_bytes()
+
+                    with patch(
+                        "cereja.system._context.cache.default_cache_path",
+                        return_value=cache_path,
+                    ), patch(
+                        "cereja.system._context.cache.DEFAULT_MAX_BYTES",
+                        baseline + 1_000_000,
+                    ):
+                        for _ in range(8):
+                            response = search_text_context(
+                                [root], "needle", cache=True
+                            )
+                            self.assertEqual(
+                                response.results[0].relative_path, "guide.txt"
+                            )
+
+                    self.assertEqual(database.aggregate_size_bytes(), baseline)
+                    self.assertIsNone(database.connection.execute(
+                        "SELECT id FROM roots WHERE canonical_path = ?",
+                        (cache_module._canonical_path(root),),
+                    ).fetchone())
+                finally:
+                    reader.close()
+
+    def test_full_overhead_skips_hundreds_of_empty_root_scans(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with ContextCacheDatabase(cache_path) as database:
+                database._checkpoint_wal()
+                quota = database.aggregate_size_bytes()
+            roots = []
+            for index in range(200):
+                root = Path(temp_dir) / "roots" / str(index)
+                root.mkdir(parents=True)
+                roots.append(root)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch("cereja.system._context.cache.DEFAULT_MAX_BYTES", quota):
+                for root in roots:
+                    response = list_text_context([root], cache=True)
+                    self.assertEqual(response.results, ())
+
+            with ContextCacheDatabase(cache_path) as database:
+                database._checkpoint_wal()
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT COUNT(*) FROM roots"
+                    ).fetchone()[0],
+                    0,
+                )
+                self.assertLessEqual(database.aggregate_size_bytes(), quota)
+
+    def test_warm_empty_root_is_read_only_when_quota_has_space(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "empty"
+            root.mkdir()
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                list_text_context([root], cache=True)
+                with ContextCacheDatabase(cache_path) as database:
+                    database._checkpoint_wal()
+                    baseline = database.aggregate_size_bytes()
+                    generation = database.connection.execute(
+                        "SELECT scan_generation FROM roots WHERE canonical_path = ?",
+                        (cache_module._canonical_path(root),),
+                    ).fetchone()[0]
+
+                for _ in range(8):
+                    list_text_context([root], cache=True)
+
+            with ContextCacheDatabase(cache_path) as database:
+                database._checkpoint_wal()
+                self.assertEqual(database.aggregate_size_bytes(), baseline)
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT scan_generation FROM roots WHERE canonical_path = ?",
+                        (cache_module._canonical_path(root),),
+                    ).fetchone()[0],
+                    generation,
+                )
+
+    def test_quota_below_unavoidable_overhead_uses_memory_without_mutation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "guide.txt").write_text("needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with ContextCacheDatabase(cache_path):
+                pass
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch("cereja.system._context.cache.DEFAULT_MAX_BYTES", 1):
+                cached = search_text_context([root], "needle", cache=True)
+            direct = search_text_context([root], "needle")
+            self.assertEqual(cached, direct)
+
+            with ContextCacheDatabase(cache_path) as database:
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT COUNT(*) FROM roots"
+                    ).fetchone()[0],
+                    0,
+                )
 
     def test_list_cache_matches_direct_and_reuses_text_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:

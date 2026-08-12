@@ -21,6 +21,94 @@ from cereja.system._context.cache_db import (
 
 
 class ContextCacheDatabaseTest(unittest.TestCase):
+    def test_commit_scan_at_physical_quota_is_read_only(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                scans = database.begin_scans_if_admitted(
+                    "default", ["C:/repo"], 10 ** 9
+                )
+                database._checkpoint_wal()
+                quota = database.aggregate_size_bytes()
+
+                admitted = database.commit_scan(
+                    scans["C:/repo"], [], max_bytes=quota
+                )
+
+                self.assertIsNone(admitted)
+
+    def test_stale_deletion_rolls_back_when_projected_wal_exceeds_quota(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                files = [
+                    CachedFile(
+                        f"C:/repo/{index}.txt",
+                        f"{index}.txt",
+                        FileSignature(None, None, 1_000, index, index),
+                        "text",
+                        "x" * 1_000,
+                        None,
+                    )
+                    for index in range(20)
+                ]
+                seed = database.begin_scan("default", "C:/repo")
+                database.commit_scan(seed, files)
+                database._checkpoint_wal()
+                scan = database.begin_scan("default", "C:/repo")
+                database._checkpoint_wal()
+                quota = database.aggregate_size_bytes() + 1
+
+                admitted = database.commit_scan(
+                    scan, [], max_bytes=quota
+                )
+
+                self.assertIsNone(admitted)
+                self.assertEqual(
+                    len(tuple(database.iter_root_files("default", "C:/repo"))),
+                    len(files),
+                )
+
+    def test_busy_commit_does_not_remove_existing_snapshot(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached = CachedFile(
+                "C:/repo/file.txt",
+                "file.txt",
+                FileSignature(None, None, 4, 1, 1),
+                "text",
+                "text",
+                None,
+            )
+            with ContextCacheDatabase(database_path) as database:
+                seed = database.begin_scan("default", "C:/repo")
+                database.commit_scan(seed, [cached])
+                database._checkpoint_wal()
+                scan = database.begin_scan("default", "C:/repo")
+                database._checkpoint_wal()
+                reader = sqlite3.connect(database_path)
+                try:
+                    reader.execute("BEGIN")
+                    reader.execute("SELECT COUNT(*) FROM files").fetchone()
+                    database.connection.execute(
+                        "UPDATE roots SET last_access_ns = last_access_ns + 1"
+                    )
+                    database.connection.commit()
+
+                    admitted = database.commit_scan(
+                        scan, [], max_bytes=10 ** 9
+                    )
+                finally:
+                    reader.close()
+
+                self.assertIsNone(admitted)
+                self.assertEqual(
+                    [item.relative_path for item in database.iter_root_files(
+                        "default", "C:/repo"
+                    )],
+                    ["file.txt"],
+                )
+
     def test_quota_admission_stops_at_first_rejected_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
@@ -77,7 +165,7 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 finally:
                     reader.close()
 
-                self.assertEqual(admitted, ())
+                self.assertIsNone(admitted)
                 self.assertEqual(
                     database.connection.execute(
                         "SELECT COUNT(*) FROM root_files"
