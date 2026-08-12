@@ -470,6 +470,45 @@ class ContextCacheDatabase:
         normalized = tuple(row[:10])
         return _cached_file_from_row(normalized)
 
+    def get_cached_content(
+        self,
+        canonical_path: str,
+        signature: FileSignature,
+        max_file_bytes: int,
+    ) -> CachedFile | None:
+        """Return reusable content without requiring one root association."""
+        row = self.connection.execute(
+            """SELECT canonical_path, '', device, inode, size_bytes,
+                      mtime_ns, ctime_ns, state, folded_text, content_sha256, id
+               FROM files
+               WHERE canonical_path = ?
+                 AND device IS ?
+                 AND inode IS ?
+                 AND size_bytes = ?
+                 AND mtime_ns = ?
+                 AND ctime_ns = ?""",
+            (
+                canonical_path,
+                signature.device,
+                signature.inode,
+                signature.size_bytes,
+                signature.mtime_ns,
+                signature.ctime_ns,
+            ),
+        ).fetchone()
+        if row is None:
+            return None
+        if signature.size_bytes > max_file_bytes and row[7] != "file_too_large":
+            return None
+        if row[7] == "file_too_large" and signature.size_bytes <= max_file_bytes:
+            return None
+        self.connection.execute(
+            "UPDATE files SET last_access_ns = ? WHERE id = ?",
+            (time.time_ns(), row[10]),
+        )
+        self.connection.commit()
+        return _cached_file_from_row(tuple(row[:10]))
+
     def aggregate_size_bytes(self) -> int:
         """Return the current byte size of the database and WAL sidecars."""
         total = 0
@@ -482,12 +521,16 @@ class ContextCacheDatabase:
 
     def enforce_quota(
         self,
-        protected_root: str,
+        protected_root: Union[str, os.PathLike, Iterable[str]],
         max_bytes: int = DEFAULT_MAX_BYTES,
     ) -> CacheMaintenanceReport:
-        """Evict unprotected roots in LRU order until quota or candidates end."""
+        """Evict roots not in the protected set until quota or candidates end."""
         if max_bytes < 0:
             raise ValueError("max_bytes must not be negative")
+        if isinstance(protected_root, (str, os.PathLike)):
+            protected_roots = (os.fspath(protected_root),)
+        else:
+            protected_roots = tuple(protected_root)
         before_bytes = self.aggregate_size_bytes()
         associations_removed = 0
         roots_removed = 0
@@ -500,11 +543,16 @@ class ContextCacheDatabase:
             vacuum_available = False
             checkpoint_busy = self._checkpoint_wal()[0] != 0
 
+        placeholders = ", ".join("?" for _ in protected_roots)
+        where_clause = (
+            f"WHERE canonical_path NOT IN ({placeholders})"
+            if protected_roots else ""
+        )
         candidates = self.connection.execute(
-            """SELECT id FROM roots
-               WHERE canonical_path <> ?
-               ORDER BY last_access_ns, id""",
-            (protected_root,),
+            f"""SELECT id FROM roots
+                {where_clause}
+                ORDER BY last_access_ns, id""",
+            protected_roots,
         ).fetchall()
         for (root_id,) in candidates:
             if checkpoint_busy or self.aggregate_size_bytes() <= max_bytes:

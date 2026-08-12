@@ -1,0 +1,334 @@
+"""Filesystem-backed cache orchestration for textual context search."""
+
+import hashlib
+import os
+import sqlite3
+from dataclasses import dataclass
+
+from cereja.system._repository_files import iter_repository_files
+
+from .cache_db import (
+    DEFAULT_MAX_BYTES,
+    DEFAULT_NAMESPACE,
+    CacheDatabaseUnavailable,
+    CachedFile,
+    ContextCacheDatabase,
+    FileSignature,
+    default_cache_path,
+)
+from .models import ContextResult, SkippedFile
+from .query import build_search_result, finalize_response
+
+
+@dataclass(frozen=True, slots=True)
+class _PreparedFile:
+    path: str
+    root: str
+    cached: CachedFile
+
+
+def _canonical_path(path):
+    return os.path.normcase(os.path.realpath(os.fspath(path)))
+
+
+def _file_signature(path):
+    stat_result = os.stat(path, follow_symlinks=False)
+    return FileSignature(
+        _sqlite_identifier(getattr(stat_result, "st_dev", None)),
+        _sqlite_identifier(getattr(stat_result, "st_ino", None)),
+        stat_result.st_size,
+        stat_result.st_mtime_ns,
+        stat_result.st_ctime_ns,
+    )
+
+
+def _sqlite_identifier(value):
+    if value is None or -(2 ** 63) <= value < 2 ** 63:
+        return value
+    if 0 <= value < 2 ** 64:
+        return value - 2 ** 64
+    return None
+
+
+def _read_cacheable_file(path, signature, max_file_bytes):
+    """Return persistent state, folded text, and digest for one file."""
+    if signature.size_bytes > max_file_bytes:
+        return "file_too_large", None, None
+    with open(path, "rb") as file:
+        data = file.read(max_file_bytes + 1)
+    if len(data) > max_file_bytes:
+        return "file_too_large", None, None
+    digest = hashlib.sha256(data).hexdigest()
+    state, text = _decode_file_data(data)
+    return state, None if text is None else text.casefold(), digest
+
+
+def _read_original_text(path, max_file_bytes):
+    with open(path, "rb") as file:
+        data = file.read(max_file_bytes + 1)
+    if len(data) > max_file_bytes:
+        return "file_too_large", None
+    return _decode_file_data(data)
+
+
+def _decode_file_data(data):
+    if b"\x00" in data:
+        return "binary_file", None
+    try:
+        return "text", data.decode("utf-8-sig", errors="strict")
+    except UnicodeDecodeError:
+        return "invalid_utf8", None
+
+
+def _collect_cached_context(
+        roots,
+        *,
+        mode,
+        query,
+        terms,
+        extensions,
+        max_results,
+        max_snippets,
+        max_snippet_chars,
+        max_file_bytes,
+        refresh_cache,
+):
+    """Collect context using signature-validated persistent file content."""
+    root_values = tuple(roots)
+    normalized_roots = tuple(_normalized_path(root) for root in root_values)
+    canonical_roots = tuple(dict.fromkeys(_canonical_path(root) for root in root_values))
+
+    # Traversal can fail for invalid roots and must complete before any scan can
+    # remove stale associations.
+    inventory = tuple(iter_repository_files(root_values, extensions=extensions))
+
+    try:
+        with ContextCacheDatabase(default_cache_path()) as database:
+            prepared, transient_skips = _synchronize_inventory(
+                database,
+                inventory,
+                canonical_roots,
+                max_file_bytes,
+                refresh_cache,
+            )
+            _database_call(
+                database.enforce_quota,
+                canonical_roots,
+                max_bytes=DEFAULT_MAX_BYTES,
+            )
+            return _query_prepared_files(
+                prepared,
+                transient_skips,
+                mode=mode,
+                query=query,
+                terms=terms,
+                roots=normalized_roots,
+                max_results=max_results,
+                max_snippets=max_snippets,
+                max_snippet_chars=max_snippet_chars,
+                max_file_bytes=max_file_bytes,
+            )
+    except sqlite3.Error as error:
+        raise CacheDatabaseUnavailable(
+            "context cache database is unavailable"
+        ) from error
+
+
+def _synchronize_inventory(
+        database,
+        inventory,
+        canonical_roots,
+        max_file_bytes,
+        refresh_cache,
+):
+    by_root = {root: [] for root in canonical_roots}
+    prepared = []
+    skipped = []
+    for repository_file in inventory:
+        path = repository_file.path.path
+        normalized_path = _normalized_path(path)
+        canonical_path = _canonical_path(path)
+        canonical_root = _canonical_path(repository_file.root.path)
+        try:
+            signature = _file_signature(path)
+            cached = None if refresh_cache else _database_call(
+                database.get_cached_content,
+                canonical_path,
+                signature,
+                max_file_bytes,
+            )
+            if cached is None:
+                state, folded_text, digest = _read_cacheable_file(
+                    path, signature, max_file_bytes
+                )
+                cached = CachedFile(
+                    canonical_path=canonical_path,
+                    relative_path=repository_file.relative_path,
+                    signature=signature,
+                    state=state,
+                    folded_text=folded_text,
+                    content_sha256=digest,
+                )
+            else:
+                cached = CachedFile(
+                    canonical_path=canonical_path,
+                    relative_path=repository_file.relative_path,
+                    signature=cached.signature,
+                    state=cached.state,
+                    folded_text=cached.folded_text,
+                    content_sha256=cached.content_sha256,
+                )
+        except PermissionError:
+            skipped.append(SkippedFile(normalized_path, "permission_denied"))
+            continue
+        except FileNotFoundError:
+            skipped.append(SkippedFile(normalized_path, "disappeared"))
+            continue
+
+        by_root[canonical_root].append(cached)
+        prepared.append(_PreparedFile(
+            path=normalized_path,
+            root=_normalized_path(repository_file.root.path),
+            cached=cached,
+        ))
+
+    for canonical_root, cached_files in by_root.items():
+        scan_token = _database_call(
+            database.begin_scan, DEFAULT_NAMESPACE, canonical_root
+        )
+        _database_call(database.commit_scan, scan_token, cached_files)
+    return prepared, skipped
+
+
+def _query_prepared_files(
+        prepared,
+        transient_skips,
+        *,
+        mode,
+        query,
+        terms,
+        roots,
+        max_results,
+        max_snippets,
+        max_snippet_chars,
+        max_file_bytes,
+):
+    candidates = []
+    skipped = list(transient_skips)
+    snippets_truncated = False
+    for item in prepared:
+        cached = item.cached
+        if cached.state != "text":
+            skipped.append(SkippedFile(item.path, cached.state))
+            continue
+        if mode == "list":
+            candidates.append(ContextResult(
+                path=item.path,
+                root=item.root,
+                relative_path=cached.relative_path,
+                size_bytes=cached.signature.size_bytes,
+                score=0,
+                match_count=0,
+                snippets=(),
+            ))
+            continue
+
+        folded_text = cached.folded_text or ""
+        counts = tuple(folded_text.count(term) for term in terms)
+        if not all(counts):
+            continue
+        filename = cached.relative_path.rsplit("/", 1)[-1].casefold()
+        candidates.append(ContextResult(
+            path=item.path,
+            root=item.root,
+            relative_path=cached.relative_path,
+            size_bytes=cached.signature.size_bytes,
+            score=sum(term in filename for term in terms) * 1000 + sum(counts),
+            match_count=sum(counts),
+            snippets=(),
+        ))
+
+    candidates.sort(key=(
+        (lambda result: (-result.score, result.path.casefold(), result.path))
+        if mode == "search"
+        else (lambda result: (result.path.casefold(), result.path))
+    ))
+    selected = candidates[:max_results]
+    if mode == "search":
+        selected, reopen_skips, reopened_truncated = _reopen_winners(
+            candidates,
+            terms,
+            max_snippets,
+            max_snippet_chars,
+            max_file_bytes,
+            max_results,
+        )
+        skipped.extend(reopen_skips)
+        snippets_truncated = snippets_truncated or reopened_truncated
+
+    return finalize_response(
+        mode=mode,
+        query=query,
+        roots=roots,
+        results=list(selected),
+        skipped=skipped,
+        max_results=max_results,
+        snippets_truncated=(
+            snippets_truncated or len(candidates) > max_results
+        ),
+    )
+
+
+def _reopen_winners(
+        candidates,
+        terms,
+        max_snippets,
+        max_snippet_chars,
+        max_file_bytes,
+        max_results,
+):
+    results = []
+    skipped = []
+    snippets_truncated = False
+    for winner in candidates:
+        if len(results) == max_results:
+            break
+        try:
+            signature = _file_signature(winner.path)
+            state, text = _read_original_text(winner.path, max_file_bytes)
+            if state != "text":
+                skipped.append(SkippedFile(winner.path, state))
+                continue
+        except PermissionError:
+            skipped.append(SkippedFile(winner.path, "permission_denied"))
+            continue
+        except FileNotFoundError:
+            skipped.append(SkippedFile(winner.path, "disappeared"))
+            continue
+        result, omitted = build_search_result(
+            path=winner.path,
+            root=winner.root,
+            relative_path=winner.relative_path,
+            size_bytes=signature.size_bytes,
+            text=text,
+            terms=terms,
+            max_snippets=max_snippets,
+            max_snippet_chars=max_snippet_chars,
+        )
+        if result is not None:
+            results.append(result)
+            snippets_truncated = snippets_truncated or omitted
+    return results, skipped, snippets_truncated
+
+
+def _database_call(operation, *args, **kwargs):
+    try:
+        return operation(*args, **kwargs)
+    except (OSError, sqlite3.Error) as error:
+        raise CacheDatabaseUnavailable(
+            "context cache database is unavailable"
+        ) from error
+
+
+def _normalized_path(value):
+    return os.path.abspath(os.fspath(value)).replace(os.sep, "/")

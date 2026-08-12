@@ -1,6 +1,7 @@
 """Compatibility facade for bounded textual context search."""
 
 from cereja.system._context import (
+    ContextCacheWarning,
     ContextResponse,
     ContextResult,
     ContextSnippet,
@@ -11,6 +12,7 @@ from cereja.system._context import (
 )
 
 __all__ = [
+    "ContextCacheWarning",
     "ContextSnippet",
     "ContextResult",
     "SkippedFile",

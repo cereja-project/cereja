@@ -1,9 +1,15 @@
 """Direct orchestration for bounded textual context search."""
 
 import os
+import warnings
 from pathlib import Path as NativePath
 
-from cereja.system._context.models import ContextResult, SkippedFile
+from cereja.system._context.cache_db import CacheDatabaseError
+from cereja.system._context.models import (
+    ContextCacheWarning,
+    ContextResult,
+    SkippedFile,
+)
 from cereja.system._context.query import build_search_result, finalize_response
 from cereja.system._repository_files import iter_repository_files
 
@@ -27,7 +33,7 @@ def search_text_context(
     if not terms:
         raise ValueError("query must not be empty")
     _validate_limits(max_results, max_snippets, max_snippet_chars, max_file_bytes)
-    return _collect_direct_context(
+    return _collect_context(
         roots,
         mode="search",
         query=str(query),
@@ -37,6 +43,8 @@ def search_text_context(
         max_snippets=max_snippets,
         max_snippet_chars=max_snippet_chars,
         max_file_bytes=max_file_bytes,
+        cache=cache,
+        refresh_cache=refresh_cache,
     )
 
 
@@ -53,7 +61,7 @@ def list_text_context(
     if refresh_cache and not cache:
         raise ValueError("refresh_cache requires cache=True")
     _validate_limits(max_results, 1, 1, max_file_bytes)
-    return _collect_direct_context(
+    return _collect_context(
         roots,
         mode="list",
         query=None,
@@ -62,6 +70,58 @@ def list_text_context(
         max_results=max_results,
         max_snippets=1,
         max_snippet_chars=1,
+        max_file_bytes=max_file_bytes,
+        cache=cache,
+        refresh_cache=refresh_cache,
+    )
+
+
+def _collect_context(
+        roots,
+        *,
+        mode,
+        query,
+        terms,
+        extensions,
+        max_results,
+        max_snippets,
+        max_snippet_chars,
+        max_file_bytes,
+        cache,
+        refresh_cache,
+):
+    root_values = tuple(roots)
+    if cache:
+        from .cache import _collect_cached_context
+
+        try:
+            return _collect_cached_context(
+                root_values,
+                mode=mode,
+                query=query,
+                terms=terms,
+                extensions=extensions,
+                max_results=max_results,
+                max_snippets=max_snippets,
+                max_snippet_chars=max_snippet_chars,
+                max_file_bytes=max_file_bytes,
+                refresh_cache=refresh_cache,
+            )
+        except CacheDatabaseError as error:
+            warnings.warn(
+                f"Context cache unavailable: {error}",
+                ContextCacheWarning,
+                stacklevel=3,
+            )
+    return _collect_direct_context(
+        root_values,
+        mode=mode,
+        query=query,
+        terms=terms,
+        extensions=extensions,
+        max_results=max_results,
+        max_snippets=max_snippets,
+        max_snippet_chars=max_snippet_chars,
         max_file_bytes=max_file_bytes,
     )
 
