@@ -62,6 +62,15 @@ _SCHEMA_DDL = {
     )""",
 }
 
+_EXPECTED_AUTOINDEXES = {
+    ("sqlite_autoindex_metadata_1", "metadata"),
+    ("sqlite_autoindex_namespaces_1", "namespaces"),
+    ("sqlite_autoindex_roots_1", "roots"),
+    ("sqlite_autoindex_namespace_roots_1", "namespace_roots"),
+    ("sqlite_autoindex_files_1", "files"),
+    ("sqlite_autoindex_root_files_1", "root_files"),
+}
+
 _TABLE_NAMES = frozenset(
     {"metadata", "namespaces", "namespace_roots", "roots", "root_files", "files"}
 )
@@ -127,9 +136,11 @@ def default_cache_path() -> Path:
 class ContextCacheDatabase:
     """Own the lifecycle and schema identity of one context-cache database.
 
-    POSIX creation uses exclusive/no-follow flags when available. On Windows,
-    stdlib SQLite must reopen by path, so protection is best-effort: reparse
-    points and identity changes are rejected before any database operation.
+    POSIX creation uses exclusive/no-follow flags when available and validates
+    identity before and after ``sqlite3.connect()``. Windows uses the same
+    checks as best-effort protection. Because stdlib SQLite reopens by path,
+    neither platform can absolutely exclude a swap-and-restore during that
+    interval; post-connect validation precedes configuration and schema work.
     """
 
     def __init__(self, path: Union[Path, str]):
@@ -248,7 +259,11 @@ class ContextCacheDatabase:
             flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
             flags |= getattr(os, "O_NOFOLLOW", 0)
             descriptor = os.open(self.path, flags, 0o600)
-            os.close(descriptor)
+            try:
+                if _uses_posix_permissions() and hasattr(os, "fchmod"):
+                    os.fchmod(descriptor, 0o600)
+            finally:
+                os.close(descriptor)
         file_identity = self._identity(self.path)
         self._validate_secure_file(self.path)
         self._validate_sidecars()
@@ -272,9 +287,9 @@ class ContextCacheDatabase:
         if _uses_posix_permissions() and stat.S_IMODE(path.stat().st_mode) & 0o077:
             raise CacheDatabaseError("context cache file permissions are unsafe")
 
-    def _existing_sidecars(self) -> set[Path]:
+    def _existing_sidecars(self) -> dict[Path, tuple[int, int]]:
         return {
-            sidecar for sidecar in self._sidecar_paths()
+            sidecar: self._identity(sidecar) for sidecar in self._sidecar_paths()
             if sidecar.exists() or self._is_link(sidecar)
         }
 
@@ -286,12 +301,18 @@ class ContextCacheDatabase:
             if sidecar.exists() or self._is_link(sidecar):
                 self._validate_secure_file(sidecar)
 
-    def _secure_new_sidecars(self, existing: set[Path]) -> None:
+    def _secure_new_sidecars(self, existing: dict[Path, tuple[int, int]]) -> None:
         for sidecar in self._sidecar_paths():
-            if sidecar.exists() and sidecar not in existing:
+            present = sidecar.exists() or self._is_link(sidecar)
+            if sidecar in existing:
+                if not present or self._identity(sidecar) != existing[sidecar]:
+                    raise CacheDatabaseError("context cache sidecar identity changed")
+                self._validate_secure_file(sidecar)
+            elif present:
                 if _uses_posix_permissions():
                     sidecar.chmod(0o600)
                 self._validate_secure_file(sidecar)
+                existing[sidecar] = self._identity(sidecar)
 
     def _configure_connection(self, database_is_empty: bool) -> None:
         connection = self.connection
@@ -327,6 +348,22 @@ class ContextCacheDatabase:
             raise CacheDatabaseError("context cache database default namespace is missing")
 
     def _validate_schema_structure(self) -> None:
+        expected_objects = {
+            ("table", name, name, _canonical_ddl(ddl))
+            for name, ddl in _SCHEMA_DDL.items()
+        }
+        expected_objects.update(
+            ("index", name, table, None)
+            for name, table in _EXPECTED_AUTOINDEXES
+        )
+        actual_objects = {
+            (kind, name, table, None if ddl is None else _canonical_ddl(ddl))
+            for kind, name, table, ddl in self.connection.execute(
+                "SELECT type, name, tbl_name, sql FROM sqlite_schema"
+            )
+        }
+        if actual_objects != expected_objects:
+            raise CacheDatabaseError("context cache database schema objects differ")
         actual_ddl = dict(self.connection.execute(
             "SELECT name, sql FROM sqlite_schema WHERE type = 'table' "
             "AND name NOT LIKE 'sqlite_%'"

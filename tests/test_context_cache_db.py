@@ -241,17 +241,71 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                     pass
             umask.assert_not_called()
 
-    @unittest.skipIf(os.name == "nt", "POSIX sidecar modes are not portable on Windows")
-    def test_posix_new_sidecars_are_restricted_immediately(self):
+    @unittest.skipIf(os.name == "nt", "POSIX file modes are not portable on Windows")
+    def test_posix_bootstrap_fchmods_database_before_sqlite_open(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "context.sqlite3"
-            path.touch()
+            with patch("cereja.system._context.cache_db.os.fchmod",
+                       wraps=os.fchmod) as fchmod:
+                with ContextCacheDatabase(path):
+                    pass
+            self.assertTrue(any(call.args[1] == 0o600 for call in fchmod.call_args_list))
+
+    @unittest.skipIf(os.name == "nt", "POSIX sidecar modes are not portable on Windows")
+    def test_posix_bootstrap_restricts_real_sqlite_sidecars(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(path):
+                sidecars = [item for item in (
+                    Path(f"{path}-wal"), Path(f"{path}-shm")
+                ) if item.exists()]
+                self.assertTrue(sidecars)
+                self.assertTrue(all(
+                    stat.S_IMODE(item.stat().st_mode) == 0o600
+                    for item in sidecars
+                ))
+
+    def test_open_rejects_preexisting_sidecar_replaced_during_open(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(path):
+                pass
             sidecar = Path(f"{path}-wal")
             sidecar.touch()
-            sidecar.chmod(0o666)
-            database = ContextCacheDatabase(path)
-            database._secure_new_sidecars(set())
-            self.assertEqual(stat.S_IMODE(sidecar.stat().st_mode), 0o600)
+            if os.name != "nt":
+                sidecar.chmod(0o600)
+
+            def replace_sidecar(database, database_is_empty):
+                replacement = path.parent / "replacement-wal"
+                replacement.touch()
+                if os.name != "nt":
+                    replacement.chmod(0o600)
+                replacement.replace(sidecar)
+
+            with patch.object(ContextCacheDatabase, "_configure_connection",
+                              replace_sidecar):
+                with self.assertRaisesRegex(CacheDatabaseError, "sidecar.*identity"):
+                    with ContextCacheDatabase(path):
+                        pass
+
+    def test_open_rejects_unexpected_sqlite_schema_objects(self):
+        statements = (
+            "CREATE VIEW unexpected_view AS SELECT 1",
+            "CREATE TRIGGER unexpected_trigger AFTER INSERT ON metadata BEGIN SELECT 1; END",
+            "CREATE INDEX unexpected_index ON namespaces(last_access_ns)",
+        )
+        for statement in statements:
+            with self.subTest(statement=statement), tempfile.TemporaryDirectory() as temp_dir:
+                path = Path(temp_dir) / "context.sqlite3"
+                with ContextCacheDatabase(path):
+                    pass
+                connection = sqlite3.connect(path)
+                connection.execute(statement)
+                connection.commit()
+                connection.close()
+                with self.assertRaisesRegex(CacheDatabaseError, "schema"):
+                    with ContextCacheDatabase(path):
+                        pass
 
     def test_open_rejects_symlink_cache_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:
