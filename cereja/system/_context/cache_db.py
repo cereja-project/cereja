@@ -6,8 +6,10 @@ import sqlite3
 import stat
 import sys
 import time
+import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
+from typing import Iterable, Iterator, Optional, Union
 
 
 APPLICATION_ID = 0x434A4358  # "CJCX"
@@ -121,6 +123,40 @@ class CacheDatabaseUnavailable(CacheDatabaseError):
     """Raised when the cache database cannot be opened."""
 
 
+@dataclass(frozen=True, slots=True)
+class FileSignature:
+    """Filesystem identity fields used to validate a cached file."""
+
+    device: int | None
+    inode: int | None
+    size_bytes: int
+    mtime_ns: int
+    ctime_ns: int
+
+
+@dataclass(frozen=True, slots=True)
+class CachedFile:
+    """Cached text state and its association-relative path."""
+
+    canonical_path: str
+    relative_path: str
+    signature: FileSignature
+    state: str
+    folded_text: str | None
+    content_sha256: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class CacheMaintenanceReport:
+    """Internal accounting for one quota-maintenance pass."""
+
+    associations_removed: int
+    roots_removed: int
+    files_removed: int
+    before_bytes: int
+    after_bytes: int
+
+
 def default_cache_path() -> Path:
     """Return the platform-specific location for Cereja's context cache."""
     if os.name == "nt":
@@ -146,6 +182,8 @@ class ContextCacheDatabase:
     def __init__(self, path: Union[Path, str]):
         self.path = Path(path)
         self._connection: Optional[sqlite3.Connection] = None
+        self._scans: dict[str, tuple[str, str]] = {}
+        self._active_scans: dict[tuple[str, str], str] = {}
 
     @property
     def connection(self) -> sqlite3.Connection:
@@ -185,6 +223,294 @@ class ContextCacheDatabase:
             if not row[0].startswith("sqlite_")
         }
 
+    def begin_scan(self, namespace: str, canonical_root: str) -> str:
+        """Return an opaque scan token without changing persisted state."""
+        self.connection
+        scan_token = str(uuid.uuid4())
+        scan_key = namespace, canonical_root
+        previous_token = self._active_scans.get(scan_key)
+        if previous_token is not None:
+            self._scans.pop(previous_token, None)
+        self._scans[scan_token] = scan_key
+        self._active_scans[scan_key] = scan_token
+        return scan_token
+
+    def commit_scan(
+        self, scan_token: str, files: Iterable[CachedFile]
+    ) -> None:
+        """Atomically publish one completed root scan."""
+        try:
+            namespace, canonical_root = self._scans[scan_token]
+        except KeyError as error:
+            raise CacheDatabaseError("context cache scan token is unknown") from error
+
+        cached_files = tuple(files)
+        connection = self.connection
+        timestamp = time.time_ns()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                """INSERT INTO namespaces (name, last_access_ns)
+                   VALUES (?, ?)
+                   ON CONFLICT(name) DO UPDATE SET
+                       last_access_ns = excluded.last_access_ns""",
+                (namespace, timestamp),
+            )
+            namespace_id = connection.execute(
+                "SELECT id FROM namespaces WHERE name = ?", (namespace,)
+            ).fetchone()[0]
+            connection.execute(
+                """INSERT INTO roots (canonical_path, last_access_ns)
+                   VALUES (?, ?)
+                   ON CONFLICT(canonical_path) DO UPDATE SET
+                       last_access_ns = excluded.last_access_ns""",
+                (canonical_root, timestamp),
+            )
+            root_id = connection.execute(
+                "SELECT id FROM roots WHERE canonical_path = ?", (canonical_root,)
+            ).fetchone()[0]
+            connection.execute(
+                """INSERT INTO namespace_roots (namespace_id, root_id)
+                   VALUES (?, ?)
+                   ON CONFLICT(namespace_id, root_id) DO NOTHING""",
+                (namespace_id, root_id),
+            )
+
+            for cached_file in cached_files:
+                signature = cached_file.signature
+                connection.execute(
+                    """INSERT INTO files (
+                           canonical_path, device, inode, size_bytes,
+                           mtime_ns, ctime_ns, state, content_sha256,
+                           folded_text, created_ns, validated_ns, last_access_ns
+                       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(canonical_path) DO UPDATE SET
+                           device = excluded.device,
+                           inode = excluded.inode,
+                           size_bytes = excluded.size_bytes,
+                           mtime_ns = excluded.mtime_ns,
+                           ctime_ns = excluded.ctime_ns,
+                           state = excluded.state,
+                           content_sha256 = excluded.content_sha256,
+                           folded_text = excluded.folded_text,
+                           validated_ns = excluded.validated_ns,
+                           last_access_ns = excluded.last_access_ns""",
+                    (
+                        cached_file.canonical_path,
+                        signature.device,
+                        signature.inode,
+                        signature.size_bytes,
+                        signature.mtime_ns,
+                        signature.ctime_ns,
+                        cached_file.state,
+                        cached_file.content_sha256,
+                        cached_file.folded_text,
+                        timestamp,
+                        timestamp,
+                        timestamp,
+                    ),
+                )
+                file_id = connection.execute(
+                    "SELECT id FROM files WHERE canonical_path = ?",
+                    (cached_file.canonical_path,),
+                ).fetchone()[0]
+                connection.execute(
+                    """INSERT INTO root_files (
+                           root_id, file_id, relative_path, last_seen_scan
+                       ) VALUES (?, ?, ?, ?)
+                       ON CONFLICT(root_id, file_id) DO UPDATE SET
+                           relative_path = excluded.relative_path,
+                           last_seen_scan = excluded.last_seen_scan""",
+                    (root_id, file_id, cached_file.relative_path, scan_token),
+                )
+
+            connection.execute(
+                """DELETE FROM root_files
+                   WHERE root_id = ? AND last_seen_scan <> ?""",
+                (root_id, scan_token),
+            )
+            connection.commit()
+        except BaseException:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        else:
+            del self._scans[scan_token]
+            self._active_scans.pop((namespace, canonical_root), None)
+
+    def iter_root_files(
+        self, namespace: str, canonical_root: str
+    ) -> Iterator[CachedFile]:
+        """Iterate cached files associated with a namespace root."""
+        timestamp = time.time_ns()
+        self.connection.execute(
+            """UPDATE roots SET last_access_ns = ?
+               WHERE canonical_path = ?
+                 AND EXISTS (
+                     SELECT 1 FROM namespace_roots AS nr
+                     JOIN namespaces AS n ON n.id = nr.namespace_id
+                     WHERE nr.root_id = roots.id AND n.name = ?
+                 )""",
+            (timestamp, canonical_root, namespace),
+        )
+        self.connection.commit()
+        rows = self.connection.execute(
+            """SELECT f.canonical_path, rf.relative_path,
+                      f.device, f.inode, f.size_bytes, f.mtime_ns, f.ctime_ns,
+                      f.state, f.folded_text, f.content_sha256
+               FROM namespace_roots AS nr
+               JOIN namespaces AS n ON n.id = nr.namespace_id
+               JOIN roots AS r ON r.id = nr.root_id
+               JOIN root_files AS rf ON rf.root_id = r.id
+               JOIN files AS f ON f.id = rf.file_id
+               WHERE n.name = ? AND r.canonical_path = ?
+               ORDER BY rf.relative_path, f.canonical_path""",
+            (namespace, canonical_root),
+        ).fetchall()
+        for row in rows:
+            yield _cached_file_from_row(row)
+
+    def get_cached_file(
+        self,
+        canonical_path: str,
+        signature: FileSignature,
+        max_file_bytes: int,
+    ) -> CachedFile | None:
+        """Return a reusable cached file with an identical signature."""
+        rows = self.connection.execute(
+            """SELECT f.canonical_path, rf.relative_path,
+                      f.device, f.inode, f.size_bytes, f.mtime_ns, f.ctime_ns,
+                      f.state, f.folded_text, f.content_sha256, f.id
+               FROM files AS f
+               LEFT JOIN root_files AS rf ON rf.file_id = f.id
+               WHERE f.canonical_path = ?
+                 AND f.device IS ?
+                 AND f.inode IS ?
+                 AND f.size_bytes = ?
+                 AND f.mtime_ns = ?
+                 AND f.ctime_ns = ?
+               ORDER BY rf.root_id""",
+            (
+                canonical_path,
+                signature.device,
+                signature.inode,
+                signature.size_bytes,
+                signature.mtime_ns,
+                signature.ctime_ns,
+            ),
+        ).fetchall()
+        if len(rows) != 1 or rows[0][1] is None:
+            return None
+        row = rows[0]
+        if signature.size_bytes > max_file_bytes and row[7] != "file_too_large":
+            return None
+        if row[7] == "file_too_large" and signature.size_bytes <= max_file_bytes:
+            return None
+        self.connection.execute(
+            "UPDATE files SET last_access_ns = ? WHERE id = ?",
+            (time.time_ns(), row[10]),
+        )
+        self.connection.execute(
+            """UPDATE roots SET last_access_ns = ?
+               WHERE id = (
+                   SELECT root_id FROM root_files WHERE file_id = ?
+               )""",
+            (time.time_ns(), row[10]),
+        )
+        self.connection.commit()
+        normalized = tuple(row[:10])
+        return _cached_file_from_row(normalized)
+
+    def aggregate_size_bytes(self) -> int:
+        """Return the current byte size of the database and WAL sidecars."""
+        total = 0
+        for path in (self.path, *self._sidecar_paths()):
+            try:
+                total += path.stat(follow_symlinks=False).st_size
+            except FileNotFoundError:
+                continue
+        return total
+
+    def enforce_quota(
+        self,
+        protected_root: str,
+        max_bytes: int = DEFAULT_MAX_BYTES,
+    ) -> CacheMaintenanceReport:
+        """Evict unprotected roots in LRU order until quota or candidates end."""
+        if max_bytes < 0:
+            raise ValueError("max_bytes must not be negative")
+        before_bytes = self.aggregate_size_bytes()
+        associations_removed = 0
+        roots_removed = 0
+        files_removed = self._collect_orphan_files()
+        self._run_bounded_maintenance()
+
+        candidates = self.connection.execute(
+            """SELECT id FROM roots
+               WHERE canonical_path <> ?
+               ORDER BY last_access_ns, id""",
+            (protected_root,),
+        ).fetchall()
+        for (root_id,) in candidates:
+            if self.aggregate_size_bytes() <= max_bytes:
+                break
+            connection = self.connection
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                association_count = connection.execute(
+                    "SELECT COUNT(*) FROM root_files WHERE root_id = ?",
+                    (root_id,),
+                ).fetchone()[0]
+                root_count = connection.execute(
+                    "DELETE FROM roots WHERE id = ?", (root_id,)
+                ).rowcount
+                file_count = connection.execute(
+                    """DELETE FROM files
+                       WHERE NOT EXISTS (
+                           SELECT 1 FROM root_files WHERE root_files.file_id = files.id
+                       )"""
+                ).rowcount
+                connection.commit()
+            except BaseException:
+                if connection.in_transaction:
+                    connection.rollback()
+                raise
+            associations_removed += association_count
+            roots_removed += root_count
+            files_removed += file_count
+            self._run_bounded_maintenance()
+
+        self._run_bounded_maintenance()
+        return CacheMaintenanceReport(
+            associations_removed=associations_removed,
+            roots_removed=roots_removed,
+            files_removed=files_removed,
+            before_bytes=before_bytes,
+            after_bytes=self.aggregate_size_bytes(),
+        )
+
+    def _collect_orphan_files(self) -> int:
+        connection = self.connection
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            removed = connection.execute(
+                """DELETE FROM files
+                   WHERE NOT EXISTS (
+                       SELECT 1 FROM root_files WHERE root_files.file_id = files.id
+                   )"""
+            ).rowcount
+            connection.commit()
+        except BaseException:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
+        return removed
+
+    def _run_bounded_maintenance(self) -> None:
+        """Checkpoint WAL and reclaim at most a bounded number of pages."""
+        self.connection.execute("PRAGMA incremental_vacuum(128)")
+        self.connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+
     @staticmethod
     def _identity(path: Path) -> tuple[int, int]:
         result = path.stat(follow_symlinks=False)
@@ -193,7 +519,7 @@ class ContextCacheDatabase:
     @staticmethod
     def _is_link(path: Path) -> bool:
         try:
-            attributes = getattr(path.lstat(), "st_file_attributes", 0)
+            attributes = getattr(path.lstat(), "st_file_attributes", 0) or 0
         except FileNotFoundError:
             attributes = 0
         reparse_point = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
@@ -429,6 +755,8 @@ class ContextCacheDatabase:
         if self._connection is not None:
             self._connection.close()
             self._connection = None
+        self._scans.clear()
+        self._active_scans.clear()
 
 
 def _uses_posix_permissions() -> bool:
@@ -437,3 +765,20 @@ def _uses_posix_permissions() -> bool:
 
 def _canonical_ddl(ddl: str) -> str:
     return re.sub(r"\s+", "", ddl).rstrip(";").casefold()
+
+
+def _cached_file_from_row(row: tuple[object, ...]) -> CachedFile:
+    return CachedFile(
+        canonical_path=str(row[0]),
+        relative_path=str(row[1]),
+        signature=FileSignature(
+            device=row[2],
+            inode=row[3],
+            size_bytes=int(row[4]),
+            mtime_ns=int(row[5]),
+            ctime_ns=int(row[6]),
+        ),
+        state=str(row[7]),
+        folded_text=None if row[8] is None else str(row[8]),
+        content_sha256=None if row[9] is None else str(row[9]),
+    )
