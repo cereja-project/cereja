@@ -459,6 +459,69 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                     ["C:/newer", "C:/protected"],
                 )
 
+    def test_enforce_quota_stops_when_reader_blocks_physical_measurement(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                for root, text in (
+                    ("C:/oldest", "x"),
+                    ("C:/newer", "z"),
+                    ("C:/protected", "y"),
+                ):
+                    scan = database.begin_scan("default", root)
+                    database.commit_scan(scan, [CachedFile(
+                        f"{root}/large.txt",
+                        "large.txt",
+                        FileSignature(None, None, 2_000_000, 10, 11),
+                        "text",
+                        text * 2_000_000,
+                        None,
+                    )])
+                database.connection.execute(
+                    "UPDATE roots SET last_access_ns = CASE canonical_path "
+                    "WHEN 'C:/oldest' THEN 1 WHEN 'C:/newer' THEN 2 ELSE 3 END"
+                )
+                database.connection.commit()
+                database.connection.execute(
+                    "PRAGMA wal_checkpoint(TRUNCATE)"
+                ).fetchone()
+                quota = database.aggregate_size_bytes() - 1
+
+                reader = sqlite3.connect(database_path)
+                try:
+                    reader.execute("BEGIN")
+                    reader.execute("SELECT COUNT(*) FROM files").fetchone()
+                    statements = []
+                    database.connection.set_trace_callback(statements.append)
+                    report = database.enforce_quota(
+                        "C:/protected", max_bytes=quota
+                    )
+                    roots = [row[0] for row in database.connection.execute(
+                        "SELECT canonical_path FROM roots ORDER BY canonical_path"
+                    )]
+                    database.connection.set_trace_callback(None)
+                finally:
+                    reader.close()
+
+                checkpoint = database.connection.execute(
+                    "PRAGMA wal_checkpoint(TRUNCATE)"
+                ).fetchone()
+                database.connection.execute("PRAGMA incremental_vacuum(128)")
+                checkpoint = database.connection.execute(
+                    "PRAGMA wal_checkpoint(TRUNCATE)"
+                ).fetchone()
+                settled_size = database.aggregate_size_bytes()
+
+                self.assertEqual(report.roots_removed, 1)
+                self.assertGreater(report.after_bytes, quota)
+                self.assertFalse(any(
+                    "incremental_vacuum" in statement.casefold()
+                    for statement in statements
+                ))
+                self.assertEqual(roots, ["C:/newer", "C:/protected"])
+                self.assertEqual(checkpoint[0], 0)
+                self.assertLessEqual(settled_size, quota)
+
     def test_windows_rejects_any_reparse_point_attribute(self):
         path = Path("reparse-target")
         result = SimpleNamespace(st_file_attributes=0x400)

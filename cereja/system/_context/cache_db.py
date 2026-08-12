@@ -493,11 +493,12 @@ class ContextCacheDatabase:
         roots_removed = 0
         files_removed = self._collect_orphan_files()
         vacuum_available = True
-        self._checkpoint_wal()
-        if self._freelist_pages() and self.aggregate_size_bytes() > max_bytes:
+        checkpoint_busy = self._checkpoint_wal()[0] != 0
+        if (not checkpoint_busy and self._freelist_pages()
+                and self.aggregate_size_bytes() > max_bytes):
             self._run_bounded_vacuum()
             vacuum_available = False
-            self._checkpoint_wal()
+            checkpoint_busy = self._checkpoint_wal()[0] != 0
 
         candidates = self.connection.execute(
             """SELECT id FROM roots
@@ -506,7 +507,7 @@ class ContextCacheDatabase:
             (protected_root,),
         ).fetchall()
         for (root_id,) in candidates:
-            if self.aggregate_size_bytes() <= max_bytes:
+            if checkpoint_busy or self.aggregate_size_bytes() <= max_bytes:
                 break
             connection = self.connection
             try:
@@ -532,11 +533,12 @@ class ContextCacheDatabase:
             associations_removed += association_count
             roots_removed += root_count
             files_removed += file_count
-            self._checkpoint_wal()
-            if vacuum_available and self.aggregate_size_bytes() > max_bytes:
+            checkpoint_busy = self._checkpoint_wal()[0] != 0
+            if (not checkpoint_busy and vacuum_available and self._freelist_pages()
+                    and self.aggregate_size_bytes() > max_bytes):
                 self._run_bounded_vacuum()
                 vacuum_available = False
-                self._checkpoint_wal()
+                checkpoint_busy = self._checkpoint_wal()[0] != 0
 
         self._checkpoint_wal()
         return CacheMaintenanceReport(
@@ -564,8 +566,12 @@ class ContextCacheDatabase:
             raise
         return removed
 
-    def _checkpoint_wal(self) -> None:
-        self.connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+    def _checkpoint_wal(self) -> tuple[int, int, int]:
+        """Return SQLite's busy, log-frame, and checkpointed-frame counts."""
+        result = self.connection.execute(
+            "PRAGMA wal_checkpoint(TRUNCATE)"
+        ).fetchone()
+        return int(result[0]), int(result[1]), int(result[2])
 
     def _run_bounded_vacuum(self) -> None:
         """Reclaim at most the per-call maintenance budget."""
