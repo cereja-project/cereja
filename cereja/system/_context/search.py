@@ -91,6 +91,7 @@ def _collect_context(
         refresh_cache,
 ):
     root_values = tuple(roots)
+    extension_values = None if extensions is None else tuple(extensions)
     if cache:
         from .cache import _collect_cached_context
 
@@ -100,7 +101,7 @@ def _collect_context(
                 mode=mode,
                 query=query,
                 terms=terms,
-                extensions=extensions,
+                extensions=extension_values,
                 max_results=max_results,
                 max_snippets=max_snippets,
                 max_snippet_chars=max_snippet_chars,
@@ -118,7 +119,7 @@ def _collect_context(
         mode=mode,
         query=query,
         terms=terms,
-        extensions=extensions,
+        extensions=extension_values,
         max_results=max_results,
         max_snippets=max_snippets,
         max_snippet_chars=max_snippet_chars,

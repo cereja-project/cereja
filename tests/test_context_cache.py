@@ -128,6 +128,24 @@ class ContextCacheTest(unittest.TestCase):
                 [item.relative_path for item in response.results], ["guide.md"]
             )
 
+    def test_database_fallback_reuses_materialized_extensions_generator(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            (root / "other.txt").write_text("needle", encoding="utf-8")
+            extensions = (item for item in ["md"])
+            with patch(
+                "cereja.system._context.cache.ContextCacheDatabase.__enter__",
+                side_effect=CacheDatabaseUnavailable("locked"),
+            ), warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                response = search_text_context(
+                    [root], "needle", cache=True, extensions=extensions
+                )
+            self.assertEqual(
+                [item.relative_path for item in response.results], ["guide.md"]
+            )
+
     def test_mutation_lifecycle_remains_equal_to_direct_search(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
@@ -289,6 +307,63 @@ class ContextCacheTest(unittest.TestCase):
                     cache_module._canonical_path(inner),
                 },
             )
+
+    def test_quota_admits_deterministic_prefix_and_keeps_cold_response_complete(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            names = [f"{index}.txt" for index in range(8)]
+            for index, name in enumerate(names):
+                (root / name).write_text(
+                    ("unrelated" if index < 4 else "needle")
+                    + f" {index} " + chr(65 + index) * 12_000,
+                    encoding="utf-8",
+                )
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with ContextCacheDatabase(cache_path) as database:
+                database.enforce_quota((), max_bytes=10 ** 9)
+                baseline = database.aggregate_size_bytes()
+            quota = baseline * 2 + 40_000
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch("cereja.system._context.cache.DEFAULT_MAX_BYTES", quota):
+                cold = search_text_context(
+                    [root], "needle", cache=True, max_results=20
+                )
+                direct = search_text_context([root], "needle", max_results=20)
+                self.assertEqual(cold, direct)
+
+                with ContextCacheDatabase(cache_path) as database:
+                    persisted = tuple(row[0] for row in database.connection.execute(
+                        """SELECT rf.relative_path
+                           FROM root_files AS rf
+                           JOIN roots AS r ON r.id = rf.root_id
+                           WHERE r.canonical_path = ?
+                           ORDER BY rf.relative_path""",
+                        (cache_module._canonical_path(root),),
+                    ))
+                    database._checkpoint_wal()
+                    aggregate = database.aggregate_size_bytes()
+                self.assertGreater(len(persisted), 0)
+                self.assertLess(len(persisted), len(names))
+                self.assertLessEqual(aggregate, quota)
+                self.assertEqual(
+                    list(persisted),
+                    names[:len(persisted)],
+                )
+
+                reads = self._record_cache_reads(
+                    lambda: search_text_context(
+                        [root], "needle", cache=True, max_results=20
+                    )
+                )
+                warm = search_text_context(
+                    [root], "needle", cache=True, max_results=20
+                )
+            self.assertEqual(warm, direct)
+            self.assertEqual(reads, names[len(persisted):])
 
     def test_list_cache_matches_direct_and_reuses_text_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:

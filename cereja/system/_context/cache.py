@@ -104,12 +104,18 @@ def _collect_cached_context(
 
     try:
         with ContextCacheDatabase(default_cache_path()) as database:
+            _database_call(
+                database.enforce_quota,
+                canonical_roots,
+                max_bytes=DEFAULT_MAX_BYTES,
+            )
             prepared, transient_skips = _synchronize_inventory(
                 database,
                 inventory,
                 canonical_roots,
                 max_file_bytes,
                 refresh_cache,
+                DEFAULT_MAX_BYTES,
             )
             _database_call(
                 database.enforce_quota,
@@ -140,6 +146,7 @@ def _synchronize_inventory(
         canonical_roots,
         max_file_bytes,
         refresh_cache,
+        max_cache_bytes,
 ):
     by_root = {root: [] for root in canonical_roots}
     prepared = []
@@ -192,11 +199,19 @@ def _synchronize_inventory(
             cached=cached,
         ))
 
-    for canonical_root, cached_files in by_root.items():
-        scan_token = _database_call(
+    scans = [
+        (canonical_root, cached_files, _database_call(
             database.begin_scan, DEFAULT_NAMESPACE, canonical_root
+        ))
+        for canonical_root, cached_files in by_root.items()
+    ]
+    for canonical_root, cached_files, scan_token in scans:
+        _database_call(
+            database.commit_scan,
+            scan_token,
+            cached_files,
+            max_bytes=max_cache_bytes,
         )
-        _database_call(database.commit_scan, scan_token, cached_files)
     return prepared, skipped
 
 

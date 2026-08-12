@@ -21,6 +21,70 @@ from cereja.system._context.cache_db import (
 
 
 class ContextCacheDatabaseTest(unittest.TestCase):
+    def test_quota_admission_stops_at_first_rejected_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                scan = database.begin_scan("default", "C:/repo")
+                database._checkpoint_wal()
+                baseline = database.aggregate_size_bytes()
+                quota = baseline * 2 + 24_000
+                sizes = (8_000, 8_000, 50_000, 10)
+                candidates = [
+                    CachedFile(
+                        f"C:/repo/{index}.txt",
+                        f"{index}.txt",
+                        FileSignature(None, None, size, index, index),
+                        "text",
+                        chr(65 + index) * size,
+                        None,
+                    )
+                    for index, size in enumerate(sizes)
+                ]
+
+                admitted = database.commit_scan(
+                    scan, candidates, max_bytes=quota
+                )
+
+                self.assertGreater(len(admitted), 0)
+                self.assertLess(len(admitted), len(candidates))
+                self.assertEqual(admitted, tuple(candidates[:len(admitted)]))
+
+    def test_quota_admission_refuses_content_when_checkpoint_is_busy(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                database._checkpoint_wal()
+                reader = sqlite3.connect(database_path)
+                try:
+                    reader.execute("BEGIN")
+                    reader.execute("SELECT COUNT(*) FROM files").fetchone()
+                    scan = database.begin_scan("default", "C:/repo")
+                    candidate = CachedFile(
+                        "C:/repo/file.txt",
+                        "file.txt",
+                        FileSignature(None, None, 1_000, 1, 1),
+                        "text",
+                        "x" * 1_000,
+                        None,
+                    )
+
+                    admitted = database.commit_scan(
+                        scan,
+                        [candidate],
+                        max_bytes=database.aggregate_size_bytes() + 100_000,
+                    )
+                finally:
+                    reader.close()
+
+                self.assertEqual(admitted, ())
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT COUNT(*) FROM root_files"
+                    ).fetchone()[0],
+                    0,
+                )
+
     def test_windows_treats_missing_reparse_attributes_as_not_a_link(self):
         path = Path("regular-target")
         result = SimpleNamespace(st_file_attributes=None)

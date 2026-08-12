@@ -280,9 +280,14 @@ class ContextCacheDatabase:
         return scan_token
 
     def commit_scan(
-        self, scan_token: str, files: Iterable[CachedFile]
-    ) -> None:
-        """Atomically publish one completed root scan."""
+        self,
+        scan_token: str,
+        files: Iterable[CachedFile],
+        max_bytes: int | None = None,
+    ) -> tuple[CachedFile, ...]:
+        """Atomically publish the deterministic prefix admitted by quota."""
+        if max_bytes is not None and max_bytes < 0:
+            raise ValueError("max_bytes must not be negative")
         try:
             namespace, canonical_root, generation = self._scans[scan_token]
         except KeyError as error:
@@ -291,6 +296,12 @@ class ContextCacheDatabase:
         cached_files = tuple(files)
         connection = self.connection
         timestamp = time.time_ns()
+        admitted = []
+        admission_open = (
+            max_bytes is None or self._checkpoint_wal()[0] == 0
+        )
+        if max_bytes is not None:
+            connection.execute("PRAGMA cache_spill = OFF")
         try:
             connection.execute("BEGIN IMMEDIATE")
             current_root = connection.execute(
@@ -326,6 +337,10 @@ class ContextCacheDatabase:
             )
 
             for cached_file in cached_files:
+                if not admission_open:
+                    break
+                if max_bytes is not None:
+                    connection.execute("SAVEPOINT cache_admission")
                 signature = cached_file.signature
                 connection.execute(
                     """INSERT INTO files (
@@ -372,6 +387,14 @@ class ContextCacheDatabase:
                            last_seen_scan = excluded.last_seen_scan""",
                     (root_id, file_id, cached_file.relative_path, scan_token),
                 )
+                if (max_bytes is not None
+                        and self._projected_aggregate_size() > max_bytes):
+                    connection.execute("ROLLBACK TO cache_admission")
+                    connection.execute("RELEASE cache_admission")
+                    break
+                if max_bytes is not None:
+                    connection.execute("RELEASE cache_admission")
+                admitted.append(cached_file)
 
             connection.execute(
                 """DELETE FROM root_files
@@ -379,6 +402,8 @@ class ContextCacheDatabase:
                 (root_id, scan_token),
             )
             connection.commit()
+            if max_bytes is not None:
+                self._checkpoint_wal()
         except BaseException:
             if connection.in_transaction:
                 connection.rollback()
@@ -386,6 +411,10 @@ class ContextCacheDatabase:
         else:
             del self._scans[scan_token]
             self._active_scans.pop((namespace, canonical_root), None)
+        finally:
+            if max_bytes is not None:
+                connection.execute("PRAGMA cache_spill = ON")
+        return tuple(admitted)
 
     def iter_root_files(
         self, namespace: str, canonical_root: str
@@ -502,11 +531,6 @@ class ContextCacheDatabase:
             return None
         if row[7] == "file_too_large" and signature.size_bytes <= max_file_bytes:
             return None
-        self.connection.execute(
-            "UPDATE files SET last_access_ns = ? WHERE id = ?",
-            (time.time_ns(), row[10]),
-        )
-        self.connection.commit()
         return _cached_file_from_row(tuple(row[:10]))
 
     def aggregate_size_bytes(self) -> int:
@@ -518,6 +542,43 @@ class ContextCacheDatabase:
             except FileNotFoundError:
                 continue
         return total
+
+    def _projected_aggregate_size(self) -> int:
+        """Return a conservative post-checkpoint size for the current write."""
+        page_size = self.connection.execute("PRAGMA page_size").fetchone()[0]
+        page_count = self.connection.execute("PRAGMA page_count").fetchone()[0]
+        try:
+            current_database = self.path.stat(follow_symlinks=False).st_size
+        except FileNotFoundError:
+            current_database = 0
+        projected_database = max(current_database, page_size * page_count)
+        write_ahead_log, shared_memory = self._sidecar_paths()
+        try:
+            write_ahead_log_bytes = write_ahead_log.stat(
+                follow_symlinks=False
+            ).st_size
+        except FileNotFoundError:
+            write_ahead_log_bytes = 0
+        try:
+            shared_memory_bytes = shared_memory.stat(
+                follow_symlinks=False
+            ).st_size
+        except FileNotFoundError:
+            shared_memory_bytes = 32 * 1024
+        projected_wal = 32 + page_count * (page_size + 24)
+        existing_frames = max(
+            0,
+            (write_ahead_log_bytes - 32) // (page_size + 24),
+        )
+        total_frames = existing_frames + page_count
+        wal_index_blocks = max(1, (total_frames + 4_095) // 4_096)
+        projected_shared_memory = 32 * 1024 * (1 + wal_index_blocks)
+        return (
+            projected_database
+            + write_ahead_log_bytes
+            + projected_wal
+            + max(shared_memory_bytes, projected_shared_memory)
+        )
 
     def enforce_quota(
         self,
