@@ -149,7 +149,7 @@ class CacheDatabaseUnavailable(CacheDatabaseError):
 
 @dataclass(frozen=True, slots=True)
 class ScanToken:
-    """Total-order token generated in memory when a scan starts."""
+    """Scan identity with a process-monotonic start timestamp."""
 
     namespace: str
     canonical_root: str
@@ -276,9 +276,8 @@ class ContextCacheDatabase:
         roots = tuple(dict.fromkeys(canonical_roots))
         if not roots:
             return {}
-        if self._checkpoint_wal()[0] != 0:
-            return None
-        if self.aggregate_size_bytes() >= max_bytes:
+        if (self.aggregate_size_bytes() >= max_bytes
+                or self._projected_aggregate_size() > max_bytes):
             return None
 
         return {root: self.begin_scan(namespace, root) for root in roots}
@@ -330,17 +329,17 @@ class ContextCacheDatabase:
         connection = self.connection
         timestamp = time.time_ns()
         admitted = []
-        if max_bytes is not None:
-            connection.execute("PRAGMA locking_mode = EXCLUSIVE")
-            if self._checkpoint_wal()[0] != 0:
-                self._restore_normal_locking()
-                return None
-            if self.aggregate_size_bytes() >= max_bytes:
-                self._restore_normal_locking()
-                return None
-        if max_bytes is not None:
-            connection.execute("PRAGMA cache_spill = OFF")
+        if (max_bytes is not None
+                and (self.aggregate_size_bytes() >= max_bytes
+                     or self._projected_aggregate_size() > max_bytes)):
+            return None
+
+        primary_error = None
+        secondary_errors = []
         try:
+            if max_bytes is not None:
+                connection.execute("PRAGMA locking_mode = EXCLUSIVE")
+                connection.execute("PRAGMA cache_spill = OFF")
             try:
                 connection.execute(
                     "BEGIN EXCLUSIVE" if max_bytes is not None else "BEGIN IMMEDIATE"
@@ -349,15 +348,19 @@ class ContextCacheDatabase:
                 if "locked" in str(error).casefold():
                     return None
                 raise
+            if (max_bytes is not None
+                    and (self.aggregate_size_bytes() >= max_bytes
+                         or self._projected_aggregate_size() > max_bytes)):
+                connection.rollback()
+                return None
             current_root = connection.execute(
                 """SELECT id, scan_started_ns, scan_nonce FROM roots
                    WHERE canonical_path = ?""",
                 (canonical_root,),
             ).fetchone()
             if current_root is not None:
-                published_order = int(current_root[1]), str(current_root[2])
-                token_order = scan_token.started_ns, scan_token.nonce
-                if published_order >= token_order:
+                published_started_ns = int(current_root[1])
+                if published_started_ns >= scan_token.started_ns:
                     raise CacheDatabaseError("context cache scan token is stale")
             connection.execute(
                 """INSERT INTO namespaces (name, last_access_ns)
@@ -463,16 +466,34 @@ class ContextCacheDatabase:
                 connection.rollback()
                 return None
             connection.commit()
-            if max_bytes is not None:
-                self._checkpoint_wal()
-        except BaseException:
+        except BaseException as error:
+            primary_error = error
             if connection.in_transaction:
-                connection.rollback()
+                try:
+                    connection.rollback()
+                except BaseException as rollback_error:
+                    secondary_errors.append(rollback_error)
             raise
         finally:
             if max_bytes is not None:
-                connection.execute("PRAGMA cache_spill = ON")
-                self._restore_normal_locking()
+                try:
+                    connection.execute("PRAGMA cache_spill = ON")
+                except BaseException as error:
+                    secondary_errors.append(error)
+                try:
+                    self._restore_normal_locking()
+                except BaseException as error:
+                    secondary_errors.append(error)
+            if secondary_errors:
+                cleanup_error = secondary_errors[0]
+                if len(secondary_errors) > 1:
+                    cleanup_error = BaseExceptionGroup(
+                        "context cache transaction cleanup failed",
+                        secondary_errors,
+                    )
+                if primary_error is not None:
+                    raise primary_error from cleanup_error
+                raise cleanup_error
         return tuple(admitted)
 
     def _restore_normal_locking(self) -> None:
@@ -610,7 +631,7 @@ class ContextCacheDatabase:
         return total
 
     def _projected_aggregate_size(self) -> int:
-        """Return a conservative post-checkpoint size for the current write."""
+        """Return a conservative aggregate size for a possible write."""
         page_size = self.connection.execute("PRAGMA page_size").fetchone()[0]
         page_count = self.connection.execute("PRAGMA page_count").fetchone()[0]
         try:
@@ -893,6 +914,11 @@ class ContextCacheDatabase:
         journal_mode = connection.execute("PRAGMA journal_mode = WAL").fetchone()[0]
         if journal_mode.lower() != "wal":
             raise CacheDatabaseUnavailable("context cache database cannot enable WAL mode")
+        connection.execute("PRAGMA wal_autocheckpoint = 0")
+        if connection.execute("PRAGMA wal_autocheckpoint").fetchone()[0] != 0:
+            raise CacheDatabaseUnavailable(
+                "context cache database cannot disable automatic checkpoints"
+            )
         connection.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
 
     def _verify_or_create_schema(self) -> None:

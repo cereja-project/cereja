@@ -17,11 +17,52 @@ from cereja.system._context.cache_db import (
     CachedFile,
     ContextCacheDatabase,
     FileSignature,
+    ScanToken,
     default_cache_path,
 )
 
 
+def _storage_snapshot(database):
+    paths = (database.path, *database._sidecar_paths())
+    sizes = tuple(
+        path.stat(follow_symlinks=False).st_size if path.exists() else 0
+        for path in paths
+    )
+    return (*sizes, database.aggregate_size_bytes())
+
+
+class _FailingPragmaConnection:
+    def __init__(self, connection, statement, error, *, after=False):
+        self._connection = connection
+        self._statement = " ".join(statement.casefold().split())
+        self._error = error
+        self._after = after
+        self._failed = False
+
+    def execute(self, statement, *args, **kwargs):
+        normalized = " ".join(statement.casefold().split())
+        if not self._failed and normalized == self._statement:
+            self._failed = True
+            if self._after:
+                self._connection.execute(statement, *args, **kwargs)
+            raise self._error
+        return self._connection.execute(statement, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._connection, name)
+
+
 class ContextCacheDatabaseTest(unittest.TestCase):
+    def test_connection_disables_automatic_wal_checkpointing(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                automatic_checkpoint_pages = database.connection.execute(
+                    "PRAGMA wal_autocheckpoint"
+                ).fetchone()[0]
+
+            self.assertEqual(automatic_checkpoint_pages, 0)
+
     def test_begin_scan_is_in_memory_only(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
@@ -54,10 +95,84 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 old_scan = database.begin_scan("default", "C:/repo")
                 new_scan = database.begin_scan("default", "C:/repo")
 
-            self.assertLess(
-                (old_scan.started_ns, old_scan.nonce),
-                (new_scan.started_ns, new_scan.nonce),
-            )
+            self.assertLess(old_scan.started_ns, new_scan.started_ns)
+
+    def test_refused_scan_preflight_does_not_change_physical_storage(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                database.connection.execute(
+                    "UPDATE namespaces SET last_access_ns = last_access_ns + 1"
+                )
+                database.connection.commit()
+                baseline = _storage_snapshot(database)
+                self.assertGreater(baseline[1], 0)
+
+                scans = database.begin_scans_if_admitted(
+                    "default", ["C:/repo"], max_bytes=0
+                )
+
+                self.assertIsNone(scans)
+                self.assertEqual(_storage_snapshot(database), baseline)
+
+    def test_scan_preflight_includes_conservative_physical_projection(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                database._checkpoint_wal()
+                aggregate = database.aggregate_size_bytes()
+                projected = database._projected_aggregate_size()
+                self.assertGreater(projected, aggregate)
+                max_bytes = aggregate + (projected - aggregate) // 2
+                baseline = _storage_snapshot(database)
+
+                scans = database.begin_scans_if_admitted(
+                    "default", ["C:/repo"], max_bytes=max_bytes
+                )
+
+                self.assertIsNone(scans)
+                self.assertEqual(_storage_snapshot(database), baseline)
+
+    def test_refused_bounded_commit_does_not_change_physical_storage(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                scan = database.begin_scan("default", "C:/repo")
+                database.connection.execute(
+                    "UPDATE namespaces SET last_access_ns = last_access_ns + 1"
+                )
+                database.connection.commit()
+                baseline = _storage_snapshot(database)
+                self.assertGreater(baseline[1], 0)
+
+                admitted = database.commit_scan(scan, [], max_bytes=0)
+
+                self.assertIsNone(admitted)
+                self.assertEqual(_storage_snapshot(database), baseline)
+
+    def test_preflight_and_bounded_commit_never_run_maintenance(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                statements = []
+                database.connection.set_trace_callback(statements.append)
+                scans = database.begin_scans_if_admitted(
+                    "default", ["C:/repo"], max_bytes=10 ** 9
+                )
+
+                admitted = database.commit_scan(
+                    scans["C:/repo"], [], max_bytes=10 ** 9
+                )
+                database.connection.set_trace_callback(None)
+
+                self.assertEqual(admitted, ())
+                maintenance = [
+                    statement
+                    for statement in statements
+                    if "wal_checkpoint" in statement.casefold()
+                    or "incremental_vacuum" in statement.casefold()
+                ]
+                self.assertEqual(maintenance, [])
 
     def test_reader_after_preflight_leaves_root_generation_and_storage_unchanged(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -102,32 +217,256 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                     second.connection.execute("BEGIN IMMEDIATE")
                     second.connection.rollback()
 
-    def test_equal_timestamp_uses_nonce_for_cross_connection_scan_order(self):
+    def test_first_published_token_wins_when_scan_timestamps_are_equal(self):
+        nonce_pairs = (
+            (
+                "00000000-0000-0000-0000-000000000001",
+                "00000000-0000-0000-0000-000000000002",
+            ),
+            (
+                "00000000-0000-0000-0000-000000000002",
+                "00000000-0000-0000-0000-000000000001",
+            ),
+        )
+        for winning_nonce, losing_nonce in nonce_pairs:
+            with self.subTest(
+                    winning_nonce=winning_nonce, losing_nonce=losing_nonce), \
+                    tempfile.TemporaryDirectory() as temp_dir:
+                database_path = Path(temp_dir) / "context.sqlite3"
+                winning_file = CachedFile(
+                    "C:/repo/a.txt", "a.txt",
+                    FileSignature(None, None, 1, 2, 2),
+                    "text", "winner", None,
+                )
+                losing_file = CachedFile(
+                    "C:/repo/a.txt", "a.txt",
+                    FileSignature(None, None, 1, 1, 1),
+                    "text", "loser", None,
+                )
+                with ContextCacheDatabase(database_path) as first, \
+                     ContextCacheDatabase(database_path) as second:
+                    winning_scan = ScanToken(
+                        "default", "C:/repo", 7, winning_nonce
+                    )
+                    losing_scan = ScanToken(
+                        "default", "C:/repo", 7, losing_nonce
+                    )
+                    first.commit_scan(winning_scan, [winning_file])
+                    baseline = _storage_snapshot(first)
+                    generation = first.connection.execute(
+                        "SELECT scan_generation FROM roots"
+                    ).fetchone()[0]
+
+                    with self.assertRaises(CacheDatabaseError):
+                        second.commit_scan(losing_scan, [losing_file])
+
+                    self.assertEqual(_storage_snapshot(first), baseline)
+                    self.assertEqual(
+                        first.connection.execute(
+                            "SELECT scan_generation FROM roots"
+                        ).fetchone()[0],
+                        generation,
+                    )
+                    rows = list(first.iter_root_files("default", "C:/repo"))
+                self.assertEqual(
+                    [row.folded_text for row in rows], ["winner"]
+                )
+
+    def test_replayed_token_cannot_publish_a_different_payload(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
-            old_file = CachedFile(
+            first_file = CachedFile(
                 "C:/repo/a.txt", "a.txt", FileSignature(None, None, 1, 1, 1),
-                "text", "old", None,
+                "text", "first", None,
             )
-            new_file = CachedFile(
+            changed_file = CachedFile(
                 "C:/repo/a.txt", "a.txt", FileSignature(None, None, 1, 2, 2),
-                "text", "new", None,
+                "text", "changed", None,
             )
-            nonces = [
-                uuid.UUID("00000000-0000-0000-0000-000000000001"),
-                uuid.UUID("00000000-0000-0000-0000-000000000002"),
-            ]
-            with ContextCacheDatabase(database_path) as first, \
-                 ContextCacheDatabase(database_path) as second, \
-                 patch("cereja.system._context.cache_db.time.time_ns", return_value=7), \
-                 patch("cereja.system._context.cache_db.uuid.uuid4", side_effect=nonces):
-                old_scan = first.begin_scan("default", "C:/repo")
-                new_scan = second.begin_scan("default", "C:/repo")
-                second.commit_scan(new_scan, [new_file])
+            with ContextCacheDatabase(database_path) as database:
+                scan = database.begin_scan("default", "C:/repo")
+                database.commit_scan(scan, [first_file])
+                baseline = _storage_snapshot(database)
+
                 with self.assertRaises(CacheDatabaseError):
-                    first.commit_scan(old_scan, [old_file])
-                rows = list(first.iter_root_files("default", "C:/repo"))
-            self.assertEqual([row.folded_text for row in rows], ["new"])
+                    database.commit_scan(scan, [changed_file])
+
+                self.assertEqual(_storage_snapshot(database), baseline)
+                rows = list(database.iter_root_files("default", "C:/repo"))
+            self.assertEqual([row.folded_text for row in rows], ["first"])
+
+    def test_bounded_commit_restores_normal_locking_when_size_check_fails(
+            self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                connection = database.connection
+                scan = database.begin_scan("default", "C:/repo")
+                current_size = database.aggregate_size_bytes()
+                with patch.object(
+                    database,
+                    "aggregate_size_bytes",
+                    side_effect=(
+                        current_size,
+                        RuntimeError("size check failed"),
+                    ),
+                ), self.assertRaisesRegex(RuntimeError, "size check failed"):
+                    database.commit_scan(scan, [], max_bytes=10 ** 9)
+
+                self.assertEqual(
+                    connection.execute("PRAGMA locking_mode").fetchone()[0],
+                    "normal",
+                )
+                self.assertNotEqual(
+                    connection.execute("PRAGMA cache_spill").fetchone()[0],
+                    0,
+                )
+
+    def test_bounded_commit_restores_normal_locking_when_cache_spill_fails(
+            self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                connection = database.connection
+                database._connection = _FailingPragmaConnection(
+                    connection,
+                    "PRAGMA cache_spill = OFF",
+                    RuntimeError("cache spill setup failed"),
+                    after=True,
+                )
+                scan = database.begin_scan("default", "C:/repo")
+                with self.assertRaisesRegex(
+                    RuntimeError, "cache spill setup failed"
+                ):
+                    database.commit_scan(scan, [], max_bytes=10 ** 9)
+
+                self.assertEqual(
+                    connection.execute("PRAGMA locking_mode").fetchone()[0],
+                    "normal",
+                )
+                self.assertNotEqual(
+                    connection.execute("PRAGMA cache_spill").fetchone()[0],
+                    0,
+                )
+
+    def test_cache_spill_restore_failure_does_not_skip_lock_restore(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                connection = database.connection
+                database._connection = _FailingPragmaConnection(
+                    connection,
+                    "PRAGMA cache_spill = ON",
+                    RuntimeError("cache spill restore failed"),
+                )
+                scan = database.begin_scan("default", "C:/repo")
+                with self.assertRaisesRegex(
+                    RuntimeError, "cache spill restore failed"
+                ):
+                    database.commit_scan(scan, [], max_bytes=10 ** 9)
+
+                self.assertEqual(
+                    connection.execute("PRAGMA locking_mode").fetchone()[0],
+                    "normal",
+                )
+
+    def test_commit_error_is_preserved_when_cache_spill_restore_also_fails(
+            self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                connection = database.connection
+                database._connection = _FailingPragmaConnection(
+                    connection,
+                    "PRAGMA cache_spill = ON",
+                    RuntimeError("cache spill restore failed"),
+                )
+                scan = database.begin_scan("default", "C:/repo")
+                initial_projection = database._projected_aggregate_size()
+                with patch.object(
+                    database,
+                    "_projected_aggregate_size",
+                    side_effect=(
+                        initial_projection,
+                        ValueError("projection failed"),
+                    ),
+                ), self.assertRaisesRegex(
+                    ValueError, "projection failed"
+                ) as caught:
+                    database.commit_scan(scan, [], max_bytes=10 ** 9)
+
+                self.assertIsInstance(
+                    caught.exception.__cause__, RuntimeError
+                )
+                self.assertEqual(
+                    connection.execute("PRAGMA locking_mode").fetchone()[0],
+                    "normal",
+                )
+
+    def test_primary_error_chains_both_pragma_restoration_errors(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                connection = database.connection
+                database._connection = _FailingPragmaConnection(
+                    connection,
+                    "PRAGMA cache_spill = ON",
+                    RuntimeError("cache spill restore failed"),
+                )
+                scan = database.begin_scan("default", "C:/repo")
+                initial_projection = database._projected_aggregate_size()
+                with patch.object(
+                    database,
+                    "_projected_aggregate_size",
+                    side_effect=(
+                        initial_projection,
+                        ValueError("projection failed"),
+                    ),
+                ), patch.object(
+                    database,
+                    "_restore_normal_locking",
+                    side_effect=RuntimeError("locking restore failed"),
+                ), self.assertRaisesRegex(
+                    ValueError, "projection failed"
+                ) as caught:
+                    database.commit_scan(scan, [], max_bytes=10 ** 9)
+
+                cleanup_group = caught.exception.__cause__
+                self.assertIsInstance(cleanup_group, BaseExceptionGroup)
+                self.assertEqual(
+                    [str(error) for error in cleanup_group.exceptions],
+                    [
+                        "cache spill restore failed",
+                        "locking restore failed",
+                    ],
+                )
+                database._restore_normal_locking()
+
+    def test_exclusive_setup_error_restores_normal_locking(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                connection = database.connection
+                database._connection = _FailingPragmaConnection(
+                    connection,
+                    "PRAGMA locking_mode = EXCLUSIVE",
+                    RuntimeError("exclusive setup failed"),
+                    after=True,
+                )
+                scan = database.begin_scan("default", "C:/repo")
+                with self.assertRaisesRegex(
+                    RuntimeError, "exclusive setup failed"
+                ):
+                    database.commit_scan(scan, [], max_bytes=10 ** 9)
+
+                self.assertEqual(
+                    connection.execute("PRAGMA locking_mode").fetchone()[0],
+                    "normal",
+                )
+                self.assertNotEqual(
+                    connection.execute("PRAGMA cache_spill").fetchone()[0],
+                    0,
+                )
 
     def test_commit_scan_at_physical_quota_is_read_only(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -165,13 +504,27 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 database._checkpoint_wal()
                 scan = database.begin_scan("default", "C:/repo")
                 database._checkpoint_wal()
-                quota = database.aggregate_size_bytes() + 1
+                quota = 10 ** 9
+                baseline = _storage_snapshot(database)
+                statements = []
+                database.connection.set_trace_callback(statements.append)
 
-                admitted = database.commit_scan(
-                    scan, [], max_bytes=quota
-                )
+                with patch.object(
+                    database,
+                    "_projected_aggregate_size",
+                    side_effect=(0, 0, quota + 1),
+                ):
+                    admitted = database.commit_scan(
+                        scan, [], max_bytes=quota
+                    )
+                database.connection.set_trace_callback(None)
 
                 self.assertIsNone(admitted)
+                self.assertTrue(any(
+                    "delete from root_files" in statement.casefold()
+                    for statement in statements
+                ))
+                self.assertEqual(_storage_snapshot(database), baseline)
                 self.assertEqual(
                     len(tuple(database.iter_root_files("default", "C:/repo"))),
                     len(files),
@@ -202,6 +555,7 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                         "UPDATE roots SET last_access_ns = last_access_ns + 1"
                     )
                     database.connection.commit()
+                    baseline = _storage_snapshot(database)
 
                     admitted = database.commit_scan(
                         scan, [], max_bytes=10 ** 9
@@ -210,6 +564,7 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                     reader.close()
 
                 self.assertIsNone(admitted)
+                self.assertEqual(_storage_snapshot(database), baseline)
                 self.assertEqual(
                     [item.relative_path for item in database.iter_root_files(
                         "default", "C:/repo"
