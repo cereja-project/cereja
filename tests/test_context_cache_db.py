@@ -123,6 +123,27 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 rows = list(database.iter_root_files("default", "C:/repo"))
             self.assertEqual([row.folded_text for row in rows], ["new"])
 
+    def test_new_scan_in_another_connection_invalidates_older_token(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            old_file = CachedFile(
+                "C:/repo/a.txt", "a.txt", FileSignature(None, None, 1, 10, 11),
+                "text", "old", None,
+            )
+            new_file = CachedFile(
+                "C:/repo/a.txt", "a.txt", FileSignature(None, None, 1, 12, 13),
+                "text", "new", None,
+            )
+            with ContextCacheDatabase(database_path) as first, \
+                 ContextCacheDatabase(database_path) as second:
+                old_scan = first.begin_scan("default", "C:/repo")
+                new_scan = second.begin_scan("default", "C:/repo")
+                second.commit_scan(new_scan, [new_file])
+                with self.assertRaises(CacheDatabaseError):
+                    first.commit_scan(old_scan, [old_file])
+                rows = list(first.iter_root_files("default", "C:/repo"))
+            self.assertEqual([row.folded_text for row in rows], ["new"])
+
     def test_commit_scan_materializes_input_before_starting_transaction(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
@@ -364,11 +385,15 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                     1,
                 )
 
-    def test_enforce_quota_checkpoints_after_incremental_vacuum(self):
+    def test_enforce_quota_uses_one_bounded_vacuum_after_checkpoint(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
             with ContextCacheDatabase(database_path) as database:
-                for root, text in (("C:/old", "x"), ("C:/protected", "y")):
+                for root, text in (
+                    ("C:/oldest", "x"),
+                    ("C:/old", "z"),
+                    ("C:/protected", "y"),
+                ):
                     scan = database.begin_scan("default", root)
                     database.commit_scan(scan, [CachedFile(
                         f"{root}/large.txt",
@@ -378,15 +403,20 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                         text * 2_000_000,
                         None,
                     )])
-                database.connection.execute(
-                    "PRAGMA wal_checkpoint(TRUNCATE)"
-                ).fetchone()
-                before = database.aggregate_size_bytes()
+                statements = []
+                database.connection.set_trace_callback(statements.append)
 
                 report = database.enforce_quota("C:/protected", max_bytes=0)
 
-                self.assertEqual(report.roots_removed, 1)
-                self.assertLess(report.after_bytes, before)
+                self.assertEqual(report.roots_removed, 2)
+                maintenance = [
+                    statement.casefold() for statement in statements
+                    if "wal_checkpoint" in statement or "incremental_vacuum" in statement
+                ]
+                self.assertEqual(
+                    maintenance,
+                    ["pragma wal_checkpoint(truncate)", "pragma incremental_vacuum(128)"],
+                )
 
     def test_windows_rejects_any_reparse_point_attribute(self):
         path = Path("reparse-target")
@@ -708,21 +738,21 @@ class ContextCacheDatabaseTest(unittest.TestCase):
             path.touch()
             if os.name != "nt":
                 path.chmod(0o600)
-            original_stat = Path.stat
+            original_identity = ContextCacheDatabase._identity
             calls = 0
 
-            def changed_stat(candidate, *args, **kwargs):
+            def changed_identity(candidate):
                 nonlocal calls
-                result = original_stat(candidate, *args, **kwargs)
+                identity = original_identity(candidate)
                 if candidate == path:
                     calls += 1
                     if calls > 1:
-                        values = list(result)
-                        values[1] += 1
-                        return os.stat_result(values)
-                return result
+                        return identity[0], identity[1] + 1
+                return identity
 
-            with patch("cereja.system._context.cache_db.Path.stat", changed_stat):
+            with patch.object(
+                ContextCacheDatabase, "_identity", side_effect=changed_identity
+            ):
                 with self.assertRaisesRegex(CacheDatabaseError, "identity"):
                     with ContextCacheDatabase(path):
                         pass

@@ -31,7 +31,8 @@ _SCHEMA_DDL = {
     "roots": """CREATE TABLE roots (
         id INTEGER PRIMARY KEY,
         canonical_path TEXT NOT NULL UNIQUE,
-        last_access_ns INTEGER NOT NULL
+        last_access_ns INTEGER NOT NULL,
+        scan_generation INTEGER NOT NULL DEFAULT 0
     )""",
     "namespace_roots": """CREATE TABLE namespace_roots (
         namespace_id INTEGER NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
@@ -82,7 +83,8 @@ _EXPECTED_COLUMNS = {
     "namespaces": (("id", "INTEGER", 0, 1), ("name", "TEXT", 1, 0),
                    ("last_access_ns", "INTEGER", 1, 0)),
     "roots": (("id", "INTEGER", 0, 1), ("canonical_path", "TEXT", 1, 0),
-              ("last_access_ns", "INTEGER", 1, 0)),
+              ("last_access_ns", "INTEGER", 1, 0),
+              ("scan_generation", "INTEGER", 1, 0)),
     "namespace_roots": (("namespace_id", "INTEGER", 1, 1),
                         ("root_id", "INTEGER", 1, 2)),
     "files": (("id", "INTEGER", 0, 1), ("canonical_path", "TEXT", 1, 0),
@@ -112,6 +114,10 @@ _EXPECTED_UNIQUE_COLUMNS = {
     "namespaces": {("name",)},
     "roots": {("canonical_path",)},
     "files": {("canonical_path",)},
+}
+
+_EXPECTED_COLUMN_DEFAULTS = {
+    ("roots", "scan_generation"): "0",
 }
 
 
@@ -182,7 +188,7 @@ class ContextCacheDatabase:
     def __init__(self, path: Union[Path, str]):
         self.path = Path(path)
         self._connection: Optional[sqlite3.Connection] = None
-        self._scans: dict[str, tuple[str, str]] = {}
+        self._scans: dict[str, tuple[str, str, int]] = {}
         self._active_scans: dict[tuple[str, str], str] = {}
 
     @property
@@ -224,14 +230,52 @@ class ContextCacheDatabase:
         }
 
     def begin_scan(self, namespace: str, canonical_root: str) -> str:
-        """Return an opaque scan token without changing persisted state."""
-        self.connection
+        """Persist a new generation without removing cached associations."""
         scan_token = str(uuid.uuid4())
         scan_key = namespace, canonical_root
+        timestamp = time.time_ns()
+        connection = self.connection
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                """INSERT INTO namespaces (name, last_access_ns)
+                   VALUES (?, ?)
+                   ON CONFLICT(name) DO UPDATE SET
+                       last_access_ns = excluded.last_access_ns""",
+                (namespace, timestamp),
+            )
+            namespace_id = connection.execute(
+                "SELECT id FROM namespaces WHERE name = ?", (namespace,)
+            ).fetchone()[0]
+            connection.execute(
+                """INSERT INTO roots (
+                       canonical_path, last_access_ns, scan_generation
+                   ) VALUES (?, ?, 1)
+                   ON CONFLICT(canonical_path) DO UPDATE SET
+                       last_access_ns = excluded.last_access_ns,
+                       scan_generation = roots.scan_generation + 1""",
+                (canonical_root, timestamp),
+            )
+            root_id, generation = connection.execute(
+                """SELECT id, scan_generation FROM roots
+                   WHERE canonical_path = ?""",
+                (canonical_root,),
+            ).fetchone()
+            connection.execute(
+                """INSERT INTO namespace_roots (namespace_id, root_id)
+                   VALUES (?, ?)
+                   ON CONFLICT(namespace_id, root_id) DO NOTHING""",
+                (namespace_id, root_id),
+            )
+            connection.commit()
+        except BaseException:
+            if connection.in_transaction:
+                connection.rollback()
+            raise
         previous_token = self._active_scans.get(scan_key)
         if previous_token is not None:
             self._scans.pop(previous_token, None)
-        self._scans[scan_token] = scan_key
+        self._scans[scan_token] = namespace, canonical_root, generation
         self._active_scans[scan_key] = scan_token
         return scan_token
 
@@ -240,7 +284,7 @@ class ContextCacheDatabase:
     ) -> None:
         """Atomically publish one completed root scan."""
         try:
-            namespace, canonical_root = self._scans[scan_token]
+            namespace, canonical_root, generation = self._scans[scan_token]
         except KeyError as error:
             raise CacheDatabaseError("context cache scan token is unknown") from error
 
@@ -249,6 +293,13 @@ class ContextCacheDatabase:
         timestamp = time.time_ns()
         try:
             connection.execute("BEGIN IMMEDIATE")
+            current_root = connection.execute(
+                """SELECT id FROM roots
+                   WHERE canonical_path = ? AND scan_generation = ?""",
+                (canonical_root, generation),
+            ).fetchone()
+            if current_root is None:
+                raise CacheDatabaseError("context cache scan token is stale")
             connection.execute(
                 """INSERT INTO namespaces (name, last_access_ns)
                    VALUES (?, ?)
@@ -266,9 +317,7 @@ class ContextCacheDatabase:
                        last_access_ns = excluded.last_access_ns""",
                 (canonical_root, timestamp),
             )
-            root_id = connection.execute(
-                "SELECT id FROM roots WHERE canonical_path = ?", (canonical_root,)
-            ).fetchone()[0]
+            root_id = current_root[0]
             connection.execute(
                 """INSERT INTO namespace_roots (namespace_id, root_id)
                    VALUES (?, ?)
@@ -443,7 +492,6 @@ class ContextCacheDatabase:
         associations_removed = 0
         roots_removed = 0
         files_removed = self._collect_orphan_files()
-        self._run_bounded_maintenance()
 
         candidates = self.connection.execute(
             """SELECT id FROM roots
@@ -478,7 +526,6 @@ class ContextCacheDatabase:
             associations_removed += association_count
             roots_removed += root_count
             files_removed += file_count
-            self._run_bounded_maintenance()
 
         self._run_bounded_maintenance()
         return CacheMaintenanceReport(
@@ -508,8 +555,8 @@ class ContextCacheDatabase:
 
     def _run_bounded_maintenance(self) -> None:
         """Checkpoint WAL and reclaim at most a bounded number of pages."""
-        self.connection.execute("PRAGMA incremental_vacuum(128)")
         self.connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+        self.connection.execute("PRAGMA incremental_vacuum(128)")
 
     @staticmethod
     def _identity(path: Path) -> tuple[int, int]:
@@ -706,6 +753,15 @@ class ContextCacheDatabase:
             )
             if actual != expected:
                 raise CacheDatabaseError(f"context cache database schema differs: {table}")
+        for (table, column), expected in _EXPECTED_COLUMN_DEFAULTS.items():
+            defaults = {
+                row[1]: row[4]
+                for row in self.connection.execute(f'PRAGMA table_info("{table}")')
+            }
+            if defaults.get(column) != expected:
+                raise CacheDatabaseError(
+                    f"context cache database schema differs: {table}.{column}"
+                )
         for table, expected in _EXPECTED_FOREIGN_KEYS.items():
             actual = {
                 (row[3], row[2], row[4], row[5].upper(), row[6].upper(), row[7].upper())
