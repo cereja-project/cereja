@@ -1,9 +1,19 @@
 """Bounded textual context search for explicit repository roots."""
 
-from dataclasses import dataclass
 import os
 from pathlib import Path as NativePath
 
+from cereja.system._context.models import (
+    ContextResponse,
+    ContextResult,
+    ContextSnippet,
+    SkippedFile,
+)
+from cereja.system._context.query import (
+    build_search_result,
+    context_response_to_dict,
+    finalize_response,
+)
 from cereja.system._repository_files import iter_repository_files
 
 __all__ = [
@@ -15,40 +25,6 @@ __all__ = [
     "list_text_context",
     "context_response_to_dict",
 ]
-
-
-@dataclass(frozen=True, slots=True)
-class ContextSnippet:
-    line: int
-    text: str
-
-
-@dataclass(frozen=True, slots=True)
-class ContextResult:
-    path: str
-    root: str
-    relative_path: str
-    size_bytes: int
-    score: int
-    match_count: int
-    snippets: tuple[ContextSnippet, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class SkippedFile:
-    path: str
-    reason: str
-
-
-@dataclass(frozen=True, slots=True)
-class ContextResponse:
-    schema_version: int
-    mode: str
-    query: str | None
-    roots: tuple[str, ...]
-    results: tuple[ContextResult, ...]
-    skipped: tuple[SkippedFile, ...]
-    truncated: bool
 
 
 def search_text_context(
@@ -160,114 +136,42 @@ def _collect_context(
             continue
 
         if mode == "search":
-            folded_text = text.casefold()
-            counts = tuple(folded_text.count(term) for term in terms)
-            if not all(counts):
-                continue
-            match_count = sum(counts)
-            filename = repository_file.path.name.casefold()
-            filename_hits = sum(term in filename for term in terms)
-            score = filename_hits * 1000 + match_count
-            snippets, omitted = _extract_snippets(
-                text, terms, max_snippets, max_snippet_chars
+            result, omitted = build_search_result(
+                path=normalized_path,
+                root=_normalized_path(repository_file.root.path),
+                relative_path=repository_file.relative_path,
+                size_bytes=size_bytes,
+                text=text,
+                terms=terms,
+                max_snippets=max_snippets,
+                max_snippet_chars=max_snippet_chars,
             )
+            if result is None:
+                continue
             snippets_truncated = snippets_truncated or omitted
         else:
-            match_count = 0
-            score = 0
-            snippets = ()
+            result = ContextResult(
+                path=normalized_path,
+                root=_normalized_path(repository_file.root.path),
+                relative_path=repository_file.relative_path,
+                size_bytes=size_bytes,
+                score=0,
+                match_count=0,
+                snippets=(),
+            )
 
-        results.append(ContextResult(
-            path=normalized_path,
-            root=_normalized_path(repository_file.root.path),
-            relative_path=repository_file.relative_path,
-            size_bytes=size_bytes,
-            score=score,
-            match_count=match_count,
-            snippets=snippets,
-        ))
+        results.append(result)
 
-    if mode == "search":
-        results.sort(key=lambda item: (-item.score, item.path.casefold(), item.path))
-    else:
-        results.sort(key=lambda item: (item.path.casefold(), item.path))
-    sorted_skipped = tuple(
-        sorted(skipped, key=lambda item: (item.path.casefold(), item.path))
-    )
-    results_truncated = len(results) > max_results
-    skipped_truncated = len(sorted_skipped) > max_results
-    return ContextResponse(
-        schema_version=1,
+    return finalize_response(
         mode=mode,
         query=query,
         roots=normalized_roots,
-        results=tuple(results[:max_results]),
-        skipped=sorted_skipped[:max_results],
-        truncated=results_truncated or skipped_truncated or snippets_truncated,
+        results=results,
+        skipped=skipped,
+        max_results=max_results,
+        snippets_truncated=snippets_truncated,
     )
-
-
-def _extract_snippets(text, terms, max_snippets, max_snippet_chars):
-    matching = []
-    characters_truncated = False
-    for line_number, line in enumerate(text.splitlines(), start=1):
-        folded_line = line.casefold()
-        if any(term in folded_line for term in terms):
-            matching.append(ContextSnippet(
-                line_number,
-                _snippet_window(line, folded_line, terms, max_snippet_chars),
-            ))
-            characters_truncated = characters_truncated or len(line) > max_snippet_chars
-    return (
-        tuple(matching[:max_snippets]),
-        len(matching) > max_snippets or characters_truncated,
-    )
-
-
-def _snippet_window(line, folded_line, terms, max_snippet_chars):
-    if len(line) <= max_snippet_chars:
-        return line
-    occurrences = [
-        (folded_line.find(term), term)
-        for term in terms
-        if folded_line.find(term) >= 0
-    ]
-    first_match, term = min(occurrences, key=lambda item: item[0])
-    leading_context = max(0, max_snippet_chars - len(term)) // 2
-    start = max(0, first_match - leading_context)
-    start = min(start, len(line) - max_snippet_chars)
-    return line[start:start + max_snippet_chars]
 
 
 def _normalized_path(value):
     return NativePath(os.fspath(value)).absolute().as_posix()
-
-
-def context_response_to_dict(response):
-    """Convert a context response into the stable JSON schema version 1."""
-    return {
-        "schema_version": response.schema_version,
-        "mode": response.mode,
-        "query": response.query,
-        "roots": list(response.roots),
-        "results": [
-            {
-                "path": item.path,
-                "root": item.root,
-                "relative_path": item.relative_path,
-                "size_bytes": item.size_bytes,
-                "score": item.score,
-                "match_count": item.match_count,
-                "snippets": [
-                    {"line": snippet.line, "text": snippet.text}
-                    for snippet in item.snippets
-                ],
-            }
-            for item in response.results
-        ],
-        "skipped": [
-            {"path": item.path, "reason": item.reason}
-            for item in response.skipped
-        ],
-        "truncated": response.truncated,
-    }
