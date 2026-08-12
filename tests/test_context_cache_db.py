@@ -413,9 +413,50 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                     statement.casefold() for statement in statements
                     if "wal_checkpoint" in statement or "incremental_vacuum" in statement
                 ]
+                self.assertEqual(maintenance.count("pragma incremental_vacuum(128)"), 1)
+                vacuum_index = maintenance.index("pragma incremental_vacuum(128)")
                 self.assertEqual(
-                    maintenance,
-                    ["pragma wal_checkpoint(truncate)", "pragma incremental_vacuum(128)"],
+                    maintenance[vacuum_index - 1], "pragma wal_checkpoint(truncate)"
+                )
+                self.assertEqual(maintenance[-1], "pragma wal_checkpoint(truncate)")
+
+    def test_enforce_quota_stops_after_one_root_reaches_physical_quota(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                for root, text in (
+                    ("C:/oldest", "x"),
+                    ("C:/newer", "z"),
+                    ("C:/protected", "y"),
+                ):
+                    scan = database.begin_scan("default", root)
+                    database.commit_scan(scan, [CachedFile(
+                        f"{root}/large.txt",
+                        "large.txt",
+                        FileSignature(None, None, 2_000_000, 10, 11),
+                        "text",
+                        text * 2_000_000,
+                        None,
+                    )])
+                database.connection.execute(
+                    "UPDATE roots SET last_access_ns = CASE canonical_path "
+                    "WHEN 'C:/oldest' THEN 1 WHEN 'C:/newer' THEN 2 ELSE 3 END"
+                )
+                database.connection.commit()
+                database.connection.execute(
+                    "PRAGMA wal_checkpoint(TRUNCATE)"
+                ).fetchone()
+                quota = database.aggregate_size_bytes() - 1
+
+                report = database.enforce_quota("C:/protected", max_bytes=quota)
+
+                self.assertEqual(report.roots_removed, 1)
+                self.assertLessEqual(report.after_bytes, quota)
+                self.assertEqual(
+                    [row[0] for row in database.connection.execute(
+                        "SELECT canonical_path FROM roots ORDER BY canonical_path"
+                    )],
+                    ["C:/newer", "C:/protected"],
                 )
 
     def test_windows_rejects_any_reparse_point_attribute(self):

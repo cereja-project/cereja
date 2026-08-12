@@ -492,6 +492,12 @@ class ContextCacheDatabase:
         associations_removed = 0
         roots_removed = 0
         files_removed = self._collect_orphan_files()
+        vacuum_available = True
+        self._checkpoint_wal()
+        if self._freelist_pages() and self.aggregate_size_bytes() > max_bytes:
+            self._run_bounded_vacuum()
+            vacuum_available = False
+            self._checkpoint_wal()
 
         candidates = self.connection.execute(
             """SELECT id FROM roots
@@ -526,8 +532,13 @@ class ContextCacheDatabase:
             associations_removed += association_count
             roots_removed += root_count
             files_removed += file_count
+            self._checkpoint_wal()
+            if vacuum_available and self.aggregate_size_bytes() > max_bytes:
+                self._run_bounded_vacuum()
+                vacuum_available = False
+                self._checkpoint_wal()
 
-        self._run_bounded_maintenance()
+        self._checkpoint_wal()
         return CacheMaintenanceReport(
             associations_removed=associations_removed,
             roots_removed=roots_removed,
@@ -553,10 +564,15 @@ class ContextCacheDatabase:
             raise
         return removed
 
-    def _run_bounded_maintenance(self) -> None:
-        """Checkpoint WAL and reclaim at most a bounded number of pages."""
+    def _checkpoint_wal(self) -> None:
         self.connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+
+    def _run_bounded_vacuum(self) -> None:
+        """Reclaim at most the per-call maintenance budget."""
         self.connection.execute("PRAGMA incremental_vacuum(128)")
+
+    def _freelist_pages(self) -> int:
+        return self.connection.execute("PRAGMA freelist_count").fetchone()[0]
 
     @staticmethod
     def _identity(path: Path) -> tuple[int, int]:
