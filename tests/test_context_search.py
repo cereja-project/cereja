@@ -11,6 +11,23 @@ from cereja.system import (
 
 
 class ContextSearchTest(unittest.TestCase):
+    def test_refresh_requires_cache(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with self.assertRaisesRegex(ValueError, "refresh_cache requires cache=True"):
+                search_text_context([root], "needle", refresh_cache=True)
+            with self.assertRaisesRegex(ValueError, "refresh_cache requires cache=True"):
+                list_text_context([root], refresh_cache=True)
+
+    def test_cache_false_keeps_direct_behavior(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            self.assertEqual(
+                search_text_context([root], "needle", cache=False),
+                search_text_context([root], "needle"),
+            )
+
     def test_requires_all_terms_and_limits_snippets(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -165,7 +182,7 @@ class ContextSearchTest(unittest.TestCase):
             path = root / "vanished.txt"
             path.write_text("needle", encoding="utf-8")
 
-            with patch("cereja.system._context_search.open", side_effect=FileNotFoundError):
+            with patch("cereja.system._context.search.open", side_effect=FileNotFoundError):
                 response = search_text_context([root], "needle")
 
             self.assertEqual(response.results, ())
@@ -177,7 +194,7 @@ class ContextSearchTest(unittest.TestCase):
             path = root / "private.txt"
             path.write_text("needle", encoding="utf-8")
 
-            with patch("cereja.system._context_search.open", side_effect=PermissionError):
+            with patch("cereja.system._context.search.open", side_effect=PermissionError):
                 response = search_text_context([root], "needle")
 
             self.assertEqual(response.results, ())

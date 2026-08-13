@@ -70,8 +70,29 @@ cereja context list --root docs --max-results 20
 ```
 
 Use `--max-file-bytes`, `--max-results`, `--max-snippets`, and
-`--max-snippet-chars` to bound search output. The commands are read-only,
-decode only UTF-8 text, skip binary files, and do not follow symbolic links.
+`--max-snippet-chars` to bound search output. Searched source files are opened
+read-only and are never modified. The commands decode only UTF-8 text, skip
+binary files, and do not follow symbolic links.
+
+The persistent cache is opt-in. When `--cache` is enabled, Cereja writes a
+global per-user cache outside the searched roots. Use `--cache` to populate or
+reuse it and `--refresh-cache` with `--cache` to force file content to be
+reprocessed:
+
+```bash
+cereja context search --root docs --query "context search" --cache
+cereja context search --root docs --query "context search" --cache --refresh-cache
+```
+
+Inspect cache metadata or clear the context-cache namespace with:
+
+```bash
+cereja context cache info --format json
+cereja context cache clear
+```
+
+If the optional cache is unavailable, context search emits a
+`ContextCacheWarning` and continues with a direct filesystem search.
 
 ## Development
 

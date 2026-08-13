@@ -1,20 +1,19 @@
-"""Compatibility facade for bounded textual context search."""
+"""Private components for bounded textual context search."""
 
-from cereja.system._context import (
+from .models import (
     ContextCacheClearReport,
     ContextCacheInfo,
     ContextCacheWarning,
-    CacheDatabaseUnavailable,
     ContextResponse,
     ContextResult,
     ContextSnippet,
     SkippedFile,
-    clear_context_cache,
-    context_response_to_dict,
-    get_context_cache_info,
-    list_text_context,
-    search_text_context,
 )
+from .cache import clear_context_cache, get_context_cache_info
+from .cache_db import CacheDatabaseUnavailable
+from .query import context_response_to_dict
+from .search import list_text_context, search_text_context
+
 
 __all__ = [
     "ContextCacheInfo",

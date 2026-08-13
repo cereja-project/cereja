@@ -115,3 +115,5 @@ MANIFEST.in
 .ai
 .aiassistant
 AGENTS.md
+.worktrees/
+.superpowers/
