@@ -117,38 +117,32 @@ class ContextCacheTest(unittest.TestCase):
                 )
                 self.assertFalse(Path(f"{cache_path}-shm").exists())
 
-    def test_info_with_wal_uses_private_snapshot_without_storage_mutation(self):
+    def test_info_rejects_legitimate_active_wal_without_storage_mutation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            directory = Path(temp_dir)
-            source_path = directory / "source.sqlite3"
-            cache_path = directory / "context.sqlite3"
-            with ContextCacheDatabase(source_path) as source:
-                source.connection.execute(
+            cache_path = Path(temp_dir) / "context.sqlite3"
+            owner = ContextCacheDatabase(cache_path)
+            owner.__enter__()
+            try:
+                owner.connection.execute(
                     "INSERT INTO metadata VALUES ('marker', 'value')"
                 )
-                source.connection.commit()
-                cache_path.write_bytes(source_path.read_bytes())
-                cache_wal = Path(f"{cache_path}-wal")
-                cache_wal.write_bytes(
-                    Path(f"{source_path}-wal").read_bytes()
-                )
-            if os.name != "nt":
-                cache_path.chmod(0o600)
-                cache_wal.chmod(0o600)
-            before = {
-                item.name: item.read_bytes()
-                for item in directory.iterdir()
-                if item.name.startswith(cache_path.name)
-            }
+                owner.connection.commit()
+                before = {
+                    item.name: item.read_bytes()
+                    for item in cache_path.parent.iterdir()
+                    if item.name.startswith(cache_path.name)
+                }
 
-            info = ContextCacheDatabase.read_info(cache_path)
+                with self.assertRaises(CacheDatabaseUnavailable):
+                    ContextCacheDatabase.read_info(cache_path)
 
-            after = {
-                item.name: item.read_bytes()
-                for item in directory.iterdir()
-                if item.name.startswith(cache_path.name)
-            }
-            self.assertEqual(info.wal_bytes, len(before[cache_wal.name]))
+                after = {
+                    item.name: item.read_bytes()
+                    for item in cache_path.parent.iterdir()
+                    if item.name.startswith(cache_path.name)
+                }
+            finally:
+                owner.__exit__(None, None, None)
             self.assertEqual(after, before)
 
     def test_clear_returns_physical_size_report(self):
@@ -186,6 +180,29 @@ class ContextCacheTest(unittest.TestCase):
                 system_module.ContextCacheClearReport(0, 0, 0, 0, 0),
             )
             self.assertFalse(cache_path.exists())
+
+    def test_info_and_clear_reject_orphan_sqlite_sidecars(self):
+        for suffix in ("-wal", "-shm", "-journal"):
+            with self.subTest(suffix=suffix), \
+                 tempfile.TemporaryDirectory() as temp_dir:
+                cache_path = Path(temp_dir) / "context.sqlite3"
+                sidecar = Path(f"{cache_path}{suffix}")
+                sidecar.write_bytes(b"orphan cache sentinel")
+                if os.name != "nt":
+                    sidecar.chmod(0o600)
+                before = sidecar.read_bytes()
+
+                with patch(
+                    "cereja.system._context.cache.default_cache_path",
+                    return_value=cache_path,
+                ):
+                    with self.assertRaises(CacheDatabaseUnavailable):
+                        system_module.get_context_cache_info()
+                    with self.assertRaises(CacheDatabaseUnavailable):
+                        system_module.clear_context_cache()
+
+                self.assertFalse(cache_path.exists())
+                self.assertEqual(sidecar.read_bytes(), before)
 
     def test_clear_removes_only_default_namespace_associations(self):
         self.assertTrue(hasattr(system_module, "clear_context_cache"))
@@ -337,6 +354,74 @@ class ContextCacheTest(unittest.TestCase):
                     0,
                 )
 
+    def test_clear_succeeds_when_post_commit_maintenance_has_io_error(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "needle", cache=True)
+                with patch.object(
+                    ContextCacheDatabase,
+                    "_checkpoint_wal",
+                    side_effect=sqlite3.OperationalError("disk I/O error"),
+                ):
+                    report = system_module.clear_context_cache()
+
+            self.assertEqual(report.associations_removed, 1)
+            self.assertGreater(report.before_bytes, 0)
+            with ContextCacheDatabase(cache_path) as database:
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT COUNT(*) FROM namespace_roots"
+                    ).fetchone()[0],
+                    0,
+                )
+
+    def test_clear_uses_before_size_when_post_commit_measurement_fails(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "needle", cache=True)
+                before_bytes = sum(
+                    path.stat().st_size
+                    for path in (
+                        cache_path,
+                        Path(f"{cache_path}-wal"),
+                        Path(f"{cache_path}-shm"),
+                    )
+                    if path.exists()
+                )
+                with patch.object(
+                    ContextCacheDatabase,
+                    "aggregate_size_bytes",
+                    side_effect=(
+                        before_bytes,
+                        OSError("measurement failed"),
+                    ),
+                ):
+                    report = system_module.clear_context_cache()
+
+            self.assertEqual(report.before_bytes, before_bytes)
+            self.assertEqual(report.after_bytes, before_bytes)
+            with ContextCacheDatabase(cache_path) as database:
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT COUNT(*) FROM namespace_roots"
+                    ).fetchone()[0],
+                    0,
+                )
+
     def test_cold_and_warm_cache_equal_direct_response(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
@@ -433,6 +518,91 @@ class ContextCacheTest(unittest.TestCase):
             self.assertTrue(
                 any(item.category is ContextCacheWarning for item in caught)
             )
+
+    def test_recognized_corruption_warns_and_falls_back_without_mutation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with ContextCacheDatabase(cache_path):
+                pass
+            cache_path.write_bytes(cache_path.read_bytes()[:128])
+            storage_paths = (
+                cache_path,
+                Path(f"{cache_path}-wal"),
+                Path(f"{cache_path}-shm"),
+                Path(f"{cache_path}-journal"),
+            )
+            before = tuple(
+                item.read_bytes() if item.exists() else None
+                for item in storage_paths
+            )
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                response = search_text_context([root], "needle", cache=True)
+
+            self.assertEqual(
+                [item.relative_path for item in response.results], ["guide.md"]
+            )
+            self.assertTrue(
+                any(item.category is ContextCacheWarning for item in caught)
+            )
+            self.assertEqual(tuple(
+                item.read_bytes() if item.exists() else None
+                for item in storage_paths
+            ), before)
+
+    def test_active_sidecars_warn_and_fall_back_without_mutation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            owner = ContextCacheDatabase(cache_path)
+            owner.__enter__()
+            try:
+                owner.connection.execute(
+                    "INSERT INTO metadata VALUES ('marker', 'value')"
+                )
+                owner.connection.commit()
+                storage_paths = (
+                    cache_path,
+                    Path(f"{cache_path}-wal"),
+                    Path(f"{cache_path}-shm"),
+                    Path(f"{cache_path}-journal"),
+                )
+                before = tuple(
+                    item.read_bytes() if item.exists() else None
+                    for item in storage_paths
+                )
+
+                with patch(
+                    "cereja.system._context.cache.default_cache_path",
+                    return_value=cache_path,
+                ), warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    response = search_text_context(
+                        [root], "needle", cache=True
+                    )
+
+                self.assertEqual(
+                    [item.relative_path for item in response.results],
+                    ["guide.md"],
+                )
+                self.assertTrue(any(
+                    item.category is ContextCacheWarning for item in caught
+                ))
+                self.assertEqual(tuple(
+                    item.read_bytes() if item.exists() else None
+                    for item in storage_paths
+                ), before)
+            finally:
+                owner.__exit__(None, None, None)
 
     def test_database_fallback_reuses_materialized_root_generator(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -715,13 +885,18 @@ class ContextCacheTest(unittest.TestCase):
                         "cereja.system._context.cache.DEFAULT_MAX_BYTES",
                         baseline + 1_000_000,
                     ):
-                        for _ in range(8):
-                            response = search_text_context(
-                                [root], "needle", cache=True
+                        with warnings.catch_warnings():
+                            warnings.simplefilter(
+                                "ignore", ContextCacheWarning
                             )
-                            self.assertEqual(
-                                response.results[0].relative_path, "guide.txt"
-                            )
+                            for _ in range(8):
+                                response = search_text_context(
+                                    [root], "needle", cache=True
+                                )
+                                self.assertEqual(
+                                    response.results[0].relative_path,
+                                    "guide.txt",
+                                )
 
                     self.assertEqual(database.aggregate_size_bytes(), baseline)
                     self.assertIsNone(database.connection.execute(

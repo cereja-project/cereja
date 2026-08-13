@@ -37,6 +37,7 @@ def get_context_cache_info() -> ContextCacheInfo:
     """Return metadata for the default cache without exposing cached text."""
     path = default_cache_path()
     if not path.exists() and not ContextCacheDatabase._is_link(path):
+        ContextCacheDatabase(path)._reject_orphan_sidecars()
         return ContextCacheInfo(
             path=path.absolute().as_posix(),
             schema_version=SCHEMA_VERSION,
@@ -57,6 +58,7 @@ def clear_context_cache() -> ContextCacheClearReport:
     """Clear only the default context-cache namespace."""
     path = default_cache_path()
     if not path.exists() and not ContextCacheDatabase._is_link(path):
+        ContextCacheDatabase(path)._reject_orphan_sidecars()
         return ContextCacheClearReport(0, 0, 0, 0, 0)
     try:
         with ContextCacheDatabase(path) as database:
