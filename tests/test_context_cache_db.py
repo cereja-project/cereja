@@ -41,6 +41,8 @@ def _create_legacy_database(path):
         """
     )
     connection.close()
+    if os.name != "nt":
+        path.chmod(0o600)
 
 
 def _storage_snapshot(database):
@@ -1213,6 +1215,7 @@ class ContextCacheDatabaseTest(unittest.TestCase):
              patch.object(Path, "is_symlink", return_value=False):
             self.assertTrue(ContextCacheDatabase._is_link(path))
 
+    @unittest.skipUnless(os.name == "nt", "Windows cache path test")
     def test_windows_default_path_uses_local_app_data(self):
         with patch("cereja.system._context.cache_db.os.name", "nt"), \
              patch.dict(os.environ, {"LOCALAPPDATA": "C:/Users/test/AppData/Local"}):
@@ -1800,6 +1803,8 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 """
             )
             connection.close()
+            if os.name != "nt":
+                path.chmod(0o600)
 
             with ContextCacheDatabase(path) as database:
                 root = database.connection.execute(
@@ -2002,6 +2007,7 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                     pass
             self.assertFalse(path.parent.parent.exists())
 
+    @unittest.skipUnless(os.name == "nt", "Windows cache path test")
     def test_open_creates_only_default_windows_application_directories(self):
         with tempfile.TemporaryDirectory() as temp_dir, \
              patch("cereja.system._context.cache_db.os.name", "nt"), \
@@ -2418,6 +2424,8 @@ class ContextCacheDatabaseTest(unittest.TestCase):
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             connection.execute("PRAGMA journal_mode = WAL")
             connection.close()
+            if os.name != "nt":
+                path.chmod(0o600)
             with self.assertRaisesRegex(CacheDatabaseError, "auto_vacuum"):
                 with ContextCacheDatabase(path):
                     pass
