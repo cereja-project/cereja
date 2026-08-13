@@ -150,7 +150,13 @@ def create_parser() -> argparse.ArgumentParser:
     tree_parser.set_defaults(handler=_handle_tree)
 
     context_parser = subparsers.add_parser(
-        "context", help="Search or list bounded textual context."
+        "context",
+        help="Search or list bounded textual context.",
+        description=(
+            "Search or list bounded textual context. These operations open "
+            "source files read-only; the optional cache does not modify "
+            "searched files."
+        ),
     )
     context_subparsers = context_parser.add_subparsers(
         dest="context_command", required=True
@@ -177,19 +183,22 @@ def create_parser() -> argparse.ArgumentParser:
     context_list_parser.set_defaults(handler=_handle_context_list)
 
     context_cache_parser = context_subparsers.add_parser(
-        "cache", help="Manage the textual context cache."
+        "cache",
+        help="Manage the textual context cache.",
+        description="Inspect or clear the global per-user context cache.",
+        epilog="Example: cereja context cache info --format json",
     )
     context_cache_subparsers = context_cache_parser.add_subparsers(
         dest="context_cache_command", required=True
     )
     context_cache_info_parser = context_cache_subparsers.add_parser(
-        "info", help="Show textual context cache information."
+        "info", help="Show cache metadata and physical sizes."
     )
     _add_context_cache_format_option(context_cache_info_parser)
     context_cache_info_parser.set_defaults(handler=_handle_context_cache_info)
 
     context_cache_clear_parser = context_cache_subparsers.add_parser(
-        "clear", help="Clear the textual context cache."
+        "clear", help="Clear the default context-cache namespace."
     )
     _add_context_cache_format_option(context_cache_clear_parser)
     context_cache_clear_parser.set_defaults(handler=_handle_context_cache_clear)
@@ -305,11 +314,14 @@ def _add_context_common_options(parser: argparse.ArgumentParser) -> None:
         help="Maximum bytes read from each file."
     )
     parser.add_argument(
-        "--cache", action="store_true", help="Use the persistent context cache."
+        "--cache", action="store_true",
+        help="Use and write the global per-user cache."
     )
     parser.add_argument(
         "--refresh-cache", action="store_true",
-        help="Refresh cached file content before querying."
+        help=(
+            "Reprocess the current roots and extensions; requires --cache."
+        )
     )
 
 

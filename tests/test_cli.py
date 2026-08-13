@@ -544,6 +544,41 @@ class CliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("--query", result.stderr)
 
+    def test_context_cache_flags_explain_persistent_writes_and_refresh_scope(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "cereja", "context", "search", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0)
+        help_text = " ".join(result.stdout.split())
+        self.assertIn("global per-user cache", help_text)
+        self.assertIn("requires --cache", help_text)
+        self.assertIn("current roots and extensions", help_text)
+
+    def test_context_cache_help_explains_safety_and_administration(self):
+        context = subprocess.run(
+            [sys.executable, "-m", "cereja", "context", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        cache = subprocess.run(
+            [sys.executable, "-m", "cereja", "context", "cache", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(context.returncode, 0)
+        self.assertEqual(cache.returncode, 0)
+        self.assertIn("does not modify searched files", context.stdout)
+        self.assertIn("cache info --format json", cache.stdout)
+        self.assertIn("metadata and physical sizes", cache.stdout)
+        self.assertIn("default context-cache namespace", cache.stdout)
+
     def test_context_search_forwards_cache_flags(self):
         response = ContextResponse(1, "search", "needle", ("C:/repo",), (), (), False)
         with patch("cereja.cli.search_text_context", return_value=response) as search:
