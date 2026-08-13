@@ -1,6 +1,8 @@
+import multiprocessing
 import os
 import sqlite3
 import tempfile
+import time
 import unittest
 import warnings
 from dataclasses import FrozenInstanceError
@@ -16,6 +18,79 @@ from cereja.system._context.cache_db import (
     ContextCacheDatabase,
 )
 from cereja.system._context.models import ContextCacheWarning
+
+
+def _active_sidecar_snapshot(sidecars, modes=None):
+    """Read active sidecars, using stable metadata for locked Windows SHM."""
+    snapshots = []
+    selected_modes = []
+    for index, sidecar in enumerate(sidecars):
+        mode = None if modes is None else modes[index]
+        if mode != "metadata":
+            try:
+                snapshots.append(("bytes", sidecar.read_bytes()))
+                selected_modes.append("bytes")
+                continue
+            except PermissionError:
+                if (mode == "bytes" or os.name != "nt"
+                        or not sidecar.name.endswith("-shm")):
+                    raise
+        result = sidecar.stat(follow_symlinks=False)
+        snapshots.append((
+            "metadata",
+            result.st_dev,
+            result.st_ino,
+            result.st_size,
+            result.st_mtime_ns,
+        ))
+        selected_modes.append("metadata")
+    return tuple(snapshots), tuple(selected_modes)
+
+
+def _hold_cache_write_transaction(
+        cache_path, ready, observe, release, result_queue):
+    """Hold a real SQLite write transaction until the parent releases it."""
+    try:
+        with ContextCacheDatabase(cache_path) as database:
+            database.connection.execute("BEGIN IMMEDIATE")
+            sidecars = tuple(
+                Path(f"{cache_path}{suffix}")
+                for suffix in ("-wal", "-shm")
+            )
+            if not all(path.exists() for path in sidecars):
+                raise RuntimeError("write transaction did not create WAL/SHM")
+            before, modes = _active_sidecar_snapshot(sidecars)
+            ready.set()
+            if not observe.wait(10):
+                raise TimeoutError("parent did not request sidecar observation")
+            after, _ = _active_sidecar_snapshot(sidecars, modes)
+            result_queue.put(("ok", before, after, modes))
+            if not release.wait(10):
+                raise TimeoutError("parent did not release write transaction")
+            database.connection.rollback()
+    except BaseException as error:
+        ready.set()
+        result_queue.put(("error", repr(error)))
+
+
+def _search_with_cache_in_process(cache_path, root, result_queue):
+    """Run one public cached search in an importable spawned worker."""
+    try:
+        started = time.perf_counter()
+        with patch(
+            "cereja.system._context.cache.default_cache_path",
+            return_value=Path(cache_path),
+        ), warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            response = search_text_context([Path(root)], "needle", cache=True)
+        result_queue.put((
+            "ok",
+            time.perf_counter() - started,
+            tuple(item.category.__name__ for item in caught),
+            response,
+        ))
+    except BaseException as error:
+        result_queue.put(("error", repr(error)))
 
 
 class ContextCacheTest(unittest.TestCase):
@@ -272,6 +347,80 @@ class ContextCacheTest(unittest.TestCase):
             self.assertFalse(any(
                 item.category is ContextCacheWarning for item in caught
             ))
+
+    def test_concurrent_writer_sidecars_force_fast_read_only_fallback(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "guide.txt").write_text("needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            direct = search_text_context([root], "needle")
+            context = multiprocessing.get_context("spawn")
+            ready = context.Event()
+            observe = context.Event()
+            release = context.Event()
+            owner_results = context.Queue()
+            search_results = context.Queue()
+            owner = context.Process(
+                target=_hold_cache_write_transaction,
+                args=(cache_path, ready, observe, release, owner_results),
+            )
+            searcher = context.Process(
+                target=_search_with_cache_in_process,
+                args=(cache_path, root, search_results),
+            )
+
+            owner.start()
+            try:
+                self.assertTrue(ready.wait(10), "writer process did not start")
+                sidecars = tuple(
+                    Path(f"{cache_path}{suffix}")
+                    for suffix in ("-wal", "-shm")
+                )
+                if not all(path.exists() for path in sidecars):
+                    observe.set()
+                    self.fail(owner_results.get(timeout=2))
+
+                searcher_started = time.perf_counter()
+                searcher.start()
+                searcher.join(10)
+                process_elapsed = time.perf_counter() - searcher_started
+                self.assertFalse(
+                    searcher.is_alive(), "cached search process did not finish"
+                )
+                self.assertLess(process_elapsed, 5)
+                result = search_results.get(timeout=2)
+                self.assertEqual(result[0], "ok", result)
+                _, elapsed, warning_categories, response = result
+                self.assertLess(elapsed, 5)
+                self.assertEqual(
+                    warning_categories, (ContextCacheWarning.__name__,)
+                )
+                self.assertEqual(response, direct)
+                observe.set()
+                owner_result = owner_results.get(timeout=2)
+                self.assertEqual(owner_result[0], "ok", owner_result)
+                _, before, after, modes = owner_result
+                self.assertEqual(modes[0], "bytes")
+                if os.name != "nt":
+                    self.assertEqual(modes, ("bytes", "bytes"))
+                self.assertEqual(after, before)
+            finally:
+                observe.set()
+                release.set()
+                if searcher.pid is not None:
+                    if searcher.is_alive():
+                        searcher.terminate()
+                    searcher.join(10)
+                owner.join(10)
+                if owner.is_alive():
+                    owner.terminate()
+                    owner.join(10)
+                owner_results.close()
+                search_results.close()
+
+            self.assertEqual(owner.exitcode, 0)
+            self.assertEqual(searcher.exitcode, 0)
 
     def test_clear_succeeds_when_post_commit_checkpoint_reports_busy(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -751,17 +900,21 @@ class ContextCacheTest(unittest.TestCase):
             ):
                 search_text_context([root], "needle", cache=True)
                 target.unlink()
+                (root / "partial.txt").write_text("needle", encoding="utf-8")
+                original_inventory = cache_module.iter_repository_files
 
                 def failing_inventory(*args, **kwargs):
+                    yield next(iter(original_inventory(*args, **kwargs)))
                     raise OSError("inventory failed")
-                    yield
 
                 with patch(
                     "cereja.system._context.cache.iter_repository_files",
                     side_effect=failing_inventory,
-                ):
+                ), warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
                     with self.assertRaisesRegex(OSError, "inventory failed"):
                         search_text_context([root], "needle", cache=True)
+                self.assertFalse(caught)
 
             with ContextCacheDatabase(cache_path) as database:
                 cached = tuple(database.iter_root_files(
@@ -968,11 +1121,15 @@ class ContextCacheTest(unittest.TestCase):
                     generation,
                 )
 
-    def test_quota_below_unavoidable_overhead_uses_memory_without_mutation(self):
+    def test_active_root_over_quota_stays_searchable_without_admission(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
             root.mkdir()
-            (root / "guide.txt").write_text("needle", encoding="utf-8")
+            for index in range(4):
+                (root / f"{index}.txt").write_text(
+                    f"needle {index} " + "x" * 4_096,
+                    encoding="utf-8",
+                )
             cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
             with ContextCacheDatabase(cache_path):
                 pass
@@ -980,10 +1137,16 @@ class ContextCacheTest(unittest.TestCase):
             with patch(
                 "cereja.system._context.cache.default_cache_path",
                 return_value=cache_path,
-            ), patch("cereja.system._context.cache.DEFAULT_MAX_BYTES", 1):
+            ), patch(
+                "cereja.system._context.cache.DEFAULT_MAX_BYTES", 8 * 1024
+            ):
                 cached = search_text_context([root], "needle", cache=True)
             direct = search_text_context([root], "needle")
             self.assertEqual(cached, direct)
+            self.assertEqual(
+                [result.relative_path for result in cached.results],
+                ["0.txt", "1.txt", "2.txt", "3.txt"],
+            )
 
             with ContextCacheDatabase(cache_path) as database:
                 self.assertEqual(

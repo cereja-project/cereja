@@ -746,13 +746,9 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 rows = list(database.iter_root_files("default", "C:/repo"))
             self.assertEqual([row.relative_path for row in rows], ["a.txt"])
 
-    def test_new_scan_invalidates_older_token_for_the_same_root(self):
+    def test_older_scan_cannot_delete_newer_scan_associations(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
-            old_file = CachedFile(
-                "C:/repo/a.txt", "a.txt", FileSignature(None, None, 1, 10, 11),
-                "text", "old", None,
-            )
             new_file = CachedFile(
                 "C:/repo/a.txt", "a.txt", FileSignature(None, None, 1, 12, 13),
                 "text", "new", None,
@@ -762,7 +758,7 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 new_scan = database.begin_scan("default", "C:/repo")
                 database.commit_scan(new_scan, [new_file])
                 with self.assertRaises(CacheDatabaseError):
-                    database.commit_scan(old_scan, [old_file])
+                    database.commit_scan(old_scan, [])
                 rows = list(database.iter_root_files("default", "C:/repo"))
             self.assertEqual([row.folded_text for row in rows], ["new"])
 
@@ -997,6 +993,49 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                         "default", "C:/protected"
                     )],
                     ["protected.txt"],
+                )
+
+    def test_enforce_quota_skips_protected_root_even_when_it_is_oldest(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                for root, name in (
+                    ("C:/active", "active.txt"),
+                    ("C:/evictable", "evictable.txt"),
+                ):
+                    scan = database.begin_scan("default", root)
+                    database.commit_scan(scan, [CachedFile(
+                        f"{root}/{name}",
+                        name,
+                        FileSignature(None, None, 64_000, 10, 11),
+                        "text",
+                        name * 4_000,
+                        None,
+                    )])
+                database.connection.execute(
+                    "UPDATE roots SET last_access_ns = CASE canonical_path "
+                    "WHEN 'C:/active' THEN 1 ELSE 2 END"
+                )
+                database.connection.commit()
+
+                report = database.enforce_quota(
+                    "C:/active", max_bytes=8 * 1024
+                )
+
+                self.assertEqual(report.associations_removed, 1)
+                self.assertEqual(report.roots_removed, 1)
+                self.assertEqual(report.files_removed, 1)
+                self.assertEqual(
+                    [row[0] for row in database.connection.execute(
+                        "SELECT canonical_path FROM roots"
+                    )],
+                    ["C:/active"],
+                )
+                self.assertEqual(
+                    [row.relative_path for row in database.iter_root_files(
+                        "default", "C:/active"
+                    )],
+                    ["active.txt"],
                 )
 
     def test_enforce_quota_collects_orphans_without_evictable_roots(self):
