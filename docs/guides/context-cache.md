@@ -197,4 +197,3 @@ be misleading.
 The cache is useful for repeated searches over stable or moderately changing
 repositories. Direct mode can be preferable for a one-off search, a very small
 directory, or an environment where persistent per-user storage is unwanted.
-
