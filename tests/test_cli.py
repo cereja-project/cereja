@@ -13,6 +13,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from cereja.cli import main
+from cereja.system import (
+    CacheDatabaseUnavailable,
+    ContextCacheClearReport,
+    ContextCacheInfo,
+    ContextResponse,
+)
 
 
 def compression_stats():
@@ -537,6 +543,83 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("--query", result.stderr)
+
+    def test_context_search_forwards_cache_flags(self):
+        response = ContextResponse(1, "search", "needle", ("C:/repo",), (), (), False)
+        with patch("cereja.cli.search_text_context", return_value=response) as search:
+            self.assertEqual(main([
+                "context", "search", "--root", ".", "--query", "needle",
+                "--cache", "--refresh-cache",
+            ]), 0)
+
+        self.assertTrue(search.call_args.kwargs["cache"])
+        self.assertTrue(search.call_args.kwargs["refresh_cache"])
+
+    def test_context_list_forwards_cache_flags(self):
+        response = ContextResponse(1, "list", None, ("C:/repo",), (), (), False)
+        with patch("cereja.cli.list_text_context", return_value=response) as list_context:
+            self.assertEqual(main([
+                "context", "list", "--root", ".", "--cache", "--refresh-cache",
+            ]), 0)
+
+        self.assertTrue(list_context.call_args.kwargs["cache"])
+        self.assertTrue(list_context.call_args.kwargs["refresh_cache"])
+
+    def test_context_cache_info_emits_json(self):
+        info = ContextCacheInfo(
+            "C:/cache/context.sqlite3", 1, "default", 10, 0, 0, 1, 2, 2, 0, 123
+        )
+        stdout = io.StringIO()
+
+        with patch("cereja.cli.get_context_cache_info", return_value=info), redirect_stdout(stdout):
+            exit_code = main(["context", "cache", "info", "--format", "json"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(json.loads(stdout.getvalue())["schema_version"], 1)
+
+    def test_context_cache_info_emits_text_by_default(self):
+        info = ContextCacheInfo(
+            "C:/cache/context.sqlite3", 1, "default", 10, 0, 0, 1, 2, 2, 0, 123
+        )
+        stdout = io.StringIO()
+
+        with patch("cereja.cli.get_context_cache_info", return_value=info), redirect_stdout(stdout):
+            exit_code = main(["context", "cache", "info"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("path: C:/cache/context.sqlite3", stdout.getvalue())
+
+    def test_context_cache_clear_emits_json(self):
+        report = ContextCacheClearReport(3, 2, 5, 100, 20)
+        stdout = io.StringIO()
+
+        with patch("cereja.cli.clear_context_cache", return_value=report), redirect_stdout(stdout):
+            exit_code = main(["context", "cache", "clear", "--format", "json"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(json.loads(stdout.getvalue())["files_removed"], 5)
+
+    def test_context_cache_clear_emits_text_by_default(self):
+        report = ContextCacheClearReport(3, 2, 5, 100, 20)
+        stdout = io.StringIO()
+
+        with patch("cereja.cli.clear_context_cache", return_value=report), redirect_stdout(stdout):
+            exit_code = main(["context", "cache", "clear"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("files_removed: 5", stdout.getvalue())
+
+    def test_context_cache_clear_reports_lock_failure(self):
+        stderr = io.StringIO()
+
+        with patch(
+            "cereja.cli.clear_context_cache",
+            side_effect=CacheDatabaseUnavailable("locked"),
+        ), redirect_stderr(stderr):
+            exit_code = main(["context", "cache", "clear"])
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("locked", stderr.getvalue())
 
 
 if __name__ == "__main__":

@@ -44,11 +44,14 @@ from cereja.hashtools import (
     is_encrypted_archive,
 )
 from cereja.system import (
+    clear_context_cache,
     context_response_to_dict,
+    get_context_cache_info,
     list_text_context,
     render_repository_tree,
     search_text_context,
 )
+from cereja.system._context.cache_db import CacheDatabaseError
 
 COMPRESSION_STRATEGIES = (
     "auto",
@@ -173,6 +176,24 @@ def create_parser() -> argparse.ArgumentParser:
     _add_context_common_options(context_list_parser)
     context_list_parser.set_defaults(handler=_handle_context_list)
 
+    context_cache_parser = context_subparsers.add_parser(
+        "cache", help="Manage the textual context cache."
+    )
+    context_cache_subparsers = context_cache_parser.add_subparsers(
+        dest="context_cache_command", required=True
+    )
+    context_cache_info_parser = context_cache_subparsers.add_parser(
+        "info", help="Show textual context cache information."
+    )
+    _add_context_cache_format_option(context_cache_info_parser)
+    context_cache_info_parser.set_defaults(handler=_handle_context_cache_info)
+
+    context_cache_clear_parser = context_cache_subparsers.add_parser(
+        "clear", help="Clear the textual context cache."
+    )
+    _add_context_cache_format_option(context_cache_clear_parser)
+    context_cache_clear_parser.set_defaults(handler=_handle_context_cache_clear)
+
     return parser
 
 
@@ -283,6 +304,19 @@ def _add_context_common_options(parser: argparse.ArgumentParser) -> None:
         "--max-file-bytes", type=_positive_int, default=1_048_576,
         help="Maximum bytes read from each file."
     )
+    parser.add_argument(
+        "--cache", action="store_true", help="Use the persistent context cache."
+    )
+    parser.add_argument(
+        "--refresh-cache", action="store_true",
+        help="Refresh cached file content before querying."
+    )
+
+
+def _add_context_cache_format_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", help="Output format."
+    )
 
 
 def _handle_context_search(args: argparse.Namespace) -> int:
@@ -295,8 +329,10 @@ def _handle_context_search(args: argparse.Namespace) -> int:
             max_snippets=args.max_snippets,
             max_snippet_chars=args.max_snippet_chars,
             max_file_bytes=args.max_file_bytes,
+            cache=args.cache,
+            refresh_cache=args.refresh_cache,
         )
-    except ValueError as exc:
+    except (ValueError, CacheDatabaseError) as exc:
         raise CliError(str(exc)) from exc
     _print_context_response(response, args.format)
     return 0
@@ -309,10 +345,30 @@ def _handle_context_list(args: argparse.Namespace) -> int:
             extensions=args.extension,
             max_results=args.max_results,
             max_file_bytes=args.max_file_bytes,
+            cache=args.cache,
+            refresh_cache=args.refresh_cache,
         )
-    except ValueError as exc:
+    except (ValueError, CacheDatabaseError) as exc:
         raise CliError(str(exc)) from exc
     _print_context_response(response, args.format)
+    return 0
+
+
+def _handle_context_cache_info(args: argparse.Namespace) -> int:
+    try:
+        info = get_context_cache_info()
+    except (ValueError, CacheDatabaseError) as exc:
+        raise CliError(str(exc)) from exc
+    _print_context_cache_info(info, args.format)
+    return 0
+
+
+def _handle_context_cache_clear(args: argparse.Namespace) -> int:
+    try:
+        report = clear_context_cache()
+    except (ValueError, CacheDatabaseError) as exc:
+        raise CliError(str(exc)) from exc
+    _print_context_cache_clear_report(report, args.format)
     return 0
 
 
@@ -334,6 +390,50 @@ def _print_context_response(response, output_format: str) -> None:
         print(f"Skipped: {skipped.path} ({skipped.reason})")
     if response.truncated:
         print("Results truncated.")
+
+
+def _print_context_cache_info(info, output_format: str) -> None:
+    payload = _context_cache_info_to_dict(info)
+    if output_format == "json":
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return
+    for key, value in payload.items():
+        print(f"{key}: {value}")
+
+
+def _print_context_cache_clear_report(report, output_format: str) -> None:
+    payload = _context_cache_clear_report_to_dict(report)
+    if output_format == "json":
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return
+    for key, value in payload.items():
+        print(f"{key}: {value}")
+
+
+def _context_cache_info_to_dict(info) -> dict:
+    return {
+        "path": info.path,
+        "schema_version": info.schema_version,
+        "namespace": info.namespace,
+        "database_bytes": info.database_bytes,
+        "wal_bytes": info.wal_bytes,
+        "shm_bytes": info.shm_bytes,
+        "roots": info.roots,
+        "files": info.files,
+        "text_files": info.text_files,
+        "skipped_files": info.skipped_files,
+        "last_access_ns": info.last_access_ns,
+    }
+
+
+def _context_cache_clear_report_to_dict(report) -> dict:
+    return {
+        "associations_removed": report.associations_removed,
+        "roots_removed": report.roots_removed,
+        "files_removed": report.files_removed,
+        "before_bytes": report.before_bytes,
+        "after_bytes": report.after_bytes,
+    }
 
 
 def _print_tree(tree: str) -> None:
