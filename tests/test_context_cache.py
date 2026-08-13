@@ -100,6 +100,41 @@ class ContextCacheTest(unittest.TestCase):
             CacheDatabaseUnavailable,
         )
 
+    def test_cache_path_inside_searched_root_warns_without_creating_cache(self):
+        for cache_relative_path in (
+                Path("context.sqlite3"),
+                Path(".cereja-cache") / "context.sqlite3",
+        ):
+            with self.subTest(cache_relative_path=cache_relative_path), \
+                    tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir) / "repo"
+                nested = root / "nested"
+                nested.mkdir(parents=True)
+                (root / "guide.md").write_text("needle", encoding="utf-8")
+                cache_path = root / cache_relative_path
+                if os.name == "nt":
+                    searched_root = Path(os.fspath(root).swapcase())
+                else:
+                    searched_root = nested / ".."
+
+                direct = search_text_context([searched_root], "needle")
+                with patch(
+                    "cereja.system._context.cache.default_cache_path",
+                    return_value=cache_path,
+                ), warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    cached = search_text_context(
+                        [searched_root], "needle", cache=True
+                    )
+
+                self.assertEqual(cached, direct)
+                self.assertTrue(any(
+                    item.category is ContextCacheWarning for item in caught
+                ))
+                self.assertFalse(cache_path.exists())
+                self.assertFalse(Path(f"{cache_path}-wal").exists())
+                self.assertFalse(Path(f"{cache_path}-shm").exists())
+
     def test_info_reports_metadata_without_content(self):
         self.assertTrue(hasattr(system_module, "get_context_cache_info"))
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -422,7 +457,7 @@ class ContextCacheTest(unittest.TestCase):
             self.assertEqual(owner.exitcode, 0)
             self.assertEqual(searcher.exitcode, 0)
 
-    def test_clear_succeeds_when_post_commit_checkpoint_reports_busy(self):
+    def test_clear_reports_post_commit_checkpoint_busy(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
             root.mkdir()
@@ -438,9 +473,11 @@ class ContextCacheTest(unittest.TestCase):
                     "_checkpoint_wal",
                     return_value=(1, 0, 0),
                 ):
-                    report = system_module.clear_context_cache()
+                    with self.assertRaisesRegex(
+                        CacheDatabaseUnavailable, "clear was committed"
+                    ):
+                        system_module.clear_context_cache()
 
-            self.assertEqual(report.associations_removed, 1)
             with ContextCacheDatabase(cache_path) as database:
                 self.assertEqual(
                     database.connection.execute(
@@ -449,7 +486,7 @@ class ContextCacheTest(unittest.TestCase):
                     0,
                 )
 
-    def test_clear_succeeds_when_post_commit_checkpoint_raises_locked(self):
+    def test_clear_reports_post_commit_checkpoint_lock_failure(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
             root.mkdir()
@@ -465,9 +502,11 @@ class ContextCacheTest(unittest.TestCase):
                     "_checkpoint_wal",
                     side_effect=sqlite3.OperationalError("database is locked"),
                 ):
-                    report = system_module.clear_context_cache()
+                    with self.assertRaisesRegex(
+                        CacheDatabaseUnavailable, "clear was committed"
+                    ):
+                        system_module.clear_context_cache()
 
-            self.assertEqual(report.associations_removed, 1)
             with ContextCacheDatabase(cache_path) as database:
                 self.assertEqual(
                     database.connection.execute(
@@ -476,7 +515,7 @@ class ContextCacheTest(unittest.TestCase):
                     0,
                 )
 
-    def test_clear_succeeds_when_lock_restore_fails_after_commit(self):
+    def test_clear_reports_lock_restore_failure_after_commit(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
             root.mkdir()
@@ -492,9 +531,11 @@ class ContextCacheTest(unittest.TestCase):
                     "_restore_normal_locking",
                     side_effect=sqlite3.OperationalError("restore failed"),
                 ):
-                    report = system_module.clear_context_cache()
+                    with self.assertRaisesRegex(
+                        CacheDatabaseUnavailable, "clear was committed"
+                    ):
+                        system_module.clear_context_cache()
 
-            self.assertEqual(report.associations_removed, 1)
             with ContextCacheDatabase(cache_path) as database:
                 self.assertEqual(
                     database.connection.execute(
@@ -503,7 +544,7 @@ class ContextCacheTest(unittest.TestCase):
                     0,
                 )
 
-    def test_clear_succeeds_when_post_commit_maintenance_has_io_error(self):
+    def test_clear_reports_post_commit_maintenance_io_error(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
             root.mkdir()
@@ -519,10 +560,11 @@ class ContextCacheTest(unittest.TestCase):
                     "_checkpoint_wal",
                     side_effect=sqlite3.OperationalError("disk I/O error"),
                 ):
-                    report = system_module.clear_context_cache()
+                    with self.assertRaisesRegex(
+                        CacheDatabaseUnavailable, "clear was committed"
+                    ):
+                        system_module.clear_context_cache()
 
-            self.assertEqual(report.associations_removed, 1)
-            self.assertGreater(report.before_bytes, 0)
             with ContextCacheDatabase(cache_path) as database:
                 self.assertEqual(
                     database.connection.execute(
@@ -531,7 +573,40 @@ class ContextCacheTest(unittest.TestCase):
                     0,
                 )
 
-    def test_clear_uses_before_size_when_post_commit_measurement_fails(self):
+    def test_clear_reports_post_commit_vacuum_failure(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "needle", cache=True)
+                with patch.object(
+                    ContextCacheDatabase,
+                    "_freelist_pages",
+                    return_value=1,
+                ), patch.object(
+                    ContextCacheDatabase,
+                    "_run_bounded_vacuum",
+                    side_effect=sqlite3.OperationalError("vacuum failed"),
+                ):
+                    with self.assertRaisesRegex(
+                        CacheDatabaseUnavailable, "clear was committed"
+                    ):
+                        system_module.clear_context_cache()
+
+            with ContextCacheDatabase(cache_path) as database:
+                self.assertEqual(
+                    database.connection.execute(
+                        "SELECT COUNT(*) FROM namespace_roots"
+                    ).fetchone()[0],
+                    0,
+                )
+
+    def test_clear_reports_post_commit_measurement_failure(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
             root.mkdir()
@@ -559,10 +634,11 @@ class ContextCacheTest(unittest.TestCase):
                         OSError("measurement failed"),
                     ),
                 ):
-                    report = system_module.clear_context_cache()
+                    with self.assertRaisesRegex(
+                        CacheDatabaseUnavailable, "clear was committed"
+                    ):
+                        system_module.clear_context_cache()
 
-            self.assertEqual(report.before_bytes, before_bytes)
-            self.assertEqual(report.after_bytes, before_bytes)
             with ContextCacheDatabase(cache_path) as database:
                 self.assertEqual(
                     database.connection.execute(
@@ -632,6 +708,34 @@ class ContextCacheTest(unittest.TestCase):
                 [root], "ss", max_snippet_chars=1
             )
             self.assertEqual(cached, direct)
+
+    def test_cached_match_score_and_selection_characterization(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "b-auth.txt").write_text(
+                "AUTH cache\nauth cache", encoding="utf-8"
+            )
+            (root / "A-auth.txt").write_text(
+                "auth cache\nauth cache", encoding="utf-8"
+            )
+            (root / "ignored.txt").write_text("auth only", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                response = search_text_context(
+                    [root], "auth cache", cache=True, max_results=1
+                )
+
+            self.assertEqual(len(response.results), 1)
+            result = response.results[0]
+            self.assertEqual(result.relative_path, "A-auth.txt")
+            self.assertEqual(result.score, 1004)
+            self.assertEqual(result.match_count, 4)
+            self.assertTrue(response.truncated)
 
     def test_file_shared_by_multiple_roots_remains_a_warm_hit(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -957,6 +1061,58 @@ class ContextCacheTest(unittest.TestCase):
                     cache_module._canonical_path(inner),
                 },
             )
+
+    def test_quota_pressure_evicts_old_root_and_protects_active_new_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            old_root = base / "old"
+            new_root = base / "new"
+            old_root.mkdir()
+            new_root.mkdir()
+            (old_root / "old.txt").write_text(
+                "old " + "x" * 2_000_000, encoding="utf-8"
+            )
+            (new_root / "new.txt").write_text("new", encoding="utf-8")
+            cache_path = base / "cache" / "context.sqlite3"
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context(
+                    [old_root], "old", cache=True, max_file_bytes=3_000_000
+                )
+                search_text_context([new_root], "new", cache=True)
+
+                with ContextCacheDatabase(cache_path) as database:
+                    database._checkpoint_wal()
+                    quota = database.aggregate_size_bytes() - 1
+
+                with patch(
+                    "cereja.system._context.cache.DEFAULT_MAX_BYTES", quota
+                ):
+                    response = search_text_context(
+                        [new_root], "new", cache=True
+                    )
+
+            self.assertEqual(response.results[0].relative_path, "new.txt")
+            with ContextCacheDatabase(cache_path) as database:
+                database._checkpoint_wal()
+                roots = [
+                    row[0] for row in database.connection.execute(
+                        "SELECT canonical_path FROM roots ORDER BY canonical_path"
+                    )
+                ]
+                files = [
+                    row[0] for row in database.connection.execute(
+                        "SELECT canonical_path FROM files ORDER BY canonical_path"
+                    )
+                ]
+                aggregate = database.aggregate_size_bytes()
+
+            self.assertEqual(roots, [cache_module._canonical_path(new_root)])
+            self.assertEqual(files, [cache_module._canonical_path(new_root / "new.txt")])
+            self.assertLessEqual(aggregate, quota)
 
     def test_quota_admits_deterministic_prefix_and_keeps_cold_response_complete(self):
         with tempfile.TemporaryDirectory() as temp_dir:

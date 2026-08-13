@@ -868,6 +868,7 @@ class ContextCacheDatabase:
         committed = False
         primary_error = None
         secondary_errors = []
+        post_commit_errors = []
         associations_removed = 0
         roots_removed = 0
         files_removed = 0
@@ -907,8 +908,8 @@ class ContextCacheDatabase:
             committed = True
             try:
                 self._maintain_after_clear()
-            except Exception:
-                pass
+            except Exception as error:
+                post_commit_errors.append(error)
         except BaseException as error:
             primary_error = error
             if connection.in_transaction:
@@ -921,7 +922,9 @@ class ContextCacheDatabase:
             try:
                 self._restore_normal_locking()
             except Exception as error:
-                if not committed:
+                if committed:
+                    post_commit_errors.append(error)
+                else:
                     secondary_errors.append(error)
             if secondary_errors:
                 cleanup_error = secondary_errors[0]
@@ -933,10 +936,8 @@ class ContextCacheDatabase:
                 if primary_error is not None:
                     raise primary_error from cleanup_error
                 raise cleanup_error
-        try:
-            after_bytes = self.aggregate_size_bytes()
-        except Exception:
-            after_bytes = before_bytes
+        after_bytes = self._measure_after_clear(post_commit_errors)
+        self._raise_post_commit_clear_failure(post_commit_errors)
         return ContextCacheClearReport(
             associations_removed=int(associations_removed),
             roots_removed=int(roots_removed),
@@ -945,26 +946,41 @@ class ContextCacheDatabase:
             after_bytes=after_bytes,
         )
 
-    def _maintain_after_clear(self) -> None:
-        """Best-effort physical reclaim after the logical clear committed."""
+    def _measure_after_clear(self, post_commit_errors: list[Exception]) -> int:
         try:
+            return self.aggregate_size_bytes()
+        except Exception as error:
+            post_commit_errors.append(error)
+            return 0
+
+    @staticmethod
+    def _raise_post_commit_clear_failure(errors: list[Exception]) -> None:
+        if not errors:
+            return
+        post_commit_error = errors[0]
+        if len(errors) > 1:
+            post_commit_error = ExceptionGroup(
+                "context cache clear post-commit failures",
+                errors,
+            )
+        raise CacheDatabaseUnavailable(
+            "context cache clear was committed but post-commit maintenance failed"
+        ) from post_commit_error
+
+    def _maintain_after_clear(self) -> None:
+        """Reclaim physical storage after the logical clear committed."""
+        checkpoint = self._checkpoint_wal()
+        if checkpoint[0] != 0:
+            raise CacheDatabaseUnavailable(
+                "context cache checkpoint remained busy after clear"
+            )
+        if self._freelist_pages():
+            self._run_bounded_vacuum()
             checkpoint = self._checkpoint_wal()
-            if checkpoint[0] == 0 and self._freelist_pages():
-                self._run_bounded_vacuum()
-                self._checkpoint_wal()
-        except sqlite3.OperationalError as error:
-            message = str(error).casefold()
-            code = getattr(error, "sqlite_errorcode", None)
-            locked_codes = {
-                value for value in (
-                    getattr(sqlite3, "SQLITE_BUSY", None),
-                    getattr(sqlite3, "SQLITE_LOCKED", None),
-                ) if value is not None
-            }
-            if ((code is None or code & 0xFF not in locked_codes)
-                    and "locked" not in message
-                    and "busy" not in message):
-                raise
+            if checkpoint[0] != 0:
+                raise CacheDatabaseUnavailable(
+                    "context cache checkpoint remained busy after vacuum"
+                )
 
     def begin_scan(self, namespace: str, canonical_root: str) -> ScanToken:
         """Return an immutable in-memory scan token without writing SQLite."""
@@ -1526,22 +1542,31 @@ class ContextCacheDatabase:
             for part in parts:
                 current = current / part
                 if current.exists():
-                    if self._is_link(current) or not current.is_dir():
-                        raise CacheDatabaseError("context cache directory is unsafe")
+                    self._validate_secure_directory(current)
                 else:
                     current.mkdir(mode=0o700)
+                    self._validate_secure_directory(current)
             return current
 
         if self._is_link(directory):
             raise CacheDatabaseError("context cache directory must not be a symlink")
         if directory.exists():
-            if not directory.is_dir():
-                raise CacheDatabaseError("context cache directory must be a directory")
+            self._validate_secure_directory(directory)
         else:
             if not directory.parent.is_dir() or self._is_link(directory.parent):
                 raise CacheDatabaseError("context cache directory parent must already exist")
             directory.mkdir(mode=0o700)
+            self._validate_secure_directory(directory)
         return directory
+
+    def _validate_secure_directory(self, directory: Path) -> None:
+        if self._is_link(directory) or not directory.is_dir():
+            raise CacheDatabaseError("context cache directory is unsafe")
+        if (_uses_posix_permissions()
+                and stat.S_IMODE(directory.stat().st_mode) & 0o077):
+            raise CacheDatabaseError(
+                "context cache directory permissions are unsafe"
+            )
 
     def _prepare_path(
         self,

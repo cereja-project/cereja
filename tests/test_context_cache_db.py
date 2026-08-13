@@ -1955,12 +1955,44 @@ class ContextCacheDatabaseTest(unittest.TestCase):
     def test_open_does_not_chmod_existing_cache_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             directory = Path(temp_dir) / "existing"
-            directory.mkdir()
+            directory.mkdir(mode=0o700)
+            directory.chmod(0o700)
             path = directory / "context.sqlite3"
             with patch("cereja.system._context.cache_db.os.chmod") as chmod:
                 with ContextCacheDatabase(path):
                     pass
-            chmod.assert_not_called()
+            self.assertNotIn(
+                directory,
+                [call.args[0] for call in chmod.call_args_list],
+            )
+
+    @unittest.skipIf(os.name == "nt", "POSIX permissions are not portable on Windows")
+    def test_open_rejects_insecure_preexisting_cache_directory_permissions(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir) / "existing"
+            directory.mkdir(mode=0o777)
+            directory.chmod(0o777)
+            path = directory / "context.sqlite3"
+
+            with self.assertRaisesRegex(CacheDatabaseError, "permissions"):
+                with ContextCacheDatabase(path):
+                    pass
+
+            self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o777)
+            self.assertFalse(path.exists())
+
+    @unittest.skipIf(os.name == "nt", "POSIX permissions are not portable on Windows")
+    def test_open_accepts_secure_preexisting_cache_directory_permissions(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir) / "existing"
+            directory.mkdir(mode=0o700)
+            directory.chmod(0o700)
+            path = directory / "context.sqlite3"
+
+            with ContextCacheDatabase(path):
+                pass
+
+            self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
 
     def test_open_does_not_create_missing_directory_ancestors(self):
         with tempfile.TemporaryDirectory() as temp_dir:

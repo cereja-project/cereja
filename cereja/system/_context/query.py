@@ -8,17 +8,41 @@ def build_search_result(
         terms, max_snippets, max_snippet_chars,
 ):
     """Return (ContextResult | None, snippets_truncated)."""
-    folded_text = text.casefold()
+    result = build_search_candidate(
+        path=path,
+        root=root,
+        relative_path=relative_path,
+        size_bytes=size_bytes,
+        folded_text=text.casefold(),
+        terms=terms,
+    )
+    if result is None:
+        return None, False
+    snippets, snippets_truncated = extract_snippets(
+        text, terms, max_snippets, max_snippet_chars
+    )
+    return ContextResult(
+        path=result.path,
+        root=result.root,
+        relative_path=result.relative_path,
+        size_bytes=result.size_bytes,
+        score=result.score,
+        match_count=result.match_count,
+        snippets=snippets,
+    ), snippets_truncated
+
+
+def build_search_candidate(
+        *, path, root, relative_path, size_bytes, folded_text, terms,
+):
+    """Build a snippet-free result from normalized searchable content."""
     counts = tuple(folded_text.count(term) for term in terms)
     if not all(counts):
-        return None, False
+        return None
     match_count = sum(counts)
     filename = relative_path.rsplit("/", 1)[-1].casefold()
     filename_hits = sum(term in filename for term in terms)
     score = filename_hits * 1000 + match_count
-    snippets, snippets_truncated = extract_snippets(
-        text, terms, max_snippets, max_snippet_chars
-    )
     return ContextResult(
         path=path,
         root=root,
@@ -26,8 +50,8 @@ def build_search_result(
         size_bytes=size_bytes,
         score=score,
         match_count=match_count,
-        snippets=snippets,
-    ), snippets_truncated
+        snippets=(),
+    )
 
 
 def extract_snippets(text, terms, max_snippets, max_snippet_chars):
@@ -53,10 +77,8 @@ def finalize_response(
         max_results, snippets_truncated,
 ):
     """Apply stable ordering, bounds, and response truncation."""
-    if mode == "search":
-        results.sort(key=lambda item: (-item.score, item.path.casefold(), item.path))
-    else:
-        results.sort(key=lambda item: (item.path.casefold(), item.path))
+    results = tuple(results)
+    selected_results = select_context_results(results, mode, max_results)
     sorted_skipped = tuple(
         sorted(skipped, key=lambda item: (item.path.casefold(), item.path))
     )
@@ -67,10 +89,25 @@ def finalize_response(
         mode=mode,
         query=query,
         roots=roots,
-        results=tuple(results[:max_results]),
+        results=selected_results,
         skipped=sorted_skipped[:max_results],
         truncated=results_truncated or skipped_truncated or snippets_truncated,
     )
+
+
+def order_context_results(results, mode):
+    """Return results in the stable order for search or list mode."""
+    key = (
+        (lambda item: (-item.score, item.path.casefold(), item.path))
+        if mode == "search"
+        else (lambda item: (item.path.casefold(), item.path))
+    )
+    return tuple(sorted(results, key=key))
+
+
+def select_context_results(results, mode, max_results):
+    """Return the bounded stable selection for search or list mode."""
+    return order_context_results(results, mode)[:max_results]
 
 
 def context_response_to_dict(response):

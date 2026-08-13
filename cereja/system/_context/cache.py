@@ -23,7 +23,13 @@ from .models import (
     ContextResult,
     SkippedFile,
 )
-from .query import build_search_result, finalize_response
+from .query import (
+    build_search_candidate,
+    build_search_result,
+    finalize_response,
+    order_context_results,
+    select_context_results,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +79,14 @@ def clear_context_cache() -> ContextCacheClearReport:
 
 def _canonical_path(path):
     return os.path.normcase(os.path.realpath(os.fspath(path)))
+
+
+def _path_is_within_root(path, canonical_root):
+    canonical_path = _canonical_path(path)
+    try:
+        return os.path.commonpath((canonical_path, canonical_root)) == canonical_root
+    except ValueError:
+        return False
 
 
 def _file_signature(path):
@@ -141,13 +155,29 @@ def _collect_cached_context(
     root_values = tuple(roots)
     normalized_roots = tuple(_normalized_path(root) for root in root_values)
     canonical_roots = tuple(dict.fromkeys(_canonical_path(root) for root in root_values))
+    cache_path = default_cache_path()
+    if any(
+            _path_is_within_root(cache_path, canonical_root)
+            for canonical_root in canonical_roots
+    ):
+        raise CacheDatabaseUnavailable(
+            "context cache path is inside a searched root"
+        )
 
     # Traversal can fail for invalid roots and must complete before any scan can
     # remove stale associations.
     inventory = tuple(iter_repository_files(root_values, extensions=extensions))
 
     try:
-        with ContextCacheDatabase(default_cache_path()) as database:
+        with ContextCacheDatabase(cache_path) as database:
+            if _database_call(
+                    database.aggregate_size_bytes
+            ) > DEFAULT_MAX_BYTES:
+                _database_call(
+                    database.enforce_quota,
+                    canonical_roots,
+                    DEFAULT_MAX_BYTES,
+                )
             inventory_roots = {root: False for root in canonical_roots}
             for repository_file in inventory:
                 inventory_roots[_canonical_path(repository_file.root.path)] = True
@@ -170,6 +200,11 @@ def _collect_cached_context(
                 refresh_cache,
                 DEFAULT_MAX_BYTES,
                 scan_tokens,
+            )
+            _database_call(
+                database.enforce_quota,
+                canonical_roots,
+                DEFAULT_MAX_BYTES,
             )
             return _query_prepared_files(
                 prepared,
@@ -298,30 +333,22 @@ def _query_prepared_files(
             ))
             continue
 
-        folded_text = cached.folded_text or ""
-        counts = tuple(folded_text.count(term) for term in terms)
-        if not all(counts):
-            continue
-        filename = cached.relative_path.rsplit("/", 1)[-1].casefold()
-        candidates.append(ContextResult(
+        candidate = build_search_candidate(
             path=item.path,
             root=item.root,
             relative_path=cached.relative_path,
             size_bytes=cached.signature.size_bytes,
-            score=sum(term in filename for term in terms) * 1000 + sum(counts),
-            match_count=sum(counts),
-            snippets=(),
-        ))
+            folded_text=cached.folded_text or "",
+            terms=terms,
+        )
+        if candidate is not None:
+            candidates.append(candidate)
 
-    candidates.sort(key=(
-        (lambda result: (-result.score, result.path.casefold(), result.path))
-        if mode == "search"
-        else (lambda result: (result.path.casefold(), result.path))
-    ))
-    selected = candidates[:max_results]
+    ordered_candidates = order_context_results(candidates, mode)
+    selected = select_context_results(candidates, mode, max_results)
     if mode == "search":
         selected, reopen_skips, reopened_truncated = _reopen_winners(
-            candidates,
+            ordered_candidates,
             terms,
             max_snippets,
             max_snippet_chars,
