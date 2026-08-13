@@ -23,6 +23,7 @@ print(path.list_files())
 getting-started
 cli
 guides/files-and-paths
+guides/context-cache
 guides/display-progress
 guides/compression-and-encryption
 guides/text-and-data
