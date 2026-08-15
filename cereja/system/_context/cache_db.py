@@ -22,6 +22,7 @@ SCHEMA_VERSION = 1
 DEFAULT_NAMESPACE = "default"
 DEFAULT_MAX_BYTES = 256 * 1024 * 1024
 BUSY_TIMEOUT_MS = 500
+_BATCH_LOOKUP_CHUNK_SIZE = 900
 
 _SQLITE_HEADER = b"SQLite format 3\x00"
 _SQLITE_PAGE_SIZE_OFFSET = 16
@@ -1346,6 +1347,46 @@ class ContextCacheDatabase:
         if row[7] == "file_too_large" and signature.size_bytes <= max_file_bytes:
             return None
         return _cached_file_from_row(tuple(row[:10]))
+
+    def get_cached_contents(
+        self, canonical_paths: Iterable[str]
+    ) -> dict[str, CachedFile]:
+        """Return cached content for canonical paths without root associations."""
+        paths = tuple(dict.fromkeys(canonical_paths))
+        if not paths:
+            return {}
+
+        cached_by_path: dict[str, CachedFile] = {}
+        timestamp = time.time_ns()
+        updated = False
+        for start in range(0, len(paths), _BATCH_LOOKUP_CHUNK_SIZE):
+            chunk = paths[start:start + _BATCH_LOOKUP_CHUNK_SIZE]
+            placeholders = ", ".join("?" for _ in chunk)
+            rows = self.connection.execute(
+                f"""SELECT canonical_path, '', device, inode, size_bytes,
+                           mtime_ns, ctime_ns, state, folded_text, content_sha256
+                    FROM files
+                    WHERE canonical_path IN ({placeholders})""",
+                chunk,
+            ).fetchall()
+            if not rows:
+                continue
+            cached_by_path.update(
+                (str(row[0]), _cached_file_from_row(tuple(row)))
+                for row in rows
+            )
+            self.connection.execute(
+                f"""UPDATE files SET last_access_ns = ?
+                    WHERE canonical_path IN ({placeholders})""",
+                (timestamp, *chunk),
+            )
+            updated = True
+        if updated:
+            self.connection.commit()
+        return {
+            path: cached_by_path[path]
+            for path in paths if path in cached_by_path
+        }
 
     def aggregate_size_bytes(self) -> int:
         """Return the current byte size of the database and WAL sidecars."""

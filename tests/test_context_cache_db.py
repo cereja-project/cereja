@@ -912,6 +912,105 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                     "C:/repo/sub/a.txt", signature, 100
                 ))
 
+    def test_get_cached_contents_returns_empty_mapping_for_empty_input(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                self.assertEqual(database.get_cached_contents([]), {})
+
+    def test_get_cached_contents_deduplicates_paths_and_returns_cached_states(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached_files = (
+                CachedFile(
+                    "C:/repo/text.txt", "text.txt",
+                    FileSignature(1, 2, 3, 4, 5), "text", "cached text",
+                    "text-digest",
+                ),
+                CachedFile(
+                    "C:/repo/binary.bin", "binary.bin",
+                    FileSignature(6, 7, 8, 9, 10), "binary_file", None,
+                    None,
+                ),
+            )
+            with ContextCacheDatabase(database_path) as database:
+                scan = database.begin_scan("default", "C:/repo")
+                database.commit_scan(scan, cached_files)
+
+                results = database.get_cached_contents((
+                    "C:/repo/binary.bin",
+                    "C:/repo/missing.txt",
+                    "C:/repo/text.txt",
+                    "C:/repo/binary.bin",
+                ))
+
+            self.assertEqual(list(results), [
+                "C:/repo/binary.bin", "C:/repo/text.txt",
+            ])
+            self.assertEqual(results["C:/repo/text.txt"], CachedFile(
+                "C:/repo/text.txt", "", FileSignature(1, 2, 3, 4, 5),
+                "text", "cached text", "text-digest",
+            ))
+            self.assertEqual(results["C:/repo/binary.bin"], CachedFile(
+                "C:/repo/binary.bin", "", FileSignature(6, 7, 8, 9, 10),
+                "binary_file", None, None,
+            ))
+
+    def test_get_cached_contents_chunks_large_input_and_refreshes_access(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            paths = [f"C:/repo/{index}.txt" for index in range(1_001)]
+            cached_files = [CachedFile(
+                path, f"{index}.txt",
+                FileSignature(None, None, index + 1, index + 2, index + 3),
+                "text", str(index), None,
+            ) for index, path in enumerate(paths)]
+            with ContextCacheDatabase(database_path) as database:
+                scan = database.begin_scan("default", "C:/repo")
+                database.commit_scan(scan, cached_files)
+                database.connection.execute(
+                    "UPDATE files SET last_access_ns = 1"
+                )
+                database.connection.commit()
+
+                results = database.get_cached_contents(paths)
+                access_times = database.connection.execute(
+                    "SELECT DISTINCT last_access_ns FROM files"
+                ).fetchall()
+
+            self.assertEqual(list(results), paths)
+            self.assertEqual(len(results), len(paths))
+            self.assertEqual(len(access_times), 1)
+            self.assertGreater(access_times[0][0], 1)
+
+    def test_get_cached_contents_ignores_multiple_root_associations(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached_file = CachedFile(
+                "C:/repo/sub/a.txt", "sub/a.txt",
+                FileSignature(None, None, 1, 10, 11), "text", "a", None,
+            )
+            with ContextCacheDatabase(database_path) as database:
+                parent_scan = database.begin_scan("default", "C:/repo")
+                database.commit_scan(parent_scan, [cached_file])
+                child_scan = database.begin_scan("default", "C:/repo/sub")
+                database.commit_scan(child_scan, [CachedFile(
+                    cached_file.canonical_path, "a.txt", cached_file.signature,
+                    cached_file.state, cached_file.folded_text,
+                    cached_file.content_sha256,
+                )])
+
+                results = database.get_cached_contents([
+                    cached_file.canonical_path,
+                ])
+
+            self.assertEqual(results, {
+                cached_file.canonical_path: CachedFile(
+                    cached_file.canonical_path, "", cached_file.signature,
+                    "text", "a", None,
+                ),
+            })
+
     def test_iter_root_files_refreshes_root_lru_timestamp(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
