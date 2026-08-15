@@ -121,6 +121,15 @@ def _read_cacheable_file(path, signature, max_file_bytes):
     return state, None if text is None else text.casefold(), digest
 
 
+def _cached_file_is_reusable(cached, signature, max_file_bytes):
+    """Return whether cached content satisfies the current file constraints."""
+    if cached is None or cached.signature != signature:
+        return False
+    if signature.size_bytes > max_file_bytes:
+        return cached.state == "file_too_large"
+    return cached.state != "file_too_large"
+
+
 def _read_original_text(path, max_file_bytes):
     with open(path, "rb") as file:
         data = file.read(max_file_bytes + 1)
@@ -236,6 +245,7 @@ def _synchronize_inventory(
     by_root = {root: [] for root in canonical_roots}
     prepared = []
     skipped = []
+    signed_files = []
     for repository_file in inventory:
         path = repository_file.path.path
         normalized_path = _normalized_path(path)
@@ -243,13 +253,41 @@ def _synchronize_inventory(
         canonical_root = _canonical_path(repository_file.root.path)
         try:
             signature = _file_signature(path)
-            cached = None if refresh_cache else _database_call(
-                database.get_cached_content,
-                canonical_path,
-                signature,
-                max_file_bytes,
-            )
-            if cached is None:
+        except PermissionError:
+            skipped.append(SkippedFile(normalized_path, "permission_denied"))
+            continue
+        except FileNotFoundError:
+            skipped.append(SkippedFile(normalized_path, "disappeared"))
+            continue
+        signed_files.append((
+            repository_file,
+            path,
+            normalized_path,
+            canonical_path,
+            canonical_root,
+            signature,
+        ))
+
+    cached_by_path = {}
+    if not refresh_cache and signed_files:
+        cached_by_path = _database_call(
+            database.get_cached_contents,
+            (item[3] for item in signed_files),
+        )
+
+    for (
+            repository_file,
+            path,
+            normalized_path,
+            canonical_path,
+            canonical_root,
+            signature,
+    ) in signed_files:
+        try:
+            cached = cached_by_path.get(canonical_path)
+            if not _cached_file_is_reusable(
+                    cached, signature, max_file_bytes
+            ):
                 state, folded_text, digest = _read_cacheable_file(
                     path, signature, max_file_bytes
                 )
@@ -265,7 +303,7 @@ def _synchronize_inventory(
                 cached = CachedFile(
                     canonical_path=canonical_path,
                     relative_path=repository_file.relative_path,
-                    signature=cached.signature,
+                    signature=signature,
                     state=cached.state,
                     folded_text=cached.folded_text,
                     content_sha256=cached.content_sha256,
