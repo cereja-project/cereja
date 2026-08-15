@@ -55,10 +55,10 @@ def _apply_mutation(root: Path, mutation: str) -> None:
         )
         return
     if mutation == "rename":
-        (root / "file_00000.py").rename(root / "renamed_00000.py")
+        (root / "file_00000.py").rename(root / "changed_00000.py")
         return
     if mutation == "remove":
-        sorted(root.glob("file_*.py"))[-1].unlink()
+        (root / "file_00000.py").unlink()
         return
     raise ValueError(f"unsupported mutation: {mutation}")
 
@@ -81,13 +81,13 @@ def _milliseconds(samples: list[int]) -> tuple[float, float]:
     )
 
 
-def _api_search(root: Path, cache: bool) -> None:
-    search_text_context(
+def _api_search(root: Path, cache: bool):
+    return search_text_context(
         [root], QUERY, extensions=[".py"], max_results=10, cache=cache
     )
 
 
-def _cli_search(root: Path, cache: bool, environment: dict[str, str]) -> None:
+def _cli_search(root: Path, cache: bool, environment: dict[str, str]) -> dict:
     command = [
         sys.executable,
         "-m",
@@ -105,7 +105,7 @@ def _cli_search(root: Path, cache: bool, environment: dict[str, str]) -> None:
     ]
     if cache:
         command.append("--cache")
-    subprocess.run(
+    result = subprocess.run(
         command,
         check=True,
         capture_output=True,
@@ -113,6 +113,7 @@ def _cli_search(root: Path, cache: bool, environment: dict[str, str]) -> None:
         cwd=Path(__file__).resolve().parents[1],
         env=environment,
     )
+    return json.loads(result.stdout)
 
 
 def _result_prefix(name: str, direct: list[int], cached: list[int]) -> dict[str, float]:
@@ -127,6 +128,105 @@ def _result_prefix(name: str, direct: list[int], cached: list[int]) -> dict[str,
     }
 
 
+def _sample_corpus(root: Path, name: str, files: int) -> Path:
+    corpus_root = root / name
+    corpus_root.mkdir()
+    _build_corpus(corpus_root, files)
+    return corpus_root
+
+
+def _cli_environment(root: Path, name: str) -> dict[str, str]:
+    local_app_data = root / name
+    local_app_data.mkdir()
+    environment = os.environ.copy()
+    environment["LOCALAPPDATA"] = str(local_app_data)
+    return environment
+
+
+def _response_entries(response) -> dict[str, tuple[str, ...]]:
+    if isinstance(response, dict):
+        return {
+            result["relative_path"]: tuple(
+                snippet["text"] for snippet in result["snippets"]
+            )
+            for result in response["results"]
+        }
+    return {
+        result.relative_path: tuple(snippet.text for snippet in result.snippets)
+        for result in response.results
+    }
+
+
+def _validate_cached_mutation(response, mutation: str) -> None:
+    entries = _response_entries(response)
+    if mutation == "unchanged" and "file_00000.py" in entries:
+        return
+    if mutation == "create" and "created.py" in entries:
+        return
+    if mutation == "modify" and any(
+            "needle modified" in text for text in entries.get("file_00000.py", ())
+    ):
+        return
+    if mutation == "rename" and (
+            "changed_00000.py" in entries and "file_00000.py" not in entries
+    ):
+        return
+    if mutation == "remove" and "file_00000.py" not in entries:
+        return
+    raise AssertionError(f"cached response did not reflect {mutation} mutation")
+
+
+def _api_direct_sample(root: Path, case: BenchmarkCase, index: int) -> int:
+    corpus_root = _sample_corpus(root, f"api-direct-{index}", case.files)
+    _apply_mutation(corpus_root, case.mutation)
+    return _time_call(lambda: _api_search(corpus_root, cache=False))
+
+
+def _api_cached_sample(root: Path, case: BenchmarkCase, index: int) -> int:
+    corpus_root = _sample_corpus(root, f"api-cached-{index}", case.files)
+    cache_path = root / f"api-cache-{index}.sqlite3"
+    with patch(
+            "cereja.system._context.cache.default_cache_path",
+            return_value=cache_path,
+    ):
+        _api_search(corpus_root, cache=True)
+        _apply_mutation(corpus_root, case.mutation)
+        response = None
+
+        def search():
+            nonlocal response
+            response = _api_search(corpus_root, cache=True)
+
+        elapsed = _time_call(search)
+    _validate_cached_mutation(response, case.mutation)
+    return elapsed
+
+
+def _cli_direct_sample(root: Path, case: BenchmarkCase, index: int) -> int:
+    corpus_root = _sample_corpus(root, f"cli-direct-{index}", case.files)
+    environment = _cli_environment(root, f"cli-direct-cache-{index}")
+    _apply_mutation(corpus_root, case.mutation)
+    return _time_call(
+        lambda: _cli_search(corpus_root, cache=False, environment=environment)
+    )
+
+
+def _cli_cached_sample(root: Path, case: BenchmarkCase, index: int) -> int:
+    corpus_root = _sample_corpus(root, f"cli-cached-{index}", case.files)
+    environment = _cli_environment(root, f"cli-cached-cache-{index}")
+    _cli_search(corpus_root, cache=True, environment=environment)
+    _apply_mutation(corpus_root, case.mutation)
+    response = None
+
+    def search():
+        nonlocal response
+        response = _cli_search(corpus_root, cache=True, environment=environment)
+
+    elapsed = _time_call(search)
+    _validate_cached_mutation(response, case.mutation)
+    return elapsed
+
+
 def run_case(case: BenchmarkCase, iterations: int = 15) -> dict:
     """Run one cache benchmark case in isolated API and CLI environments."""
     if case.files < 1:
@@ -138,47 +238,22 @@ def run_case(case: BenchmarkCase, iterations: int = 15) -> dict:
 
     with TemporaryDirectory() as temporary_directory:
         temporary_root = Path(temporary_directory)
-        corpus_root = temporary_root / "corpus"
-        corpus_root.mkdir()
-        _build_corpus(corpus_root, case.files)
-        api_cache_path = temporary_root / "api-cache" / "context.sqlite3"
-        local_app_data = temporary_root / "cli-local-app-data"
-        local_app_data.mkdir()
-        cli_environment = os.environ.copy()
-        cli_environment["LOCALAPPDATA"] = str(local_app_data)
-
-        with patch(
-                "cereja.system._context.cache.default_cache_path",
-                return_value=api_cache_path,
-        ):
-            _api_search(corpus_root, cache=True)
-            _cli_search(corpus_root, cache=True, environment=cli_environment)
-            _apply_mutation(corpus_root, case.mutation)
-
-            api_direct = [
-                _time_call(lambda: _api_search(corpus_root, cache=False))
-                for _ in range(iterations)
-            ]
-            api_cached = [
-                _time_call(lambda: _api_search(corpus_root, cache=True))
-                for _ in range(iterations)
-            ]
-            cli_direct = [
-                _time_call(
-                    lambda: _cli_search(
-                        corpus_root, cache=False, environment=cli_environment
-                    )
-                )
-                for _ in range(iterations)
-            ]
-            cli_cached = [
-                _time_call(
-                    lambda: _cli_search(
-                        corpus_root, cache=True, environment=cli_environment
-                    )
-                )
-                for _ in range(iterations)
-            ]
+        api_direct = [
+            _api_direct_sample(temporary_root, case, index)
+            for index in range(iterations)
+        ]
+        api_cached = [
+            _api_cached_sample(temporary_root, case, index)
+            for index in range(iterations)
+        ]
+        cli_direct = [
+            _cli_direct_sample(temporary_root, case, index)
+            for index in range(iterations)
+        ]
+        cli_cached = [
+            _cli_cached_sample(temporary_root, case, index)
+            for index in range(iterations)
+        ]
 
     result = {"files": case.files, "mutation": case.mutation}
     result.update(_result_prefix("api", api_direct, api_cached))

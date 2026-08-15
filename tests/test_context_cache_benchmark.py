@@ -59,6 +59,19 @@ class ContextCacheBenchmarkTests(TestCase):
             self.assertEqual(result["files"], 3)
             self.assertEqual(result["mutation"], mutation)
 
+    def test_run_case_rebuilds_mutated_scenario_for_each_sample(self):
+        """Every timed sample must receive a fresh filesystem mutation."""
+        with patch(
+                "benchmarks.context_cache_benchmark._apply_mutation",
+                wraps=_apply_mutation,
+        ) as apply_mutation, patch(
+                "benchmarks.context_cache_benchmark._time_call",
+                side_effect=lambda operation: (operation(), 1_000_000)[1],
+        ):
+            run_case(BenchmarkCase(files=3, mutation="rename"), iterations=2)
+
+        self.assertEqual(apply_mutation.call_count, 8)
+
     def test_apply_mutation_changes_the_expected_corpus_entry(self):
         """Wrong mutation behavior would hide cache invalidation regressions."""
         expectations = {
@@ -66,7 +79,7 @@ class ContextCacheBenchmarkTests(TestCase):
             "create": (4, True, True),
             "modify": (3, True, True),
             "rename": (3, False, True),
-            "remove": (2, True, False),
+            "remove": (2, False, True),
         }
         for mutation, (count, first_exists, last_exists) in expectations.items():
             with self.subTest(mutation=mutation), TemporaryDirectory() as temp_dir:
