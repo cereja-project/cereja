@@ -109,16 +109,15 @@ def _sqlite_identifier(value):
 
 
 def _read_cacheable_file(path, signature, max_file_bytes):
-    """Return persistent state, folded text, and digest for one file."""
-    if signature.size_bytes > max_file_bytes:
-        return "file_too_large", None, None
-    with open(path, "rb") as file:
-        data = file.read(max_file_bytes + 1)
-    if len(data) > max_file_bytes:
-        return "file_too_large", None, None
+    """Return a verified signature and persistent content for one file."""
+    signature, data = _read_stable_bytes(
+        path, signature, max_file_bytes
+    )
+    if data is None or len(data) > max_file_bytes:
+        return signature, "file_too_large", None, None
     digest = hashlib.sha256(data).hexdigest()
     state, text = _decode_file_data(data)
-    return state, None if text is None else text.casefold(), digest
+    return signature, state, None if text is None else text.casefold(), digest
 
 
 def _cached_file_is_reusable(cached, signature, max_file_bytes):
@@ -130,12 +129,32 @@ def _cached_file_is_reusable(cached, signature, max_file_bytes):
     return cached.state != "file_too_large"
 
 
-def _read_original_text(path, max_file_bytes):
-    with open(path, "rb") as file:
-        data = file.read(max_file_bytes + 1)
-    if len(data) > max_file_bytes:
-        return "file_too_large", None
-    return _decode_file_data(data)
+def _read_original_text(path, signature, max_file_bytes):
+    """Return a verified signature and decoded original text."""
+    signature, data = _read_stable_bytes(
+        path, signature, max_file_bytes
+    )
+    if data is None or len(data) > max_file_bytes:
+        return signature, "file_too_large", None
+    state, text = _decode_file_data(data)
+    return signature, state, text
+
+
+def _read_stable_bytes(path, signature, max_file_bytes):
+    """Read one signature-consistent file version, retrying once."""
+    for attempt in range(2):
+        if signature.size_bytes > max_file_bytes:
+            data = None
+        else:
+            with open(path, "rb") as file:
+                data = file.read(max_file_bytes + 1)
+        post_read_signature = _file_signature(path)
+        if post_read_signature == signature:
+            return signature, data
+        if attempt:
+            raise FileNotFoundError(path)
+        signature = post_read_signature
+    raise AssertionError("unreachable")
 
 
 def _decode_file_data(data):
@@ -288,7 +307,7 @@ def _synchronize_inventory(
             if not _cached_file_is_reusable(
                     cached, signature, max_file_bytes
             ):
-                state, folded_text, digest = _read_cacheable_file(
+                signature, state, folded_text, digest = _read_cacheable_file(
                     path, signature, max_file_bytes
                 )
                 cached = CachedFile(
@@ -352,6 +371,7 @@ def _query_prepared_files(
         max_file_bytes,
 ):
     candidates = []
+    candidate_signatures = {}
     skipped = list(transient_skips)
     snippets_truncated = False
     for item in prepared:
@@ -381,12 +401,14 @@ def _query_prepared_files(
         )
         if candidate is not None:
             candidates.append(candidate)
+            candidate_signatures[candidate.path] = cached.signature
 
     ordered_candidates = order_context_results(candidates, mode)
     selected = select_context_results(candidates, mode, max_results)
     if mode == "search":
         selected, reopen_skips, reopened_truncated = _reopen_winners(
             ordered_candidates,
+            candidate_signatures,
             terms,
             max_snippets,
             max_snippet_chars,
@@ -411,6 +433,7 @@ def _query_prepared_files(
 
 def _reopen_winners(
         candidates,
+        candidate_signatures,
         terms,
         max_snippets,
         max_snippet_chars,
@@ -424,8 +447,11 @@ def _reopen_winners(
         if len(results) == max_results:
             break
         try:
-            signature = _file_signature(winner.path)
-            state, text = _read_original_text(winner.path, max_file_bytes)
+            signature, state, text = _read_original_text(
+                winner.path,
+                candidate_signatures[winner.path],
+                max_file_bytes,
+            )
             if state != "text":
                 skipped.append(SkippedFile(winner.path, state))
                 continue
