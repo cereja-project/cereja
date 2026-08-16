@@ -1471,6 +1471,48 @@ class ContextCacheTest(unittest.TestCase):
                 )
                 self.assertEqual(refreshed_reads, ["changed.txt", "stable.txt"])
 
+    def test_refresh_republishes_derived_text_when_file_identity_matches(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            target = root / "target.txt"
+            target.write_text("Current Needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            canonical_target = cache_module._canonical_path(target)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "needle", cache=True)
+                with ContextCacheDatabase(cache_path) as database:
+                    database.connection.execute(
+                        "UPDATE files SET folded_text = 'stale derived text' "
+                        "WHERE canonical_path = ?",
+                        (canonical_target,),
+                    )
+                    database.connection.commit()
+
+                refreshed = search_text_context(
+                    [root], "needle", cache=True, refresh_cache=True
+                )
+                with ContextCacheDatabase(cache_path) as database:
+                    stored_text = database.connection.execute(
+                        "SELECT folded_text FROM files WHERE canonical_path = ?",
+                        (canonical_target,),
+                    ).fetchone()[0]
+                warm = search_text_context([root], "needle", cache=True)
+
+            self.assertEqual(
+                [item.relative_path for item in refreshed.results],
+                ["target.txt"],
+            )
+            self.assertEqual(stored_text, "current needle")
+            self.assertEqual(
+                [item.relative_path for item in warm.results],
+                ["target.txt"],
+            )
+
     def test_warm_cache_reprocesses_when_file_limit_crosses_file_size(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"

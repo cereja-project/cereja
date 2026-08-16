@@ -351,7 +351,7 @@ def _synchronize_inventory(
     for canonical_root, cached_files in by_root.items():
         if canonical_root not in scan_tokens:
             continue
-        if fast_path_eligible[canonical_root]:
+        if not refresh_cache and fast_path_eligible[canonical_root]:
             unchanged = _database_call(
                 database.publish_unchanged_scan,
                 scan_tokens[canonical_root],
