@@ -1044,14 +1044,22 @@ class ContextCacheDatabase:
         scan_token: ScanToken,
         files: Iterable[CachedFile],
         max_bytes: int | None = None,
+        max_file_bytes: int | None = None,
     ) -> tuple[CachedFile, ...] | None:
         """Atomically publish the deterministic prefix admitted by quota."""
         if max_bytes is not None and max_bytes < 0:
             raise ValueError("max_bytes must not be negative")
+        if max_file_bytes is not None and max_file_bytes < 0:
+            raise ValueError("max_file_bytes must not be negative")
         if not isinstance(scan_token, ScanToken):
             raise CacheDatabaseError("context cache scan token is invalid")
         namespace = scan_token.namespace
         canonical_root = scan_token.canonical_root
+        scan_marker = scan_token.nonce
+        if max_file_bytes is not None:
+            scan_marker = (
+                f"{scan_token.nonce}|max_file_bytes={max_file_bytes}"
+            )
 
         cached_files = tuple(files)
         connection = self.connection
@@ -1166,7 +1174,7 @@ class ContextCacheDatabase:
                        ON CONFLICT(root_id, file_id) DO UPDATE SET
                            relative_path = excluded.relative_path,
                            last_seen_scan = excluded.last_seen_scan""",
-                    (root_id, file_id, cached_file.relative_path, scan_token.nonce),
+                    (root_id, file_id, cached_file.relative_path, scan_marker),
                 )
                 if (max_bytes is not None
                         and self._projected_aggregate_size() > max_bytes):
@@ -1180,7 +1188,7 @@ class ContextCacheDatabase:
             connection.execute(
                 """DELETE FROM root_files
                    WHERE root_id = ? AND last_seen_scan <> ?""",
-                (root_id, scan_token.nonce),
+                (root_id, scan_marker),
             )
             connection.execute(
                 """UPDATE roots SET
@@ -1223,6 +1231,151 @@ class ContextCacheDatabase:
                     raise primary_error from cleanup_error
                 raise cleanup_error
         return tuple(admitted)
+
+    def publish_unchanged_scan(
+        self,
+        scan_token: ScanToken,
+        files: Iterable[CachedFile],
+        max_bytes: int,
+        max_file_bytes: int,
+    ) -> bool:
+        """Publish metadata only when the root snapshot is exactly unchanged."""
+        if max_bytes < 0:
+            raise ValueError("max_bytes must not be negative")
+        if max_file_bytes < 0:
+            raise ValueError("max_file_bytes must not be negative")
+        if not isinstance(scan_token, ScanToken):
+            raise CacheDatabaseError("context cache scan token is invalid")
+
+        cached_files = tuple(files)
+        connection = self.connection
+        if (self.aggregate_size_bytes() >= max_bytes
+                or self._projected_aggregate_size() > max_bytes):
+            return False
+
+        primary_error = None
+        secondary_errors = []
+        try:
+            connection.execute("PRAGMA locking_mode = EXCLUSIVE")
+            connection.execute("PRAGMA cache_spill = OFF")
+            try:
+                connection.execute("BEGIN EXCLUSIVE")
+            except sqlite3.OperationalError as error:
+                if "locked" in str(error).casefold():
+                    return False
+                raise
+            if (self.aggregate_size_bytes() >= max_bytes
+                    or self._projected_aggregate_size() > max_bytes):
+                connection.rollback()
+                return False
+
+            current_root = connection.execute(
+                """SELECT id, scan_started_ns FROM roots
+                   WHERE canonical_path = ?""",
+                (scan_token.canonical_root,),
+            ).fetchone()
+            if current_root is None:
+                connection.rollback()
+                return False
+            if int(current_root[1]) >= scan_token.started_ns:
+                raise CacheDatabaseError("context cache scan token is stale")
+
+            namespace_row = connection.execute(
+                """SELECT n.id FROM namespace_roots AS nr
+                   JOIN namespaces AS n ON n.id = nr.namespace_id
+                   WHERE n.name = ? AND nr.root_id = ?""",
+                (scan_token.namespace, current_root[0]),
+            ).fetchone()
+            if namespace_row is None:
+                connection.rollback()
+                return False
+
+            rows = connection.execute(
+                """SELECT f.canonical_path, rf.relative_path,
+                          f.device, f.inode, f.size_bytes,
+                          f.mtime_ns, f.ctime_ns, f.state,
+                          f.content_sha256, rf.last_seen_scan
+                   FROM root_files AS rf
+                   JOIN files AS f ON f.id = rf.file_id
+                   WHERE rf.root_id = ?
+                   ORDER BY f.canonical_path, rf.relative_path""",
+                (current_root[0],),
+            ).fetchall()
+            limit_marker = f"|max_file_bytes={max_file_bytes}"
+            if not rows or any(
+                    not str(row[9]).endswith(limit_marker) for row in rows):
+                connection.rollback()
+                return False
+            cached_snapshot = tuple(sorted((
+                (
+                    item.canonical_path,
+                    item.relative_path,
+                    item.signature.device,
+                    item.signature.inode,
+                    item.signature.size_bytes,
+                    item.signature.mtime_ns,
+                    item.signature.ctime_ns,
+                    item.state,
+                    item.content_sha256,
+                ) for item in cached_files
+            ), key=lambda item: (item[0], item[1])))
+            published_snapshot = tuple(sorted(
+                (tuple(row[:9]) for row in rows),
+                key=lambda item: (item[0], item[1]),
+            ))
+            if cached_snapshot != published_snapshot:
+                connection.rollback()
+                return False
+
+            timestamp = time.time_ns()
+            connection.execute(
+                "UPDATE namespaces SET last_access_ns = ? WHERE id = ?",
+                (timestamp, namespace_row[0]),
+            )
+            connection.execute(
+                """UPDATE roots SET
+                       scan_generation = scan_generation + 1,
+                       scan_started_ns = ?, scan_nonce = ?, last_access_ns = ?
+                   WHERE id = ?""",
+                (
+                    scan_token.started_ns,
+                    scan_token.nonce,
+                    timestamp,
+                    current_root[0],
+                ),
+            )
+            if self._projected_aggregate_size() > max_bytes:
+                connection.rollback()
+                return False
+            connection.commit()
+        except BaseException as error:
+            primary_error = error
+            if connection.in_transaction:
+                try:
+                    connection.rollback()
+                except BaseException as rollback_error:
+                    secondary_errors.append(rollback_error)
+            raise
+        finally:
+            try:
+                connection.execute("PRAGMA cache_spill = ON")
+            except BaseException as error:
+                secondary_errors.append(error)
+            try:
+                self._restore_normal_locking()
+            except BaseException as error:
+                secondary_errors.append(error)
+            if secondary_errors:
+                cleanup_error = secondary_errors[0]
+                if len(secondary_errors) > 1:
+                    cleanup_error = BaseExceptionGroup(
+                        "context cache transaction cleanup failed",
+                        secondary_errors,
+                    )
+                if primary_error is not None:
+                    raise primary_error from cleanup_error
+                raise cleanup_error
+        return True
 
     def _restore_normal_locking(self) -> None:
         """Restore normal locking and force release on the next file access."""

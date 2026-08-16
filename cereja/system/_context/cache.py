@@ -262,6 +262,7 @@ def _synchronize_inventory(
         scan_tokens,
 ):
     by_root = {root: [] for root in canonical_roots}
+    fast_path_eligible = {root: True for root in canonical_roots}
     prepared = []
     skipped = []
     signed_files = []
@@ -273,9 +274,11 @@ def _synchronize_inventory(
         try:
             signature = _file_signature(path)
         except PermissionError:
+            fast_path_eligible[canonical_root] = False
             skipped.append(SkippedFile(normalized_path, "permission_denied"))
             continue
         except FileNotFoundError:
+            fast_path_eligible[canonical_root] = False
             skipped.append(SkippedFile(normalized_path, "disappeared"))
             continue
         signed_files.append((
@@ -328,9 +331,11 @@ def _synchronize_inventory(
                     content_sha256=cached.content_sha256,
                 )
         except PermissionError:
+            fast_path_eligible[canonical_root] = False
             skipped.append(SkippedFile(normalized_path, "permission_denied"))
             continue
         except FileNotFoundError:
+            fast_path_eligible[canonical_root] = False
             skipped.append(SkippedFile(normalized_path, "disappeared"))
             continue
 
@@ -346,11 +351,22 @@ def _synchronize_inventory(
     for canonical_root, cached_files in by_root.items():
         if canonical_root not in scan_tokens:
             continue
+        if fast_path_eligible[canonical_root]:
+            unchanged = _database_call(
+                database.publish_unchanged_scan,
+                scan_tokens[canonical_root],
+                cached_files,
+                max_bytes=max_cache_bytes,
+                max_file_bytes=max_file_bytes,
+            )
+            if unchanged:
+                continue
         admitted = _database_call(
             database.commit_scan,
             scan_tokens[canonical_root],
             cached_files,
             max_bytes=max_cache_bytes,
+            max_file_bytes=max_file_bytes,
         )
         if admitted is None:
             break
