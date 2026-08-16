@@ -968,6 +968,52 @@ class ContextCacheTest(unittest.TestCase):
             self.assertEqual(set(batched_lookups[0]), expected_paths)
             self.assertEqual(individual_lookups, [])
 
+    def test_cached_search_canonicalizes_each_file_and_root_once(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            outer = Path(temp_dir) / "repo"
+            inner = outer / "nested"
+            inner.mkdir(parents=True)
+            outer_file = outer / "outer.txt"
+            inner_file = inner / "inner.txt"
+            outer_file.write_text("cached", encoding="utf-8")
+            inner_file.write_text("cached", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_realpath = os.path.realpath
+            canonicalized = []
+
+            def record_realpath(path, *args, **kwargs):
+                canonicalized.append(os.fspath(path))
+                return original_realpath(path, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([outer, inner], "missing", cache=True)
+                with patch(
+                    "cereja.system._context.cache.os.path.realpath",
+                    side_effect=record_realpath,
+                ):
+                    search_text_context(
+                        [outer, inner], "missing", cache=True
+                    )
+
+            normalized_calls = [
+                os.path.normcase(os.path.abspath(path))
+                for path in canonicalized
+            ]
+            expected_once = [
+                os.path.normcase(os.path.abspath(os.fspath(path)))
+                for path in (
+                    outer,
+                    inner,
+                    cache_path,
+                    outer_file,
+                    inner_file,
+                )
+            ]
+            self.assertCountEqual(normalized_calls, expected_once)
+
     def test_unchanged_warm_root_selects_fast_publication_path(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"

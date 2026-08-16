@@ -5,7 +5,9 @@ import os
 import sqlite3
 from dataclasses import dataclass
 
-from cereja.system._repository_files import iter_repository_files
+from cereja.system._repository_files import (
+    _iter_repository_files_with_canonical_paths as iter_repository_files,
+)
 
 from .cache_db import (
     SCHEMA_VERSION,
@@ -37,6 +39,17 @@ class _PreparedFile:
     path: str
     root: str
     cached: CachedFile
+
+
+@dataclass(frozen=True, slots=True)
+class _PreparedInventoryFile:
+    path: str
+    normalized_path: str
+    canonical_path: str
+    normalized_root: str
+    canonical_root: str
+    relative_path: str
+    signature: FileSignature
 
 
 def get_context_cache_info() -> ContextCacheInfo:
@@ -81,8 +94,7 @@ def _canonical_path(path):
     return os.path.normcase(os.path.realpath(os.fspath(path)))
 
 
-def _path_is_within_root(path, canonical_root):
-    canonical_path = _canonical_path(path)
+def _canonical_path_is_within_root(canonical_path, canonical_root):
     try:
         return os.path.commonpath((canonical_path, canonical_root)) == canonical_root
     except ValueError:
@@ -182,10 +194,20 @@ def _collect_cached_context(
     """Collect context using signature-validated persistent file content."""
     root_values = tuple(roots)
     normalized_roots = tuple(_normalized_path(root) for root in root_values)
-    canonical_roots = tuple(dict.fromkeys(_canonical_path(root) for root in root_values))
+    # Canonicalization is bounded by N inventory files + R explicit roots +
+    # one cache path. The inventory iterator supplies each file's value below.
+    canonical_roots_by_key = {}
+    for root in root_values:
+        root_key = _path_key(root)
+        if root_key not in canonical_roots_by_key:
+            canonical_roots_by_key[root_key] = _canonical_path(root)
+    canonical_roots = tuple(dict.fromkeys(canonical_roots_by_key.values()))
     cache_path = default_cache_path()
+    canonical_cache_path = _canonical_path(cache_path)
     if any(
-            _path_is_within_root(cache_path, canonical_root)
+            _canonical_path_is_within_root(
+                canonical_cache_path, canonical_root
+            )
             for canonical_root in canonical_roots
     ):
         raise CacheDatabaseUnavailable(
@@ -194,7 +216,9 @@ def _collect_cached_context(
 
     # Traversal can fail for invalid roots and must complete before any scan can
     # remove stale associations.
-    inventory = tuple(iter_repository_files(root_values, extensions=extensions))
+    inventory = tuple(iter_repository_files(
+        root_values, extensions=extensions
+    ))
 
     try:
         with ContextCacheDatabase(cache_path) as database:
@@ -208,7 +232,11 @@ def _collect_cached_context(
                 )
             inventory_roots = {root: False for root in canonical_roots}
             for repository_file in inventory:
-                inventory_roots[_canonical_path(repository_file.root.path)] = True
+                inventory_roots[
+                    canonical_roots_by_key[
+                        _path_key(repository_file.root.path)
+                    ]
+                ] = True
             roots_to_sync = _database_call(
                 database.roots_requiring_scan,
                 DEFAULT_NAMESPACE,
@@ -224,6 +252,7 @@ def _collect_cached_context(
                 database,
                 inventory,
                 canonical_roots,
+                canonical_roots_by_key,
                 max_file_bytes,
                 refresh_cache,
                 DEFAULT_MAX_BYTES,
@@ -256,6 +285,7 @@ def _synchronize_inventory(
         database,
         inventory,
         canonical_roots,
+        canonical_roots_by_key,
         max_file_bytes,
         refresh_cache,
         max_cache_bytes,
@@ -269,8 +299,10 @@ def _synchronize_inventory(
     for repository_file in inventory:
         path = repository_file.path.path
         normalized_path = _normalized_path(path)
-        canonical_path = _canonical_path(path)
-        canonical_root = _canonical_path(repository_file.root.path)
+        normalized_root = _normalized_path(repository_file.root.path)
+        canonical_root = canonical_roots_by_key[
+            _path_key(repository_file.root.path)
+        ]
         try:
             signature = _file_signature(path)
         except PermissionError:
@@ -281,41 +313,36 @@ def _synchronize_inventory(
             fast_path_eligible[canonical_root] = False
             skipped.append(SkippedFile(normalized_path, "disappeared"))
             continue
-        signed_files.append((
-            repository_file,
-            path,
-            normalized_path,
-            canonical_path,
-            canonical_root,
-            signature,
+        signed_files.append(_PreparedInventoryFile(
+            path=path,
+            normalized_path=normalized_path,
+            canonical_path=repository_file.canonical_path,
+            normalized_root=normalized_root,
+            canonical_root=canonical_root,
+            relative_path=repository_file.relative_path,
+            signature=signature,
         ))
 
     cached_by_path = {}
     if not refresh_cache and signed_files:
         cached_by_path = _database_call(
             database.get_cached_contents,
-            (item[3] for item in signed_files),
+            (item.canonical_path for item in signed_files),
         )
 
-    for (
-            repository_file,
-            path,
-            normalized_path,
-            canonical_path,
-            canonical_root,
-            signature,
-    ) in signed_files:
+    for item in signed_files:
+        signature = item.signature
         try:
-            cached = cached_by_path.get(canonical_path)
+            cached = cached_by_path.get(item.canonical_path)
             if not _cached_file_is_reusable(
                     cached, signature, max_file_bytes
             ):
                 signature, state, folded_text, digest = _read_cacheable_file(
-                    path, signature, max_file_bytes
+                    item.path, signature, max_file_bytes
                 )
                 cached = CachedFile(
-                    canonical_path=canonical_path,
-                    relative_path=repository_file.relative_path,
+                    canonical_path=item.canonical_path,
+                    relative_path=item.relative_path,
                     signature=signature,
                     state=state,
                     folded_text=folded_text,
@@ -323,26 +350,30 @@ def _synchronize_inventory(
                 )
             else:
                 cached = CachedFile(
-                    canonical_path=canonical_path,
-                    relative_path=repository_file.relative_path,
+                    canonical_path=item.canonical_path,
+                    relative_path=item.relative_path,
                     signature=signature,
                     state=cached.state,
                     folded_text=cached.folded_text,
                     content_sha256=cached.content_sha256,
                 )
         except PermissionError:
-            fast_path_eligible[canonical_root] = False
-            skipped.append(SkippedFile(normalized_path, "permission_denied"))
+            fast_path_eligible[item.canonical_root] = False
+            skipped.append(SkippedFile(
+                item.normalized_path, "permission_denied"
+            ))
             continue
         except FileNotFoundError:
-            fast_path_eligible[canonical_root] = False
-            skipped.append(SkippedFile(normalized_path, "disappeared"))
+            fast_path_eligible[item.canonical_root] = False
+            skipped.append(SkippedFile(
+                item.normalized_path, "disappeared"
+            ))
             continue
 
-        by_root[canonical_root].append(cached)
+        by_root[item.canonical_root].append(cached)
         prepared.append(_PreparedFile(
-            path=normalized_path,
-            root=_normalized_path(repository_file.root.path),
+            path=item.normalized_path,
+            root=item.normalized_root,
             cached=cached,
         ))
 
@@ -504,3 +535,7 @@ def _database_call(operation, *args, **kwargs):
 
 def _normalized_path(value):
     return os.path.abspath(os.fspath(value)).replace(os.sep, "/")
+
+
+def _path_key(value):
+    return os.path.normcase(os.path.abspath(os.fspath(value)))

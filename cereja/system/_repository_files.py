@@ -23,6 +23,14 @@ class RepositoryFile:
 
 
 @dataclass(frozen=True, slots=True)
+class _CanonicalRepositoryFile:
+    root: Path
+    path: Path
+    relative_path: str
+    canonical_path: str
+
+
+@dataclass(frozen=True, slots=True)
 class _IgnoreRule:
     pattern: str
     negated: bool
@@ -33,22 +41,40 @@ class _IgnoreRule:
 
 def iter_repository_files(roots, *, extensions=None):
     """Yield filtered files from explicit roots in deterministic order."""
+    for item in _iter_repository_files_with_canonical_paths(
+            roots, extensions=extensions
+    ):
+        yield RepositoryFile(item.root, item.path, item.relative_path)
+
+
+def _iter_repository_files_with_canonical_paths(roots, *, extensions=None):
+    """Yield repository files with one reusable canonical-path resolution."""
     normalized_extensions = _normalize_extensions(extensions)
     seen = set()
+    seen_lexical_paths = set()
     for root_value in roots:
         root = root_value if isinstance(root_value, Path) else Path(root_value)
         _validate_root(root)
         inherited = _ancestor_ignore_rules(root)
         for file_path in _walk_files(root, inherited):
-            canonical = os.path.normcase(os.path.realpath(file_path.path))
-            if canonical in seen:
-                continue
             if normalized_extensions is not None:
                 if file_path.suffix.casefold() not in normalized_extensions:
                     continue
+            lexical_path = os.path.normcase(os.path.abspath(file_path.path))
+            if lexical_path in seen_lexical_paths:
+                continue
+            seen_lexical_paths.add(lexical_path)
+            canonical = os.path.normcase(os.path.realpath(file_path.path))
+            if canonical in seen:
+                continue
             seen.add(canonical)
             relative = NativePath(file_path.path).relative_to(NativePath(root.path)).as_posix()
-            yield RepositoryFile(root=root, path=file_path, relative_path=relative)
+            yield _CanonicalRepositoryFile(
+                root=root,
+                path=file_path,
+                relative_path=relative,
+                canonical_path=canonical,
+            )
 
 
 def _validate_root(root):

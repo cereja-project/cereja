@@ -3,10 +3,22 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from cereja.system import iter_repository_files
+from cereja.system import RepositoryFile, iter_repository_files
 
 
 class RepositoryFilesTest(unittest.TestCase):
+    def test_repository_file_constructor_remains_backward_compatible(self):
+        item = RepositoryFile(
+            root="root",
+            path="path",
+            relative_path="relative.txt",
+        )
+
+        self.assertEqual(
+            (item.root, item.path, item.relative_path),
+            ("root", "path", "relative.txt"),
+        )
+
     def test_is_ordered_and_honors_parent_gitignore(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             repo = Path(temp_dir) / "repo"
