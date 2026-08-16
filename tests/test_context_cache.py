@@ -155,6 +155,45 @@ class ContextCacheTest(unittest.TestCase):
                 self.assertFalse(Path(f"{cache_path}-wal").exists())
                 self.assertFalse(Path(f"{cache_path}-shm").exists())
 
+    def test_cache_containment_uses_traversal_normalized_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            root = base / "repo"
+            root.mkdir()
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            input_root = base / "link" / ".." / "repo"
+            cache_path = root / "context.sqlite3"
+            misleading_root = base / "outside"
+            original_realpath = os.path.realpath
+
+            def simulated_realpath(path, *args, **kwargs):
+                if os.path.normcase(os.fspath(path)) == os.path.normcase(
+                        os.fspath(input_root)
+                ):
+                    return os.fspath(misleading_root)
+                return original_realpath(path, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch(
+                "cereja.system._context.cache.os.path.realpath",
+                side_effect=simulated_realpath,
+            ), warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                response = search_text_context(
+                    [input_root], "needle", cache=True
+                )
+
+            self.assertEqual(
+                [item.relative_path for item in response.results],
+                ["guide.md"],
+            )
+            self.assertTrue(
+                any(item.category is ContextCacheWarning for item in caught)
+            )
+            self.assertFalse(cache_path.exists())
+
     def test_info_reports_metadata_without_content(self):
         self.assertTrue(hasattr(system_module, "get_context_cache_info"))
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1013,6 +1052,58 @@ class ContextCacheTest(unittest.TestCase):
                 )
             ]
             self.assertCountEqual(normalized_calls, expected_once)
+
+    def test_canonical_root_aliases_are_traversed_only_once(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            primary = base / "primary"
+            alias = base / "alias"
+            primary.mkdir()
+            alias.mkdir()
+            primary_file = primary / "shared.txt"
+            alias_file = alias / "shared.txt"
+            primary_file.write_text("cached", encoding="utf-8")
+            alias_file.write_text("cached", encoding="utf-8")
+            cache_path = base / "cache" / "context.sqlite3"
+            original_realpath = os.path.realpath
+            primary_key = os.path.normcase(os.path.abspath(primary))
+            alias_key = os.path.normcase(os.path.abspath(alias))
+            canonicalized = []
+
+            def simulated_realpath(path, *args, **kwargs):
+                lexical = os.path.normcase(
+                    os.path.abspath(os.fspath(path))
+                )
+                canonicalized.append(lexical)
+                if lexical == alias_key:
+                    return original_realpath(primary, *args, **kwargs)
+                if lexical.startswith(alias_key + os.sep):
+                    relative = os.path.relpath(lexical, alias_key)
+                    return original_realpath(
+                        primary / relative, *args, **kwargs
+                    )
+                return original_realpath(path, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch(
+                "cereja.system._context.cache.os.path.realpath",
+                side_effect=simulated_realpath,
+            ):
+                search_text_context(
+                    [primary, alias], "missing", cache=True
+                )
+
+            expected_once = [
+                os.path.normcase(os.path.abspath(os.fspath(path)))
+                for path in (primary, alias, cache_path, primary_file)
+            ]
+            self.assertCountEqual(canonicalized, expected_once)
+            self.assertNotIn(
+                os.path.normcase(os.path.abspath(alias_file)),
+                canonicalized,
+            )
 
     def test_unchanged_warm_root_selects_fast_publication_path(self):
         with tempfile.TemporaryDirectory() as temp_dir:

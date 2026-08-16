@@ -6,7 +6,8 @@ import sqlite3
 from dataclasses import dataclass
 
 from cereja.system._repository_files import (
-    _iter_repository_files_with_canonical_paths as iter_repository_files,
+    _iter_prepared_repository_files as iter_repository_files,
+    _prepare_repository_roots,
 )
 
 from .cache_db import (
@@ -194,14 +195,13 @@ def _collect_cached_context(
     """Collect context using signature-validated persistent file content."""
     root_values = tuple(roots)
     normalized_roots = tuple(_normalized_path(root) for root in root_values)
-    # Canonicalization is bounded by N inventory files + R explicit roots +
-    # one cache path. The inventory iterator supplies each file's value below.
-    canonical_roots_by_key = {}
-    for root in root_values:
-        root_key = _path_key(root)
-        if root_key not in canonical_roots_by_key:
-            canonical_roots_by_key[root_key] = _canonical_path(root)
-    canonical_roots = tuple(dict.fromkeys(canonical_roots_by_key.values()))
+    # Canonicalization is bounded by N final inventory files + R distinct
+    # normalized explicit-root inputs + one cache path. Canonical root aliases
+    # are removed before traversal, which supplies each file/root value below.
+    prepared_roots = _prepare_repository_roots(root_values)
+    canonical_roots = tuple(
+        item.canonical_path for item in prepared_roots
+    )
     cache_path = default_cache_path()
     canonical_cache_path = _canonical_path(cache_path)
     if any(
@@ -217,7 +217,7 @@ def _collect_cached_context(
     # Traversal can fail for invalid roots and must complete before any scan can
     # remove stale associations.
     inventory = tuple(iter_repository_files(
-        root_values, extensions=extensions
+        prepared_roots, extensions=extensions
     ))
 
     try:
@@ -232,11 +232,7 @@ def _collect_cached_context(
                 )
             inventory_roots = {root: False for root in canonical_roots}
             for repository_file in inventory:
-                inventory_roots[
-                    canonical_roots_by_key[
-                        _path_key(repository_file.root.path)
-                    ]
-                ] = True
+                inventory_roots[repository_file.canonical_root] = True
             roots_to_sync = _database_call(
                 database.roots_requiring_scan,
                 DEFAULT_NAMESPACE,
@@ -252,7 +248,6 @@ def _collect_cached_context(
                 database,
                 inventory,
                 canonical_roots,
-                canonical_roots_by_key,
                 max_file_bytes,
                 refresh_cache,
                 DEFAULT_MAX_BYTES,
@@ -285,7 +280,6 @@ def _synchronize_inventory(
         database,
         inventory,
         canonical_roots,
-        canonical_roots_by_key,
         max_file_bytes,
         refresh_cache,
         max_cache_bytes,
@@ -300,9 +294,7 @@ def _synchronize_inventory(
         path = repository_file.path.path
         normalized_path = _normalized_path(path)
         normalized_root = _normalized_path(repository_file.root.path)
-        canonical_root = canonical_roots_by_key[
-            _path_key(repository_file.root.path)
-        ]
+        canonical_root = repository_file.canonical_root
         try:
             signature = _file_signature(path)
         except PermissionError:
@@ -535,7 +527,3 @@ def _database_call(operation, *args, **kwargs):
 
 def _normalized_path(value):
     return os.path.abspath(os.fspath(value)).replace(os.sep, "/")
-
-
-def _path_key(value):
-    return os.path.normcase(os.path.abspath(os.fspath(value)))

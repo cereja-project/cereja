@@ -23,11 +23,18 @@ class RepositoryFile:
 
 
 @dataclass(frozen=True, slots=True)
+class _CanonicalRepositoryRoot:
+    root: Path
+    canonical_path: str
+
+
+@dataclass(frozen=True, slots=True)
 class _CanonicalRepositoryFile:
     root: Path
     path: Path
     relative_path: str
     canonical_path: str
+    canonical_root: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,20 +48,40 @@ class _IgnoreRule:
 
 def iter_repository_files(roots, *, extensions=None):
     """Yield filtered files from explicit roots in deterministic order."""
-    for item in _iter_repository_files_with_canonical_paths(
-            roots, extensions=extensions
+    prepared_roots = _prepare_repository_roots(roots)
+    for item in _iter_prepared_repository_files(
+            prepared_roots, extensions=extensions
     ):
         yield RepositoryFile(item.root, item.path, item.relative_path)
 
 
-def _iter_repository_files_with_canonical_paths(roots, *, extensions=None):
+def _prepare_repository_roots(roots):
+    """Validate and canonicalize normalized traversal roots once."""
+    prepared = []
+    seen_lexical = set()
+    seen_canonical = set()
+    for root_value in roots:
+        root = root_value if isinstance(root_value, Path) else Path(root_value)
+        _validate_root(root)
+        lexical = os.path.normcase(os.path.abspath(root.path))
+        if lexical in seen_lexical:
+            continue
+        seen_lexical.add(lexical)
+        canonical = os.path.normcase(os.path.realpath(root.path))
+        if canonical in seen_canonical:
+            continue
+        seen_canonical.add(canonical)
+        prepared.append(_CanonicalRepositoryRoot(root, canonical))
+    return tuple(prepared)
+
+
+def _iter_prepared_repository_files(prepared_roots, *, extensions=None):
     """Yield repository files with one reusable canonical-path resolution."""
     normalized_extensions = _normalize_extensions(extensions)
     seen = set()
     seen_lexical_paths = set()
-    for root_value in roots:
-        root = root_value if isinstance(root_value, Path) else Path(root_value)
-        _validate_root(root)
+    for prepared_root in prepared_roots:
+        root = prepared_root.root
         inherited = _ancestor_ignore_rules(root)
         for file_path in _walk_files(root, inherited):
             if normalized_extensions is not None:
@@ -74,6 +101,7 @@ def _iter_repository_files_with_canonical_paths(roots, *, extensions=None):
                 path=file_path,
                 relative_path=relative,
                 canonical_path=canonical,
+                canonical_root=prepared_root.canonical_path,
             )
 
 
