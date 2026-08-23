@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 import os
 from pathlib import Path as NativePath
+import stat
 
+from cereja.system._directory_entries import iter_directory_entries
 from cereja.system._path import Path
 
 __all__ = ["RepositoryFile", "iter_repository_files"]
@@ -23,6 +25,29 @@ class RepositoryFile:
 
 
 @dataclass(frozen=True, slots=True)
+class _CanonicalRepositoryRoot:
+    root: Path
+    canonical_path: str
+
+
+@dataclass(frozen=True, slots=True)
+class _CanonicalRepositoryFile:
+    root: Path
+    path: Path
+    relative_path: str
+    canonical_path: str
+    canonical_root: str
+
+
+@dataclass(frozen=True, slots=True)
+class _DirectoryEntrySnapshot:
+    name: str
+    path: str
+    is_link: bool
+    is_directory: bool
+
+
+@dataclass(frozen=True, slots=True)
 class _IgnoreRule:
     pattern: str
     negated: bool
@@ -33,22 +58,60 @@ class _IgnoreRule:
 
 def iter_repository_files(roots, *, extensions=None):
     """Yield filtered files from explicit roots in deterministic order."""
-    normalized_extensions = _normalize_extensions(extensions)
-    seen = set()
+    prepared_roots = _prepare_repository_roots(roots)
+    for item in _iter_prepared_repository_files(
+            prepared_roots, extensions=extensions
+    ):
+        yield RepositoryFile(item.root, item.path, item.relative_path)
+
+
+def _prepare_repository_roots(roots):
+    """Validate and canonicalize normalized traversal roots once."""
+    prepared = []
+    seen_lexical = set()
+    seen_canonical = set()
     for root_value in roots:
         root = root_value if isinstance(root_value, Path) else Path(root_value)
         _validate_root(root)
+        lexical = os.path.normcase(os.path.abspath(root.path))
+        if lexical in seen_lexical:
+            continue
+        seen_lexical.add(lexical)
+        canonical = os.path.normcase(os.path.realpath(root.path))
+        if canonical in seen_canonical:
+            continue
+        seen_canonical.add(canonical)
+        prepared.append(_CanonicalRepositoryRoot(root, canonical))
+    return tuple(prepared)
+
+
+def _iter_prepared_repository_files(prepared_roots, *, extensions=None):
+    """Yield repository files with one reusable canonical-path resolution."""
+    normalized_extensions = _normalize_extensions(extensions)
+    seen = set()
+    seen_lexical_paths = set()
+    for prepared_root in prepared_roots:
+        root = prepared_root.root
         inherited = _ancestor_ignore_rules(root)
-        for file_path in _walk_files(root, inherited):
+        for file_path in _walk_files(
+                root, inherited, normalized_extensions
+        ):
+            lexical_path = os.path.normcase(os.path.abspath(file_path.path))
+            if lexical_path in seen_lexical_paths:
+                continue
+            seen_lexical_paths.add(lexical_path)
             canonical = os.path.normcase(os.path.realpath(file_path.path))
             if canonical in seen:
                 continue
-            if normalized_extensions is not None:
-                if file_path.suffix.casefold() not in normalized_extensions:
-                    continue
             seen.add(canonical)
             relative = NativePath(file_path.path).relative_to(NativePath(root.path)).as_posix()
-            yield RepositoryFile(root=root, path=file_path, relative_path=relative)
+            yield _CanonicalRepositoryFile(
+                root=root,
+                path=file_path,
+                relative_path=relative,
+                canonical_path=canonical,
+                canonical_root=prepared_root.canonical_path,
+            )
 
 
 def _validate_root(root):
@@ -90,27 +153,63 @@ def _ancestor_ignore_rules(root):
     return rules
 
 
-def _walk_files(root, inherited_rules):
+def _walk_files(root, inherited_rules, normalized_extensions=None):
     found = []
 
     def visit(directory, rules):
         active_rules = rules + _load_ignore_rules(directory)
-        entries = directory.list_dir(include_hidden=True, raise_errors=True)
+        entries = []
+        for entry in iter_directory_entries(
+                directory.path,
+                include_hidden=True,
+                raise_errors=True,
+        ):
+            is_link = _directory_entry_is_link(entry)
+            is_directory = (
+                False
+                if is_link
+                else entry.is_dir(follow_symlinks=False)
+            )
+            entries.append(_DirectoryEntrySnapshot(
+                name=entry.name,
+                path=entry.path,
+                is_link=is_link,
+                is_directory=is_directory,
+            ))
         entries.sort(key=lambda entry: (entry.name.casefold(), entry.name))
         for entry in entries:
-            is_directory = entry.is_dir and not entry.is_link
-            if entry.is_link or _is_builtin_ignored(entry, is_directory):
+            if entry.is_link or _is_builtin_ignored(
+                    entry, entry.is_directory
+            ):
                 continue
-            if _is_ignored(entry, is_directory, active_rules):
+            if _is_ignored(entry, entry.is_directory, active_rules):
                 continue
-            if is_directory:
-                visit(entry, active_rules)
+            if entry.is_directory:
+                visit(Path(entry.path), active_rules)
             else:
-                found.append(entry)
+                if normalized_extensions is not None:
+                    suffix = NativePath(entry.name).suffix.casefold()
+                    if suffix not in normalized_extensions:
+                        continue
+                found.append(Path(entry.path))
 
     visit(root, inherited_rules)
     found.sort(key=lambda item: NativePath(item.path).relative_to(NativePath(root.path)).as_posix())
     return found
+
+
+def _directory_entry_is_link(entry):
+    if entry.is_symlink():
+        return True
+    if os.name != "nt":
+        return False
+    attributes = getattr(
+        entry.stat(follow_symlinks=False),
+        "st_file_attributes",
+        0,
+    ) or 0
+    reparse_point = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return bool(attributes & reparse_point)
 
 
 def _load_ignore_rules(directory, root=None):

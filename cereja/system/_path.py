@@ -33,6 +33,7 @@ from typing import List, Union
 from pathlib import Path as Path_
 import glob
 from ..utils.decorators import on_except
+from ._directory_entries import iter_directory_entries
 
 logger = logging.getLogger(__name__)
 
@@ -487,13 +488,24 @@ class Path(os.PathLike):
         if not self.is_dir:
             raise NotADirectoryError(f"check that the path '{self.path}' is correct")
         try:
-            return [
-                self.__class__(p).stem if only_name else self.__class__(p)
-                for p in glob.glob(
+            if search_match == "*" and recursive is False:
+                paths = (
+                    entry.path
+                    for entry in iter_directory_entries(
+                        self.path,
+                        include_hidden=include_hidden,
+                        raise_errors=raise_errors,
+                    )
+                )
+            else:
+                paths = glob.glob(
                     self.join(search_match).path,
                     recursive=recursive,
                     include_hidden=include_hidden,
                 )
+            return [
+                self.__class__(p).stem if only_name else self.__class__(p)
+                for p in paths
             ]
         except PermissionError as err:
             if raise_errors:

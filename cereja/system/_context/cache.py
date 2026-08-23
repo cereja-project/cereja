@@ -5,7 +5,10 @@ import os
 import sqlite3
 from dataclasses import dataclass
 
-from cereja.system._repository_files import iter_repository_files
+from cereja.system._repository_files import (
+    _iter_prepared_repository_files as iter_repository_files,
+    _prepare_repository_roots,
+)
 
 from .cache_db import (
     SCHEMA_VERSION,
@@ -37,6 +40,17 @@ class _PreparedFile:
     path: str
     root: str
     cached: CachedFile
+
+
+@dataclass(frozen=True, slots=True)
+class _PreparedInventoryFile:
+    path: str
+    normalized_path: str
+    canonical_path: str
+    normalized_root: str
+    canonical_root: str
+    relative_path: str
+    signature: FileSignature
 
 
 def get_context_cache_info() -> ContextCacheInfo:
@@ -81,8 +95,7 @@ def _canonical_path(path):
     return os.path.normcase(os.path.realpath(os.fspath(path)))
 
 
-def _path_is_within_root(path, canonical_root):
-    canonical_path = _canonical_path(path)
+def _canonical_path_is_within_root(canonical_path, canonical_root):
     try:
         return os.path.commonpath((canonical_path, canonical_root)) == canonical_root
     except ValueError:
@@ -109,24 +122,52 @@ def _sqlite_identifier(value):
 
 
 def _read_cacheable_file(path, signature, max_file_bytes):
-    """Return persistent state, folded text, and digest for one file."""
-    if signature.size_bytes > max_file_bytes:
-        return "file_too_large", None, None
-    with open(path, "rb") as file:
-        data = file.read(max_file_bytes + 1)
-    if len(data) > max_file_bytes:
-        return "file_too_large", None, None
+    """Return a verified signature and persistent content for one file."""
+    signature, data = _read_stable_bytes(
+        path, signature, max_file_bytes
+    )
+    if data is None or len(data) > max_file_bytes:
+        return signature, "file_too_large", None, None
     digest = hashlib.sha256(data).hexdigest()
     state, text = _decode_file_data(data)
-    return state, None if text is None else text.casefold(), digest
+    return signature, state, None if text is None else text.casefold(), digest
 
 
-def _read_original_text(path, max_file_bytes):
-    with open(path, "rb") as file:
-        data = file.read(max_file_bytes + 1)
-    if len(data) > max_file_bytes:
-        return "file_too_large", None
-    return _decode_file_data(data)
+def _cached_file_is_reusable(cached, signature, max_file_bytes):
+    """Return whether cached content satisfies the current file constraints."""
+    if cached is None or cached.signature != signature:
+        return False
+    if signature.size_bytes > max_file_bytes:
+        return cached.state == "file_too_large"
+    return cached.state != "file_too_large"
+
+
+def _read_original_text(path, signature, max_file_bytes):
+    """Return a verified signature and decoded original text."""
+    signature, data = _read_stable_bytes(
+        path, signature, max_file_bytes
+    )
+    if data is None or len(data) > max_file_bytes:
+        return signature, "file_too_large", None
+    state, text = _decode_file_data(data)
+    return signature, state, text
+
+
+def _read_stable_bytes(path, signature, max_file_bytes):
+    """Read one signature-consistent file version, retrying once."""
+    for attempt in range(2):
+        if signature.size_bytes > max_file_bytes:
+            data = None
+        else:
+            with open(path, "rb") as file:
+                data = file.read(max_file_bytes + 1)
+        post_read_signature = _file_signature(path)
+        if post_read_signature == signature:
+            return signature, data
+        if attempt:
+            raise FileNotFoundError(path)
+        signature = post_read_signature
+    raise AssertionError("unreachable")
 
 
 def _decode_file_data(data):
@@ -154,10 +195,19 @@ def _collect_cached_context(
     """Collect context using signature-validated persistent file content."""
     root_values = tuple(roots)
     normalized_roots = tuple(_normalized_path(root) for root in root_values)
-    canonical_roots = tuple(dict.fromkeys(_canonical_path(root) for root in root_values))
+    # Canonicalization is bounded by N final inventory files + R distinct
+    # normalized explicit-root inputs + one cache path. Canonical root aliases
+    # are removed before traversal, which supplies each file/root value below.
+    prepared_roots = _prepare_repository_roots(root_values)
+    canonical_roots = tuple(
+        item.canonical_path for item in prepared_roots
+    )
     cache_path = default_cache_path()
+    canonical_cache_path = _canonical_path(cache_path)
     if any(
-            _path_is_within_root(cache_path, canonical_root)
+            _canonical_path_is_within_root(
+                canonical_cache_path, canonical_root
+            )
             for canonical_root in canonical_roots
     ):
         raise CacheDatabaseUnavailable(
@@ -166,7 +216,9 @@ def _collect_cached_context(
 
     # Traversal can fail for invalid roots and must complete before any scan can
     # remove stale associations.
-    inventory = tuple(iter_repository_files(root_values, extensions=extensions))
+    inventory = tuple(iter_repository_files(
+        prepared_roots, extensions=extensions
+    ))
 
     try:
         with ContextCacheDatabase(cache_path) as database:
@@ -180,7 +232,7 @@ def _collect_cached_context(
                 )
             inventory_roots = {root: False for root in canonical_roots}
             for repository_file in inventory:
-                inventory_roots[_canonical_path(repository_file.root.path)] = True
+                inventory_roots[repository_file.canonical_root] = True
             roots_to_sync = _database_call(
                 database.roots_requiring_scan,
                 DEFAULT_NAMESPACE,
@@ -234,28 +286,55 @@ def _synchronize_inventory(
         scan_tokens,
 ):
     by_root = {root: [] for root in canonical_roots}
+    fast_path_eligible = {root: True for root in canonical_roots}
     prepared = []
     skipped = []
+    signed_files = []
     for repository_file in inventory:
         path = repository_file.path.path
         normalized_path = _normalized_path(path)
-        canonical_path = _canonical_path(path)
-        canonical_root = _canonical_path(repository_file.root.path)
+        normalized_root = _normalized_path(repository_file.root.path)
+        canonical_root = repository_file.canonical_root
         try:
             signature = _file_signature(path)
-            cached = None if refresh_cache else _database_call(
-                database.get_cached_content,
-                canonical_path,
-                signature,
-                max_file_bytes,
-            )
-            if cached is None:
-                state, folded_text, digest = _read_cacheable_file(
-                    path, signature, max_file_bytes
+        except PermissionError:
+            fast_path_eligible[canonical_root] = False
+            skipped.append(SkippedFile(normalized_path, "permission_denied"))
+            continue
+        except FileNotFoundError:
+            fast_path_eligible[canonical_root] = False
+            skipped.append(SkippedFile(normalized_path, "disappeared"))
+            continue
+        signed_files.append(_PreparedInventoryFile(
+            path=path,
+            normalized_path=normalized_path,
+            canonical_path=repository_file.canonical_path,
+            normalized_root=normalized_root,
+            canonical_root=canonical_root,
+            relative_path=repository_file.relative_path,
+            signature=signature,
+        ))
+
+    cached_by_path = {}
+    if not refresh_cache and signed_files:
+        cached_by_path = _database_call(
+            database.get_cached_contents,
+            (item.canonical_path for item in signed_files),
+        )
+
+    for item in signed_files:
+        signature = item.signature
+        try:
+            cached = cached_by_path.get(item.canonical_path)
+            if not _cached_file_is_reusable(
+                    cached, signature, max_file_bytes
+            ):
+                signature, state, folded_text, digest = _read_cacheable_file(
+                    item.path, signature, max_file_bytes
                 )
                 cached = CachedFile(
-                    canonical_path=canonical_path,
-                    relative_path=repository_file.relative_path,
+                    canonical_path=item.canonical_path,
+                    relative_path=item.relative_path,
                     signature=signature,
                     state=state,
                     folded_text=folded_text,
@@ -263,24 +342,30 @@ def _synchronize_inventory(
                 )
             else:
                 cached = CachedFile(
-                    canonical_path=canonical_path,
-                    relative_path=repository_file.relative_path,
-                    signature=cached.signature,
+                    canonical_path=item.canonical_path,
+                    relative_path=item.relative_path,
+                    signature=signature,
                     state=cached.state,
                     folded_text=cached.folded_text,
                     content_sha256=cached.content_sha256,
                 )
         except PermissionError:
-            skipped.append(SkippedFile(normalized_path, "permission_denied"))
+            fast_path_eligible[item.canonical_root] = False
+            skipped.append(SkippedFile(
+                item.normalized_path, "permission_denied"
+            ))
             continue
         except FileNotFoundError:
-            skipped.append(SkippedFile(normalized_path, "disappeared"))
+            fast_path_eligible[item.canonical_root] = False
+            skipped.append(SkippedFile(
+                item.normalized_path, "disappeared"
+            ))
             continue
 
-        by_root[canonical_root].append(cached)
+        by_root[item.canonical_root].append(cached)
         prepared.append(_PreparedFile(
-            path=normalized_path,
-            root=_normalized_path(repository_file.root.path),
+            path=item.normalized_path,
+            root=item.normalized_root,
             cached=cached,
         ))
 
@@ -289,11 +374,22 @@ def _synchronize_inventory(
     for canonical_root, cached_files in by_root.items():
         if canonical_root not in scan_tokens:
             continue
+        if not refresh_cache and fast_path_eligible[canonical_root]:
+            unchanged = _database_call(
+                database.publish_unchanged_scan,
+                scan_tokens[canonical_root],
+                cached_files,
+                max_bytes=max_cache_bytes,
+                max_file_bytes=max_file_bytes,
+            )
+            if unchanged:
+                continue
         admitted = _database_call(
             database.commit_scan,
             scan_tokens[canonical_root],
             cached_files,
             max_bytes=max_cache_bytes,
+            max_file_bytes=max_file_bytes,
         )
         if admitted is None:
             break
@@ -314,6 +410,7 @@ def _query_prepared_files(
         max_file_bytes,
 ):
     candidates = []
+    candidate_signatures = {}
     skipped = list(transient_skips)
     snippets_truncated = False
     for item in prepared:
@@ -343,12 +440,14 @@ def _query_prepared_files(
         )
         if candidate is not None:
             candidates.append(candidate)
+            candidate_signatures[candidate.path] = cached.signature
 
     ordered_candidates = order_context_results(candidates, mode)
     selected = select_context_results(candidates, mode, max_results)
     if mode == "search":
         selected, reopen_skips, reopened_truncated = _reopen_winners(
             ordered_candidates,
+            candidate_signatures,
             terms,
             max_snippets,
             max_snippet_chars,
@@ -373,6 +472,7 @@ def _query_prepared_files(
 
 def _reopen_winners(
         candidates,
+        candidate_signatures,
         terms,
         max_snippets,
         max_snippet_chars,
@@ -386,8 +486,11 @@ def _reopen_winners(
         if len(results) == max_results:
             break
         try:
-            signature = _file_signature(winner.path)
-            state, text = _read_original_text(winner.path, max_file_bytes)
+            signature, state, text = _read_original_text(
+                winner.path,
+                candidate_signatures[winner.path],
+                max_file_bytes,
+            )
             if state != "text":
                 skipped.append(SkippedFile(winner.path, state))
                 continue

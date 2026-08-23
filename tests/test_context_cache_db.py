@@ -729,6 +729,317 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 [("kept.txt", "kept")],
             )
 
+    def test_publish_unchanged_scan_updates_only_publication_metadata(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached_files = (
+                CachedFile(
+                    "C:/repo/a.txt",
+                    "a.txt",
+                    FileSignature(1, 2, 3, 4, 5),
+                    "text",
+                    "alpha",
+                    "digest-a",
+                ),
+                CachedFile(
+                    "C:/repo/b.bin",
+                    "b.bin",
+                    FileSignature(6, 7, 8, 9, 10),
+                    "binary_file",
+                    None,
+                    "digest-b",
+                ),
+            )
+            with ContextCacheDatabase(database_path) as database:
+                seed = database.begin_scan("default", "C:/repo")
+                database.commit_scan(
+                    seed, cached_files, max_file_bytes=100
+                )
+                token = database.begin_scan("default", "C:/repo")
+                before_files = database.connection.execute(
+                    "SELECT * FROM files ORDER BY canonical_path"
+                ).fetchall()
+                before_associations = database.connection.execute(
+                    "SELECT * FROM root_files ORDER BY file_id"
+                ).fetchall()
+                before_generation = database.connection.execute(
+                    "SELECT scan_generation FROM roots"
+                ).fetchone()[0]
+                statements = []
+                timestamp = token.started_ns + 100
+                original_projection = database._projected_aggregate_size
+                with patch(
+                    "cereja.system._context.cache_db.time.time_ns",
+                    return_value=timestamp,
+                ), patch.object(
+                    database,
+                    "_projected_aggregate_size",
+                    wraps=original_projection,
+                ) as projected:
+                    database.connection.set_trace_callback(statements.append)
+                    unchanged = database.publish_unchanged_scan(
+                        token,
+                        cached_files,
+                        max_bytes=10 ** 9,
+                        max_file_bytes=100,
+                    )
+                    database.connection.set_trace_callback(None)
+
+                metadata = database.connection.execute(
+                    """SELECT n.last_access_ns, r.last_access_ns,
+                              r.scan_generation, r.scan_started_ns, r.scan_nonce
+                       FROM namespaces AS n
+                       JOIN namespace_roots AS nr ON nr.namespace_id = n.id
+                       JOIN roots AS r ON r.id = nr.root_id
+                       WHERE n.name = 'default'
+                         AND r.canonical_path = 'C:/repo'"""
+                ).fetchone()
+                after_files = database.connection.execute(
+                    "SELECT * FROM files ORDER BY canonical_path"
+                ).fetchall()
+                after_associations = database.connection.execute(
+                    "SELECT * FROM root_files ORDER BY file_id"
+                ).fetchall()
+
+                self.assertTrue(unchanged)
+                self.assertEqual(
+                    metadata,
+                    (
+                        timestamp,
+                        timestamp,
+                        before_generation + 1,
+                        token.started_ns,
+                        token.nonce,
+                    ),
+                )
+                self.assertEqual(after_files, before_files)
+                self.assertEqual(after_associations, before_associations)
+                self.assertEqual(projected.call_count, 3)
+                normalized = [" ".join(item.casefold().split()) for item in statements]
+                forbidden = (
+                    "insert into files",
+                    "update files",
+                    "insert into root_files",
+                    "update root_files",
+                    "delete from root_files",
+                    "savepoint",
+                )
+                self.assertFalse(any(
+                    marker in statement
+                    for marker in forbidden
+                    for statement in normalized
+                ))
+                shared = _CachePathLock(database_path)
+                shared.acquire(False, wait=False)
+                shared.release()
+
+    def test_publish_unchanged_scan_rejects_snapshot_mismatches(self):
+        original = CachedFile(
+            "C:/repo/a.txt",
+            "a.txt",
+            FileSignature(1, 2, 3, 4, 5),
+            "text",
+            "alpha",
+            "digest-a",
+        )
+        mismatches = {
+            "canonical path": CachedFile(
+                "C:/repo/b.txt", "a.txt", original.signature,
+                original.state, original.folded_text, original.content_sha256,
+            ),
+            "relative path": CachedFile(
+                original.canonical_path, "renamed.txt", original.signature,
+                original.state, original.folded_text, original.content_sha256,
+            ),
+            "device": CachedFile(
+                original.canonical_path, original.relative_path,
+                FileSignature(9, 2, 3, 4, 5), original.state,
+                original.folded_text, original.content_sha256,
+            ),
+            "inode": CachedFile(
+                original.canonical_path, original.relative_path,
+                FileSignature(1, 9, 3, 4, 5), original.state,
+                original.folded_text, original.content_sha256,
+            ),
+            "size": CachedFile(
+                original.canonical_path, original.relative_path,
+                FileSignature(1, 2, 9, 4, 5), original.state,
+                original.folded_text, original.content_sha256,
+            ),
+            "mtime": CachedFile(
+                original.canonical_path, original.relative_path,
+                FileSignature(1, 2, 3, 9, 5), original.state,
+                original.folded_text, original.content_sha256,
+            ),
+            "ctime": CachedFile(
+                original.canonical_path, original.relative_path,
+                FileSignature(1, 2, 3, 4, 9), original.state,
+                original.folded_text, original.content_sha256,
+            ),
+            "state": CachedFile(
+                original.canonical_path, original.relative_path,
+                original.signature, "invalid_utf8", None,
+                original.content_sha256,
+            ),
+            "digest": CachedFile(
+                original.canonical_path, original.relative_path,
+                original.signature, original.state, original.folded_text,
+                "digest-b",
+            ),
+        }
+        for label, candidate in mismatches.items():
+            with self.subTest(label=label), \
+                    tempfile.TemporaryDirectory() as temp_dir:
+                database_path = Path(temp_dir) / "context.sqlite3"
+                with ContextCacheDatabase(database_path) as database:
+                    seed = database.begin_scan("default", "C:/repo")
+                    database.commit_scan(
+                        seed, [original], max_file_bytes=100
+                    )
+                    token = database.begin_scan("default", "C:/repo")
+                    metadata = database.connection.execute(
+                        "SELECT scan_generation, scan_started_ns, scan_nonce "
+                        "FROM roots"
+                    ).fetchone()
+
+                    self.assertFalse(database.publish_unchanged_scan(
+                        token,
+                        [candidate],
+                        max_bytes=10 ** 9,
+                        max_file_bytes=100,
+                    ))
+
+                    self.assertEqual(database.connection.execute(
+                        "SELECT scan_generation, scan_started_ns, scan_nonce "
+                        "FROM roots"
+                    ).fetchone(), metadata)
+
+    def test_publish_unchanged_scan_rejects_missing_association_and_stale_token(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached_file = CachedFile(
+                "C:/repo/a.txt", "a.txt", FileSignature(1, 2, 3, 4, 5),
+                "text", "alpha", "digest-a",
+            )
+            with ContextCacheDatabase(database_path) as database:
+                seed = database.begin_scan("default", "C:/repo")
+                database.commit_scan(
+                    seed, [cached_file], max_file_bytes=100
+                )
+                fresh = database.begin_scan("default", "C:/repo")
+                database.connection.execute("DELETE FROM namespace_roots")
+                database.connection.commit()
+                self.assertFalse(database.publish_unchanged_scan(
+                    fresh,
+                    [cached_file],
+                    max_bytes=10 ** 9,
+                    max_file_bytes=100,
+                ))
+
+                database.connection.execute(
+                    """INSERT INTO namespace_roots (namespace_id, root_id)
+                       SELECT n.id, r.id FROM namespaces AS n, roots AS r
+                       WHERE n.name = 'default'
+                         AND r.canonical_path = 'C:/repo'"""
+                )
+                database.connection.commit()
+                with self.assertRaises(CacheDatabaseError):
+                    database.publish_unchanged_scan(
+                        seed,
+                        [cached_file],
+                        max_bytes=10 ** 9,
+                        max_file_bytes=100,
+                    )
+
+    def test_publish_unchanged_scan_preserves_quota_and_atomic_rollback(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached_file = CachedFile(
+                "C:/repo/a.txt", "a.txt", FileSignature(1, 2, 3, 4, 5),
+                "text", "alpha", "digest-a",
+            )
+            with ContextCacheDatabase(database_path) as database:
+                seed = database.begin_scan("default", "C:/repo")
+                database.commit_scan(
+                    seed, [cached_file], max_file_bytes=100
+                )
+                refused = database.begin_scan("default", "C:/repo")
+                baseline = database.connection.execute(
+                    """SELECT n.last_access_ns, r.last_access_ns,
+                              r.scan_generation, r.scan_started_ns, r.scan_nonce
+                       FROM namespaces AS n
+                       JOIN namespace_roots AS nr ON nr.namespace_id = n.id
+                       JOIN roots AS r ON r.id = nr.root_id
+                       WHERE n.name = 'default'
+                         AND r.canonical_path = 'C:/repo'"""
+                ).fetchone()
+
+                self.assertFalse(database.publish_unchanged_scan(
+                    refused,
+                    [cached_file],
+                    max_bytes=0,
+                    max_file_bytes=100,
+                ))
+                self.assertEqual(database.connection.execute(
+                    """SELECT n.last_access_ns, r.last_access_ns,
+                              r.scan_generation, r.scan_started_ns, r.scan_nonce
+                       FROM namespaces AS n
+                       JOIN namespace_roots AS nr ON nr.namespace_id = n.id
+                       JOIN roots AS r ON r.id = nr.root_id
+                       WHERE n.name = 'default'
+                         AND r.canonical_path = 'C:/repo'"""
+                ).fetchone(), baseline)
+
+                failed = database.begin_scan("default", "C:/repo")
+                projection = database._projected_aggregate_size()
+                with patch.object(
+                    database,
+                    "_projected_aggregate_size",
+                    side_effect=(projection, projection, RuntimeError("boom")),
+                ), self.assertRaisesRegex(RuntimeError, "boom"):
+                    database.publish_unchanged_scan(
+                        failed,
+                        [cached_file],
+                        max_bytes=10 ** 9,
+                        max_file_bytes=100,
+                    )
+                self.assertEqual(database.connection.execute(
+                    """SELECT n.last_access_ns, r.last_access_ns,
+                              r.scan_generation, r.scan_started_ns, r.scan_nonce
+                       FROM namespaces AS n
+                       JOIN namespace_roots AS nr ON nr.namespace_id = n.id
+                       JOIN roots AS r ON r.id = nr.root_id
+                       WHERE n.name = 'default'
+                         AND r.canonical_path = 'C:/repo'"""
+                ).fetchone(), baseline)
+                self.assertEqual(
+                    database.connection.execute(
+                        "PRAGMA locking_mode"
+                    ).fetchone()[0],
+                    "normal",
+                )
+
+    def test_publish_unchanged_scan_rejects_size_limit_transition(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached_file = CachedFile(
+                "C:/repo/a.txt", "a.txt", FileSignature(1, 2, 3, 4, 5),
+                "text", "alpha", "digest-a",
+            )
+            with ContextCacheDatabase(database_path) as database:
+                seed = database.begin_scan("default", "C:/repo")
+                database.commit_scan(
+                    seed, [cached_file], max_file_bytes=10
+                )
+                token = database.begin_scan("default", "C:/repo")
+
+                self.assertFalse(database.publish_unchanged_scan(
+                    token,
+                    [cached_file],
+                    max_bytes=10 ** 9,
+                    max_file_bytes=20,
+                ))
+
     def test_abandoned_scan_does_not_delete_existing_associations(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "context.sqlite3"
@@ -911,6 +1222,105 @@ class ContextCacheDatabaseTest(unittest.TestCase):
                 self.assertIsNone(database.get_cached_file(
                     "C:/repo/sub/a.txt", signature, 100
                 ))
+
+    def test_get_cached_contents_returns_empty_mapping_for_empty_input(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            with ContextCacheDatabase(database_path) as database:
+                self.assertEqual(database.get_cached_contents([]), {})
+
+    def test_get_cached_contents_deduplicates_paths_and_returns_cached_states(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached_files = (
+                CachedFile(
+                    "C:/repo/text.txt", "text.txt",
+                    FileSignature(1, 2, 3, 4, 5), "text", "cached text",
+                    "text-digest",
+                ),
+                CachedFile(
+                    "C:/repo/binary.bin", "binary.bin",
+                    FileSignature(6, 7, 8, 9, 10), "binary_file", None,
+                    None,
+                ),
+            )
+            with ContextCacheDatabase(database_path) as database:
+                scan = database.begin_scan("default", "C:/repo")
+                database.commit_scan(scan, cached_files)
+
+                results = database.get_cached_contents((
+                    "C:/repo/binary.bin",
+                    "C:/repo/missing.txt",
+                    "C:/repo/text.txt",
+                    "C:/repo/binary.bin",
+                ))
+
+            self.assertEqual(list(results), [
+                "C:/repo/binary.bin", "C:/repo/text.txt",
+            ])
+            self.assertEqual(results["C:/repo/text.txt"], CachedFile(
+                "C:/repo/text.txt", "", FileSignature(1, 2, 3, 4, 5),
+                "text", "cached text", "text-digest",
+            ))
+            self.assertEqual(results["C:/repo/binary.bin"], CachedFile(
+                "C:/repo/binary.bin", "", FileSignature(6, 7, 8, 9, 10),
+                "binary_file", None, None,
+            ))
+
+    def test_get_cached_contents_chunks_large_input_and_refreshes_access(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            paths = [f"C:/repo/{index}.txt" for index in range(1_001)]
+            cached_files = [CachedFile(
+                path, f"{index}.txt",
+                FileSignature(None, None, index + 1, index + 2, index + 3),
+                "text", str(index), None,
+            ) for index, path in enumerate(paths)]
+            with ContextCacheDatabase(database_path) as database:
+                scan = database.begin_scan("default", "C:/repo")
+                database.commit_scan(scan, cached_files)
+                database.connection.execute(
+                    "UPDATE files SET last_access_ns = 1"
+                )
+                database.connection.commit()
+
+                results = database.get_cached_contents(paths)
+                access_times = database.connection.execute(
+                    "SELECT DISTINCT last_access_ns FROM files"
+                ).fetchall()
+
+            self.assertEqual(list(results), paths)
+            self.assertEqual(len(results), len(paths))
+            self.assertEqual(len(access_times), 1)
+            self.assertGreater(access_times[0][0], 1)
+
+    def test_get_cached_contents_ignores_multiple_root_associations(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "context.sqlite3"
+            cached_file = CachedFile(
+                "C:/repo/sub/a.txt", "sub/a.txt",
+                FileSignature(None, None, 1, 10, 11), "text", "a", None,
+            )
+            with ContextCacheDatabase(database_path) as database:
+                parent_scan = database.begin_scan("default", "C:/repo")
+                database.commit_scan(parent_scan, [cached_file])
+                child_scan = database.begin_scan("default", "C:/repo/sub")
+                database.commit_scan(child_scan, [CachedFile(
+                    cached_file.canonical_path, "a.txt", cached_file.signature,
+                    cached_file.state, cached_file.folded_text,
+                    cached_file.content_sha256,
+                )])
+
+                results = database.get_cached_contents([
+                    cached_file.canonical_path,
+                ])
+
+            self.assertEqual(results, {
+                cached_file.canonical_path: CachedFile(
+                    cached_file.canonical_path, "", cached_file.signature,
+                    "text", "a", None,
+                ),
+            })
 
     def test_iter_root_files_refreshes_root_lru_timestamp(self):
         with tempfile.TemporaryDirectory() as temp_dir:

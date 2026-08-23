@@ -20,6 +20,26 @@ from cereja.system._context.cache_db import (
 from cereja.system._context.models import ContextCacheWarning
 
 
+class _AfterReadMutation:
+    """Wrap a real binary file and mutate its path after one read."""
+
+    def __init__(self, file, mutation):
+        self._file = file
+        self._mutation = mutation
+
+    def __enter__(self):
+        self._file.__enter__()
+        return self
+
+    def __exit__(self, *args):
+        return self._file.__exit__(*args)
+
+    def read(self, *args, **kwargs):
+        data = self._file.read(*args, **kwargs)
+        self._mutation()
+        return data
+
+
 def _active_sidecar_snapshot(sidecars, modes=None):
     """Read active sidecars, using stable metadata for locked Windows SHM."""
     snapshots = []
@@ -134,6 +154,45 @@ class ContextCacheTest(unittest.TestCase):
                 self.assertFalse(cache_path.exists())
                 self.assertFalse(Path(f"{cache_path}-wal").exists())
                 self.assertFalse(Path(f"{cache_path}-shm").exists())
+
+    def test_cache_containment_uses_traversal_normalized_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            root = base / "repo"
+            root.mkdir()
+            (root / "guide.md").write_text("needle", encoding="utf-8")
+            input_root = base / "link" / ".." / "repo"
+            cache_path = root / "context.sqlite3"
+            misleading_root = base / "outside"
+            original_realpath = os.path.realpath
+
+            def simulated_realpath(path, *args, **kwargs):
+                if os.path.normcase(os.fspath(path)) == os.path.normcase(
+                        os.fspath(input_root)
+                ):
+                    return os.fspath(misleading_root)
+                return original_realpath(path, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch(
+                "cereja.system._context.cache.os.path.realpath",
+                side_effect=simulated_realpath,
+            ), warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                response = search_text_context(
+                    [input_root], "needle", cache=True
+                )
+
+            self.assertEqual(
+                [item.relative_path for item in response.results],
+                ["guide.md"],
+            )
+            self.assertTrue(
+                any(item.category is ContextCacheWarning for item in caught)
+            )
+            self.assertFalse(cache_path.exists())
 
     def test_info_reports_metadata_without_content(self):
         self.assertTrue(hasattr(system_module, "get_context_cache_info"))
@@ -679,9 +738,9 @@ class ContextCacheTest(unittest.TestCase):
                 original_read = cache_module._read_original_text
                 reads = []
 
-                def recording_read(path, max_file_bytes):
+                def recording_read(path, signature, max_file_bytes):
                     reads.append(Path(path).name)
-                    return original_read(path, max_file_bytes)
+                    return original_read(path, signature, max_file_bytes)
 
                 with patch(
                     "cereja.system._context.cache._read_original_text",
@@ -690,6 +749,594 @@ class ContextCacheTest(unittest.TestCase):
                     response = search_text_context([root], "auth", cache=True)
             self.assertEqual(response.results[0].snippets[0].text, "Auth cache")
             self.assertEqual(reads, ["auth.txt"])
+
+    def test_cache_read_retries_from_fresh_signature_before_publication(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            target = root / "target.txt"
+            target.write_text("stale needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_open = open
+            mutated = False
+
+            def replace_after_read():
+                nonlocal mutated
+                mutated = True
+                with original_open(target, "wb") as file:
+                    file.write(b"fresh content")
+
+            def racing_open(path, mode="r", *args, **kwargs):
+                if (
+                        mode == "rb"
+                        and cache_module._canonical_path(path)
+                        == cache_module._canonical_path(target)
+                        and not mutated
+                ):
+                    return _AfterReadMutation(
+                        original_open(path, mode, *args, **kwargs),
+                        replace_after_read,
+                    )
+                return original_open(path, mode, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch(
+                "cereja.system._context.cache.open",
+                side_effect=racing_open,
+                create=True,
+            ):
+                response = search_text_context(
+                    [root], "stale needle", cache=True
+                )
+
+            canonical_path = cache_module._canonical_path(target)
+            with ContextCacheDatabase(cache_path) as database:
+                cached = database.get_cached_contents((canonical_path,))[
+                    canonical_path
+                ]
+
+            self.assertEqual(response.results, ())
+            self.assertEqual(
+                cached.signature, cache_module._file_signature(target)
+            )
+            self.assertEqual(cached.folded_text, "fresh content")
+
+    def test_disappearing_file_is_not_committed_after_read(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            target = root / "target.txt"
+            target.write_text("stale needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_open = open
+            original_stat = os.stat
+            disappeared = False
+
+            def remove_after_read():
+                nonlocal disappeared
+                disappeared = True
+
+            target_key = os.path.normcase(os.path.abspath(target))
+
+            def racing_stat(path, *args, **kwargs):
+                path_key = os.path.normcase(os.path.abspath(os.fspath(path)))
+                if disappeared and path_key == target_key:
+                    raise FileNotFoundError(path)
+                return original_stat(path, *args, **kwargs)
+
+            def racing_open(path, mode="r", *args, **kwargs):
+                if (
+                        mode == "rb"
+                        and cache_module._canonical_path(path)
+                        == cache_module._canonical_path(target)
+                        and not disappeared
+                ):
+                    return _AfterReadMutation(
+                        original_open(path, mode, *args, **kwargs),
+                        remove_after_read,
+                    )
+                return original_open(path, mode, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch(
+                "cereja.system._context.cache.open",
+                side_effect=racing_open,
+                create=True,
+            ), patch(
+                "cereja.system._context.cache.os.stat",
+                side_effect=racing_stat,
+            ):
+                response = search_text_context(
+                    [root], "stale needle", cache=True
+                )
+
+            canonical_path = cache_module._canonical_path(target)
+            with ContextCacheDatabase(cache_path) as database:
+                cached = database.get_cached_contents((canonical_path,))
+
+            self.assertEqual(response.results, ())
+            self.assertEqual(response.skipped[0].reason, "disappeared")
+            self.assertNotIn(canonical_path, cached)
+
+    def test_repeatedly_mutating_file_is_skipped_after_one_retry(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            target = root / "target.txt"
+            target.write_text("needle one", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_open = open
+            replacements = iter((
+                b"needle second version",
+                b"needle third version that changed",
+            ))
+            mutations = 0
+
+            def replace_after_read():
+                nonlocal mutations
+                mutations += 1
+                with original_open(target, "wb") as file:
+                    file.write(next(replacements))
+
+            def racing_open(path, mode="r", *args, **kwargs):
+                if (
+                        mode == "rb"
+                        and cache_module._canonical_path(path)
+                        == cache_module._canonical_path(target)
+                        and mutations < 2
+                ):
+                    return _AfterReadMutation(
+                        original_open(path, mode, *args, **kwargs),
+                        replace_after_read,
+                    )
+                return original_open(path, mode, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch(
+                "cereja.system._context.cache.open",
+                side_effect=racing_open,
+                create=True,
+            ):
+                response = search_text_context([root], "needle", cache=True)
+
+            canonical_path = cache_module._canonical_path(target)
+            with ContextCacheDatabase(cache_path) as database:
+                cached = database.get_cached_contents((canonical_path,))
+
+            self.assertEqual(response.results, ())
+            self.assertEqual(response.skipped[0].reason, "disappeared")
+            self.assertNotIn(canonical_path, cached)
+
+    def test_winner_mutation_during_read_never_returns_stale_snippet(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            target = root / "target.txt"
+            target.write_text("stale needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_open = open
+            mutated = False
+
+            def replace_after_read():
+                nonlocal mutated
+                mutated = True
+                with original_open(target, "wb") as file:
+                    file.write(b"fresh content")
+
+            def racing_open(path, mode="r", *args, **kwargs):
+                if (
+                        mode == "rb"
+                        and cache_module._canonical_path(path)
+                        == cache_module._canonical_path(target)
+                        and not mutated
+                ):
+                    return _AfterReadMutation(
+                        original_open(path, mode, *args, **kwargs),
+                        replace_after_read,
+                    )
+                return original_open(path, mode, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "stale needle", cache=True)
+                with patch(
+                    "cereja.system._context.cache.open",
+                    side_effect=racing_open,
+                    create=True,
+                ):
+                    response = search_text_context(
+                        [root], "stale needle", cache=True
+                    )
+
+            self.assertEqual(response.results, ())
+
+    def test_warm_cache_validates_all_files_with_one_batched_lookup(self):
+        """A per-file cache query must not return during a warm scan."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            for name in ("first.txt", "second.txt", "third.txt"):
+                (root / name).write_text("cached content", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_batched_lookup = ContextCacheDatabase.get_cached_contents
+            original_individual_lookup = ContextCacheDatabase.get_cached_content
+            batched_lookups = []
+            individual_lookups = []
+
+            def record_batched_lookup(database, canonical_paths):
+                canonical_paths = tuple(canonical_paths)
+                batched_lookups.append(canonical_paths)
+                return original_batched_lookup(database, canonical_paths)
+
+            def record_individual_lookup(*args, **kwargs):
+                individual_lookups.append((args, kwargs))
+                return original_individual_lookup(*args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "missing", cache=True)
+                with patch.object(
+                    ContextCacheDatabase,
+                    "get_cached_contents",
+                    new=record_batched_lookup,
+                ), patch.object(
+                    ContextCacheDatabase,
+                    "get_cached_content",
+                    new=record_individual_lookup,
+                ):
+                    reads = self._record_cache_reads(
+                        lambda: search_text_context([root], "missing", cache=True)
+                    )
+
+            expected_paths = {
+                cache_module._canonical_path(root / name)
+                for name in ("first.txt", "second.txt", "third.txt")
+            }
+            self.assertEqual(reads, [])
+            self.assertEqual(len(batched_lookups), 1)
+            self.assertEqual(set(batched_lookups[0]), expected_paths)
+            self.assertEqual(individual_lookups, [])
+
+    def test_cached_search_canonicalizes_each_file_and_root_once(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            outer = Path(temp_dir) / "repo"
+            inner = outer / "nested"
+            inner.mkdir(parents=True)
+            outer_file = outer / "outer.txt"
+            inner_file = inner / "inner.txt"
+            outer_file.write_text("cached", encoding="utf-8")
+            inner_file.write_text("cached", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_realpath = os.path.realpath
+            canonicalized = []
+
+            def record_realpath(path, *args, **kwargs):
+                canonicalized.append(os.fspath(path))
+                return original_realpath(path, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([outer, inner], "missing", cache=True)
+                with patch(
+                    "cereja.system._context.cache.os.path.realpath",
+                    side_effect=record_realpath,
+                ):
+                    search_text_context(
+                        [outer, inner], "missing", cache=True
+                    )
+
+            normalized_calls = [
+                os.path.normcase(os.path.abspath(path))
+                for path in canonicalized
+            ]
+            expected_once = [
+                os.path.normcase(os.path.abspath(os.fspath(path)))
+                for path in (
+                    outer,
+                    inner,
+                    cache_path,
+                    outer_file,
+                    inner_file,
+                )
+            ]
+            self.assertCountEqual(normalized_calls, expected_once)
+
+    def test_canonical_root_aliases_are_traversed_only_once(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            primary = base / "primary"
+            alias = base / "alias"
+            primary.mkdir()
+            alias.mkdir()
+            primary_file = primary / "shared.txt"
+            alias_file = alias / "shared.txt"
+            primary_file.write_text("cached", encoding="utf-8")
+            alias_file.write_text("cached", encoding="utf-8")
+            cache_path = base / "cache" / "context.sqlite3"
+            original_realpath = os.path.realpath
+            primary_key = os.path.normcase(os.path.abspath(primary))
+            alias_key = os.path.normcase(os.path.abspath(alias))
+            canonicalized = []
+
+            def simulated_realpath(path, *args, **kwargs):
+                lexical = os.path.normcase(
+                    os.path.abspath(os.fspath(path))
+                )
+                canonicalized.append(lexical)
+                if lexical == alias_key:
+                    return original_realpath(primary, *args, **kwargs)
+                if lexical.startswith(alias_key + os.sep):
+                    relative = os.path.relpath(lexical, alias_key)
+                    return original_realpath(
+                        primary / relative, *args, **kwargs
+                    )
+                return original_realpath(path, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch(
+                "cereja.system._context.cache.os.path.realpath",
+                side_effect=simulated_realpath,
+            ):
+                search_text_context(
+                    [primary, alias], "missing", cache=True
+                )
+
+            expected_once = [
+                os.path.normcase(os.path.abspath(os.fspath(path)))
+                for path in (primary, alias, cache_path, primary_file)
+            ]
+            self.assertCountEqual(canonicalized, expected_once)
+            self.assertNotIn(
+                os.path.normcase(os.path.abspath(alias_file)),
+                canonicalized,
+            )
+
+    def test_unchanged_warm_root_selects_fast_publication_path(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "first.txt").write_text("cached", encoding="utf-8")
+            (root / "second.txt").write_text("cached", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_fast = ContextCacheDatabase.publish_unchanged_scan
+            original_commit = ContextCacheDatabase.commit_scan
+            fast_results = []
+            commits = []
+
+            def record_fast(database, *args, **kwargs):
+                result = original_fast(database, *args, **kwargs)
+                fast_results.append((args[0].canonical_root, result))
+                return result
+
+            def record_commit(database, *args, **kwargs):
+                commits.append(args[0].canonical_root)
+                return original_commit(database, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "missing", cache=True)
+                with patch.object(
+                    ContextCacheDatabase,
+                    "publish_unchanged_scan",
+                    new=record_fast,
+                ), patch.object(
+                    ContextCacheDatabase,
+                    "commit_scan",
+                    new=record_commit,
+                ):
+                    search_text_context([root], "missing", cache=True)
+
+            self.assertEqual(
+                fast_results,
+                [(cache_module._canonical_path(root), True)],
+            )
+            self.assertEqual(commits, [])
+
+    def test_root_mutations_and_size_limit_transitions_use_commit_scan(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            target = root / "target.txt"
+            target.write_text("content", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_fast = ContextCacheDatabase.publish_unchanged_scan
+            original_commit = ContextCacheDatabase.commit_scan
+            fast_results = []
+            commits = []
+
+            def record_fast(database, *args, **kwargs):
+                result = original_fast(database, *args, **kwargs)
+                fast_results.append(result)
+                return result
+
+            def record_commit(database, *args, **kwargs):
+                commits.append(args[0].canonical_root)
+                return original_commit(database, *args, **kwargs)
+
+            def assert_commit(**search_options):
+                fast_results.clear()
+                commits.clear()
+                search_text_context(
+                    [root], "missing", cache=True, **search_options
+                )
+                self.assertEqual(fast_results, [False])
+                self.assertEqual(
+                    commits, [cache_module._canonical_path(root)]
+                )
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context(
+                    [root], "missing", cache=True, max_file_bytes=10
+                )
+                with patch.object(
+                    ContextCacheDatabase,
+                    "publish_unchanged_scan",
+                    new=record_fast,
+                ), patch.object(
+                    ContextCacheDatabase,
+                    "commit_scan",
+                    new=record_commit,
+                ):
+                    assert_commit(max_file_bytes=20)
+
+                    created = root / "created.txt"
+                    created.write_text("created", encoding="utf-8")
+                    assert_commit(max_file_bytes=20)
+
+                    target.write_text("changed content", encoding="utf-8")
+                    assert_commit(max_file_bytes=20)
+
+                    renamed = root / "renamed.txt"
+                    created.rename(renamed)
+                    assert_commit(max_file_bytes=20)
+
+                    renamed.unlink()
+                    assert_commit(max_file_bytes=20)
+
+                    assert_commit(max_file_bytes=3)
+                    assert_commit(max_file_bytes=20)
+
+    def test_incomplete_inventory_never_selects_fast_path(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            (root / "cached.txt").write_text("cached", encoding="utf-8")
+            blocked = root / "blocked.txt"
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_signature = cache_module._file_signature
+            original_fast = ContextCacheDatabase.publish_unchanged_scan
+            original_commit = ContextCacheDatabase.commit_scan
+            fast_calls = []
+            commits = []
+
+            def selective_signature(path):
+                if Path(path) == blocked:
+                    raise PermissionError(path)
+                return original_signature(path)
+
+            def record_fast(database, *args, **kwargs):
+                fast_calls.append(args[0].canonical_root)
+                return original_fast(database, *args, **kwargs)
+
+            def record_commit(database, *args, **kwargs):
+                commits.append(args[0].canonical_root)
+                return original_commit(database, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "missing", cache=True)
+                blocked.write_text("blocked", encoding="utf-8")
+                with patch(
+                    "cereja.system._context.cache._file_signature",
+                    side_effect=selective_signature,
+                ), patch.object(
+                    ContextCacheDatabase,
+                    "publish_unchanged_scan",
+                    new=record_fast,
+                ), patch.object(
+                    ContextCacheDatabase,
+                    "commit_scan",
+                    new=record_commit,
+                ):
+                    response = search_text_context(
+                        [root], "missing", cache=True
+                    )
+
+            self.assertEqual(fast_calls, [])
+            self.assertEqual(
+                commits, [cache_module._canonical_path(root)]
+            )
+            self.assertEqual(
+                [(Path(item.path).name, item.reason) for item in response.skipped],
+                [("blocked.txt", "permission_denied")],
+            )
+
+    def test_overlapping_roots_choose_fast_path_independently(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            outer = Path(temp_dir) / "repo"
+            inner = outer / "nested"
+            inner.mkdir(parents=True)
+            outer_file = outer / "outer.txt"
+            outer_file.write_text("outer", encoding="utf-8")
+            (inner / "inner.txt").write_text("inner", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            original_fast = ContextCacheDatabase.publish_unchanged_scan
+            original_commit = ContextCacheDatabase.commit_scan
+            fast_results = []
+            commits = []
+
+            def record_fast(database, *args, **kwargs):
+                result = original_fast(database, *args, **kwargs)
+                fast_results.append((args[0].canonical_root, result))
+                return result
+
+            def record_commit(database, *args, **kwargs):
+                commits.append(args[0].canonical_root)
+                return original_commit(database, *args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([outer], "missing", cache=True)
+                search_text_context([inner], "missing", cache=True)
+                with patch.object(
+                    ContextCacheDatabase,
+                    "publish_unchanged_scan",
+                    new=record_fast,
+                ), patch.object(
+                    ContextCacheDatabase,
+                    "commit_scan",
+                    new=record_commit,
+                ):
+                    search_text_context([outer], "missing", cache=True)
+                    search_text_context([inner], "missing", cache=True)
+                    self.assertEqual(
+                        fast_results,
+                        [
+                            (cache_module._canonical_path(outer), True),
+                            (cache_module._canonical_path(inner), True),
+                        ],
+                    )
+                    self.assertEqual(commits, [])
+
+                    fast_results.clear()
+                    commits.clear()
+                    outer_file.write_text("changed", encoding="utf-8")
+                    search_text_context([outer], "missing", cache=True)
+                    search_text_context([inner], "missing", cache=True)
+
+            self.assertEqual(
+                fast_results,
+                [
+                    (cache_module._canonical_path(outer), False),
+                    (cache_module._canonical_path(inner), True),
+                ],
+            )
+            self.assertEqual(
+                commits, [cache_module._canonical_path(outer)]
+            )
 
     def test_casefold_length_change_preserves_direct_truncation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -961,6 +1608,76 @@ class ContextCacheTest(unittest.TestCase):
                 )
                 self.assertEqual(refreshed_reads, ["changed.txt", "stable.txt"])
 
+    def test_refresh_republishes_derived_text_when_file_identity_matches(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            target = root / "target.txt"
+            target.write_text("Current Needle", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            canonical_target = cache_module._canonical_path(target)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context([root], "needle", cache=True)
+                with ContextCacheDatabase(cache_path) as database:
+                    database.connection.execute(
+                        "UPDATE files SET folded_text = 'stale derived text' "
+                        "WHERE canonical_path = ?",
+                        (canonical_target,),
+                    )
+                    database.connection.commit()
+
+                refreshed = search_text_context(
+                    [root], "needle", cache=True, refresh_cache=True
+                )
+                with ContextCacheDatabase(cache_path) as database:
+                    stored_text = database.connection.execute(
+                        "SELECT folded_text FROM files WHERE canonical_path = ?",
+                        (canonical_target,),
+                    ).fetchone()[0]
+                warm = search_text_context([root], "needle", cache=True)
+
+            self.assertEqual(
+                [item.relative_path for item in refreshed.results],
+                ["target.txt"],
+            )
+            self.assertEqual(stored_text, "current needle")
+            self.assertEqual(
+                [item.relative_path for item in warm.results],
+                ["target.txt"],
+            )
+
+    def test_warm_cache_reprocesses_when_file_limit_crosses_file_size(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            target = root / "target.txt"
+            target.write_text("content", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ):
+                search_text_context(
+                    [root], "missing", cache=True, max_file_bytes=10
+                )
+                reduced_limit_reads = self._record_cache_reads(
+                    lambda: search_text_context(
+                        [root], "missing", cache=True, max_file_bytes=3
+                    )
+                )
+                restored_limit_reads = self._record_cache_reads(
+                    lambda: search_text_context(
+                        [root], "content", cache=True, max_file_bytes=10
+                    )
+                )
+
+            self.assertEqual(reduced_limit_reads, ["target.txt"])
+            self.assertEqual(restored_limit_reads, ["target.txt"])
+
     def test_transient_read_failure_is_reported_but_not_persisted(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
@@ -991,6 +1708,50 @@ class ContextCacheTest(unittest.TestCase):
             self.assertEqual(first.skipped[0].reason, "disappeared")
             self.assertEqual(second.results[0].relative_path, "target.txt")
 
+    def test_synchronization_publishes_only_admitted_root_scans(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            outer = Path(temp_dir) / "outer"
+            inner = Path(temp_dir) / "inner"
+            outer.mkdir()
+            inner.mkdir()
+            (outer / "outer.txt").write_text("outer", encoding="utf-8")
+            (inner / "inner.txt").write_text("inner", encoding="utf-8")
+            cache_path = Path(temp_dir) / "cache" / "context.sqlite3"
+            outer_root = cache_module._canonical_path(outer)
+            original_begin = ContextCacheDatabase.begin_scans_if_admitted
+            original_commit = ContextCacheDatabase.commit_scan
+            commit_calls = []
+
+            def admit_only_outer(database, namespace, roots, max_bytes):
+                tokens = original_begin(database, namespace, roots, max_bytes)
+                return {outer_root: tokens[outer_root]}
+
+            def record_commit(*args, **kwargs):
+                commit_calls.append((args, kwargs))
+                return original_commit(*args, **kwargs)
+
+            with patch(
+                "cereja.system._context.cache.default_cache_path",
+                return_value=cache_path,
+            ), patch.object(
+                ContextCacheDatabase,
+                "begin_scans_if_admitted",
+                new=admit_only_outer,
+            ), patch.object(
+                ContextCacheDatabase,
+                "commit_scan",
+                new=record_commit,
+            ):
+                response = search_text_context(
+                    [outer, inner], "missing", cache=True
+                )
+
+            self.assertEqual(response.results, ())
+            self.assertEqual(
+                [call[0][1].canonical_root for call in commit_calls],
+                [outer_root],
+            )
+
     def test_failed_inventory_does_not_destructively_synchronize_root(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "repo"
@@ -1011,14 +1772,26 @@ class ContextCacheTest(unittest.TestCase):
                     yield next(iter(original_inventory(*args, **kwargs)))
                     raise OSError("inventory failed")
 
+                commit_calls = []
+                original_commit = ContextCacheDatabase.commit_scan
+
+                def record_commit(*args, **kwargs):
+                    commit_calls.append((args, kwargs))
+                    return original_commit(*args, **kwargs)
+
                 with patch(
                     "cereja.system._context.cache.iter_repository_files",
                     side_effect=failing_inventory,
+                ), patch.object(
+                    ContextCacheDatabase,
+                    "commit_scan",
+                    new=record_commit,
                 ), warnings.catch_warnings(record=True) as caught:
                     warnings.simplefilter("always")
                     with self.assertRaisesRegex(OSError, "inventory failed"):
                         search_text_context([root], "needle", cache=True)
                 self.assertFalse(caught)
+                self.assertEqual(commit_calls, [])
 
             with ContextCacheDatabase(cache_path) as database:
                 cached = tuple(database.iter_root_files(
