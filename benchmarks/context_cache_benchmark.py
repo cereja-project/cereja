@@ -88,10 +88,16 @@ def _api_search(root: Path, cache: bool):
 
 
 def _cli_search(root: Path, cache: bool, environment: dict[str, str]) -> dict:
+    cli_entrypoint = (
+        "import contextlib, io\n"
+        "with contextlib.redirect_stdout(io.StringIO()):\n"
+        "    from cereja.cli import main\n"
+        "raise SystemExit(main())\n"
+    )
     command = [
         sys.executable,
-        "-m",
-        "cereja",
+        "-c",
+        cli_entrypoint,
         "context",
         "search",
         "--root",
