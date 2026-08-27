@@ -53,8 +53,22 @@ def inspect_indicators(name: str, data: bytes, strings):
                 "Script contains a high volume of numeric escape sequences.", f"numeric_escapes={escaped}", name))
 
         lines = data.count(b"\n") + 1
-        if len(data) >= 32768 and lines <= 2 and b"return(function" in data[:4096].lower():
+        lowered_data = data.lower()
+        flattened = len(data) >= 32768 and lines <= 2 and b"return(function" in lowered_data[:4096]
+        if flattened:
             findings.append(Finding("script.obfuscation.flattened", "obfuscation", "high", 0.85,
                 "Large script is flattened into a single line with nested function wrappers.",
                 f"bytes={len(data)}, lines={lines}", name))
+
+        prometheus_tokens = (
+            b"getfenv", b"_env", b"unpack", b"newproxy", b"setmetatable",
+            b"getmetatable", b"select",
+        )
+        environment_signature = all(token in lowered_data for token in prometheus_tokens)
+        dispatcher_count = len(re.findall(rb"if\s+[A-Za-z_]\w*\s*<", data))
+        if flattened and environment_signature and dispatcher_count >= 32:
+            findings.append(Finding(
+                "obfuscator.prometheus_vm", "obfuscation", "info", 0.98,
+                "Script structure matches the custom VM wrapper emitted by Prometheus Vmify.",
+                f"environment_signature=true, dispatcher_comparisons={dispatcher_count}", name))
     return findings
