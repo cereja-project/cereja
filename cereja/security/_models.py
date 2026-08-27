@@ -36,7 +36,8 @@ class SecurityReport:
     @property
     def risk_score(self) -> int:
         weights = {"info": 0, "low": 5, "medium": 15, "high": 30, "critical": 50}
-        return min(100, sum(weights.get(item.severity, 0) * item.confidence for item in self.all_findings()))
+        score = sum(weights.get(item.severity, 0) * item.confidence for item in self.all_findings())
+        return min(100, int(round(score)))
 
     @property
     def risk_level(self) -> str:
