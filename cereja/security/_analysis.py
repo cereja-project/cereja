@@ -9,6 +9,7 @@ from ._archives import UnsafeArchiveError, read_zip_members
 from ._indicators import extract_iocs, inspect_indicators
 from ._inspect import detect_file_type, extract_strings, hash_bytes, shannon_entropy
 from ._models import Finding, SecurityReport
+from ._pe import PEFormatError, inspect_pe
 
 EXECUTABLE_SUFFIXES = {".exe", ".dll", ".sys", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".js"}
 LAUNCHABLE_SUFFIXES = {".exe", ".com", ".scr", ".bat", ".cmd", ".ps1"}
@@ -49,8 +50,22 @@ def _analyze_cjz(source: Path, max_depth: int) -> SecurityReport:
 
 def _base_report(data: bytes, name: str) -> SecurityReport:
     strings = extract_strings(data)
-    return SecurityReport(name, len(data), detect_file_type(data, name), shannon_entropy(data),
-        hash_bytes(data), extract_iocs(strings), inspect_indicators(name, data, strings))
+    file_type = detect_file_type(data, name)
+    report = SecurityReport(
+        name,
+        len(data),
+        file_type,
+        shannon_entropy(data),
+        hash_bytes(data),
+        extract_iocs(strings),
+        inspect_indicators(name, data, strings),
+    )
+    if file_type == "pe":
+        try:
+            report.metadata["pe"] = inspect_pe(data)
+        except PEFormatError as exc:
+            report.metadata["pe_error"] = str(exc)
+    return report
 
 
 def _analyze_bytes(data: bytes, name: str, depth: int) -> SecurityReport:
