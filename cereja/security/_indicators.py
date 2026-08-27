@@ -41,10 +41,20 @@ def inspect_indicators(name: str, data: bytes, strings):
         findings.append(Finding("file.extension_mismatch", "evasion", "medium", 0.9,
             "Windows PE content does not match the filename extension.", suffix or "no extension", name))
 
+    if data.startswith(b"MZ") and b"luajit" in data[:4 * 1024 * 1024].lower():
+        findings.append(Finding("runtime.luajit", "runtime", "info", 0.95,
+            "Windows executable contains LuaJIT runtime identifiers.", "LuaJIT/luajit.exe", name))
+
     if suffix in (".lua", ".txt") and len(data) >= 4096:
         escaped = len(re.findall(rb"\\\d{2,3}", data))
         density = escaped / max(1, len(data))
         if escaped >= 50 or density > 0.01:
-            findings.append(Finding("script.obfuscation.numeric_escapes", "obfuscation", "high", 0.85,
+            findings.append(Finding("script.obfuscation.numeric_escapes", "obfuscation", "high", 0.9,
                 "Script contains a high volume of numeric escape sequences.", f"numeric_escapes={escaped}", name))
+
+        lines = data.count(b"\n") + 1
+        if len(data) >= 32768 and lines <= 2 and b"return(function" in data[:4096].lower():
+            findings.append(Finding("script.obfuscation.flattened", "obfuscation", "high", 0.85,
+                "Large script is flattened into a single line with nested function wrappers.",
+                f"bytes={len(data)}, lines={lines}", name))
     return findings
