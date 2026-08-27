@@ -35,7 +35,9 @@ class SecurityReport:
 
     @property
     def risk_score(self) -> int:
-        weights = {"info": 0, "low": 5, "medium": 15, "high": 30, "critical": 50}
+        # Keep structural/static signals useful for triage without allowing a
+        # handful of correlated heuristics to imply a deterministic malware verdict.
+        weights = {"info": 0, "low": 5, "medium": 10, "high": 20, "critical": 35}
         score = sum(weights.get(item.severity, 0) * item.confidence for item in self.all_findings())
         return min(100, int(round(score)))
 
