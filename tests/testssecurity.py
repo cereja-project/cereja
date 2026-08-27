@@ -1,5 +1,6 @@
 import hashlib
 import io
+import struct
 import tempfile
 import unittest
 import zipfile
@@ -9,6 +10,32 @@ from cereja.security import analyze_file, report_to_json, report_to_markdown
 from cereja.security._archives import UnsafeArchiveError, read_zip_members
 from cereja.security._indicators import extract_iocs, inspect_indicators
 from cereja.security._inspect import detect_file_type, extract_strings, hash_bytes, shannon_entropy
+from cereja.security._pe import inspect_pe
+
+
+def synthetic_pe():
+    data = bytearray(0x400)
+    data[:2] = b"MZ"
+    struct.pack_into("<I", data, 0x3C, 0x80)
+    data[0x80:0x84] = b"PE\0\0"
+    coff = 0x84
+    struct.pack_into("<HHIIIHH", data, coff, 0x8664, 1, 0, 0, 0, 0xF0, 0x0022)
+    optional = coff + 20
+    struct.pack_into("<H", data, optional, 0x20B)
+    struct.pack_into("<I", data, optional + 16, 0x1000)
+    struct.pack_into("<Q", data, optional + 24, 0x140000000)
+    struct.pack_into("<H", data, optional + 68, 2)
+    struct.pack_into("<I", data, optional + 108, 16)
+    struct.pack_into("<II", data, optional + 112 + 8, 0x1000, 40)
+    section = optional + 0xF0
+    data[section:section + 8] = b".rdata\0\0"
+    struct.pack_into("<IIII", data, section + 8, 0x200, 0x1000, 0x200, 0x200)
+    struct.pack_into("<IIIII", data, 0x200, 0x1060, 0, 0, 0x1040, 0x1060)
+    data[0x240:0x240 + 13] = b"KERNEL32.dll\0"
+    struct.pack_into("<QQ", data, 0x260, 0x1080, 0)
+    struct.pack_into("<H", data, 0x280, 0)
+    data[0x282:0x282 + 15] = b"CreateProcessW\0"
+    return bytes(data)
 
 
 class SecurityInspectionTest(unittest.TestCase):
@@ -46,12 +73,29 @@ class SecurityInspectionTest(unittest.TestCase):
         findings = inspect_indicators("vendor.exe", data, extract_strings(data))
         self.assertIn("runtime.luajit", {item.id for item in findings})
 
+    def test_inspects_pe_metadata_and_imphash_without_dependency(self):
+        metadata = inspect_pe(synthetic_pe())
+        self.assertEqual(metadata["pe_type"], "pe32+")
+        self.assertEqual(metadata["machine"], "0x8664")
+        self.assertEqual(metadata["import_count"], 1)
+        self.assertEqual(metadata["import_dlls"], ["KERNEL32.dll"])
+        self.assertEqual(metadata["imphash"], "6a52275a13182d459745b3b784d6ed0c")
+        self.assertFalse(metadata["signed"])
+
     def test_detects_flattened_numeric_escape_obfuscation(self):
         data = b"return(function(...)" + (b"\\123" * 9000)
         findings = inspect_indicators("protocol.txt", data, extract_strings(data))
         ids = {item.id for item in findings}
         self.assertIn("script.obfuscation.numeric_escapes", ids)
         self.assertIn("script.obfuscation.flattened", ids)
+
+    def test_detects_prometheus_vm_structure(self):
+        environment = b"getfenv _ENV unpack newproxy setmetatable getmetatable select "
+        dispatcher = b"".join(b"if T<123 then " for _ in range(40))
+        data = b"return(function(...)" + environment + dispatcher + (b"\\123" * 9000)
+        findings = inspect_indicators("protocol.txt", data, extract_strings(data))
+        finding = next(item for item in findings if item.id == "obfuscator.prometheus_vm")
+        self.assertIn("dispatcher_comparisons=40", finding.evidence)
 
     def test_rejects_zip_traversal(self):
         buffer = io.BytesIO()
@@ -92,16 +136,17 @@ class SecurityInspectionTest(unittest.TestCase):
         launcher = next(child for child in report.children if child.path == "Launcher.cmd")
         self.assertNotIn("script.launcher_chain", {item.id for item in launcher.findings})
 
-    def test_report_renderers_include_risk_and_hashes(self):
+    def test_report_renderers_include_risk_hashes_and_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "sample.txt"
-            path.write_text("powershell -c whoami", encoding="utf-8")
+            path = Path(directory) / "sample.exe"
+            path.write_bytes(synthetic_pe())
             report = analyze_file(path)
         json_report = report_to_json(report)
         markdown_report = report_to_markdown(report)
         self.assertIn('"risk_level"', json_report)
+        self.assertIn('"imphash"', json_report)
         self.assertIn(report.hashes.sha256, markdown_report)
-        self.assertIn("command.execution", markdown_report)
+        self.assertIn("pe.imphash", markdown_report)
 
 
 if __name__ == "__main__":
