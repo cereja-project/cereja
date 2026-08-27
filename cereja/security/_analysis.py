@@ -1,6 +1,7 @@
 """Static security analysis orchestration."""
+import re
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from cereja.hashtools import CompressionError, decompress_file, is_encrypted_archive
 
@@ -10,6 +11,7 @@ from ._inspect import detect_file_type, extract_strings, hash_bytes, shannon_ent
 from ._models import Finding, SecurityReport
 
 EXECUTABLE_SUFFIXES = {".exe", ".dll", ".sys", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".js"}
+LAUNCHABLE_SUFFIXES = {".exe", ".com", ".scr", ".bat", ".cmd", ".ps1"}
 
 
 def analyze_file(path, max_depth: int = 2) -> SecurityReport:
@@ -26,6 +28,7 @@ def analyze_file(path, max_depth: int = 2) -> SecurityReport:
 def _analyze_cjz(source: Path, max_depth: int) -> SecurityReport:
     raw = source.read_bytes()
     report = _base_report(raw, source.name)
+    report.file_type = "cjz"
     if is_encrypted_archive(str(source)):
         report.findings.append(Finding("archive.encrypted", "archive", "info", 1.0,
             "Encrypted Cereja archive was not decompressed.", "password required", source.name))
@@ -66,18 +69,33 @@ def _analyze_bytes(data: bytes, name: str, depth: int) -> SecurityReport:
             child.findings.append(Finding("archive.executable_content", "execution", "medium", 0.9,
                 "Archive contains executable or script content.", child.file_type, member_name))
         report.children.append(child)
-    _detect_command_chains(report)
+    _detect_command_chains(report, members)
     return report
 
 
-def _detect_command_chains(report: SecurityReport):
-    names = {Path(child.path).name.lower(): child for child in report.children}
-    for child in report.children:
-        if Path(child.path).suffix.lower() not in (".cmd", ".bat"):
+def _detect_command_chains(report: SecurityReport, members):
+    children = {PurePosixPath(child.path).name.lower(): child for child in report.children}
+    packaged_names = set(children)
+    for member_name, data in members:
+        source_name = PurePosixPath(member_name).name.lower()
+        if Path(member_name).suffix.lower() not in (".cmd", ".bat"):
             continue
-        # Strings are re-extracted from no retained raw bytes, so inspect evidence in IOCs/findings is insufficient.
-        # Command-chain correlation is handled by filename evidence from common launcher syntax in a bounded text preview.
-        # This hook remains intentionally conservative until report models retain previews.
-        if "launcher" in Path(child.path).stem.lower() and any(name.endswith(".exe") for name in names):
-            child.findings.append(Finding("script.launcher_chain", "execution", "high", 0.75,
-                "Launcher script is packaged with a Windows executable.", "launcher + executable", child.path))
+
+        text = data.decode("utf-8", "replace")[:16384]
+        lowered = text.lower()
+        referenced = [
+            name for name in packaged_names
+            if name != source_name and re.search(r"(?<![\w.-])" + re.escape(name) + r"(?![\w.-])", lowered)
+        ]
+        executables = [name for name in referenced if Path(name).suffix.lower() in LAUNCHABLE_SUFFIXES]
+        if not executables:
+            continue
+
+        evidence_lines = [
+            line.strip() for line in text.splitlines()
+            if any(executable in line.lower() for executable in executables)
+        ]
+        evidence = "; ".join(evidence_lines)[:500] or ", ".join(sorted(referenced))
+        children[source_name].findings.append(Finding(
+            "script.launcher_chain", "execution", "high", 0.95,
+            "Launcher script explicitly references packaged executable content.", evidence, member_name))
