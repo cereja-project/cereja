@@ -5,5 +5,13 @@ inspected content and does not provide a deterministic malware verdict.
 """
 from ._analysis import analyze_file
 from ._models import FileHashes, Finding, SecurityReport
+from ._reporting import report_to_json, report_to_markdown
 
-__all__ = ["analyze_file", "FileHashes", "Finding", "SecurityReport"]
+__all__ = [
+    "analyze_file",
+    "FileHashes",
+    "Finding",
+    "SecurityReport",
+    "report_to_json",
+    "report_to_markdown",
+]
