@@ -1,5 +1,6 @@
 """CLI integration for defensive static security analysis."""
 import argparse
+import sys
 from pathlib import Path
 
 from ._analysis import analyze_file
@@ -27,7 +28,11 @@ def main(argv=None) -> int:
     _configure_analyze_parser(analyze_parser)
     analyze_parser.set_defaults(handler=_handle_analyze)
     args = parser.parse_args(argv)
-    return args.handler(args)
+    try:
+        return args.handler(args)
+    except (FileNotFoundError, PermissionError, OSError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
 
 def _configure_analyze_parser(parser) -> None:
