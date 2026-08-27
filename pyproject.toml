@@ -35,7 +35,7 @@ classifiers = [
 version = {attr = "cereja.__version__"}
 
 [project.scripts]
-cereja = "cereja.cli:main"
+cereja = "cereja.entrypoint:main"
 
 [project.urls]
 "Homepage" = "https://github.com/cereja-project/cereja"
