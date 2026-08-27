@@ -1,6 +1,6 @@
 """Data models for defensive static security analysis."""
 from dataclasses import asdict, dataclass, field
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,7 @@ class SecurityReport:
     iocs: Dict[str, List[str]] = field(default_factory=dict)
     findings: List[Finding] = field(default_factory=list)
     children: List["SecurityReport"] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def risk_score(self) -> int:
