@@ -2,7 +2,7 @@ import io
 import json
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from cereja.security._cli import main
@@ -34,6 +34,14 @@ class SecurityCliTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertIn("Cereja Security Analysis", rendered)
         self.assertIn("command.execution", rendered)
+
+    def test_missing_input_returns_error_code_without_traceback(self):
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            exit_code = main(["analyze", "does-not-exist.bin"])
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("Error:", stderr.getvalue())
 
 
 if __name__ == "__main__":
