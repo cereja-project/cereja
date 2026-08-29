@@ -8,7 +8,7 @@ Add a defensive, zero-dependency static-analysis toolkit under `cereja.security`
 
 The MVP analyzes regular files, Cereja `.cjz` compressed files, and ZIP archives recursively. It calculates MD5, SHA-1, SHA-256 and Git blob SHA-1; identifies common file types by signatures; calculates Shannon entropy; extracts printable strings and basic IOCs; identifies suspicious script/command indicators; safely inventories archive members; and produces structured findings with risk score/level.
 
-The CLI entry point is `cereja security analyze <path>`, with `--format json|text`, `--max-depth`, and optional report output. Analysis is read-only except for bounded temporary extraction managed internally. No analyzed content is executed, imported, loaded as a library, or invoked through a shell.
+The CLI entry point is `cereja security analyze <path>`, with `--format json|markdown`, `--max-depth`, and optional report output. Analysis is read-only except for bounded temporary extraction managed internally. No analyzed content is executed, imported, loaded as a library, or invoked through a shell.
 
 ## Architecture
 
