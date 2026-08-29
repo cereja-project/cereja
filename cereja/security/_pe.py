@@ -55,10 +55,15 @@ def inspect_pe(data: bytes) -> dict:
     else:
         raise PEFormatError("unsupported optional header")
 
+    if optional_size < (directory_offset - optional) + 4:
+        raise PEFormatError("optional header too small for data directories")
     directory_count = _u32(data, directory_offset - 4)
+    directory_limit = min(directory_count, 16)
+    if directory_offset + directory_limit * 8 > optional + optional_size:
+        raise PEFormatError("truncated data directory table")
     directories = [
         (_u32(data, directory_offset + index * 8), _u32(data, directory_offset + index * 8 + 4))
-        for index in range(min(directory_count, 16))
+        for index in range(directory_limit)
     ]
 
     section_table = optional + optional_size
