@@ -48,4 +48,9 @@ def shannon_entropy(data: bytes) -> float:
 def extract_strings(data: bytes, min_length: int = 4, limit: int = 5000):
     sample = data[:MAX_STRING_SCAN]
     pattern = rb"[\x20-\x7e]{%d,}" % min_length
-    return [match.group().decode("ascii", "ignore") for match in list(re.finditer(pattern, sample))[:limit]]
+    results = []
+    for match in re.finditer(pattern, sample):
+        results.append(match.group().decode("ascii", "ignore"))
+        if len(results) >= limit:
+            break
+    return results
