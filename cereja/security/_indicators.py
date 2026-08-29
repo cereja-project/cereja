@@ -46,20 +46,20 @@ def inspect_indicators(name: str, data: bytes, strings):
             "Windows executable contains LuaJIT runtime identifiers.", "LuaJIT/luajit.exe", name))
 
     if suffix in (".lua", ".txt") and len(data) >= 4096:
-        escaped = len(re.findall(rb"\\\d{2,3}", data))
-        density = escaped / max(1, len(data))
+        scan = data[:4 * 1024 * 1024]
+        escaped = len(re.findall(rb"\\\d{2,3}", scan))
+        density = escaped / max(1, len(scan))
         if escaped >= 50 or density > 0.01:
             findings.append(Finding("script.obfuscation.numeric_escapes", "obfuscation", "high", 0.9,
                 "Script contains a high volume of numeric escape sequences.", f"numeric_escapes={escaped}", name))
 
-        lines = data.count(b"\n") + 1
-        lowered_data = data.lower()
-        flattened = len(data) >= 32768 and lines <= 2 and b"return(function" in lowered_data[:4096]
+        lines = scan.count(b"\n") + 1
+        lowered_data = scan.lower()
+        flattened = len(scan) >= 32768 and lines <= 2 and b"return(function" in lowered_data[:4096]
         if flattened:
             findings.append(Finding("script.obfuscation.flattened", "obfuscation", "high", 0.85,
                 "Large script is flattened into a single line with nested function wrappers.",
                 f"bytes={len(data)}, lines={lines}", name))
-
         prometheus_tokens = (
             b"getfenv", b"_env", b"unpack", b"newproxy", b"setmetatable",
             b"getmetatable", b"select",
