@@ -65,7 +65,7 @@ def inspect_indicators(name: str, data: bytes, strings):
             b"getmetatable", b"select",
         )
         environment_signature = all(token in lowered_data for token in prometheus_tokens)
-        dispatcher_count = len(re.findall(rb"if\s+[A-Za-z_]\w*\s*<", data))
+        dispatcher_count = len(re.findall(rb"if\s+[A-Za-z_]\w*\s*<", scan))
         if flattened and environment_signature and dispatcher_count >= 32:
             findings.append(Finding(
                 "obfuscator.prometheus_vm", "obfuscation", "info", 0.98,
