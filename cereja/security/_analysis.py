@@ -13,6 +13,7 @@ from ._pe import PEFormatError, inspect_pe
 
 EXECUTABLE_SUFFIXES = {".exe", ".dll", ".sys", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".js"}
 LAUNCHABLE_SUFFIXES = {".exe", ".com", ".scr", ".bat", ".cmd", ".ps1"}
+MAX_INPUT_SIZE = 128 * 1024 * 1024
 
 
 def analyze_file(path, max_depth: int = 2) -> SecurityReport:
@@ -21,6 +22,8 @@ def analyze_file(path, max_depth: int = 2) -> SecurityReport:
         raise FileNotFoundError(str(source))
     if max_depth < 0:
         raise ValueError("max_depth must be non-negative")
+    if source.stat().st_size > MAX_INPUT_SIZE:
+        raise ValueError(f"input file size exceeds safe limit ({MAX_INPUT_SIZE} bytes)")
     if source.suffix.lower() == ".cjz":
         return _analyze_cjz(source, max_depth)
     return _analyze_bytes(source.read_bytes(), source.name, max_depth)
