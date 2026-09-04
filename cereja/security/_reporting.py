@@ -44,9 +44,9 @@ def report_to_markdown(report) -> str:
     for finding in findings:
         lines.extend([
             f"### [{finding.severity.upper()}] {finding.id}",
-            f"- Source: `{finding.source.replace('`', '\\`')}`",
+            "- Source: `{}`".format(finding.source.replace("`", "\\`")),
             f"- Confidence: {finding.confidence:.2f}",
-            f"- Evidence: `{finding.evidence.replace('`', '\\`')}`",
+            "- Evidence: `{}`".format(finding.evidence.replace("`", "\\`")),
             "",
             finding.description,
             "",
