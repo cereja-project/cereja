@@ -4,6 +4,7 @@ import http.client
 import socket
 import ssl
 
+from .._core.framing import response_framing
 from ..errors import (
     BodyLimitExceeded, ConnectError, ConnectTimeout, ProtocolError,
     ReadTimeout, TLSFailure, WriteTimeout,
@@ -30,21 +31,8 @@ class SyncTransport:
         return http.client.HTTPConnection(**kwargs)
 
     @staticmethod
-    def _reusable(response):
-        connection = (response.getheader("Connection") or "").lower()
-        return response.version == 11 and connection != "close"
-
-    @staticmethod
     def _version(response):
         return "HTTP/1.1" if response.version == 11 else "HTTP/1.0"
-
-    @staticmethod
-    def _has_body(request, response):
-        return not (
-            request.method == "HEAD"
-            or response.status in {204, 304}
-            or 100 <= response.status < 200
-        )
 
     def _perform(self, request, timeout):
         key = self._key(request)
@@ -84,9 +72,21 @@ class SyncTransport:
 
     def send(self, request, timeout, *, stream=False):
         key, connection, raw = self._perform(request, timeout)
-        reusable = self._reusable(raw)
-        info = ResponseInfo(raw.status, raw.reason or "", Headers(raw.getheaders()), request.url, self._version(raw))
-        has_body = self._has_body(request, raw)
+        try:
+            headers = Headers(raw.getheaders())
+        except ValueError as exc:
+            raw.close()
+            self.pool.discard(connection)
+            raise ProtocolError("Invalid HTTP response headers") from exc
+        info = ResponseInfo(raw.status, raw.reason or "", headers, request.url, self._version(raw))
+        try:
+            mode, remaining, reusable = response_framing(
+                request.method, info.status_code, info.headers, info.http_version
+            )
+        except BaseException:
+            raw.close()
+            self.pool.discard(connection)
+            raise
 
         def complete():
             if reusable:
@@ -98,34 +98,20 @@ class SyncTransport:
             self.pool.discard(connection)
 
         if stream:
-            if has_body:
-                byte_stream = SyncByteStream(raw, on_complete=complete, on_abort=abort)
-            else:
-                byte_stream = SyncByteStream(raw, on_complete=complete, on_abort=abort, remaining=0)
-            return StreamResponse(request, info, byte_stream)
+            return StreamResponse(
+                request,
+                info,
+                SyncByteStream(raw, on_complete=complete, on_abort=abort, remaining=remaining),
+            )
 
-        if not has_body:
+        if mode == "none":
             complete()
             return Response(request, info, b"")
 
-        length = raw.getheader("Content-Length")
-        if length is not None:
-            try:
-                expected_length = int(length)
-            except ValueError as exc:
-                raw.close()
-                abort()
-                raise ProtocolError("Invalid Content-Length") from exc
-            if expected_length < 0:
-                raw.close()
-                abort()
-                raise ProtocolError("Negative Content-Length")
-            if self.max_body_bytes is not None and expected_length > self.max_body_bytes:
-                raw.close()
-                abort()
-                raise BodyLimitExceeded(f"Response body exceeds {self.max_body_bytes} bytes")
-        else:
-            expected_length = None
+        if remaining is not None and self.max_body_bytes is not None and remaining > self.max_body_bytes:
+            raw.close()
+            abort()
+            raise BodyLimitExceeded(f"Response body exceeds {self.max_body_bytes} bytes")
 
         chunks = []
         total = 0
@@ -138,8 +124,8 @@ class SyncTransport:
                 if self.max_body_bytes is not None and total > self.max_body_bytes:
                     raise BodyLimitExceeded(f"Response body exceeds {self.max_body_bytes} bytes")
                 chunks.append(chunk)
-            if expected_length is not None and total != expected_length:
-                raise ProtocolError(f"Premature EOF: expected {expected_length} bytes, got {total}")
+            if remaining is not None and total != remaining:
+                raise ProtocolError(f"Premature EOF: expected {remaining} bytes, got {total}")
         except socket.timeout as exc:
             raw.close()
             abort()
