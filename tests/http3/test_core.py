@@ -26,6 +26,16 @@ class CoreContractsTest(unittest.TestCase):
             response.raise_for_status()
         self.assertEqual(Timeout.from_value(2.5).read, 2.5)
 
+    def test_headers_reject_non_token_names_and_unsafe_values(self):
+        for name in ("Bad Name", "Bad\tName", "Bäd", "Bad:Name", ""):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                Headers([(name, "ok")])
+        for value in ("bad\x00value", "bad\x7fvalue", "bad\u0100value"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                Headers([("X-Test", value)])
+        headers = Headers([("X-Test", "value\twith-tab")])
+        self.assertEqual(headers["x-test"], "value\twith-tab")
+
 
 if __name__ == "__main__":
     unittest.main()
