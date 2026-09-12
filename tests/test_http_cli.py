@@ -4,7 +4,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 
 from cereja.cli import main
-from tests.http3._server import running_server
+from http3._server import running_server
 
 
 class HttpCliTest(unittest.TestCase):
