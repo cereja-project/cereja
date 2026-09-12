@@ -93,10 +93,25 @@ class _AsyncStreamContext:
         if self.client._closed:
             raise RuntimeError("AsyncClient is closed")
         timeout = self.kwargs.pop("timeout", None)
+        follow_redirects = self.kwargs.pop("follow_redirects", None)
         request = prepare_request(self.method, self.url, base_url=self.client.base_url, **self.kwargs)
         timeout_config = Timeout.from_value(timeout) if timeout is not None else self.client.timeout
-        self.response = await self.client._send_with_retry(request, timeout_config, stream=True)
-        return self.response
+        follow = self.client.follow_redirects if follow_redirects is None else bool(follow_redirects)
+        for hop in range(self.client.max_redirects + 1):
+            response = await self.client._send_with_retry(request, timeout_config, stream=True)
+            if not follow or response.status_code not in REDIRECT_STATUSES:
+                self.response = response
+                return response
+            location = response.headers.get("location")
+            if not location:
+                self.response = response
+                return response
+            await response.aclose()
+            if hop >= self.client.max_redirects:
+                raise ProtocolError("Maximum redirect count exceeded")
+            request = build_redirect_request(request, response.status_code, location)
+        raise ProtocolError("Maximum redirect count exceeded")
 
     async def __aexit__(self, exc_type, exc, tb):
-        await self.response.aclose()
+        if self.response is not None:
+            await self.response.aclose()
