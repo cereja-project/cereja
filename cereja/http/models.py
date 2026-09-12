@@ -77,7 +77,7 @@ class Response:
         for part in content_type.split(";")[1:]:
             key, sep, value = part.strip().partition("=")
             if sep and key.lower() == "charset":
-                charset = value.strip('"\' ')
+                charset = value.strip().strip('"').strip("'")
                 break
         try:
             return self.content.decode(charset)
