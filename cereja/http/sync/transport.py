@@ -98,12 +98,11 @@ class SyncTransport:
             self.pool.discard(connection)
 
         if stream:
-            remaining = None if has_body else 0
-            return StreamResponse(
-                request,
-                info,
-                SyncByteStream(raw, on_complete=complete, on_abort=abort, remaining=remaining),
-            )
+            if has_body:
+                byte_stream = SyncByteStream(raw, on_complete=complete, on_abort=abort)
+            else:
+                byte_stream = SyncByteStream(raw, on_complete=complete, on_abort=abort, remaining=0)
+            return StreamResponse(request, info, byte_stream)
 
         if not has_body:
             complete()
