@@ -34,6 +34,33 @@ class HttpCliTest(unittest.TestCase):
         self.assertEqual(payload["content_type"], "application/json")
         self.assertEqual(stderr, "")
 
+    def test_method_data_and_query_flags_reach_http_client(self):
+        with running_server() as (base, _):
+            code, stdout, stderr = self.run_cli(
+                "-X", "POST", base + "/fixed",
+                "-d", "hello-cli",
+            )
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(stdout)["body"], "hello-cli")
+
+            code, stdout, stderr = self.run_cli(
+                "-v", base + "/fixed", "-q", "page=1", "-q", "name=Joab",
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout, "hello")
+        self.assertIn("/fixed?page=1&name=Joab", stderr)
+
+    def test_follow_and_pretty_flags(self):
+        with running_server() as (base, _):
+            code, stdout, stderr = self.run_cli("-L", base + "/redirect")
+            self.assertEqual((code, stdout, stderr), (0, "hello", ""))
+
+            code, stdout, stderr = self.run_cli("--pretty", base + "/json")
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(stdout), {"ok": True})
+        self.assertIn('\n  "ok": true\n', stdout)
+        self.assertEqual(stderr, "")
+
     def test_include_prints_response_head_before_body(self):
         with running_server() as (base, _):
             code, stdout, _ = self.run_cli("-i", base + "/fixed")
