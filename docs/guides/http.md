@@ -52,9 +52,39 @@ Verbose diagnostics are written to stderr. Sensitive request/response headers su
 hostname verification are enabled by default; `--insecure` must be supplied explicitly to
 disable them.
 
-`-o/--output` writes the materialized response atomically and therefore still obeys
-`--max-body` (16 MiB by default). For intentionally large downloads, use the streaming
-`cereja.transfers.download()` API instead of raising the CLI materialization limit.
+`-o/--output` on `cereja http` writes a materialized response atomically and therefore still
+obeys `--max-body` (16 MiB by default). For large files, use the dedicated streaming command.
+
+## Download command
+
+`cereja download` streams the response directly to an atomic filesystem sink instead of
+materializing the complete body in memory:
+
+```bash
+cereja download https://example.com/archive.zip
+cereja download https://example.com/archive.zip -o release.zip
+```
+
+When `-o/--output` is omitted, the destination filename is inferred from the URL path. A URL
+without a filename requires an explicit output path. Existing files are protected by default:
+
+```bash
+cereja download https://example.com/archive.zip -o release.zip --force
+```
+
+The command follows HTTP redirects in streaming mode, reports transfer progress on stderr,
+and writes nothing to stdout. Useful options include:
+
+```bash
+cereja download URL --timeout 30
+cereja download URL --chunk-size 131072
+cereja download URL --quiet
+cereja download URL --insecure
+```
+
+`--quiet` disables progress/completion output. TLS verification remains enabled unless
+`--insecure` is explicitly selected. Failed transfers leave the previous destination intact
+and remove the temporary partial file.
 
 ## Synchronous client
 
@@ -106,8 +136,9 @@ with Client() as client:
 ```
 
 The async equivalent uses `async with` and `async for` with `aiter_bytes()`.
-A stream that is closed before complete consumption discards its connection rather than
-returning an ambiguous connection to the pool.
+Streaming redirects follow the same bounded redirect policy as materialized requests. A stream
+that is closed before complete consumption discards its connection rather than returning an
+ambiguous connection to the pool.
 
 ## Downloads
 
