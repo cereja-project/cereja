@@ -38,6 +38,14 @@ class SyncTransport:
     def _version(response):
         return "HTTP/1.1" if response.version == 11 else "HTTP/1.0"
 
+    @staticmethod
+    def _has_body(request, response):
+        return not (
+            request.method == "HEAD"
+            or response.status in {204, 304}
+            or 100 <= response.status < 200
+        )
+
     def _perform(self, request, timeout):
         key = self._key(request)
         connection = self.pool.acquire(key, lambda: self._create_connection(request, timeout), timeout.pool)
@@ -78,6 +86,7 @@ class SyncTransport:
         key, connection, raw = self._perform(request, timeout)
         reusable = self._reusable(raw)
         info = ResponseInfo(raw.status, raw.reason or "", Headers(raw.getheaders()), request.url, self._version(raw))
+        has_body = self._has_body(request, raw)
 
         def complete():
             if reusable:
@@ -89,7 +98,16 @@ class SyncTransport:
             self.pool.discard(connection)
 
         if stream:
-            return StreamResponse(request, info, SyncByteStream(raw, on_complete=complete, on_abort=abort))
+            remaining = None if has_body else 0
+            return StreamResponse(
+                request,
+                info,
+                SyncByteStream(raw, on_complete=complete, on_abort=abort, remaining=remaining),
+            )
+
+        if not has_body:
+            complete()
+            return Response(request, info, b"")
 
         length = raw.getheader("Content-Length")
         if length is not None:
