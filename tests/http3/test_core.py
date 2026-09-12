@@ -37,6 +37,24 @@ class CoreContractsTest(unittest.TestCase):
         headers = Headers([("X-Test", "value\twith-tab")])
         self.assertEqual(headers["x-test"], "value\twith-tab")
 
+    def test_request_line_inputs_are_validated_or_normalized(self):
+        for method in ("GET\r\nInjected: yes", "BAD METHOD", ""):
+            with self.subTest(method=method), self.assertRaises(ValueError):
+                prepare_request(method, "https://example.com/")
+
+        request = prepare_request(
+            "GET",
+            "https://exämple.com/a path/ç?q=hello world\r\nInjected:yes",
+        )
+        self.assertEqual(request.url.host, "xn--exmple-cua.com")
+        self.assertNotIn("\r", request.url.target)
+        self.assertNotIn("\n", request.url.target)
+        self.assertNotIn(" ", request.url.target)
+        self.assertIn("/a%20path/%C3%A7", request.url.target)
+
+        with self.assertRaises(ValueError):
+            URL.parse("https://user:password@example.com/private")
+
     def test_response_framing_rejects_ambiguous_or_unsupported_encodings(self):
         with self.assertRaises(ProtocolError):
             response_framing(
