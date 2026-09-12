@@ -61,13 +61,25 @@ class Client:
         raise ProtocolError("Maximum redirect count exceeded")
 
     def stream(self, method, url, *, params=None, headers=None, json=UNSET, data=UNSET,
-               content=UNSET, timeout=None):
+               content=UNSET, timeout=None, follow_redirects=None):
         if self._closed:
             raise RuntimeError("Client is closed")
         request = prepare_request(method, url, base_url=self.base_url, params=params, headers=headers,
                                   json=json, data=data, content=content)
         timeout_config = Timeout.from_value(timeout) if timeout is not None else self.timeout
-        return self._send_with_retry(request, timeout_config, stream=True)
+        follow = self.follow_redirects if follow_redirects is None else bool(follow_redirects)
+        for hop in range(self.max_redirects + 1):
+            response = self._send_with_retry(request, timeout_config, stream=True)
+            if not follow or response.status_code not in REDIRECT_STATUSES:
+                return response
+            location = response.headers.get("location")
+            if not location:
+                return response
+            response.close()
+            if hop >= self.max_redirects:
+                raise ProtocolError("Maximum redirect count exceeded")
+            request = build_redirect_request(request, response.status_code, location)
+        raise ProtocolError("Maximum redirect count exceeded")
 
     def get(self, url, **kwargs): return self.request("GET", url, **kwargs)
     def post(self, url, **kwargs): return self.request("POST", url, **kwargs)
