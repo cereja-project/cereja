@@ -20,14 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from ._path import *
-from ..system.commons import *
-from ._repository_tree import *
-from ._repository_files import *
-from ._context_search import *
+from cereja._lazy import attach as _attach
 
-try:
-    from ._win32 import Window, Keyboard, Mouse, play_alert_sound
-    import _tkinter_ui as gui
-except (ImportError, ValueError) as err:
-    pass
+_attach(globals())
+del _attach
