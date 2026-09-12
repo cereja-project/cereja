@@ -1,8 +1,9 @@
 import unittest
 
 from cereja.http import Headers, Request, Response, Timeout, URL
+from cereja.http._core.framing import response_framing
 from cereja.http._core.prepare import prepare_request
-from cereja.http.errors import HTTPStatusError
+from cereja.http.errors import HTTPStatusError, ProtocolError
 
 
 class CoreContractsTest(unittest.TestCase):
@@ -35,6 +36,34 @@ class CoreContractsTest(unittest.TestCase):
                 Headers([("X-Test", value)])
         headers = Headers([("X-Test", "value\twith-tab")])
         self.assertEqual(headers["x-test"], "value\twith-tab")
+
+    def test_response_framing_rejects_ambiguous_or_unsupported_encodings(self):
+        with self.assertRaises(ProtocolError):
+            response_framing(
+                "GET", 200,
+                Headers([("Transfer-Encoding", "chunked"), ("Content-Length", "5")]),
+                "HTTP/1.1",
+            )
+        for transfer in ("gzip", "gzip, chunked", "chunked, gzip", "chunked, chunked"):
+            with self.subTest(transfer=transfer), self.assertRaises(ProtocolError):
+                response_framing(
+                    "GET", 200, Headers([("Transfer-Encoding", transfer)]), "HTTP/1.1"
+                )
+        with self.assertRaises(ProtocolError):
+            response_framing(
+                "GET", 200,
+                Headers([("Content-Length", "5"), ("Content-Length", "5")]),
+                "HTTP/1.1",
+            )
+
+        self.assertEqual(
+            response_framing("GET", 200, Headers([("Transfer-Encoding", "chunked")]), "HTTP/1.1"),
+            ("chunked", None, True),
+        )
+        self.assertEqual(
+            response_framing("HEAD", 200, Headers([("Content-Length", "5")]), "HTTP/1.1"),
+            ("none", 0, True),
+        )
 
 
 if __name__ == "__main__":
