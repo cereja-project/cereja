@@ -2,15 +2,20 @@
 
 from ..models import ResponseInfo
 
+_UNSET = object()
+
 
 class SyncByteStream:
-    def __init__(self, response, *, on_complete, on_abort):
+    def __init__(self, response, *, on_complete, on_abort, remaining=_UNSET):
         self._response = response
         self._on_complete = on_complete
         self._on_abort = on_abort
         self._closed = False
-        value = response.getheader("Content-Length")
-        self._remaining = int(value) if value is not None else None
+        if remaining is _UNSET:
+            value = response.getheader("Content-Length")
+            self._remaining = int(value) if value is not None else None
+        else:
+            self._remaining = remaining
 
     def _finish(self):
         if not self._closed:
@@ -19,6 +24,9 @@ class SyncByteStream:
 
     def read(self, size=-1):
         if self._closed:
+            return b""
+        if self._remaining == 0:
+            self._finish()
             return b""
         data = self._response.read(size)
         if self._remaining is not None:
