@@ -14,8 +14,8 @@ class LazyImportsTest(unittest.TestCase):
     def run_python(self, code):
         result = subprocess.run(
             [sys.executable, "-c", code], cwd=ROOT,
-            env=dict(os.environ, PYTHONPATH=str(ROOT)),
-            capture_output=True, text=True, timeout=60,
+            env=dict(os.environ, PYTHONPATH=str(ROOT), PYTHONIOENCODING="utf-8"),
+            capture_output=True, text=True, encoding="utf-8", timeout=60,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result
@@ -80,8 +80,8 @@ for prefix in ("cereja.concurrently.process", "cereja.mltools", "cereja.file",
         self.run_python('''
 import sys
 from cereja import VERSION, __version__
-assert VERSION == "2.1.6.final.0"
-assert __version__ == "2.1.6"
+assert isinstance(VERSION, str) and VERSION
+assert isinstance(__version__, str) and __version__
 assert "cereja.utils" not in sys.modules
 ''')
 

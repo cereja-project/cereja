@@ -11,10 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ImportContractTest(unittest.TestCase):
     def run_python(self, code):
-        env = dict(os.environ, PYTHONPATH=str(ROOT))
+        env = dict(os.environ, PYTHONPATH=str(ROOT), PYTHONIOENCODING="utf-8")
         result = subprocess.run(
             [sys.executable, "-c", code], cwd=ROOT, env=env,
-            capture_output=True, text=True, timeout=60,
+            capture_output=True, text=True, encoding="utf-8", timeout=60,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result
