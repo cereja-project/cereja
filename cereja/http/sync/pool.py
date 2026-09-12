@@ -23,11 +23,29 @@ class ConnectionPool:
                 if self._closed:
                     raise RuntimeError("Connection pool is closed")
                 idle = self._idle.get(key)
-                if idle:
-                    return idle.pop()
+                while idle:
+                    connection = idle.pop()
+                    if getattr(connection, "sock", None) is not None:
+                        return connection
+                    self._total -= 1
                 if self._total < self.max_connections:
                     self._total += 1
                     break
+
+                # A global connection limit must not deadlock requests to a new
+                # origin while another origin owns idle capacity. Evict one
+                # idle connection before waiting for an in-use connection.
+                victim = None
+                for values in self._idle.values():
+                    if values:
+                        victim = values.pop()
+                        break
+                if victim is not None:
+                    self._total -= 1
+                    victim.close()
+                    self._total += 1
+                    break
+
                 remaining = None if deadline is None else deadline - time.monotonic()
                 if remaining is not None and remaining <= 0:
                     raise PoolTimeout("Timed out waiting for an HTTP connection")
@@ -42,7 +60,7 @@ class ConnectionPool:
 
     def release(self, key, connection):
         with self._condition:
-            if self._closed:
+            if self._closed or getattr(connection, "sock", None) is None:
                 try:
                     connection.close()
                 finally:
