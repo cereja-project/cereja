@@ -2,9 +2,7 @@
 
 from collections.abc import Iterator, Mapping
 
-_TOKEN_CHARS = frozenset(
-    "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-)
+from ._core.syntax import validate_token
 
 
 class Headers:
@@ -18,9 +16,8 @@ class Headers:
 
     @staticmethod
     def _validate(name, value):
-        name, value = str(name), str(value)
-        if not name or any(ch not in _TOKEN_CHARS for ch in name):
-            raise ValueError(f"Invalid HTTP header name: {name!r}")
+        name = validate_token(name, label="header name")
+        value = str(value)
         for char in value:
             code = ord(char)
             if (code < 0x20 and char != "\t") or code == 0x7F or code > 0xFF:
