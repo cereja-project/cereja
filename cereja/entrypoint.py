@@ -15,4 +15,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # Keep unrelated CLI startup free from HTTP imports.
         from cereja.commands.http import main as http_main
         return http_main(args[1:])
+    if args and args[0] == "download":
+        # Download remains a transfer concern rather than part of the HTTP CLI.
+        from cereja.commands.download import main as download_main
+        return download_main(args[1:])
     return legacy_main(args)
