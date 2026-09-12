@@ -29,3 +29,22 @@ jobs:
     - name: Test with unittest
       run: |
         python -m unittest discover -s tests -v
+
+  imports:
+    name: Import contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Characterize imports and public exports
+      run: python benchmarks/imports.py --samples 3 --inventory
+    - name: Check public import contracts
+      run: python -m unittest discover -s tests -p test_import_contract.py -v
