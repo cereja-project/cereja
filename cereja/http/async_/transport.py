@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 import ssl
 
+from .._core.framing import response_framing
 from ..errors import BodyLimitExceeded, ConnectError, ConnectTimeout, ProtocolError, TLSFailure, WriteTimeout
 from ..headers import Headers
 from ..models import Response, ResponseInfo
@@ -48,10 +49,7 @@ class AsyncTransport:
     async def _send_headers(self, connection, request, timeout):
         lines = [f"{request.method} {request.url.target} HTTP/1.1\r\n".encode("ascii")]
         for name, value in request.headers:
-            try:
-                lines.append(f"{name}: {value}\r\n".encode("latin-1"))
-            except UnicodeEncodeError as exc:
-                raise ValueError(f"Header {name!r} is not latin-1 encodable") from exc
+            lines.append(f"{name}: {value}\r\n".encode("latin-1"))
         if "connection" not in request.headers:
             lines.append(b"Connection: keep-alive\r\n")
         lines.append(b"\r\n")
@@ -91,30 +89,13 @@ class AsyncTransport:
                 if b":" not in raw:
                     raise ProtocolError(f"Malformed HTTP header: {raw!r}")
                 name, value = raw.split(b":", 1)
-                headers.add(name.decode("ascii"), value.decode("latin-1").strip())
+                try:
+                    headers.add(name.decode("ascii"), value.decode("latin-1").strip())
+                except (UnicodeError, ValueError) as exc:
+                    raise ProtocolError(f"Invalid HTTP header: {raw!r}") from exc
             if 100 <= status < 200 and status != 101:
                 continue
             return ResponseInfo(status, reason, headers, request.url, version)
-
-    @staticmethod
-    def _framing(request, info):
-        if request.method == "HEAD" or info.status_code in {204, 304} or 100 <= info.status_code < 200:
-            return "none", 0, True
-        transfer = (info.headers.get("transfer-encoding") or "").lower()
-        connection = (info.headers.get("connection") or "").lower()
-        reusable = info.http_version == "HTTP/1.1" and connection != "close"
-        if "chunked" in transfer:
-            return "chunked", None, reusable
-        length = info.headers.get("content-length")
-        if length is not None:
-            try:
-                value = int(length)
-            except ValueError as exc:
-                raise ProtocolError("Invalid Content-Length") from exc
-            if value < 0:
-                raise ProtocolError("Negative Content-Length")
-            return "length", value, reusable
-        return "close", None, False
 
     async def send(self, request, timeout, *, stream=False):
         key = self._key(request)
@@ -123,7 +104,9 @@ class AsyncTransport:
         try:
             await self._send_headers(connection, request, timeout)
             info = await self._read_response_head(connection, request, timeout)
-            mode, remaining, reusable = self._framing(request, info)
+            mode, remaining, reusable = response_framing(
+                request.method, info.status_code, info.headers, info.http_version
+            )
 
             async def complete():
                 nonlocal owned
@@ -137,9 +120,15 @@ class AsyncTransport:
                     owned = False
                     await self.pool.discard(connection)
 
-            body = AsyncByteStream(connection.reader, mode=mode, remaining=remaining,
-                                   read_timeout=timeout.read, on_complete=complete,
-                                   on_abort=abort, reusable=reusable)
+            body = AsyncByteStream(
+                connection.reader,
+                mode=mode,
+                remaining=remaining,
+                read_timeout=timeout.read,
+                on_complete=complete,
+                on_abort=abort,
+                reusable=reusable,
+            )
             if stream:
                 return AsyncStreamResponse(request, info, body)
             if remaining is not None and self.max_body_bytes is not None and remaining > self.max_body_bytes:
