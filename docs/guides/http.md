@@ -52,39 +52,27 @@ Verbose diagnostics are written to stderr. Sensitive request/response headers su
 hostname verification are enabled by default; `--insecure` must be supplied explicitly to
 disable them.
 
-`-o/--output` on `cereja http` writes a materialized response atomically and therefore still
-obeys `--max-body` (16 MiB by default). For large files, use the dedicated streaming command.
+`-o/--output` writes the materialized response atomically and therefore still obeys
+`--max-body` (16 MiB by default). For intentionally large downloads, use `cereja download`
+or the streaming `cereja.transfers.download()` API instead of raising the CLI materialization
+limit.
 
-## Download command
+## Streaming downloads
 
-`cereja download` streams the response directly to an atomic filesystem sink instead of
-materializing the complete body in memory:
+`cereja download` is the dedicated command for large files. It streams directly to an
+atomic filesystem sink rather than buffering the complete response in memory:
 
 ```bash
 cereja download https://example.com/archive.zip
 cereja download https://example.com/archive.zip -o release.zip
+cereja download https://example.com/archive.zip --force
+cereja download https://example.com/archive.zip --quiet
 ```
 
-When `-o/--output` is omitted, the destination filename is inferred from the URL path. A URL
-without a filename requires an explicit output path. Existing files are protected by default:
-
-```bash
-cereja download https://example.com/archive.zip -o release.zip --force
-```
-
-The command follows HTTP redirects in streaming mode, reports transfer progress on stderr,
-and writes nothing to stdout. Useful options include:
-
-```bash
-cereja download URL --timeout 30
-cereja download URL --chunk-size 131072
-cereja download URL --quiet
-cereja download URL --insecure
-```
-
-`--quiet` disables progress/completion output. TLS verification remains enabled unless
-`--insecure` is explicitly selected. Failed transfers leave the previous destination intact
-and remove the temporary partial file.
+If `-o/--output` is omitted, the destination name is inferred from the URL path. Existing
+files are preserved unless `--force` is explicit. Temporary partial files are removed after
+failure, redirects are followed while streaming, and progress/completion output goes to
+stderr. The command also supports `--timeout`, `--chunk-size`, and `--insecure`.
 
 ## Synchronous client
 
@@ -123,6 +111,11 @@ Use one body representation per request:
 
 `params=` modifies the query string independently of the request body.
 
+Methods and header names are validated as HTTP tokens before transport. Header values reject
+unsafe control characters. URL request targets are normalized/percent-encoded before they
+reach either the sync or async request line, IDN hosts are normalized, and URL userinfo is
+rejected instead of being silently discarded.
+
 ## Streaming
 
 Materialized responses are bounded by `max_body_bytes`. For large responses, use streaming
@@ -136,9 +129,9 @@ with Client() as client:
 ```
 
 The async equivalent uses `async with` and `async for` with `aiter_bytes()`.
-Streaming redirects follow the same bounded redirect policy as materialized requests. A stream
-that is closed before complete consumption discards its connection rather than returning an
-ambiguous connection to the pool.
+A stream that is closed before complete consumption discards its connection rather than
+returning an ambiguous connection to the pool. Sync and async streams both support bounded
+redirect following.
 
 ## Downloads
 
@@ -168,6 +161,13 @@ as a retryable transport error.
 Redirects have a bounded hop count. Sensitive credentials such as `Authorization` and
 cookies are stripped when a redirect crosses origins. Redirects that change a POST to GET
 also drop body-specific headers.
+
+## Response framing
+
+Cereja is intentionally strict when HTTP/1.1 framing is ambiguous. Both transports use the
+same framing rules. Responses that combine `Transfer-Encoding` with `Content-Length`, repeat
+`Content-Length`, or use transfer codings outside the supported single `chunked` coding are
+rejected as protocol errors instead of being guessed differently by sync and async paths.
 
 ## Scope
 
