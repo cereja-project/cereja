@@ -1,61 +1,65 @@
 """Asynchronous high-level HTTP client."""
 
+import asyncio
+
 from .._core.encoding import UNSET
+from .._core.policies import REDIRECT_STATUSES, RetryPolicy, build_redirect_request
 from .._core.prepare import prepare_request
-from ..errors import ProtocolError
+from ..errors import ProtocolError, RequestError
 from ..models import Timeout
 from .transport import AsyncTransport
-
-
-_REDIRECTS = {301, 302, 303, 307, 308}
 
 
 class AsyncClient:
     def __init__(self, *, base_url=None, timeout=5.0, max_connections=20,
                  max_body_bytes=16 * 1024 * 1024, follow_redirects=True,
-                 max_redirects=10, ssl_context=None):
+                 max_redirects=10, retries=0, ssl_context=None):
         self.base_url = base_url
         self.timeout = Timeout.from_value(timeout)
         self.follow_redirects = bool(follow_redirects)
         self.max_redirects = int(max_redirects)
+        self.retry_policy = RetryPolicy.from_value(retries)
         self._transport = AsyncTransport(max_connections=max_connections, ssl_context=ssl_context,
                                          max_body_bytes=max_body_bytes)
         self._closed = False
 
-    async def _request_once(self, method, url, *, params=None, headers=None, json=UNSET,
-                            data=UNSET, content=UNSET, timeout=None, stream=False):
-        request = prepare_request(method, url, base_url=self.base_url, params=params, headers=headers,
-                                  json=json, data=data, content=content)
-        response = await self._transport.send(
-            request, Timeout.from_value(timeout) if timeout is not None else self.timeout, stream=stream
-        )
-        return request, response
+    async def _send_with_retry(self, request, timeout, *, stream=False):
+        attempt = 0
+        while True:
+            try:
+                response = await self._transport.send(request, timeout, stream=stream)
+            except asyncio.CancelledError:
+                raise
+            except RequestError as exc:
+                if not self.retry_policy.should_retry(request, error=exc, attempt=attempt):
+                    raise
+                await asyncio.sleep(self.retry_policy.delay(attempt))
+                attempt += 1
+                continue
+            if not stream and self.retry_policy.should_retry(request, status_code=response.status_code, attempt=attempt):
+                await asyncio.sleep(self.retry_policy.delay(attempt))
+                attempt += 1
+                continue
+            return response
 
     async def request(self, method, url, *, params=None, headers=None, json=UNSET, data=UNSET,
                       content=UNSET, timeout=None, follow_redirects=None):
         if self._closed:
             raise RuntimeError("AsyncClient is closed")
+        timeout_config = Timeout.from_value(timeout) if timeout is not None else self.timeout
+        request = prepare_request(method, url, base_url=self.base_url, params=params, headers=headers,
+                                  json=json, data=data, content=content)
         follow = self.follow_redirects if follow_redirects is None else bool(follow_redirects)
-        current_method, current_url = str(method).upper(), url
-        current_json, current_data, current_content = json, data, content
         for hop in range(self.max_redirects + 1):
-            request, response = await self._request_once(
-                current_method, current_url, params=params if hop == 0 else None,
-                headers=headers, json=current_json, data=current_data, content=current_content,
-                timeout=timeout,
-            )
-            if not follow or response.status_code not in _REDIRECTS:
+            response = await self._send_with_retry(request, timeout_config)
+            if not follow or response.status_code not in REDIRECT_STATUSES:
                 return response
             location = response.headers.get("location")
             if not location:
                 return response
             if hop >= self.max_redirects:
                 raise ProtocolError("Maximum redirect count exceeded")
-            target = request.url.resolve(location)
-            if response.status_code == 303 or (response.status_code in {301, 302} and current_method == "POST"):
-                current_method = "GET"
-                current_json = current_data = current_content = UNSET
-            current_url = str(target)
+            request = build_redirect_request(request, response.status_code, location)
         raise ProtocolError("Maximum redirect count exceeded")
 
     def stream(self, method, url, **kwargs):
@@ -88,7 +92,10 @@ class _AsyncStreamContext:
     async def __aenter__(self):
         if self.client._closed:
             raise RuntimeError("AsyncClient is closed")
-        _request, self.response = await self.client._request_once(self.method, self.url, stream=True, **self.kwargs)
+        timeout = self.kwargs.pop("timeout", None)
+        request = prepare_request(self.method, self.url, base_url=self.client.base_url, **self.kwargs)
+        timeout_config = Timeout.from_value(timeout) if timeout is not None else self.client.timeout
+        self.response = await self.client._send_with_retry(request, timeout_config, stream=True)
         return self.response
 
     async def __aexit__(self, exc_type, exc, tb):
