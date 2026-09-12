@@ -73,9 +73,6 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b"short")
             self.wfile.flush()
             self.close_connection = True
-        elif path == "/connection-count":
-            body = str(len(type(self).seen_connections)).encode()
-            self._send(200, body)
         else:
             self._send(404, b"missing")
 

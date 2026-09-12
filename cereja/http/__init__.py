@@ -1,6 +1,5 @@
 """Zero-dependency HTTP/1.1 clients for Cereja."""
 
-from ._core.encoding import UNSET
 from ._core.policies import RetryPolicy
 from .async_ import AsyncClient
 from .errors import (
@@ -30,7 +29,7 @@ def head(url, **kwargs): return request("HEAD", url, **kwargs)
 __all__ = [
     "URL", "Headers", "Timeout", "RetryPolicy", "Request", "ResponseInfo", "Response",
     "Client", "AsyncClient", "request", "get", "post", "put", "patch", "delete", "head",
-    "HTTPError", "RequestError", "ConnectError", "TimeoutError",
-    "ConnectTimeout", "ReadTimeout", "WriteTimeout", "PoolTimeout",
-    "ProtocolError", "TLSFailure", "HTTPStatusError", "DecodeError", "BodyLimitExceeded",
+    "HTTPError", "RequestError", "ConnectError", "TimeoutError", "ConnectTimeout",
+    "ReadTimeout", "WriteTimeout", "PoolTimeout", "ProtocolError", "TLSFailure",
+    "HTTPStatusError", "DecodeError", "BodyLimitExceeded",
 ]
