@@ -19,5 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from ._concurrence import TaskList, sync_to_async, async_to_sync
-from .process import MultiProcess, Processor
+
+from cereja._lazy import attach as _attach
+
+_attach(globals())
+del _attach

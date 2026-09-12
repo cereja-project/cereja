@@ -19,14 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from .version import *
-from ._utils import *
-from . import colab
-# Aliases here
-from ._utils import get_batch_strides as stride_values
-from . import colors
-from . import typography
-from . import decorators
-from . import time
-from .time import Timer, set_interval, time_format
-from .git.repository import GitRepository
+
+from cereja._lazy import attach as _attach
+
+_attach(globals())
+del _attach

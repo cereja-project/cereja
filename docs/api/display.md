@@ -1,4 +1,5 @@
 # `cereja.display`
 
-```{automodule} cereja.display
+```{eval-rst}
+.. automodule:: cereja.display
 ```

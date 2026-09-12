@@ -1,4 +1,5 @@
 # `cereja.array`
 
-```{automodule} cereja.array
+```{eval-rst}
+.. automodule:: cereja.array
 ```

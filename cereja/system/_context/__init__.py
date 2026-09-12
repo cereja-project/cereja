@@ -1,32 +1,26 @@
-"""Private components for bounded textual context search."""
+"""
+Copyright (c) 2019 The Cereja Project
 
-from .models import (
-    ContextCacheClearReport,
-    ContextCacheInfo,
-    ContextCacheWarning,
-    ContextResponse,
-    ContextResult,
-    ContextSnippet,
-    SkippedFile,
-)
-from .cache import clear_context_cache, get_context_cache_info
-from .cache_db import CacheDatabaseUnavailable
-from .query import context_response_to_dict
-from .search import list_text_context, search_text_context
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-__all__ = [
-    "ContextCacheInfo",
-    "ContextCacheClearReport",
-    "ContextCacheWarning",
-    "CacheDatabaseUnavailable",
-    "ContextSnippet",
-    "ContextResult",
-    "SkippedFile",
-    "ContextResponse",
-    "search_text_context",
-    "list_text_context",
-    "context_response_to_dict",
-    "get_context_cache_info",
-    "clear_context_cache",
-]
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+from cereja._lazy import attach as _attach
+
+_attach(globals())
+del _attach

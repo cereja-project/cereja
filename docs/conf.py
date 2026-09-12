@@ -49,7 +49,10 @@ html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
 
 autodoc_default_options = {
     "members": True,
-    "undoc-members": False,
+    # Public facades re-export objects defined in their implementation modules.
+    "imported-members": True,
+    # Legacy public classes such as Path have no class-level docstring.
+    "undoc-members": True,
     "show-inheritance": True,
 }
 autodoc_typehints = "description"

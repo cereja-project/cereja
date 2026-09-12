@@ -1,4 +1,5 @@
 # `cereja.hashtools`
 
-```{automodule} cereja.hashtools
+```{eval-rst}
+.. automodule:: cereja.hashtools
 ```

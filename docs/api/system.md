@@ -1,4 +1,5 @@
 # `cereja.system`
 
-```{automodule} cereja.system
+```{eval-rst}
+.. automodule:: cereja.system
 ```

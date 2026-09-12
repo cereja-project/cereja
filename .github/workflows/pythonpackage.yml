@@ -10,6 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ['3.11', '3.12', '3.13', '3.14']
 
@@ -29,3 +30,67 @@ jobs:
     - name: Test with unittest
       run: |
         python -m unittest discover -s tests -v
+
+  imports:
+    name: Import contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Measure isolated imports
+      run: python benchmarks/imports.py --samples 3
+    - name: Check public import contracts
+      run: python -m unittest discover -s tests -p test_import_contract.py -v
+    - name: Verify the frozen public surface
+      run: python -m unittest discover -s tests -p test_public_exports.py -v
+    - name: Verify lazy loading
+      run: python -m unittest discover -s tests -p 'test_lazy*.py' -v
+    - name: Verify static export declarations
+      run: python tools/generate_export_stubs.py --check
+
+  distribution:
+    name: Distribution and API tooling
+    runs-on: ubuntu-latest
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Install validation tools
+      run: python -m pip install build mypy -r docs/requirements.txt
+    - name: Check static API discovery
+      run: python -m mypy --follow-imports=silent --ignore-missing-imports --warn-unused-ignores tests/typing/public_api.py
+    - name: Build wheel from sdist
+      run: python -m build
+    - name: Verify installed imports and entrypoints
+      run: python tools/verify_distribution.py
+    - name: Build documentation
+      run: python -m sphinx -b html -q docs _build/docs
+    - name: Verify documented public exports
+      run: |
+        python - <<'PY'
+        import re
+        from pathlib import Path
+        missing = []
+        for package, name in [('system', 'Path'), ('file', 'FileIO'), ('concurrently', 'TaskList')]:
+            page = Path(f'_build/docs/api/{package}.html').read_text(encoding='utf-8')
+            expected = f'cereja.{package}.{name}'
+            identifiers = re.findall(r'id="([^"]+)"', page)
+            if expected not in identifiers:
+                missing.append(expected)
+                print(f'{package}: expected {expected}; actual anchors: {identifiers[:100]}')
+                start = page.find('role="main"')
+                print(page[start:start + 6000])
+        assert not missing, missing
+        print('Public Path, FileIO and TaskList documentation is present.')
+        PY

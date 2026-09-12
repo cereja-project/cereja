@@ -1,5 +1,4 @@
 """
-
 Copyright (c) 2019 The Cereja Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,50 +19,19 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from . import geolinear
-from .config import conf
-from .utils import *
-from . import utils
-from . import display
-from .display import *
-from . import file
-from .file import *
-from . import array
-from .array import *
-from . import system
-from .system import *
-from .utils import decorators
-from .concurrently import *
-from . import mltools
-from .mltools import *
-from .utils.version import get_version_pep440_compliant
-from .system.unicode import *
-from . import date
-from .date import *
-from . import hashtools
-from .hashtools import *
 
-from . import mathtools
-from .mathtools import *
-from . import experimental
-from ._requests import request
-from . import scraping
-from . import wcag
-from .utils import time
-
-VERSION = "2.1.6.final.0"
-
-__version__ = get_version_pep440_compliant(VERSION)
+from ._lazy import attach as _attach
+from ._version import VERSION, __version__
 
 
 def print_cereja_version():
-    # This is important, as there may be an exception if the terminal does not support unicode bmp
+    """Print the version banner explicitly; importing Cereja never prints it."""
     try:
-        unicode_ = f"\033[31m\U0001F352\033[0;0m"
-        print(f"{unicode_} Using Cereja v.{__version__}\r")
-        return True
-    except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError, UnicodeTranslateError):
+        print(f"\033[31m\U0001F352\033[0;0m Using Cereja v.{__version__}\r")
+    except UnicodeError:
         return False
+    return True
 
 
-NON_BMP_SUPPORTED = print_cereja_version()
+_attach(globals())
+del _attach

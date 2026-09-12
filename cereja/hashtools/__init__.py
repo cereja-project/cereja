@@ -19,6 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from cereja.hashtools._hash import *
-from cereja.hashtools._crypto import *
-from cereja.hashtools._compress import *
+
+from cereja._lazy import attach as _attach
+
+_attach(globals())
+del _attach
