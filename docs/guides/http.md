@@ -4,6 +4,58 @@ Cereja provides zero-dependency HTTP/1.1 clients using only the Python standard 
 The synchronous and asynchronous clients share request, response, URL, header, timeout,
 redirect, retry, and error semantics, while network I/O remains native to each runtime.
 
+## Command line
+
+`cereja http` exposes the synchronous client as a small curl-like command without adding
+third-party dependencies. A URL alone performs GET:
+
+```bash
+cereja http https://example.com
+```
+
+The method can be positional or explicit:
+
+```bash
+cereja http POST https://example.com/users --json '{"name":"Joab"}'
+cereja http -X POST https://example.com/users -d "raw body"
+```
+
+Headers and query parameters are repeatable:
+
+```bash
+cereja http https://example.com/users \
+  -H "Authorization: Bearer token" \
+  -H "Accept: application/json" \
+  -q page=1 \
+  -q limit=20
+```
+
+Useful response options include:
+
+```bash
+cereja http -i https://example.com        # response headers + body
+cereja http -I https://example.com        # HEAD / headers only
+cereja http -L https://example.com        # follow redirects
+cereja http --pretty https://example.com  # pretty-print JSON
+cereja http -v https://example.com        # diagnostics on stderr
+cereja http https://example.com -o body.bin
+```
+
+The response body is written to stdout by default, so normal shell composition works:
+
+```bash
+cereja http https://example.com/api | jq .
+```
+
+Verbose diagnostics are written to stderr. Sensitive request/response headers such as
+`Authorization`, cookies, and common API-key headers are redacted. TLS certificate and
+hostname verification are enabled by default; `--insecure` must be supplied explicitly to
+disable them.
+
+`-o/--output` writes the materialized response atomically and therefore still obeys
+`--max-body` (16 MiB by default). For intentionally large downloads, use the streaming
+`cereja.transfers.download()` API instead of raising the CLI materialization limit.
+
 ## Synchronous client
 
 Reuse a `Client` when making more than one request so connections can be pooled:
