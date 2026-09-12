@@ -1,7 +1,7 @@
 # Cereja
 
 Cereja is a Python utility package for developers who want reusable helpers for files, paths, progress display,
-compression, hashing, text processing, data preparation, arrays, dates, and small system tasks.
+compression, hashing, text processing, data preparation, arrays, dates, HTTP, and small system tasks.
 
 The package is distributed on PyPI as `cereja` and supports Python 3.11 and newer.
 
@@ -22,6 +22,7 @@ print(path.list_files())
 
 getting-started
 guides/imports
+guides/http
 cli
 guides/files-and-paths
 guides/context-cache
