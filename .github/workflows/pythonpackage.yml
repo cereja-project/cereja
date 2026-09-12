@@ -79,9 +79,18 @@ jobs:
     - name: Verify documented public exports
       run: |
         python - <<'PY'
+        import re
         from pathlib import Path
+        missing = []
         for package, name in [('system', 'Path'), ('file', 'FileIO'), ('concurrently', 'TaskList')]:
             page = Path(f'_build/docs/api/{package}.html').read_text(encoding='utf-8')
-            assert f'id="cereja.{package}.{name}"' in page, (package, name)
+            expected = f'cereja.{package}.{name}'
+            identifiers = re.findall(r'id="([^"]+)"', page)
+            if expected not in identifiers:
+                missing.append(expected)
+                print(f'{package}: expected {expected}; actual anchors: {identifiers[:100]}')
+                start = page.find('role="main"')
+                print(page[start:start + 6000])
+        assert not missing, missing
         print('Public Path, FileIO and TaskList documentation is present.')
         PY
