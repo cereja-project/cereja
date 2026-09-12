@@ -49,6 +49,8 @@ html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
 
 autodoc_default_options = {
     "members": True,
+    # Public facades re-export objects defined in their implementation modules.
+    "imported-members": True,
     "undoc-members": False,
     "show-inheritance": True,
 }
