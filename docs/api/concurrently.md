@@ -1,4 +1,5 @@
 # `cereja.concurrently`
 
-```{automodule} cereja.concurrently
+```{eval-rst}
+.. automodule:: cereja.concurrently
 ```

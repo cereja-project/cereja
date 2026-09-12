@@ -1,4 +1,5 @@
 # `cereja.geolinear`
 
-```{automodule} cereja.geolinear
+```{eval-rst}
+.. automodule:: cereja.geolinear
 ```

@@ -1,4 +1,5 @@
 # `cereja.file`
 
-```{automodule} cereja.file
+```{eval-rst}
+.. automodule:: cereja.file
 ```

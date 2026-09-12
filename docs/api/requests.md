@@ -1,4 +1,5 @@
 # `cereja._requests`
 
-```{automodule} cereja._requests
+```{eval-rst}
+.. automodule:: cereja._requests
 ```

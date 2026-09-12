@@ -1,4 +1,5 @@
 # `cereja.date`
 
-```{automodule} cereja.date
+```{eval-rst}
+.. automodule:: cereja.date
 ```

@@ -1,4 +1,5 @@
 # `cereja.geo`
 
-```{automodule} cereja.geo
+```{eval-rst}
+.. automodule:: cereja.geo
 ```

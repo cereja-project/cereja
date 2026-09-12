@@ -1,4 +1,5 @@
 # `cereja.mltools`
 
-```{automodule} cereja.mltools
+```{eval-rst}
+.. automodule:: cereja.mltools
 ```
