@@ -18,6 +18,14 @@ class DownloadTest(unittest.TestCase):
             self.assertEqual(events[-1].bytes_transferred, 7)
             self.assertEqual(list(Path(directory).glob("*.part")), [])
 
+    def test_download_follows_redirect_in_streaming_mode(self):
+        with running_server() as (base, _), tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "redirect.bin"
+            result = download(base + "/redirect", destination, chunk_size=2)
+            self.assertEqual(destination.read_bytes(), b"hello")
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(result.bytes_transferred, 5)
+
 
 class AsyncDownloadTest(unittest.IsolatedAsyncioTestCase):
     async def test_async_download(self):
@@ -25,6 +33,14 @@ class AsyncDownloadTest(unittest.IsolatedAsyncioTestCase):
             destination = Path(directory) / "payload.bin"
             result = await async_download(base + "/fixed", destination, chunk_size=2)
             self.assertEqual(await asyncio.to_thread(destination.read_bytes), b"hello")
+            self.assertEqual(result.bytes_transferred, 5)
+
+    async def test_async_download_follows_redirect_in_streaming_mode(self):
+        with running_server() as (base, _), tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "redirect.bin"
+            result = await async_download(base + "/redirect", destination, chunk_size=2)
+            self.assertEqual(await asyncio.to_thread(destination.read_bytes), b"hello")
+            self.assertEqual(result.status_code, 200)
             self.assertEqual(result.bytes_transferred, 5)
 
 
