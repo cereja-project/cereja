@@ -1,7 +1,11 @@
 """HTTP URL parsing and composition."""
 
 from dataclasses import dataclass
-from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlsplit, urlunsplit
+
+_PATH_SAFE = "/:@!$&'()*+,;=-._~%"
+_QUERY_SAFE = "=&?/:;+,%@!$'()*-._~"
+_FRAGMENT_SAFE = _QUERY_SAFE
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +25,22 @@ class URL:
         parsed = urlsplit(text)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError(f"Absolute HTTP(S) URL required: {value!r}")
-        return cls(parsed.scheme.lower(), parsed.hostname, parsed.port, parsed.path or "/", parsed.query, parsed.fragment)
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("URL userinfo is not supported; use an Authorization header")
+
+        host = parsed.hostname
+        if ":" not in host:
+            try:
+                host = host.encode("idna").decode("ascii")
+            except UnicodeError as exc:
+                raise ValueError(f"Invalid HTTP host: {parsed.hostname!r}") from exc
+        elif any(ord(char) > 0x7F or ord(char) < 0x20 for char in host):
+            raise ValueError(f"Invalid HTTP host: {host!r}")
+
+        path = quote(parsed.path or "/", safe=_PATH_SAFE)
+        query = quote(parsed.query, safe=_QUERY_SAFE)
+        fragment = quote(parsed.fragment, safe=_FRAGMENT_SAFE)
+        return cls(parsed.scheme.lower(), host, parsed.port, path, query, fragment)
 
     @property
     def default_port(self):
