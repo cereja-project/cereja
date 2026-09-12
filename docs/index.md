@@ -21,6 +21,7 @@ print(path.list_files())
 :caption: User Guide
 
 getting-started
+guides/imports
 cli
 guides/files-and-paths
 guides/context-cache
