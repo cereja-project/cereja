@@ -51,7 +51,8 @@ autodoc_default_options = {
     "members": True,
     # Public facades re-export objects defined in their implementation modules.
     "imported-members": True,
-    "undoc-members": False,
+    # Legacy public classes such as Path have no class-level docstring.
+    "undoc-members": True,
     "show-inheritance": True,
 }
 autodoc_typehints = "description"
