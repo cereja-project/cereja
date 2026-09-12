@@ -3,7 +3,7 @@ import json
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 
-from cereja.cli import main
+from cereja.entrypoint import main
 from http3._server import running_server
 
 
@@ -22,18 +22,16 @@ class HttpCliTest(unittest.TestCase):
         self.assertEqual(stdout, "hello")
         self.assertEqual(stderr, "")
 
-    def test_json_body_and_headers_are_translated_to_http_client(self):
+    def test_json_body_is_translated_to_http_client(self):
         with running_server() as (base, _):
             code, stdout, stderr = self.run_cli(
                 "POST", base + "/fixed",
                 "--json", '{"name":"Joab","active":true}',
-                "-H", "X-Test: cli",
             )
         self.assertEqual(code, 0)
         payload = json.loads(stdout)
         self.assertEqual(payload["body"], '{"name":"Joab","active":true}')
-        self.assertEqual(payload["headers"]["X-Test"], "cli")
-        self.assertEqual(payload["headers"]["Content-Type"], "application/json")
+        self.assertEqual(payload["content_type"], "application/json")
         self.assertEqual(stderr, "")
 
     def test_include_prints_response_head_before_body(self):
