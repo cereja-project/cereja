@@ -1,7 +1,7 @@
 """Measure imports in fresh processes; optionally inventory the public surface.
 
 Run from a source checkout: python benchmarks/imports.py --samples 7
-Use --inventory to capture exports before a compatibility-sensitive refactor.
+Use --inventory to deliberately resolve and capture the complete public API.
 No timing threshold is imposed: compare equivalent interpreter/OS environments.
 """
 
@@ -55,38 +55,45 @@ import json
 from pathlib import Path
 import sys
 import types
+reports = []
 with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
     import cereja
-packages = sorted(
-    (name, module) for name, module in tuple(sys.modules.items())
-    if (name == "cereja" or name.startswith("cereja."))
-    and isinstance(module, types.ModuleType) and hasattr(module, "__path__")
-)
-for name, module in packages:
-    names = sorted(n for n in vars(module) if not n.startswith("_"))
-    exports = {}
-    for key in names:
-        value = getattr(module, key)
-        if isinstance(value, types.ModuleType):
-            target = [value.__name__, None]
-        else:
-            owner = getattr(value, "__module__", None)
-            attr = getattr(value, "__name__", None)
-            origin = sys.modules.get(owner)
-            target = [owner, attr] if origin is not None and attr and getattr(origin, attr, None) is value else None
-        exports[key] = {"target": target, "type": type(value).__module__ + "." + type(value).__qualname__}
-    filename = getattr(module, "__file__", None)
-    initializer = None
-    if filename and filename.endswith(".py"):
-        tree = ast.parse(Path(filename).read_text(encoding="utf-8"))
-        tree.body = [node for node in tree.body if not (
-            isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
-            and isinstance(node.value.value, str)
-        )]
-        initializer = ast.unparse(tree)
-    print(json.dumps({"package": name, "exports": exports,
-                      "star_exports": list(getattr(module, "__all__", names)),
-                      "initializer": initializer}, sort_keys=True))
+    # Inventory intentionally resolves the API in a separate process.
+    for name in dir(cereja):
+        if not name.startswith("_"):
+            getattr(cereja, name)
+    packages = sorted(
+        (name, module) for name, module in tuple(sys.modules.items())
+        if (name == "cereja" or name.startswith("cereja."))
+        and isinstance(module, types.ModuleType) and hasattr(module, "__path__")
+    )
+    for name, module in packages:
+        names = sorted(n for n in dir(module) if not n.startswith("_"))
+        exports = {}
+        for key in names:
+            value = getattr(module, key)
+            if isinstance(value, types.ModuleType):
+                target = [value.__name__, None]
+            else:
+                owner = getattr(value, "__module__", None)
+                attr = getattr(value, "__name__", None)
+                origin = sys.modules.get(owner)
+                target = [owner, attr] if origin is not None and attr and getattr(origin, attr, None) is value else None
+            exports[key] = {"target": target, "type": type(value).__module__ + "." + type(value).__qualname__}
+        filename = getattr(module, "__file__", None)
+        initializer = None
+        if filename and filename.endswith(".py"):
+            tree = ast.parse(Path(filename).read_text(encoding="utf-8"))
+            tree.body = [node for node in tree.body if not (
+                isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)
+            )]
+            initializer = ast.unparse(tree)
+        reports.append({"package": name, "exports": exports,
+                        "star_exports": list(getattr(module, "__all__", names)),
+                        "initializer": initializer})
+for report in reports:
+    print(json.dumps(report, sort_keys=True))
 '''
 
 
@@ -100,7 +107,7 @@ def positive_samples(value):
 def execute(code, *args):
     result = subprocess.run(
         [sys.executable, "-c", code, *args], cwd=ROOT,
-        env=dict(os.environ, PYTHONPATH=str(ROOT)),
+        env=dict(os.environ, PYTHONPATH=str(ROOT), PYTHONIOENCODING="utf-8"),
         capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     if result.returncode:
