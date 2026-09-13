@@ -72,15 +72,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
-    parser = create_parser()
-    args = parser.parse_args(argv)
-    try:
-        return args.handler(args)
-    except CliError as exc:
-        import sys
-
-        print(f"Error: {exc}", file=sys.stderr)
-        return 1
+    return run_handler(create_parser(), argv, lambda args: args.handler(args))
 
 
 def _add_common_options(parser) -> None:
