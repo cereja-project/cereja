@@ -6,6 +6,33 @@ Cereja exposes a `cereja` command when installed from PyPI or from the local pro
 cereja --help
 ```
 
+The root help is the complete command index. Each command owns its own parser and help:
+
+```text
+compress     Compress a file or directory.
+decompress   Decompress a file or directory archive.
+encrypt      Encrypt a file.
+decrypt      Decrypt a file.
+tree         Draw a repository tree.
+context      Search or list bounded textual context.
+security     Inspect untrusted files without executing them.
+http         Send HTTP requests.
+download     Download files with streaming transfers.
+system       Inspect local system information.
+module       Manage Cereja module scaffolding.
+```
+
+Use command-specific help for the complete set of flags:
+
+```bash
+cereja compress --help
+cereja context --help
+cereja http --help
+cereja system --help
+```
+
+The CLI loads only the selected command implementation. Asking for root help or the Cereja version does not initialize unrelated command subsystems.
+
 ## Repository Tree
 
 Draw a filtered Unicode tree for the current directory or an explicit path:
@@ -26,11 +53,6 @@ Compress a file or directory:
 
 ```bash
 cereja compress path/to/input
-```
-
-Choose the output path:
-
-```bash
 cereja compress path/to/input -o output.cjz
 ```
 
@@ -54,7 +76,7 @@ Use `--force` to overwrite an existing output file:
 cereja compress path/to/input -o output.cjz --force
 ```
 
-## Encrypted Archives
+### Encrypted archives
 
 Create an encrypted compressed archive:
 
@@ -93,3 +115,83 @@ Decrypt it:
 ```bash
 cereja decrypt report.txt.enc -o report.txt
 ```
+
+## Context
+
+Search bounded text context:
+
+```bash
+cereja context search --root . --query "needle"
+```
+
+List text-file metadata without printing file contents:
+
+```bash
+cereja context list --root .
+```
+
+Inspect or clear the optional per-user cache:
+
+```bash
+cereja context cache info
+cereja context cache clear
+```
+
+## Security
+
+Run defensive static analysis without executing the target file:
+
+```bash
+cereja security analyze suspicious.bin
+cereja security analyze suspicious.bin --format json
+```
+
+## HTTP and Downloads
+
+Send a one-shot HTTP request:
+
+```bash
+cereja http https://example.com
+```
+
+Use the dedicated streaming transfer command for downloads:
+
+```bash
+cereja download https://example.com/archive.zip
+```
+
+See [HTTP and Transfers](guides/http.md) for the full HTTP and download interfaces.
+
+## System Information
+
+Inspect the local operating system and hardware:
+
+```bash
+cereja system info
+cereja system info --full
+cereja system info --json
+```
+
+Sensitive machine identifiers remain opt-in:
+
+```bash
+cereja system info --full --sensitive
+```
+
+See [System Information](guides/system-info.md) for platform behavior and privacy details.
+
+## Module Scaffolding
+
+Create a Cereja module file relative to the package source:
+
+```bash
+cereja module create path/to/module.py
+```
+
+The historical form remains available as a compatibility alias:
+
+```bash
+cereja --startmodule path/to/module.py
+```
+
+New scripts should prefer `cereja module create`.
