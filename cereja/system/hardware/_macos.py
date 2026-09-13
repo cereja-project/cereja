@@ -24,24 +24,61 @@ def _bytes_from_text(value):
     match = re.match(r"([\d.]+)\s*(KB|MB|GB|TB)", text.upper())
     if not match:
         return None
-    factors = {"KB": 1024, "MB": 1024 ** 2, "GB": 1024 ** 3, "TB": 1024 ** 4}
+    factors = {
+        "KB": 1024,
+        "MB": 1024 ** 2,
+        "GB": 1024 ** 3,
+        "TB": 1024 ** 4,
+    }
     return int(float(match.group(1)) * factors[match.group(2)])
 
 
-def collect(*, detail="basic", include_sensitive=False, sections=SECTIONS, _runner=run_json):
+def _memory_items(payload):
+    values = payload.get("SPMemoryDataType") or []
+    items = []
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        nested = value.get("_items")
+        if isinstance(nested, list):
+            items.extend(item for item in nested if isinstance(item, dict))
+        else:
+            items.append(value)
+    return items
+
+
+def collect(
+    *, detail="basic", include_sensitive=False, sections=SECTIONS,
+    _runner=run_json,
+):
     payload = _runner(
-        ["system_profiler", "SPHardwareDataType", "SPDisplaysDataType", "SPMemoryDataType", "-json"],
+        [
+            "system_profiler",
+            "SPHardwareDataType",
+            "SPDisplaysDataType",
+            "SPMemoryDataType",
+            "-json",
+        ],
         timeout=10.0,
     )
     if not isinstance(payload, dict):
         payload = {}
-    return _from_profiler(payload, detail=detail, include_sensitive=include_sensitive, sections=sections)
+    return _from_profiler(
+        payload,
+        detail=detail,
+        include_sensitive=include_sensitive,
+        sections=sections,
+    )
 
 
 def _from_profiler(payload, *, detail, include_sensitive, sections):
     full = detail == "full"
     hardware_items = payload.get("SPHardwareDataType") or []
-    hw = hardware_items[0] if hardware_items and isinstance(hardware_items[0], dict) else {}
+    hw = (
+        hardware_items[0]
+        if hardware_items and isinstance(hardware_items[0], dict)
+        else {}
+    )
 
     system = None
     if selected(sections, "system"):
@@ -51,8 +88,12 @@ def _from_profiler(payload, *, detail, include_sensitive, sections):
             architecture=platform.machine(),
             total_memory_bytes=_bytes_from_text(hw.get("physical_memory")),
             machine=clean(hw.get("machine_name")) if full else None,
-            serial_number=clean(hw.get("serial_number")) if include_sensitive else None,
-            hardware_uuid=clean(hw.get("platform_UUID")) if include_sensitive else None,
+            serial_number=(
+                clean(hw.get("serial_number")) if include_sensitive else None
+            ),
+            hardware_uuid=(
+                clean(hw.get("platform_UUID")) if include_sensitive else None
+            ),
         )
 
     os_info = None
@@ -75,7 +116,9 @@ def _from_profiler(payload, *, detail, include_sensitive, sections):
             name=clean(hw.get("chip_type") or hw.get("cpu_type")),
             manufacturer="Apple" if hw.get("chip_type") else None,
             cores=to_int(hw.get("number_processors") or hw.get("number_cores")),
-            logical_processors=to_int(hw.get("number_processors") or hw.get("number_cores")),
+            logical_processors=to_int(
+                hw.get("number_processors") or hw.get("number_cores")
+            ),
             architecture=platform.machine(),
         )
 
@@ -86,25 +129,45 @@ def _from_profiler(payload, *, detail, include_sensitive, sections):
             GPUInfo(
                 name=clean(item.get("sppci_model") or item.get("_name")),
                 manufacturer=clean(item.get("spdisplays_vendor")),
-                adapter_memory_bytes=_bytes_from_text(item.get("spdisplays_vram")) if full else None,
-                driver_version=clean(item.get("spdisplays_metal")) if full else None,
+                adapter_memory_bytes=(
+                    _bytes_from_text(item.get("spdisplays_vram"))
+                    if full else None
+                ),
+                driver_version=(
+                    clean(item.get("spdisplays_metal")) if full else None
+                ),
                 processor=clean(item.get("sppci_model")) if full else None,
             )
-            for item in values if isinstance(item, dict)
+            for item in values
+            if isinstance(item, dict)
         )
 
     memory = ()
     if selected(sections, "memory"):
-        values = payload.get("SPMemoryDataType") or []
         memory = tuple(
             MemoryInfo(
-                capacity_bytes=_bytes_from_text(item.get("dimm_size") or item.get("size")),
+                capacity_bytes=_bytes_from_text(
+                    item.get("dimm_size") or item.get("size")
+                ),
                 manufacturer=clean(item.get("dimm_manufacturer")),
-                speed_mts=to_int(str(item.get("dimm_speed") or "").split()[0]),
-                part_number=clean(item.get("dimm_part_number")) if full else None,
-                serial_number=clean(item.get("dimm_serial_number")) if include_sensitive else None,
+                speed_mts=to_int(
+                    str(item.get("dimm_speed") or "").split()[0]
+                ),
+                part_number=(
+                    clean(item.get("dimm_part_number")) if full else None
+                ),
+                serial_number=(
+                    clean(item.get("dimm_serial_number"))
+                    if include_sensitive else None
+                ),
             )
-            for item in values if isinstance(item, dict)
+            for item in _memory_items(payload)
         )
 
-    return HardwareInfo(system=system, os=os_info, cpu=cpu, memory=memory, gpus=gpus)
+    return HardwareInfo(
+        system=system,
+        os=os_info,
+        cpu=cpu,
+        memory=memory,
+        gpus=gpus,
+    )
