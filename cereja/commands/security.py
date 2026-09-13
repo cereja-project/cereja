@@ -10,6 +10,45 @@ from cereja.security._reporting import report_to_json, report_to_markdown
 from ._common import non_negative_int
 
 
+def _configure_analyze(parser) -> None:
+    parser.add_argument("input", help="File to inspect statically.")
+    parser.add_argument(
+        "--max-depth",
+        type=non_negative_int,
+        default=2,
+        help="Maximum archive recursion depth.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("json", "markdown"),
+        default="markdown",
+        help="Report format.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Write the report to this path instead of stdout.",
+    )
+    parser.set_defaults(handler=_handle_analyze)
+
+
+def register_security_parser(subparsers) -> None:
+    """Compatibility registration hook for callers of the historical API."""
+    security = subparsers.add_parser(
+        "security",
+        help="Inspect untrusted files without executing them.",
+    )
+    security_subparsers = security.add_subparsers(
+        dest="security_command",
+        required=True,
+    )
+    analyze = security_subparsers.add_parser(
+        "analyze",
+        help="Run defensive static analysis.",
+    )
+    _configure_analyze(analyze)
+
+
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cereja security",
@@ -17,25 +56,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="security_command", required=True)
     analyze = subparsers.add_parser("analyze", help="Run defensive static analysis.")
-    analyze.add_argument("input", help="File to inspect statically.")
-    analyze.add_argument(
-        "--max-depth",
-        type=non_negative_int,
-        default=2,
-        help="Maximum archive recursion depth.",
-    )
-    analyze.add_argument(
-        "--format",
-        choices=("json", "markdown"),
-        default="markdown",
-        help="Report format.",
-    )
-    analyze.add_argument(
-        "-o",
-        "--output",
-        help="Write the report to this path instead of stdout.",
-    )
-    analyze.set_defaults(handler=_handle_analyze)
+    _configure_analyze(analyze)
     return parser
 
 
