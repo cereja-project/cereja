@@ -153,7 +153,15 @@ class MacOSBackendTest(unittest.TestCase):
                 "sppci_model": "Apple M4",
                 "spdisplays_vendor": "Apple",
             }],
-            "SPMemoryDataType": [],
+            "SPMemoryDataType": [{
+                "_items": [{
+                    "dimm_size": "16 GB",
+                    "dimm_manufacturer": "Example Memory",
+                    "dimm_speed": "6400 MT/s",
+                    "dimm_part_number": "PART",
+                    "dimm_serial_number": "MEMSECRET",
+                }]
+            }],
         }
         result = _macos._from_profiler(
             payload,
@@ -164,7 +172,20 @@ class MacOSBackendTest(unittest.TestCase):
         self.assertEqual(result.system.model, "MacBookPro")
         self.assertEqual(result.cpu.name, "Apple M4")
         self.assertEqual(result.gpus[0].manufacturer, "Apple")
+        self.assertEqual(result.memory[0].capacity_bytes, 16 * 1024 ** 3)
+        self.assertEqual(result.memory[0].manufacturer, "Example Memory")
+        self.assertIsNone(result.memory[0].part_number)
+        self.assertIsNone(result.memory[0].serial_number)
         self.assertIsNone(result.system.serial_number)
+
+        full = _macos._from_profiler(
+            payload,
+            detail="full",
+            include_sensitive=True,
+            sections=_macos.SECTIONS,
+        )
+        self.assertEqual(full.memory[0].part_number, "PART")
+        self.assertEqual(full.memory[0].serial_number, "MEMSECRET")
 
 
 if __name__ == "__main__":
