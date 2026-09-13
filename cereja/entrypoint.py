@@ -19,4 +19,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # Download remains a transfer concern rather than part of the HTTP CLI.
         from cereja.commands.download import main as download_main
         return download_main(args[1:])
+    if args and args[0] == "system":
+        # Hardware probing is loaded only when the system command is requested.
+        from cereja.commands.system import main as system_main
+        return system_main(args[1:])
     return legacy_main(args)
