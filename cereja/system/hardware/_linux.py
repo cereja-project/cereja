@@ -6,11 +6,12 @@ import os
 import platform
 import re
 
-from ._common import clean, read_text, selected, to_int
+from ._common import clean, read_text, run_text, selected, to_int
 from .collector import SECTIONS
 from .models import (
     BIOSInfo,
     CPUInfo,
+    GPUInfo,
     HardwareInfo,
     MotherboardInfo,
     OperatingSystemInfo,
@@ -51,7 +52,45 @@ def _mem_total(text):
     return int(match.group(1)) * 1024 if match else None
 
 
-def collect(*, detail="basic", include_sensitive=False, sections=SECTIONS, _read=read_text):
+def _gpu_manufacturer(description):
+    known = (
+        "NVIDIA Corporation",
+        "Intel Corporation",
+        "Advanced Micro Devices, Inc.",
+        "AMD",
+    )
+    for vendor in known:
+        if description.startswith(vendor):
+            return vendor
+    return None
+
+
+def _gpus(runner, *, full=False):
+    output = runner(["lspci", "-D"], timeout=5.0)
+    if not output:
+        return ()
+    values = []
+    markers = ("VGA compatible controller: ", "3D controller: ", "Display controller: ")
+    for line in output.splitlines():
+        description = None
+        for marker in markers:
+            if marker in line:
+                description = line.split(marker, 1)[1].strip()
+                break
+        if not description:
+            continue
+        values.append(GPUInfo(
+            name=description,
+            manufacturer=_gpu_manufacturer(description),
+            processor=description if full else None,
+        ))
+    return tuple(values)
+
+
+def collect(
+    *, detail="basic", include_sensitive=False, sections=SECTIONS,
+    _read=read_text, _runner=run_text,
+):
     full = detail == "full"
     os_release = _parse_os_release(_read("/etc/os-release"))
     cpu_text = _read("/proc/cpuinfo")
@@ -65,8 +104,14 @@ def collect(*, detail="basic", include_sensitive=False, sections=SECTIONS, _read
             architecture=platform.machine(),
             total_memory_bytes=_mem_total(mem_text),
             machine=platform.machine() if full else None,
-            serial_number=clean(_read("/sys/class/dmi/id/product_serial")) if include_sensitive else None,
-            hardware_uuid=clean(_read("/sys/class/dmi/id/product_uuid")) if include_sensitive else None,
+            serial_number=(
+                clean(_read("/sys/class/dmi/id/product_serial"))
+                if include_sensitive else None
+            ),
+            hardware_uuid=(
+                clean(_read("/sys/class/dmi/id/product_uuid"))
+                if include_sensitive else None
+            ),
         )
 
     os_info = None
@@ -87,6 +132,7 @@ def collect(*, detail="basic", include_sensitive=False, sections=SECTIONS, _read
         )
 
     cpu = _cpu(cpu_text) if selected(sections, "cpu") else None
+    gpus = _gpus(_runner, full=full) if selected(sections, "gpu") else ()
 
     motherboard = None
     if selected(sections, "motherboard"):
@@ -94,7 +140,10 @@ def collect(*, detail="basic", include_sensitive=False, sections=SECTIONS, _read
             manufacturer=clean(_read("/sys/class/dmi/id/board_vendor")),
             product=clean(_read("/sys/class/dmi/id/board_name")),
             version=clean(_read("/sys/class/dmi/id/board_version")),
-            serial_number=clean(_read("/sys/class/dmi/id/board_serial")) if include_sensitive else None,
+            serial_number=(
+                clean(_read("/sys/class/dmi/id/board_serial"))
+                if include_sensitive else None
+            ),
         )
 
     bios = None
@@ -111,7 +160,7 @@ def collect(*, detail="basic", include_sensitive=False, sections=SECTIONS, _read
         os=os_info,
         cpu=cpu,
         memory=(),
-        gpus=(),
+        gpus=gpus,
         motherboard=motherboard,
         bios=bios,
     )
