@@ -44,6 +44,19 @@ class CommandRegistryTest(unittest.TestCase):
         for command in EXPECTED_COMMANDS:
             self.assertIn(command, result.stdout)
 
+    def test_each_registered_command_has_own_help(self):
+        for command in EXPECTED_COMMANDS:
+            with self.subTest(command=command):
+                result = subprocess.run(
+                    [sys.executable, "-m", "cereja", command, "--help"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    encoding="utf-8",
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("usage:", result.stdout.lower())
+
     def test_root_help_does_not_import_command_implementations(self):
         script = r'''
 import contextlib
