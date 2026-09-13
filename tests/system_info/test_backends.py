@@ -1,0 +1,71 @@
+import unittest
+
+from cereja.system.hardware import _linux, _macos, _windows
+
+
+class WindowsBackendTest(unittest.TestCase):
+    def test_maps_cim_payload_and_hides_sensitive_values(self):
+        payload = {
+            "computer": {"Manufacturer": "Acer", "Model": "Predator", "TotalPhysicalMemory": "34359738368"},
+            "os": {"Caption": "Microsoft Windows 11 Pro", "Version": "10.0.26100", "BuildNumber": "26100", "OSArchitecture": "64-bit", "CSName": "SECRET-PC"},
+            "cpu": {"Name": "Intel CPU", "Manufacturer": "GenuineIntel", "NumberOfCores": 24, "NumberOfLogicalProcessors": 24, "MaxClockSpeed": 5400},
+            "memory": [{"Capacity": "34359738368", "Manufacturer": "Micron", "Speed": 6400, "ConfiguredClockSpeed": 6400, "PartNumber": "PART", "SerialNumber": "RAMSECRET"}],
+            "gpu": [{"Name": "RTX 5070", "AdapterCompatibility": "NVIDIA", "AdapterRAM": "8589934592", "DriverVersion": "1.2", "VideoProcessor": "RTX"}],
+            "board": {"Manufacturer": "ARL", "Product": "Macan_ARX", "Version": "V1.26", "SerialNumber": "BOARDSECRET"},
+            "bios": {"Manufacturer": "INSYDE", "SMBIOSBIOSVersion": "V1.26", "ReleaseDate": "20260223000000.000000+000", "SerialNumber": "BIOSSECRET"},
+        }
+        basic = _windows._from_cim(payload, detail="basic", include_sensitive=False, sections=_windows.SECTIONS)
+        self.assertEqual(basic.system.manufacturer, "Acer")
+        self.assertEqual(basic.cpu.cores, 24)
+        self.assertEqual(basic.memory[0].speed_mts, 6400)
+        self.assertIsNone(basic.memory[0].part_number)
+        self.assertIsNone(basic.motherboard.serial_number)
+        self.assertIsNone(basic.os.hostname)
+        full = _windows._from_cim(payload, detail="full", include_sensitive=True, sections=_windows.SECTIONS)
+        self.assertEqual(full.memory[0].part_number, "PART")
+        self.assertEqual(full.motherboard.serial_number, "BOARDSECRET")
+        self.assertEqual(full.os.hostname, "SECRET-PC")
+
+
+class LinuxBackendTest(unittest.TestCase):
+    def test_collects_from_proc_sys_and_os_release(self):
+        files = {
+            "/etc/os-release": 'NAME="Ubuntu"\nVERSION_ID="24.04"\nPRETTY_NAME="Ubuntu 24.04 LTS"\n',
+            "/proc/cpuinfo": "model name\t: Example CPU\nvendor_id\t: GenuineIntel\ncpu cores\t: 8\nprocessor\t: 0\nprocessor\t: 1\n",
+            "/proc/meminfo": "MemTotal:       32768000 kB\n",
+            "/sys/class/dmi/id/sys_vendor": "Acer\n",
+            "/sys/class/dmi/id/product_name": "Predator\n",
+            "/sys/class/dmi/id/product_serial": "SECRET\n",
+            "/sys/class/dmi/id/board_vendor": "ARL\n",
+            "/sys/class/dmi/id/board_name": "Macan_ARX\n",
+            "/sys/class/dmi/id/board_version": "V1\n",
+            "/sys/class/dmi/id/board_serial": "BOARDSECRET\n",
+            "/sys/class/dmi/id/bios_vendor": "Vendor\n",
+            "/sys/class/dmi/id/bios_version": "1.0\n",
+            "/sys/class/dmi/id/bios_date": "01/01/2026\n",
+        }
+        read = lambda path: files.get(str(path))
+        result = _linux.collect(detail="basic", include_sensitive=False, sections=_linux.SECTIONS, _read=read)
+        self.assertEqual(result.system.manufacturer, "Acer")
+        self.assertEqual(result.os.name, "Ubuntu")
+        self.assertEqual(result.cpu.name, "Example CPU")
+        self.assertEqual(result.system.total_memory_bytes, 32768000 * 1024)
+        self.assertIsNone(result.system.serial_number)
+
+
+class MacOSBackendTest(unittest.TestCase):
+    def test_maps_system_profiler_payload(self):
+        payload = {
+            "SPHardwareDataType": [{"machine_model": "MacBookPro", "machine_name": "MacBook Pro", "chip_type": "Apple M4", "number_processors": "10", "physical_memory": "32 GB", "serial_number": "SECRET"}],
+            "SPDisplaysDataType": [{"sppci_model": "Apple M4", "spdisplays_vendor": "Apple"}],
+            "SPMemoryDataType": [],
+        }
+        result = _macos._from_profiler(payload, detail="basic", include_sensitive=False, sections=_macos.SECTIONS)
+        self.assertEqual(result.system.model, "MacBookPro")
+        self.assertEqual(result.cpu.name, "Apple M4")
+        self.assertEqual(result.gpus[0].manufacturer, "Apple")
+        self.assertIsNone(result.system.serial_number)
+
+
+if __name__ == "__main__":
+    unittest.main()
