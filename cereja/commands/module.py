@@ -22,9 +22,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
-    parser = create_parser()
-    args = parser.parse_args(argv)
-    return run_handler(parser, argv, lambda _args: _args.handler(_args))
+    return run_handler(create_parser(), argv, lambda args: args.handler(args))
 
 
 def _handle_create(args) -> int:
