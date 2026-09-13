@@ -23,6 +23,7 @@ print(path.list_files())
 getting-started
 guides/imports
 guides/http
+guides/system-info
 cli
 guides/files-and-paths
 guides/context-cache
