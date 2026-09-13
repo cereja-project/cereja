@@ -138,7 +138,10 @@ class CliTest(unittest.TestCase):
             source_dir.mkdir()
             archive_path = Path(temp_dir) / "archive.cjz"
 
-            with patch("cereja.cli.compress_dir", return_value=(str(archive_path), compression_stats())) as compress_dir:
+            with patch(
+                "cereja.commands.compress.compress_dir",
+                return_value=(str(archive_path), compression_stats()),
+            ) as compress_dir:
                 with redirect_stdout(io.StringIO()):
                     exit_code = main(["compress", str(source_dir), "-o", str(archive_path)])
 
@@ -156,7 +159,10 @@ class CliTest(unittest.TestCase):
             source_dir.mkdir()
             archive_path = Path(temp_dir) / "archive.cjz"
 
-            with patch("cereja.cli.compress_dir", return_value=(str(archive_path), compression_stats())) as compress_dir:
+            with patch(
+                "cereja.commands.compress.compress_dir",
+                return_value=(str(archive_path), compression_stats()),
+            ) as compress_dir:
                 with redirect_stdout(io.StringIO()):
                     exit_code = main(["compress", str(source_dir), "-o", str(archive_path), "--quiet"])
 
@@ -175,7 +181,7 @@ class CliTest(unittest.TestCase):
 
             with working_directory(workspace):
                 with patch(
-                    "cereja.cli.compress_dir",
+                    "cereja.commands.compress.compress_dir",
                     return_value=(str(expected_archive), compression_stats()),
                 ) as compress_dir:
                     with redirect_stdout(io.StringIO()):
@@ -196,7 +202,10 @@ class CliTest(unittest.TestCase):
             output_path = Path(temp_dir) / "archive"
             expected_archive = Path(temp_dir) / "archive.cjz"
 
-            with patch("cereja.cli.compress_dir", return_value=(str(expected_archive), compression_stats())) as compress_dir:
+            with patch(
+                "cereja.commands.compress.compress_dir",
+                return_value=(str(expected_archive), compression_stats()),
+            ) as compress_dir:
                 with redirect_stdout(io.StringIO()):
                     exit_code = main(["compress", str(source_dir), "-o", str(output_path), "--quiet"])
 
@@ -214,7 +223,10 @@ class CliTest(unittest.TestCase):
             archive_path = Path(temp_dir) / "source.txt.cjz"
             source_path.write_text("content", encoding="utf-8")
 
-            with patch("cereja.cli.compress_file", return_value=(str(archive_path), compression_stats())) as compress_file:
+            with patch(
+                "cereja.commands.compress.compress_file",
+                return_value=(str(archive_path), compression_stats()),
+            ) as compress_file:
                 with redirect_stdout(io.StringIO()):
                     exit_code = main(["compress", str(source_path), "-o", str(archive_path)])
 
@@ -232,7 +244,10 @@ class CliTest(unittest.TestCase):
             archive_path = Path(temp_dir) / "source.txt.cjz"
             source_path.write_text("content", encoding="utf-8")
 
-            with patch("cereja.cli.compress_file", return_value=(str(archive_path), compression_stats())) as compress_file:
+            with patch(
+                "cereja.commands.compress.compress_file",
+                return_value=(str(archive_path), compression_stats()),
+            ) as compress_file:
                 with redirect_stdout(io.StringIO()):
                     exit_code = main(["compress", str(source_path), "-o", str(archive_path), "--quiet"])
 
@@ -252,7 +267,7 @@ class CliTest(unittest.TestCase):
             source_path.write_text("content", encoding="utf-8")
 
             with patch(
-                "cereja.cli.compress_file",
+                "cereja.commands.compress.compress_file",
                 return_value=(str(expected_archive), compression_stats()),
             ) as compress_file:
                 with redirect_stdout(io.StringIO()):
@@ -272,7 +287,10 @@ class CliTest(unittest.TestCase):
             output_dir = Path(temp_dir) / "output"
             archive_path.write_bytes(b"archive")
 
-            with patch("cereja.cli.decompress_dir", return_value=str(output_dir)) as decompress_dir:
+            with patch(
+                "cereja.commands.decompress.decompress_dir",
+                return_value=str(output_dir),
+            ) as decompress_dir:
                 with redirect_stdout(io.StringIO()):
                     exit_code = main(
                         ["decompress", str(archive_path), "-o", str(output_dir), "--archive-type", "dir"]
@@ -287,7 +305,10 @@ class CliTest(unittest.TestCase):
             output_dir = Path(temp_dir) / "output"
             archive_path.write_bytes(b"archive")
 
-            with patch("cereja.cli.decompress_dir", return_value=str(output_dir)) as decompress_dir:
+            with patch(
+                "cereja.commands.decompress.decompress_dir",
+                return_value=str(output_dir),
+            ) as decompress_dir:
                 with redirect_stdout(io.StringIO()):
                     exit_code = main(
                         [
@@ -505,7 +526,8 @@ class CliTest(unittest.TestCase):
         stderr = io.StringIO()
 
         with patch(
-            "cereja.cli.search_text_context", side_effect=ValueError("invalid context")
+            "cereja.commands.context.search_text_context",
+            side_effect=ValueError("invalid context"),
         ), redirect_stderr(stderr):
             exit_code = main([
                 "context", "search", "--root", ".", "--query", "needle"
@@ -515,7 +537,10 @@ class CliTest(unittest.TestCase):
         self.assertIn("invalid context", stderr.getvalue())
 
     def test_non_context_value_error_is_not_translated(self):
-        with patch("cereja.cli._handle_tree", side_effect=ValueError("unrelated")):
+        with patch(
+            "cereja.commands.tree.render_repository_tree",
+            side_effect=ValueError("unrelated"),
+        ):
             with self.assertRaisesRegex(ValueError, "unrelated"):
                 main(["tree", "."])
 
@@ -581,7 +606,10 @@ class CliTest(unittest.TestCase):
 
     def test_context_search_forwards_cache_flags(self):
         response = ContextResponse(1, "search", "needle", ("C:/repo",), (), (), False)
-        with patch("cereja.cli.search_text_context", return_value=response) as search:
+        with patch(
+            "cereja.commands.context.search_text_context",
+            return_value=response,
+        ) as search:
             self.assertEqual(main([
                 "context", "search", "--root", ".", "--query", "needle",
                 "--cache", "--refresh-cache",
@@ -592,7 +620,10 @@ class CliTest(unittest.TestCase):
 
     def test_context_list_forwards_cache_flags(self):
         response = ContextResponse(1, "list", None, ("C:/repo",), (), (), False)
-        with patch("cereja.cli.list_text_context", return_value=response) as list_context:
+        with patch(
+            "cereja.commands.context.list_text_context",
+            return_value=response,
+        ) as list_context:
             self.assertEqual(main([
                 "context", "list", "--root", ".", "--cache", "--refresh-cache",
             ]), 0)
@@ -606,7 +637,10 @@ class CliTest(unittest.TestCase):
         )
         stdout = io.StringIO()
 
-        with patch("cereja.cli.get_context_cache_info", return_value=info), redirect_stdout(stdout):
+        with patch(
+            "cereja.commands.context.get_context_cache_info",
+            return_value=info,
+        ), redirect_stdout(stdout):
             exit_code = main(["context", "cache", "info", "--format", "json"])
 
         self.assertEqual(exit_code, 0)
@@ -618,7 +652,10 @@ class CliTest(unittest.TestCase):
         )
         stdout = io.StringIO()
 
-        with patch("cereja.cli.get_context_cache_info", return_value=info), redirect_stdout(stdout):
+        with patch(
+            "cereja.commands.context.get_context_cache_info",
+            return_value=info,
+        ), redirect_stdout(stdout):
             exit_code = main(["context", "cache", "info"])
 
         self.assertEqual(exit_code, 0)
@@ -628,7 +665,10 @@ class CliTest(unittest.TestCase):
         report = ContextCacheClearReport(3, 2, 5, 100, 20)
         stdout = io.StringIO()
 
-        with patch("cereja.cli.clear_context_cache", return_value=report), redirect_stdout(stdout):
+        with patch(
+            "cereja.commands.context.clear_context_cache",
+            return_value=report,
+        ), redirect_stdout(stdout):
             exit_code = main(["context", "cache", "clear", "--format", "json"])
 
         self.assertEqual(exit_code, 0)
@@ -638,7 +678,10 @@ class CliTest(unittest.TestCase):
         report = ContextCacheClearReport(3, 2, 5, 100, 20)
         stdout = io.StringIO()
 
-        with patch("cereja.cli.clear_context_cache", return_value=report), redirect_stdout(stdout):
+        with patch(
+            "cereja.commands.context.clear_context_cache",
+            return_value=report,
+        ), redirect_stdout(stdout):
             exit_code = main(["context", "cache", "clear"])
 
         self.assertEqual(exit_code, 0)
@@ -648,7 +691,7 @@ class CliTest(unittest.TestCase):
         stderr = io.StringIO()
 
         with patch(
-            "cereja.cli.clear_context_cache",
+            "cereja.commands.context.clear_context_cache",
             side_effect=CacheDatabaseUnavailable("locked"),
         ), redirect_stderr(stderr):
             exit_code = main(["context", "cache", "clear"])
