@@ -196,6 +196,9 @@ from cereja.system.commons import (
 from cereja.system.unicode import (
     Unicode as Unicode,
 )
+from cereja.utils._traceback import (
+    format_safe_traceback as format_safe_traceback,
+)
 from cereja.utils._utils import (
     CjTest as CjTest,
     DataAnalyzer as DataAnalyzer,
