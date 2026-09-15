@@ -203,7 +203,7 @@ class CryptoTest(unittest.TestCase):
             self.assertEqual(encrypted_file, temp_file + '.enc')
             
             # Decrypt file
-            decrypted_file = hashtools.decrypt_file(encrypted_file, password)
+            decrypted_file = hashtools.decrypt_file(encrypted_file, password, overwrite=True)
             self.assertTrue(os.path.exists(decrypted_file))
             
             # Verify content

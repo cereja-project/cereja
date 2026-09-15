@@ -28,6 +28,7 @@ _CONTEXT = {
 
 EXPORTS = {
     "cereja.utils": {
+        **_objects("cereja.utils._traceback", "format_safe_traceback"),
         **_objects("cereja.utils._utils", """
             CjTest DataAnalyzer DataIterator PoolMeta SingletonMeta Source SourceCodeAnalyzer
             camel_case_to_snake camel_to_snake can_do check_type_on_sequence chunk clipboard

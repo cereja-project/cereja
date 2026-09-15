@@ -19,11 +19,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import hmac
-import hashlib
-import secrets
 import base64
-from typing import Union, Tuple
+import hashlib
+import hmac
+import os
+import secrets
+import tempfile
+from typing import Tuple, Union
 
 __all__ = [
     "encrypt",
@@ -40,249 +42,181 @@ class CryptoError(Exception):
     pass
 
 
-def _pad(data: bytes, block_size: int = 16) -> bytes:
-    """Apply PKCS7 padding to data."""
-    padding_length = block_size - (len(data) % block_size)
-    padding = bytes([padding_length] * padding_length)
-    return data + padding
-
-
-def _unpad(data: bytes) -> bytes:
-    """Remove PKCS7 padding from data."""
-    if not data:
-        raise CryptoError("Cannot unpad empty data")
-    padding_length = data[-1]
-    if padding_length > len(data) or padding_length == 0:
-        raise CryptoError("Invalid padding")
-    # Verify all padding bytes are correct
-    if data[-padding_length:] != bytes([padding_length] * padding_length):
-        raise CryptoError("Invalid padding")
-    return data[:-padding_length]
-
-
 def _xor_bytes(a: bytes, b: bytes) -> bytes:
-    """XOR two byte strings."""
-    return bytes(x ^ y for x, y in zip(a, b))
+    """XOR up to the shorter length with bounded integer temporaries."""
+    length = min(len(a), len(b))
+    result = bytearray(length)
+    for start in range(0, length, 65536):
+        end = min(start + 65536, length)
+        value = int.from_bytes(a[start:end], "little") ^ int.from_bytes(b[start:end], "little")
+        result[start:end] = value.to_bytes(end - start, "little")
+    return bytes(result)
 
 
 def _generate_keystream(key: bytes, iv: bytes, length: int) -> bytes:
     """
-    Generate keystream using HMAC-based key expansion.
-    This creates a cryptographically secure stream cipher.
+    Generate the keystream used by the historical Cereja format.
     """
     chunks = []
     counter = 0
     remaining = length
-    
+    template = hmac.new(key, iv, hashlib.sha256) if remaining > 0 else None
+
     while remaining > 0:
-        # Use HMAC with counter for key expansion
-        h = hmac.new(key, iv + counter.to_bytes(4, 'big'), hashlib.sha256)
+        h = template.copy()
+        h.update(counter.to_bytes(4, "big"))
         digest = h.digest()
         chunks.append(digest)
         remaining -= len(digest)
         counter += 1
-    
-    return b''.join(chunks)[:length]
+
+    return b"".join(chunks)[:length]
 
 
-def generate_key(password: Union[str, bytes], salt: bytes = None, iterations: int = 100000) -> Tuple[bytes, bytes]:
+def generate_key(
+    password: Union[str, bytes],
+    salt: bytes = None,
+    iterations: int = 100000,
+) -> Tuple[bytes, bytes]:
     """
     Generate encryption key from password using PBKDF2-HMAC-SHA256.
-    
+
     Args:
-        password: Password string or bytes
-        salt: Salt bytes (if None, generates random salt)
-        iterations: Number of PBKDF2 iterations (default: 100000)
-    
+        password: Password string or bytes.
+        salt: Salt bytes (if None, generates random 16-byte salt).
+        iterations: Number of PBKDF2 iterations (default: 100000).
+
     Returns:
-        Tuple of (key, salt)
+        Tuple of (key, salt).
     """
     if isinstance(password, str):
-        password = password.encode('utf-8')
-    
+        password = password.encode("utf-8")
+
     if salt is None:
         salt = secrets.token_bytes(16)
-    
-    key = hashlib.pbkdf2_hmac('sha256', password, salt, iterations, dklen=32)
+
+    key = hashlib.pbkdf2_hmac("sha256", password, salt, iterations, dklen=32)
     return key, salt
 
 
+_AUTH_ERROR = "Authentication failed: incorrect password or corrupted data"
+
+
 def encrypt(data: Union[str, bytes, dict, list], password: Union[str, bytes]) -> str:
-    """
-    Encrypt data with password using stream cipher with HMAC authentication.
-    
-    Args:
-        data: Data to encrypt (str, bytes, dict, or list)
-        password: Password for encryption
-    
-    Returns:
-        Base64-encoded encrypted data with format: salt:iv:ciphertext:hmac
-    
-    Raises:
-        CryptoError: If encryption fails
+    """Encrypt using the historical Cereja format and only the standard library.
+
+    Return Base64 of salt + IV + ciphertext + HMAC. Non-bytes values use UTF-8
+    encoded ``str(data)`` for compatibility; serialize JSON explicitly if needed.
+    This custom construction has not undergone an independent security audit.
     """
     try:
-        # Convert data to bytes
-        if isinstance(data, (dict, list)):
-            data = str(data).encode('utf-8')
-        elif isinstance(data, str):
-            data = data.encode('utf-8')
-        elif not isinstance(data, bytes):
-            data = str(data).encode('utf-8')
-        
-        # Generate key and salt
+        if not isinstance(data, bytes):
+            data = str(data).encode("utf-8")
         key, salt = generate_key(password)
-        encryption_key = key[:16]  # Use first 16 bytes for encryption
-        hmac_key = key[16:]  # Use remaining 16 bytes for HMAC
-        
-        # Generate random IV
         iv = secrets.token_bytes(16)
-        
-        # Generate keystream and encrypt
-        keystream = _generate_keystream(encryption_key, iv, len(data))
-        ciphertext = _xor_bytes(data, keystream)
-        
-        # Calculate HMAC
-        hmac_obj = hmac.new(hmac_key, salt + iv + ciphertext, hashlib.sha256)
-        hmac_digest = hmac_obj.digest()
-        
-        # Combine: salt:iv:ciphertext:hmac
-        result = salt + iv + ciphertext + hmac_digest
-        
-        # Encode to base64
-        return base64.b64encode(result).decode('ascii')
-    
-    except Exception as e:
-        raise CryptoError(f"Encryption failed: {str(e)}")
+        ciphertext = _xor_bytes(data, _generate_keystream(key[:16], iv, len(data)))
+        payload = salt + iv + ciphertext
+        tag = hmac.new(key[16:], payload, hashlib.sha256).digest()
+        return base64.b64encode(payload + tag).decode("ascii")
+    except CryptoError:
+        raise
+    except Exception:
+        raise CryptoError("Encryption failed") from None
 
 
 def decrypt(encrypted_data: str, password: Union[str, bytes]) -> bytes:
-    """
-    Decrypt data encrypted with encrypt() function.
-    
-    Args:
-        encrypted_data: Base64-encoded encrypted data
-        password: Password for decryption
-    
-    Returns:
-        Decrypted data as bytes
-    
-    Raises:
-        CryptoError: If decryption fails or authentication fails
+    """Authenticate and decrypt the historical unversioned Cereja format.
+
+    Base64 is validated strictly. Authentication completes before generating
+    the keystream or returning plaintext. No external dependencies are required.
     """
     try:
-        # Decode from base64
-        data = base64.b64decode(encrypted_data)
-        
-        # Extract components
-        if len(data) < 64:  # Minimum: 16 (salt) + 16 (iv) + 0 (ciphertext) + 32 (hmac)
+        if not isinstance(encrypted_data, str):
+            raise CryptoError("Encrypted data must be a string")
+        data = base64.b64decode(encrypted_data, validate=True)
+        if len(data) < 64:
             raise CryptoError("Invalid encrypted data format")
-        
-        salt = data[:16]
-        iv = data[16:32]
-        hmac_digest = data[-32:]
-        ciphertext = data[32:-32]
-        
-        # Regenerate key
+        salt, iv = data[:16], data[16:32]
+        ciphertext, tag = data[32:-32], data[-32:]
         key, _ = generate_key(password, salt)
-        encryption_key = key[:16]
-        hmac_key = key[16:]
-        
-        # Verify HMAC
-        expected_hmac = hmac.new(hmac_key, salt + iv + ciphertext, hashlib.sha256).digest()
-        if not hmac.compare_digest(hmac_digest, expected_hmac):
-            raise CryptoError("Authentication failed: incorrect password or corrupted data")
-        
-        # Decrypt using stream cipher
-        keystream = _generate_keystream(encryption_key, iv, len(ciphertext))
-        plaintext = _xor_bytes(ciphertext, keystream)
-        
-        return plaintext
-    
+        expected = hmac.new(key[16:], salt + iv + ciphertext, hashlib.sha256).digest()
+        if not hmac.compare_digest(tag, expected):
+            raise CryptoError(_AUTH_ERROR)
+        return _xor_bytes(ciphertext, _generate_keystream(key[:16], iv, len(ciphertext)))
     except CryptoError:
         raise
-    except Exception as e:
-        raise CryptoError(f"Decryption failed: {str(e)}")
+    except Exception:
+        raise CryptoError("Decryption failed") from None
 
 
-def encrypt_file(file_path: str, password: Union[str, bytes], output_path: str = None) -> str:
-    """
-    Encrypt file contents.
-    
-    Args:
-        file_path: Path to file to encrypt
-        password: Password for encryption
-        output_path: Path for encrypted file (if None, uses file_path + '.enc')
-    
-    Returns:
-        Path to encrypted file
-    
-    Raises:
-        CryptoError: If encryption fails
-        FileNotFoundError: If input file doesn't exist
-    """
+def _check_destination(source, destination, overwrite):
+    if os.path.normcase(os.path.realpath(source)) == os.path.normcase(os.path.realpath(destination)):
+        raise CryptoError("Input and output must be different files")
+    if os.path.exists(destination) and os.path.samefile(source, destination):
+        raise CryptoError("Input and output must be different files")
+    if not overwrite and os.path.lexists(destination):
+        raise CryptoError("Output already exists; use overwrite=True")
+
+
+def _publish(destination, data, overwrite):
+    # The temporary stays on the destination filesystem. link() creates the
+    # destination exclusively; replace() is used only with explicit permission.
+    temporary = None
     try:
-        # Read file
-        with open(file_path, 'rb') as f:
-            data = f.read()
-        
-        # Encrypt
-        encrypted = encrypt(data, password)
-        
-        # Determine output path
-        if output_path is None:
-            output_path = file_path + '.enc'
-        
-        # Write encrypted file
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(encrypted)
-        
-        return output_path
-    
-    except FileNotFoundError:
-        raise
-    except Exception as e:
-        raise CryptoError(f"File encryption failed: {str(e)}")
+        with tempfile.NamedTemporaryFile(dir=os.path.dirname(os.path.abspath(destination)),
+                                         prefix=".cereja-crypto-", delete=False) as stream:
+            temporary = stream.name
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if overwrite:
+            os.replace(temporary, destination)
+        else:
+            os.link(temporary, destination)
+    finally:
+        if temporary is not None and os.path.lexists(temporary):
+            os.unlink(temporary)
 
 
-def decrypt_file(file_path: str, password: Union[str, bytes], output_path: str = None) -> str:
-    """
-    Decrypt file contents.
-    
-    Args:
-        file_path: Path to encrypted file
-        password: Password for decryption
-        output_path: Path for decrypted file (if None, removes '.enc' extension)
-    
-    Returns:
-        Path to decrypted file
-    
-    Raises:
-        CryptoError: If decryption fails
-        FileNotFoundError: If input file doesn't exist
-    """
+def _transform_file(file_path, password, output_path, overwrite, *, decrypting):
     try:
-        # Read encrypted file
-        with open(file_path, 'r', encoding='utf-8') as f:
-            encrypted_data = f.read()
-        
-        # Decrypt
-        decrypted = decrypt(encrypted_data, password)
-        
-        # Determine output path
-        if output_path is None:
-            if file_path.endswith('.enc'):
-                output_path = file_path[:-4]
-            else:
-                output_path = file_path + '.dec'
-        
-        # Write decrypted file
-        with open(output_path, 'wb') as f:
-            f.write(decrypted)
-        
-        return output_path
-    
-    except FileNotFoundError:
+        source = os.fsdecode(file_path)
+        destination = os.fsdecode(output_path) if output_path is not None else (
+            source[:-4] if decrypting and source.endswith(".enc")
+            else source + (".dec" if decrypting else ".enc")
+        )
+        # Open first to preserve FileNotFoundError for a missing input.
+        with open(source, "rb") as stream:
+            _check_destination(source, destination, overwrite)
+            data = stream.read()
+        result = (decrypt(data.decode("ascii"), password) if decrypting
+                  else encrypt(data, password).encode("ascii"))
+        _check_destination(source, destination, overwrite)
+        _publish(destination, result, overwrite)
+        return destination
+    except (CryptoError, FileNotFoundError):
         raise
-    except Exception as e:
-        raise CryptoError(f"File decryption failed: {str(e)}")
+    except Exception:
+        raise CryptoError("File decryption failed" if decrypting else "File encryption failed") from None
+
+
+def encrypt_file(file_path: str, password: Union[str, bytes], output_path: str = None,
+                 *, overwrite: bool = False) -> str:
+    """Encrypt a whole file and publish its output atomically.
+
+    Default output is input + '.enc'. Existing outputs require ``overwrite=True``;
+    aliases of the input are always rejected. Raises CryptoError on failure and
+    FileNotFoundError for missing paths.
+    """
+    return _transform_file(file_path, password, output_path, overwrite, decrypting=False)
+
+
+def decrypt_file(file_path: str, password: Union[str, bytes], output_path: str = None,
+                 *, overwrite: bool = False) -> str:
+    """Authenticate a whole file before publishing plaintext atomically.
+
+    Default output removes '.enc', or appends '.dec'. Existing outputs require
+    ``overwrite=True``; aliases of the input are always rejected. Raises
+    CryptoError on failure and FileNotFoundError for missing paths.
+    """
+    return _transform_file(file_path, password, output_path, overwrite, decrypting=True)
