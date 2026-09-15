@@ -61,9 +61,41 @@ archive is decompressed.
 
 ## Direct File Encryption
 
+Direct file encryption uses only the Python standard library.
+
 ```python
 from cereja.hashtools import encrypt_file, decrypt_file
 
 encrypt_file("report.txt", "secret", "report.txt.enc")
-decrypt_file("report.txt.enc", "secret", "report.txt")
+decrypt_file("report.txt.enc", "secret", "report.txt", overwrite=True)
 ```
+
+Existing output files require `overwrite=True` in Python or `--force` in the CLI.
+The input and output must be different files, including hard-link and symbolic-link
+aliases. Authentication finishes before any plaintext is written. Output is
+prepared in a temporary file in the destination directory and published atomically.
+Without overwrite permission, publication uses a hard link and fails safely on
+filesystems that do not support it. With permission, it uses atomic replacement.
+These helpers process the whole file in memory; they are not streaming APIs.
+
+### Data and format compatibility
+
+`encrypt(data, password)` returns text and `decrypt(text, password)` returns bytes.
+Strings and other non-bytes values, including dictionaries and lists, use UTF-8
+encoded `str(data)`, preserving the historical contract. For JSON, explicitly pass
+`json.dumps(data)` and decode the result with `json.loads`.
+
+The historical format is preserved for both reading and writing: strict Base64
+of a 16-byte salt, a 16-byte IV, ciphertext, and a 32-byte HMAC-SHA256 tag.
+PBKDF2-HMAC-SHA256 derives 32 bytes with 100,000 iterations; the two 16-byte
+halves serve the historical keystream and authentication roles. Salt and IV
+are randomly generated for every encryption. Authentication covers the salt,
+IV and ciphertext and is checked before generating the decryption keystream.
+Malformed Base64 is rejected, including extraneous whitespace or punctuation.
+
+This custom cryptographic construction is retained for compatibility. The changes
+to validation and file handling do not establish its cryptographic security or
+replace an independent security assessment. No new encryption format, external
+backend or executable is introduced.
+
+Encrypted compression archives retain their separate existing format.

@@ -28,7 +28,7 @@ def _handle(args) -> int:
     output_path = _output(args.input, args.output)
     ensure_output_available(output_path, args.force)
     password = getpass.getpass("Password: ")
-    result_path = decrypt_file(args.input, password, str(output_path))
+    result_path = decrypt_file(args.input, password, str(output_path), overwrite=args.force)
     print(f"Decrypted: {result_path}")
     return 0
 
