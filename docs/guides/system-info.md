@@ -1,6 +1,6 @@
 # System information
 
-Cereja can inspect basic operating-system and hardware information without third-party runtime dependencies.
+Cereja can inspect basic operating-system and hardware information without third-party Python runtime dependencies.
 The Python API and CLI share the same typed inventory model, and collection is performed only when requested.
 
 ## Command line
@@ -86,3 +86,29 @@ invented value.
 
 No network request or telemetry is performed. Importing `cereja` or `cereja.system` does not probe the machine;
 collection starts only when `hardware.info()` or `cereja system info` is invoked.
+
+### Windows GPU memory
+
+`Win32_VideoController.AdapterRAM` is a 32-bit unsigned byte count, so it cannot represent
+4 GiB or larger capacities reliably. Cereja does not use this field as a VRAM measurement.
+
+With `--full` and the GPU section selected, NVIDIA memory is queried through the optional local
+`nvidia-smi` executable on `PATH`. The command requests only the GPU name and total framebuffer
+memory, has a five-second timeout, and never requests UUIDs, serial numbers, or process lists.
+The reported MiB value is converted to bytes with `1024 ** 2`; it is not rounded to the advertised
+card capacity and may differ slightly from other APIs because of their reporting precision or
+reserved memory. The existing `driver_version` remains the Windows CIM driver version.
+
+GPU names must match uniquely in both inventories, ignoring case and surrounding whitespace.
+Enumeration order is never used to associate adapters. If the executable is missing, fails, times out,
+returns unsupported or malformed data, or the match is ambiguous, `adapter_memory_bytes` is `None`
+(`null` in JSON). Intel, AMD, and other adapters also report unknown memory until a reliable source
+is supported; their names and other available metadata are still included. Shared system memory
+is not presented as dedicated VRAM. Basic inventory and inventories without the GPU section do
+not run `nvidia-smi`. No PyTorch, CUDA toolkit, or additional Python package is required.
+
+Before sharing diagnostic output publicly, remove hostnames, user paths, device identifiers, and
+unnecessary timestamps. Prefer a minimal synthetic reproduction instead of attaching a full dump.
+
+References: [Microsoft Win32_VideoController documentation](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-videocontroller)
+and [NVIDIA System Management Interface documentation](https://docs.nvidia.com/deploy/nvidia-smi/index.html).
