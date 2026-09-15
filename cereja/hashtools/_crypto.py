@@ -43,8 +43,14 @@ class CryptoError(Exception):
 
 
 def _xor_bytes(a: bytes, b: bytes) -> bytes:
-    """XOR two byte strings."""
-    return bytes(x ^ y for x, y in zip(a, b))
+    """XOR up to the shorter length with bounded integer temporaries."""
+    length = min(len(a), len(b))
+    result = bytearray(length)
+    for start in range(0, length, 65536):
+        end = min(start + 65536, length)
+        value = int.from_bytes(a[start:end], "little") ^ int.from_bytes(b[start:end], "little")
+        result[start:end] = value.to_bytes(end - start, "little")
+    return bytes(result)
 
 
 def _generate_keystream(key: bytes, iv: bytes, length: int) -> bytes:
@@ -54,9 +60,11 @@ def _generate_keystream(key: bytes, iv: bytes, length: int) -> bytes:
     chunks = []
     counter = 0
     remaining = length
+    template = hmac.new(key, iv, hashlib.sha256) if remaining > 0 else None
 
     while remaining > 0:
-        h = hmac.new(key, iv + counter.to_bytes(4, "big"), hashlib.sha256)
+        h = template.copy()
+        h.update(counter.to_bytes(4, "big"))
         digest = h.digest()
         chunks.append(digest)
         remaining -= len(digest)

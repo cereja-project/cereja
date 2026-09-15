@@ -99,3 +99,17 @@ replace an independent security assessment. No new encryption format, external
 backend or executable is introduced.
 
 Encrypted compression archives retain their separate existing format.
+
+### Crypto performance
+
+The historical keystream reuses the HMAC state for its common key/IV prefix.
+XOR uses integer operations in blocks of at most 64 KiB, preserving the same
+bytes and format without external dependencies. These are CPU optimizations,
+not streaming: the file helpers still load the complete input and generate the
+complete keystream, and the bytes-returning XOR helper still allocates its output.
+
+Run `python benchmarks/crypto.py --samples 7` from the checkout to compare against
+the historical primitives. The benchmark alternates variants and reports median
+encryption/decryption times and separate Python allocation peaks. Input buffers
+are allocated before tracing; these peaks are not total process memory. It
+excludes file I/O and does not establish cryptographic security.
