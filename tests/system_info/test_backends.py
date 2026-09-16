@@ -40,7 +40,7 @@ class WindowsBackendTest(unittest.TestCase):
             "gpu": [{
                 "Name": "RTX 5070",
                 "AdapterCompatibility": "NVIDIA",
-                "AdapterRAM": "8589934592",
+                "AdapterRAM": "4293918720",
                 "DriverVersion": "1.2",
                 "VideoProcessor": "RTX",
             }],
@@ -83,6 +83,7 @@ class WindowsBackendTest(unittest.TestCase):
         self.assertEqual(full.system.hardware_uuid, "UUIDSECRET")
         self.assertEqual(full.motherboard.serial_number, "BOARDSECRET")
         self.assertEqual(full.os.hostname, "SECRET-PC")
+        self.assertIsNone(full.gpus[0].adapter_memory_bytes)
 
 
 class LinuxBackendTest(unittest.TestCase):
