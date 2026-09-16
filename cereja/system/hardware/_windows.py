@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections import Counter
+import csv
+import io
 import platform
 
-from ._common import clean, run_json, selected, to_int
+from ._common import clean, run_json, run_text, selected, to_int
 from .collector import SECTIONS
 from .models import (
     BIOSInfo,
@@ -54,7 +57,7 @@ def _script(include_sensitive):
         "  memory = @(Get-CimInstance Win32_PhysicalMemory | "
         f"Select-Object {memory_fields})\n"
         "  gpu = @(Get-CimInstance Win32_VideoController | "
-        "Select-Object Name,AdapterCompatibility,AdapterRAM,"
+        "Select-Object Name,AdapterCompatibility,"
         "DriverVersion,VideoProcessor)\n"
         "  board = Get-CimInstance Win32_BaseBoard | "
         f"Select-Object {board_fields}\n"
@@ -75,11 +78,15 @@ def collect(*, detail="basic", include_sensitive=False, sections=SECTIONS, _runn
     )
     if not isinstance(payload, dict):
         payload = {}
+    gpu_memory = {}
+    if detail == "full" and selected(sections, "gpu"):
+        gpu_memory = _nvidia_memory(_items(payload.get("gpu")))
     return _from_cim(
         payload,
         detail=detail,
         include_sensitive=include_sensitive,
         sections=sections,
+        gpu_memory=gpu_memory,
     )
 
 
@@ -87,6 +94,55 @@ def _items(value):
     if value is None:
         return []
     return value if isinstance(value, list) else [value]
+
+
+def _gpu_name(item):
+    return (clean(item.get("Name")) or "").casefold()
+
+
+def _nvidia_memory(gpus, *, _runner=run_text):
+    """Return driver-reported bytes only for unambiguous NVIDIA adapters.
+
+    CIM AdapterRAM is uint32 and cannot describe modern VRAM capacities.
+    Names must be unique in both inventories; enumeration order is not an ID.
+    """
+    names = Counter(_gpu_name(item) for item in gpus if isinstance(item, dict))
+    candidates = {
+        _gpu_name(item)
+        for item in gpus
+        if isinstance(item, dict) and _gpu_name(item) and (
+            "nvidia" in (clean(item.get("AdapterCompatibility")) or "").casefold()
+            or _gpu_name(item).startswith("nvidia ")
+        )
+    }
+    if not any(names[name] == 1 for name in candidates):
+        return {}
+    output = _runner(
+        ["nvidia-smi", "--query-gpu=name,memory.total",
+         "--format=csv,noheader,nounits"],
+        timeout=5.0,
+    )
+    if not output:
+        return {}
+    rows = {}
+    try:
+        for row in csv.reader(io.StringIO(output), skipinitialspace=True, strict=True):
+            if not row:
+                continue
+            if len(row) != 2:
+                return {}
+            name = row[0].strip().casefold()
+            mib = to_int(row[1].strip())
+            memory = mib * 1024 ** 2 if mib is not None and mib > 0 else None
+            rows.setdefault(name, []).append(memory)
+    except csv.Error:
+        return {}
+    return {
+        name: values[0]
+        for name, values in rows.items()
+        if name in candidates and names[name] == 1
+        and len(values) == 1 and values[0] is not None
+    }
 
 
 def _date(value):
@@ -98,7 +154,7 @@ def _date(value):
     return text
 
 
-def _from_cim(payload, *, detail, include_sensitive, sections):
+def _from_cim(payload, *, detail, include_sensitive, sections, gpu_memory=None):
     computer = payload.get("computer") or {}
     product = payload.get("product") or {}
     os_data = payload.get("os") or {}
@@ -106,6 +162,7 @@ def _from_cim(payload, *, detail, include_sensitive, sections):
     board = payload.get("board") or {}
     bios = payload.get("bios") or {}
     full = detail == "full"
+    gpu_memory = gpu_memory or {}
 
     system = None
     if selected(sections, "system"):
@@ -197,7 +254,7 @@ def _from_cim(payload, *, detail, include_sensitive, sections):
                 name=clean(item.get("Name")),
                 manufacturer=clean(item.get("AdapterCompatibility")),
                 adapter_memory_bytes=(
-                    to_int(item.get("AdapterRAM")) if full else None
+                    gpu_memory.get(_gpu_name(item)) if full else None
                 ),
                 driver_version=(
                     clean(item.get("DriverVersion")) if full else None
