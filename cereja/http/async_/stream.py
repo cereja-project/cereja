@@ -9,7 +9,8 @@ async def _with_timeout(awaitable, timeout, message):
     try:
         if timeout is None:
             return await awaitable
-        return await asyncio.wait_for(awaitable, timeout)
+        async with asyncio.timeout(timeout):
+            return await awaitable
     except asyncio.TimeoutError as exc:
         raise ReadTimeout(message) from exc
 

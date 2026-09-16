@@ -30,13 +30,58 @@ class AsyncClientTest(unittest.IsolatedAsyncioTestCase):
             async with AsyncClient(timeout=0.05) as client:
                 with self.assertRaises(ReadTimeout):
                     await client.get(base + "/slow")
-            async with AsyncClient(max_connections=1, timeout=1) as client:
-                task = asyncio.create_task(client.get(base + "/slow"))
-                await asyncio.sleep(0.03)
+
+    async def test_cancellation_discards_connection_and_frees_pool_slot(self):
+        request_received = asyncio.Event()
+        connection_closed = asyncio.Event()
+        handlers = []
+        connections = []
+
+        async def handle(reader, writer):
+            handlers.append(asyncio.current_task())
+            connections.append(writer)
+            try:
+                headers = await reader.readuntil(b"\r\n\r\n")
+                if headers.startswith(b"GET /blocked "):
+                    # Keep the response pending until the client closes the socket.
+                    request_received.set()
+                    await reader.read()
+                    connection_closed.set()
+                else:
+                    writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n"
+                                 b"Connection: close\r\n\r\nhello")
+                    await writer.drain()
+            finally:
+                writer.close()
+                await writer.wait_closed()
+
+        server = await asyncio.start_server(handle, "127.0.0.1", 0)
+        base = f"http://127.0.0.1:{server.sockets[0].getsockname()[1]}"
+        task = None
+        try:
+            async with server, AsyncClient(max_connections=1, timeout=5) as client:
+                # This deadline guards a broken test; events control cancellation.
+                async with asyncio.timeout(5):
+                    task = asyncio.create_task(client.get(base + "/blocked"))
+                    await request_received.wait()
+                    self.assertFalse(task.done())
+                    self.assertTrue(task.cancel())
+                    with self.assertRaises(asyncio.CancelledError):
+                        await task
+                    await connection_closed.wait()
+                    self.assertEqual((await client.get(base + "/fixed")).content, b"hello")
+                    self.assertEqual(len(connections), 2)
+        finally:
+            if task is not None:
                 task.cancel()
-                with self.assertRaises(asyncio.CancelledError):
-                    await task
-                self.assertEqual((await client.get(base + "/fixed")).content, b"hello")
+                await asyncio.gather(task, return_exceptions=True)
+            for handler in handlers:
+                if not handler.done():
+                    handler.cancel()
+            results = await asyncio.gather(*handlers, return_exceptions=True)
+            for result in results:
+                if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+                    raise result
 
 
 if __name__ == "__main__":

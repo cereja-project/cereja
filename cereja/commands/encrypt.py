@@ -33,6 +33,6 @@ def _handle(args) -> int:
     if password != confirmation:
         raise CliError("Password confirmation does not match.")
 
-    result_path = encrypt_file(args.input, password, str(output_path))
+    result_path = encrypt_file(args.input, password, str(output_path), overwrite=args.force)
     print(f"Encrypted: {result_path}")
     return 0

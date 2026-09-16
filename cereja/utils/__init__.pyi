@@ -9,6 +9,9 @@ import cereja.utils.git as git
 import cereja.utils.time as time
 import cereja.utils.typography as typography
 import cereja.utils.version as version
+from cereja.utils._traceback import (
+    format_safe_traceback as format_safe_traceback,
+)
 from cereja.utils._utils import (
     CjTest as CjTest,
     DataAnalyzer as DataAnalyzer,

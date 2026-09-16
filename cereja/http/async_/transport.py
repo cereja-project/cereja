@@ -60,7 +60,8 @@ class AsyncTransport:
             if timeout.write is None:
                 await connection.writer.drain()
             else:
-                await asyncio.wait_for(connection.writer.drain(), timeout.write)
+                async with asyncio.timeout(timeout.write):
+                    await connection.writer.drain()
         except asyncio.TimeoutError as exc:
             raise WriteTimeout(f"Timed out writing request to {request.url}") from exc
 
