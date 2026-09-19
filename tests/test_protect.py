@@ -117,7 +117,7 @@ class ProtectedCodeTest(unittest.TestCase):
 
         self.assertEqual(
             destination,
-            self.output_root / "samplepkg",
+            (self.output_root / "samplepkg").resolve(),
         )
         self.assertTrue(
             (
@@ -279,7 +279,7 @@ print(json.dumps(payload))
         )
         self.assertEqual(
             destination,
-            self.output_root / "standalone.py",
+            (self.output_root / "standalone.py").resolve(),
         )
 
         result = self._run(
