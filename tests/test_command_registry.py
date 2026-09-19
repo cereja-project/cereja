@@ -18,6 +18,7 @@ EXPECTED_COMMANDS = (
     "http",
     "download",
     "system",
+    "privacy",
     "module",
 )
 
@@ -77,6 +78,7 @@ blocked = [
         "cereja.system.hardware",
         "cereja.hashtools._compress",
         "cereja.system._context.cache_db",
+        "cereja.privacy.huggingface",
     ))
 ]
 print(json.dumps(blocked))
