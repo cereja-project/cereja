@@ -25,6 +25,7 @@ COMMANDS = (
     CommandSpec("http", "Send HTTP requests.", "cereja.commands.http"),
     CommandSpec("download", "Download files with streaming transfers.", "cereja.commands.download"),
     CommandSpec("system", "Inspect local system information.", "cereja.commands.system"),
+    CommandSpec("privacy", "Run tools with process-scoped privacy policies.", "cereja.commands.privacy"),
     CommandSpec("module", "Manage Cereja module scaffolding.", "cereja.commands.module"),
 )
 
