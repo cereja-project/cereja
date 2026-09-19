@@ -12,6 +12,7 @@ EXPECTED_COMMANDS = (
     "decompress",
     "encrypt",
     "decrypt",
+    "protect",
     "tree",
     "context",
     "security",
