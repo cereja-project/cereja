@@ -19,6 +19,7 @@ security     Inspect untrusted files without executing them.
 http         Send HTTP requests.
 download     Download files with streaming transfers.
 system       Inspect local system information.
+privacy      Run tools with process-scoped privacy policies.
 module       Manage Cereja module scaffolding.
 ```
 
@@ -29,6 +30,7 @@ cereja compress --help
 cereja context --help
 cereja http --help
 cereja system --help
+cereja privacy --help
 ```
 
 The CLI loads only the selected command implementation. Asking for root help or the Cereja version does not initialize unrelated command subsystems.
@@ -179,6 +181,39 @@ cereja system info --full --sensitive
 ```
 
 See [System Information](guides/system-info.md) for platform behavior and privacy details.
+
+## Process Privacy
+
+Run a child command with Hugging Face Hub access and telemetry disabled:
+
+```bash
+cereja privacy huggingface run -- python app.py
+```
+
+Open an offline child shell:
+
+```bash
+cereja privacy huggingface shell
+```
+
+Inspect the current environment without printing token values:
+
+```bash
+cereja privacy huggingface status
+cereja privacy huggingface status --json
+```
+
+Temporarily permit one model download while keeping telemetry disabled:
+
+```bash
+cereja privacy huggingface download -- hf download org/model
+cereja privacy huggingface download --no-token -- hf download org/public-model
+```
+
+The privacy command changes only the child-process environment. It does not edit shell
+profiles, persist credentials, or enforce an operating-system network sandbox.
+
+See [Process Privacy](guides/privacy.md) for the full policy and security boundary.
 
 ## Module Scaffolding
 
