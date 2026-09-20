@@ -13,6 +13,7 @@ compress     Compress a file or directory.
 decompress   Decompress a file or directory archive.
 encrypt      Encrypt a file.
 decrypt      Decrypt a file.
+protect      Encrypt Python code while preserving imports.
 tree         Draw a repository tree.
 context      Search or list bounded textual context.
 security     Inspect untrusted files without executing them.
@@ -27,6 +28,7 @@ Use command-specific help for the complete set of flags:
 
 ```bash
 cereja compress --help
+cereja protect --help
 cereja context --help
 cereja http --help
 cereja system --help
@@ -117,6 +119,33 @@ Decrypt it:
 ```bash
 cereja decrypt report.txt.enc -o report.txt
 ```
+
+## Protect Python Code
+
+Build a protected copy of a standalone Python module or regular package while
+preserving its normal import name:
+
+```bash
+cereja protect path/to/mypackage -o build/protected --key-env MYAPP_CODE_KEY
+cereja protect path/to/feature.py -o build/protected --key-env MYAPP_CODE_KEY
+```
+
+The runtime key is read from the configured environment variable. If the
+variable is not set during the build, the CLI prompts for the password and
+confirmation. The generated artifact never embeds the password.
+
+Python source is encrypted by default. Static `.json`, `.html`, `.htm`,
+`.js`, and `.css` resources are also protected. Add more extensions with
+repeated `--include-extension` flags.
+
+```bash
+cereja protect mypackage -o build/protected \
+  --include-extension .yaml \
+  --include-extension .svg
+```
+
+See [Protected Python Code](guides/protected-code.md) for runtime behavior,
+resource access, packaging requirements, and the security boundary.
 
 ## Context
 

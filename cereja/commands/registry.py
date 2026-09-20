@@ -19,6 +19,11 @@ COMMANDS = (
     CommandSpec("decompress", "Decompress a file or directory archive.", "cereja.commands.decompress"),
     CommandSpec("encrypt", "Encrypt a file.", "cereja.commands.encrypt"),
     CommandSpec("decrypt", "Decrypt a file.", "cereja.commands.decrypt"),
+    CommandSpec(
+        "protect",
+        "Encrypt Python code while preserving imports.",
+        "cereja.commands.protect",
+    ),
     CommandSpec("tree", "Draw a repository tree.", "cereja.commands.tree"),
     CommandSpec("context", "Search or list bounded textual context.", "cereja.commands.context"),
     CommandSpec("security", "Inspect untrusted files without executing them.", "cereja.commands.security"),
