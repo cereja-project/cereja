@@ -101,3 +101,13 @@ jobs:
         assert not missing, missing
         print('Public Path, FileIO and TaskList documentation is present.')
         PY
+    - name: Preserve the validated distributions for publication
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-distributions-${{ github.run_attempt }}
+        path: |
+          dist/*.whl
+          dist/*.tar.gz
+        if-no-files-found: error
+        retention-days: 30
