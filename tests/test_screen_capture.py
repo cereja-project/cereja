@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from cereja.system import _screen_capture as capture
+from cereja.system._windows import capture
 
 
 PRIMARY = capture.ScreenMonitor("primary", "Primary", 0, 0, 8, 6, True)
@@ -551,9 +551,8 @@ class WindowNativeTest(unittest.TestCase):
 @unittest.skipUnless(sys.platform == "win32", "Legacy Windows adapter")
 class LegacyWindowCaptureTest(unittest.TestCase):
     def setUp(self):
-        from cereja.system import _win32
-        self.legacy = _win32
-        self.window = _win32.Window(101)
+        from cereja.system._windows import window
+        self.window = window.Window(101)
         self.frame = capture.ScreenFrame(-8, 14, 2, 1, b"\x01\x02\x03\xff\x04\x05\x06\xff")
         self.screen = Mock()
         self.screen.__enter__ = Mock(return_value=self.screen)
@@ -561,9 +560,12 @@ class LegacyWindowCaptureTest(unittest.TestCase):
         self.screen.grab.return_value = self.frame
         self.factory = patch.object(capture, "ScreenCapture", return_value=self.screen).start()
         self.addCleanup(patch.stopall)
-        self.iconic = patch.object(_win32, "IsIconic", return_value=False).start()
-        self.show = patch.object(_win32, "ShowWindow").start()
-        self.sleep = patch.object(_win32.time, "sleep").start()
+        api = Mock()
+        api.IsIconic.return_value = False
+        patch.object(window, "get_api", return_value=api).start()
+        self.iconic = api.IsIconic
+        self.show = api.ShowWindow
+        self.sleep = patch.object(window.time, "sleep").start()
 
     def test_bmp_returns_raw_pixels_and_writes_header(self):
         import struct
@@ -594,7 +596,7 @@ class LegacyWindowCaptureTest(unittest.TestCase):
         self.iconic.return_value = True
         self.assertEqual(self.window.capture_image_bmp(), self.frame.bgra)
         self.assertEqual([call.args[1] for call in self.show.call_args_list],
-                         [self.legacy.SW_RESTORE, self.legacy.SW_SHOWNA])
+                         [9, 4])
         self.sleep.assert_called_once_with(0.05)
         self.screen.grab.assert_called_once_with(window=101, only_window_content=True)
 
