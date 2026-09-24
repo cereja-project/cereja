@@ -22,6 +22,7 @@ print(path.list_files())
 
 getting-started
 guides/imports
+guides/releases
 guides/http
 guides/system-info
 guides/screen-capture
