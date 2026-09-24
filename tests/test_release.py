@@ -227,9 +227,11 @@ class TestRelease(unittest.TestCase):
         original_lstat = Path.lstat
         wheel = next(self.dist.glob('*.whl'))
         for target in (self.folder, wheel):
+            canonical_target = target.resolve()
+
             def lstat(path):
                 info = original_lstat(path)
-                if path == target:
+                if path in (target, canonical_target):
                     return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
                 return info
 
