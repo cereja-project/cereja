@@ -162,7 +162,10 @@ EXPORTS["cereja"].update({
 
 # Never import Win32 to determine availability: it changes process DPI settings.
 WINDOWS_EXPORTS = {
-    package: _objects("cereja.system._win32", "Window Keyboard Mouse play_alert_sound")
+    package: {
+        **_objects("cereja.system._win32", "Window Keyboard Mouse play_alert_sound"),
+        **_objects("cereja.system._screen_capture", "ScreenCapture ScreenMonitor ScreenFrame"),
+    }
     for package in ("cereja", "cereja.system")
 }
 if _sys.platform == "win32":

@@ -27,5 +27,5 @@
   "star_overrides": {
     "cereja.system._context": "ContextCacheInfo ContextCacheClearReport ContextCacheWarning CacheDatabaseUnavailable ContextSnippet ContextResult SkippedFile ContextResponse search_text_context list_text_context context_response_to_dict get_context_cache_info clear_context_cache"
   },
-  "windows_names": "Keyboard Mouse Window play_alert_sound"
+  "windows_names": "Keyboard Mouse ScreenCapture ScreenFrame ScreenMonitor Window play_alert_sound"
 }
