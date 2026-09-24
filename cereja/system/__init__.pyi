@@ -55,6 +55,11 @@ from cereja.system.commons import (
 )
 
 if sys.platform == "win32":
+    from cereja.system._screen_capture import (
+        ScreenCapture as ScreenCapture,
+        ScreenFrame as ScreenFrame,
+        ScreenMonitor as ScreenMonitor,
+    )
     from cereja.system._win32 import (
         Keyboard as Keyboard,
         Mouse as Mouse,

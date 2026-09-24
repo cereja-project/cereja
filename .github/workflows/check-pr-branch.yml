@@ -1,0 +1,15 @@
+name: Check PR Branch
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restrict PR source branch
+        if: github.head_ref != 'develop'
+        run: |
+          echo "Only Pull Requests from the 'develop' branch are allowed into 'master'!"
+          exit 1
