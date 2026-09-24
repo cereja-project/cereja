@@ -106,3 +106,17 @@ The legacy `Window` methods retain their existing restoration of a minimized
 target before capture. Use `ScreenCapture.grab(window=...)` when capture must
 not restore or activate the selected application. Window management, mouse
 and keyboard methods remain separate from pixel capture.
+
+The private Windows implementation is grouped in `cereja.system._windows`:
+`constants` groups native values into operation-specific enums and flags;
+`types` owns ABI types, structures and callbacks using Windows header names;
+`api` owns typed DLL bindings and lazy loading; `capture` owns frames, buffers
+and capture sessions.
+Window, mouse and keyboard helpers consume that same native API. The existing
+`_win32` and `_screen_capture` import paths remain compatibility shims. The
+legacy `_win32` entrypoint retains its process DPI initialization; importing the
+shared types, native API or capture implementation does not initialize DLLs or
+change DPI awareness.
+
+Keyboard timing reuses `cereja.Timer`. The legacy `_win32.Time` accessor remains
+available as a compatibility adapter over that same timer.
