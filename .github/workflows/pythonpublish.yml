@@ -1,27 +1,97 @@
 name: Upload Python Package
 
 on:
-  release:
-    types: [created]
+  workflow_run:
+    workflows: [Python package]
+    branches: [master]
+    types: [completed]
 
 permissions:
-  id-token: write
+  contents: read
+
+concurrency:
+  group: pypi-release-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  prepare:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'master' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
-    environment: pypi
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      should_publish: ${{ steps.plan.outputs.should_publish }}
+      version: ${{ steps.plan.outputs.version }}
+      artifact_name: ${{ steps.artifact.outputs.artifact_name }}
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install dependencies
+    - name: Select the immutable artifact from the successful CI run
+      id: artifact
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: python tools/release.py artifact --project cereja --branch master
+    - uses: actions/download-artifact@v5
+      with:
+        name: ${{ steps.artifact.outputs.artifact_name }}
+        path: ${{ runner.temp }}/release-dist
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ github.token }}
+    - name: Check version, provenance and publication status
+      id: plan
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: python tools/release.py plan --project cereja --branch master --dist "$RUNNER_TEMP/release-dist"
+
+  deploy:
+    needs: prepare
+    if: needs.prepare.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/cereja/${{ needs.prepare.outputs.version }}/
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - uses: actions/download-artifact@v5
+      with:
+        name: ${{ needs.prepare.outputs.artifact_name }}
+        path: ${{ runner.temp }}/release-dist
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ github.token }}
+    - name: Create or resume the release at the validated commit
+      id: stage
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: python tools/release.py stage --project cereja --branch master --dist "$RUNNER_TEMP/release-dist"
+    - name: Expose only validated files to the publishing container
+      if: steps.stage.outputs.should_publish == 'true'
       run: |
-        python -m pip install --upgrade build
-    - name: Build package
-      run: |
-        python -m build
-    - name: Publish to PyPI
+        mkdir publish-dist
+        cp "$RUNNER_TEMP/release-dist/"* publish-dist/
+    - name: Publish the validated files to PyPI
+      if: steps.stage.outputs.should_publish == 'true'
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: publish-dist/
