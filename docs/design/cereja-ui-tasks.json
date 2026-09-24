@@ -1,0 +1,562 @@
+{
+  "milestone": "Cereja UI: independent toolkit and terminal application",
+  "parent": 293,
+  "tasks": [
+    {
+      "key": "UI-00",
+      "title": "Freeze Cereja UI contracts and executable evidence",
+      "type": "Investigação",
+      "depends": [],
+      "risk": "Model evidence can be mistaken for implemented platform support.",
+      "acceptance": [
+        "Review architecture, requirement coverage, source revision, primary references and bounded spike results; distinguish supported findings, choices and unknowns.",
+        "Freeze Unicode policy, capability overrides, terminal ownership, queue limits, failure semantics and platform validation matrix before dependent implementation.",
+        "Record model baselines with raw samples, reproducible commands and measured comparison gates; record pending end-to-end budget calibration explicitly."
+      ],
+      "evidence": "Contract decision record plus spike source, tests and raw baseline data. No production feature or full-platform pass is implied.",
+      "docs": "docs/design/cereja-ui.md; docs/design/cereja-ui-evidence.md; benchmarks/ui_spikes/"
+    },
+    {
+      "key": "UI-01",
+      "title": "Implement capabilities, virtual backend and transactional terminal sessions",
+      "type": "Melhoria",
+      "depends": [
+        "UI-00"
+      ],
+      "risk": "Partial acquisition can leak modes or contaminate redirected output.",
+      "acceptance": [
+        "Implement independent input/output detection, conservative overrides, NO_COLOR and plain mode without importing legacy display.",
+        "Virtual backend injects input, clock, dimensions and output failures and exposes final cells.",
+        "Lifecycle tests cover every acquisition failure, exception, Ctrl+C, repeated cleanup and unavailable/redirected streams; plain mode writes no ESC and creates no animation timers."
+      ],
+      "evidence": "unittest fault-injection matrix and capability fixtures; backend/session contract documentation.",
+      "docs": "cereja.ui terminal/testing modules"
+    },
+    {
+      "key": "UI-02",
+      "title": "Implement POSIX input, wakeup and terminal restoration",
+      "type": "Melhoria",
+      "depends": [
+        "UI-01"
+      ],
+      "risk": "Fragmented input or signal handling can lose keys and hang shutdown.",
+      "acceptance": [
+        "Use Python 3.11-compatible termios/tty plus selectors/self-pipe, preserving captured modes and handlers.",
+        "Test fragmented UTF-8/escape/paste, Escape timeout boundaries, EOF, resize, posted wakeup and Ctrl+C.",
+        "Run PTY tests on Linux and macOS for normal/error/partial startup cleanup, and record any real-terminal gaps separately."
+      ],
+      "evidence": "PTY logs with OS/Python plus parser fixtures and backend documentation.",
+      "docs": "POSIX terminal backend"
+    },
+    {
+      "key": "UI-03",
+      "title": "Implement Windows console records, wakeup and VT fallback",
+      "type": "Melhoria",
+      "depends": [
+        "UI-01"
+      ],
+      "risk": "Socket selector assumptions do not work for console handles; paste detection varies.",
+      "acceptance": [
+        "Bind typed ctypes console/wait/event APIs, wait for input and application wake, enable VT only when supported and restore modes.",
+        "Normalize repeats/modifiers/surrogates/resize and document ambiguous paste semantics; test invalid handles and non-console fallback.",
+        "Run real Windows console restoration and input checks beyond mocked records; report terminal host/version and partial initialization cases."
+      ],
+      "evidence": "Win32 record fixtures, native wait tests and real-console transcript; no universal paste claim.",
+      "docs": "Windows terminal backend"
+    },
+    {
+      "key": "UI-04",
+      "title": "Implement pinned grapheme metrics and safe text normalization",
+      "type": "Melhoria",
+      "depends": [
+        "UI-00"
+      ],
+      "risk": "Code-point length and East Asian Width alone corrupt clusters and alignment.",
+      "acceptance": [
+        "Ship pinned Unicode segmentation/property data and license/provenance/hash/regeneration instructions with zero runtime downloads.",
+        "Use one metrics policy for layout, clipping, editing and cursor motion; cover all named ASCII/accent/CJK/emoji/ZWJ/flag/isolated-mark fixtures.",
+        "Neutralize ESC/C0/C1/DEL before measurement, define tab/newline layout and source bidi-control visibility, ambiguous widths and ASCII/unsupported-cluster fallback."
+      ],
+      "evidence": "Pinned official grapheme conformance tests plus width-policy, clipping and injection fixtures; emulator differences explicitly documented.",
+      "docs": "text/metrics and generated Unicode data"
+    },
+    {
+      "key": "UI-05",
+      "title": "Implement cell buffers and deterministic clipped composition",
+      "type": "Melhoria",
+      "depends": [
+        "UI-01",
+        "UI-04"
+      ],
+      "risk": "Wide-cell continuations and overlapping geometry leave stale pixels.",
+      "acceptance": [
+        "Represent leading and continuation cells, effective styles, blank/zero-size frames and deterministic z-order.",
+        "Replacing either half of a wide glyph clears its previous footprint; clipping never leaves half a grapheme.",
+        "Fixed-seed randomized overlap/move/remove/resize tests compare complete final frames to an independent reference."
+      ],
+      "evidence": "unittest golden cell grids, randomized seed logs and buffer allocation baseline at 80x24/120x40/240x80.",
+      "docs": "rendering buffer/compositor"
+    },
+    {
+      "key": "UI-06",
+      "title": "Implement diff, secure encoding and committed output transactions",
+      "type": "Melhoria",
+      "depends": [
+        "UI-05"
+      ],
+      "risk": "Incorrect damage or partial writes desynchronize terminal and front buffer.",
+      "acceptance": [
+        "Retain full-frame diff as oracle; dirty results are equivalent for text/style/occupancy changes, resize and overlapping damage.",
+        "Unchanged frame/session emits zero writes/flushes; serialize only trusted control sequences, test last-column and bottom-right no-scroll behavior.",
+        "Commit front only after full count and flush; cover short/zero writes, flush failure, broken pipe, recovery and plain snapshot behavior."
+      ],
+      "evidence": "Seeded equivalence/injection/fault tests and stage timings/bytes/write counts for unchanged, one-cell, row,10%,100% workloads.",
+      "docs": "rendering diff/encoder/writer"
+    },
+    {
+      "key": "UI-07",
+      "title": "Implement event scheduling, bounded posting and cancellable timers",
+      "type": "Melhoria",
+      "depends": [
+        "UI-01",
+        "UI-02",
+        "UI-03",
+        "UI-06"
+      ],
+      "risk": "Producer pressure or polling can consume idle CPU and starve input.",
+      "acceptance": [
+        "UI-thread mutation/writes only, ordered input, monotonic heap timers and backend wake for posted work/shutdown.",
+        "Idle without pending work waits indefinitely and emits no periodic redraw; late timers skip obsolete animation frames.",
+        "Test queue saturation, coalesced progress/resize, paste/sequence limits, 10,000-event fairness, widget removal, global motion disable and prompt shutdown."
+      ],
+      "evidence": "Fake-clock deterministic scheduling tests plus native wake integration; measured idle counters and input fairness report.",
+      "docs": "event loop and scheduling"
+    },
+    {
+      "key": "SCOPE",
+      "title": "Define Cereja UI v1 Product Scope",
+      "type": "Investigação",
+      "depends": [],
+      "risk": "Exploratory visuals or existing CLI commands can silently become unsupported product requirements.",
+      "acceptance": [
+        "Record the accepted objective: discover, inspect and execute existing Cereja capabilities plus toolkit reference/dogfooding; primary Python developers/technical library and CLI users, secondary contributors/maintainers.",
+        "Record accepted five areas and file-plus-directory Compress/Decompress scope with separate safety stages. Preserve bounded explicit-path Tree and explicit-root Context Search, System and URL/destination Download; do not invent broader browser/HTTP features.",
+        "Separate established choices from hypotheses and final acceptance. Home, System, Examples, capability catalogue and Diagnostics are inline shell views anchored by the persistent bottom composer. Tree is not a full browser and Download is not a full HTTP client. Broader catalogue remains CLI/Python API references.",
+        "Record consequences for reusable toolkit coverage without blocking independent terminal/rendering core. Authorize final UX specification and product-driven decomposition only after this decision.",
+        "Preserve honest long-operation execution: use real progress/speed/ETA only; safe cooperative Cancel only where proven; otherwise indeterminate Running and actual duration/result/error. Generic domain instrumentation is separate and may be deferred with evidence without dropping the functional baseline.",
+        "Record explicit user selection of Ledger (A) and file-plus-directory v1 scope. Preserve non-selected Workbench and historical functional references. Derive flow-traceable planning tasks from the selected shell specification without authorizing production implementation."
+      ],
+      "evidence": "Accepted product-scope decision with actual answers, rationale, exclusions, selected flows and open items. Existing exploratory wireframes are inputs, not acceptance.",
+      "docs": "docs/design/cereja-ui-product-scope.md; exploratory visual studies"
+    },
+    {
+      "key": "UX",
+      "title": "Specify and validate final Cereja UI UX after product scope",
+      "type": "Investigação",
+      "depends": [
+        "SCOPE"
+      ],
+      "risk": "Final screens and component requirements are invalid until the product decision is known.",
+      "acceptance": [
+        "Use accepted product scope and reviewed visual language to finalize shell views, composer/slash/navigation, keyboard overlays and exact-cell layouts. Preserve existing functional wireframes as evidence; loading/empty/error/success/warning are inline states, not independent screens.",
+        "Specify visual hierarchy, reference layouts, component catalogue/states, keys/focus/selection/scroll, responsive policies, themes/colors/spacing/borders/density/accessibility/no-color/no-motion.",
+        "Evaluate every requested loading/motion/feedback effect with shared timers/dirty rendering, rate ceilings, low-bandwidth and static fallbacks.",
+        "Validate selected task walkthroughs and derive required components from those screens; record user review and limitations before high-level implementation tasks are accepted."
+      ],
+      "evidence": "Final scope-traceable UX and design/motion system, wireframes and actual walkthrough evidence, distinguishing structural and user validation.",
+      "docs": "Final UX artifacts to be created only after SCOPE; current visuals exploratory"
+    },
+    {
+      "key": "CORE-PERF",
+      "title": "Calibrate independent core performance against reproducible baselines",
+      "type": "Experimento",
+      "depends": [
+        "UI-06",
+        "UI-07"
+      ],
+      "risk": "Sparse synthetic timings can be mistaken for end-to-end application guarantees.",
+      "acceptance": [
+        "Freeze full/sparse/resize/text/timer workloads and environment before comparing candidate optimizations; measure stage timings, bytes, calls, allocations, idle counters and fresh imports.",
+        "Use the current measured model as feasibility evidence only. Set production core comparison budgets from its actual baseline, and retain future application latency calibration as a separate gate.",
+        "Demonstrate zero unchanged output, no idle periodic redraw and bounded producer fairness. Native acceleration requires profiled failed budgets plus evaluated Python alternatives."
+      ],
+      "evidence": "Raw baseline/control/treatment samples, profiles, budget rationale and scope limits; no application performance claim.",
+      "docs": "Core benchmark and profiling report"
+    },
+    {
+      "key": "CORE-PLATFORM",
+      "title": "Validate independent terminal and rendering core across supported platforms",
+      "type": "Melhoria",
+      "depends": [
+        "UI-02",
+        "UI-03",
+        "UI-06",
+        "UI-07"
+      ],
+      "risk": "A virtual or Windows-only check can hide POSIX/macOS lifecycle and transport errors.",
+      "acceptance": [
+        "Run Python3.11-3.14 core contracts on Windows/Linux/macOS, POSIX PTYs and real Windows console checks.",
+        "Record terminal hosts for resize/Unicode/restoration/no-color/ASCII/no-motion/SSH and distinguish missing hosts from passes.",
+        "Verify zero runtime dependencies, pinned Unicode notices, lazy import isolation and plain/pipes/CI/broken-pipe behavior; defer official application CLI acceptance until its scope and implementation exist."
+      ],
+      "evidence": "Core CI/platform matrix, clean-install records and actual host logs with honest gaps.",
+      "docs": "Core platform acceptance report"
+    },
+    {
+      "key": "DELIVERY",
+      "title": "Decompose scope-approved widgets, application and later compatibility delivery",
+      "type": "Investigação",
+      "depends": [
+        "UX"
+      ],
+      "risk": "Premature widget/application tasks bake exploratory product assumptions into implementation.",
+      "acceptance": [
+        "Create small dependency-ordered tasks from the selected Ledger flows, including accepted file and directory archive modes with separate safety gates. Each task includes meaningful tests, benchmarks, documentation, risks and expected evidence; no production implementation is authorized by issue creation.",
+        "Keep toolkit reusable and independent from legacy display. Preserve required toolkit capabilities while distinguishing screen-derived widgets from independently justified reusable primitives.",
+        "Add official application integration, real-task dogfooding and end-to-end/platform/package acceptance stages; app must consume public toolkit APIs.",
+        "After new-system stabilization, schedule legacy characterization and choose adapter/wrapper/facade/controlled refactor using objective contracts; then decompose display integration/migration. Do not preselect deprecation or let legacy incompatibilities block the core.",
+        "Associate authorized follow-up issues with the Cereja UI milestone and explicit dependencies; do not execute production implementation merely because tasks exist."
+      ],
+      "evidence": "Reviewed dependency DAG, small verified GitHub tasks with milestone associations and screen-to-component traceability, including explicit later legacy stage.",
+      "docs": "Future implementation decomposition after accepted scope and UX"
+    },
+    {
+      "key": "UI-08",
+      "title": "Implement cell layout and bounded scroll viewports",
+      "type": "Melhoria",
+      "depends": [
+        "UI-05",
+        "UI-07",
+        "UX"
+      ],
+      "flow": "All Ledger views; fixed bottom composer above resize-safe content",
+      "risk": "Content and pager can overwrite the composer or lose the selected item on resize.",
+      "acceptance": [
+        "Implement composable cell-based row/column constraints, padding, clipping and scroll viewports independently from the official application.",
+        "Keep composer allocation fixed at 120x40, 80x24 and 40x12; reserve a separate pager row; test nested clipping, zero/undersized dimensions and resize with a selected item.",
+        "Expose dirty regions and bounded layout invalidation; benchmark resize and long content with frozen workloads; document geometry and overflow policy."
+      ],
+      "evidence": "Deterministic cell snapshots, resize/clipping tests and measured layout baseline.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "UI-09",
+      "title": "Implement text input, focus and keyboard selection",
+      "type": "Melhoria",
+      "depends": [
+        "UI-08",
+        "UI-04",
+        "UI-07"
+      ],
+      "flow": "Composer editing, forms and result navigation",
+      "risk": "Unicode editing or focus changes can lose input or trigger an unintended action.",
+      "acceptance": [
+        "Implement grapheme-aware editing, cursor visibility, selection and paste sanitization with the accepted Unicode policy; no raw terminal controls from text.",
+        "Provide explicit focus scopes, forward/backward traversal, selection markers and focus restoration; test long input, combining/ZWJ text, narrow resize and overlay return.",
+        "Keep input bindings separate from application command parsing; publish examples and measured input-to-frame baseline."
+      ],
+      "evidence": "Virtual-backend keyboard scenarios and Unicode regression cases with documented unsupported cases.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "UI-10",
+      "title": "Implement suggestion lists, parameter forms and confirmation overlays",
+      "type": "Melhoria",
+      "depends": [
+        "UI-09"
+      ],
+      "flow": "Slash insertion, missing fields, help and exact destination confirmation",
+      "risk": "Autocomplete or modal dismissal can accidentally execute or confirm stale parameters.",
+      "acceptance": [
+        "Suggestion acceptance inserts and closes without execution; only a subsequent explicit submission validates or starts work. Test Enter, Tab, Escape, filtering and empty matches.",
+        "Implement generic forms with visible labels/errors and anchored overlays that fit compact terminals; help restores underlying view, draft, caret and selection.",
+        "Confirmation binds the exact normalized action/source/destination and invalidates after edits; destructive/default overwrite must never be the default selection. Document overlay focus and restoration."
+      ],
+      "evidence": "Keyboard replay tests including first-Enter/second-Enter regression, compact snapshots and stale-confirmation tests.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "UI-11",
+      "title": "Implement tables, selectable lists and hierarchical TreeView",
+      "type": "Melhoria",
+      "depends": [
+        "UI-08",
+        "UI-09"
+      ],
+      "flow": "System fields, Context hits and Tree navigation",
+      "risk": "Large collections can cause unbounded layout or selection drift.",
+      "acceptance": [
+        "Implement read-only tables and selectable lists with stable IDs, clipping, Unicode truncation and scroll selection; do not require filesystem types.",
+        "TreeView consumes generic hierarchical nodes with expansion/loading/incomplete/error states; arrows expand/collapse/select without a full filesystem browser.",
+        "Test empty/error/disappeared nodes, broad/deep fixtures and resize preservation; benchmark visible-region work and retained node limits. Document complete versus truncated results."
+      ],
+      "evidence": "Collection widget snapshots, stable-selection tests and bounded large-fixture measurements.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "UI-12",
+      "title": "Implement reusable inline status, progress and motion components",
+      "type": "Melhoria",
+      "depends": [
+        "UI-08",
+        "UI-07"
+      ],
+      "flow": "All inline loading, empty, error, success and warning states",
+      "risk": "Visual motion or progress can imply nonexistent operational evidence.",
+      "acceptance": [
+        "Provide labelled inline states, determinate ProgressBar only with valid measured advance/total, and indeterminate spinner/shimmer for known active work.",
+        "Use shared timers and dirty regions; provide static no-motion, low-capability and plain equivalents with text state independent of color.",
+        "Cover pulse, blink, dots, spinner, shimmer, progress and transitions in documented examples; keep typewriter/stagger/glow/fade/slide opt-in and omit them when terminal capabilities or reading stability make them unsuitable.",
+        "Test disabled motion creates no animation timer, idle views emit no redraw, completion unsubscribes timers, and reduced modes never manufacture percentages. Benchmark aggregate animation load."
+      ],
+      "evidence": "Lifecycle/timer tests, capability snapshots and measured shared-animation workload.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "APP-00",
+      "title": "Implement typed background operation lifecycle bridge",
+      "type": "Melhoria",
+      "depends": [
+        "UI-07",
+        "UI-12"
+      ],
+      "flow": "One active operation while the shell stays responsive",
+      "risk": "Sustained progress or blocking domain calls can starve input or imply false cancellation.",
+      "acceptance": [
+        "Define UI-independent typed start/progress/result/error events, one active operation, bounded coalescing and terminal completion delivery; workers never draw.",
+        "Reject a second operation explicitly without queueing; allow navigation while work continues and preserve a bounded active-job status. Quitting an uncancellable operation offers wait/return, not a fake Cancel.",
+        "Expose Cancel only through a domain capability proving safe cooperative interruption; callback exceptions and process termination are not automatically cancellation.",
+        "Test sustained producer/input fairness against the core starvation contract, stale events, completion races, worker errors and shutdown; document lifecycle and measure input responsiveness under operation load."
+      ],
+      "evidence": "Deterministic worker/event tests, producer-pressure latency evidence and documented cancellation capability boundary.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "APP-01",
+      "title": "Build Ledger shell, slash grammar and lazy capability catalogue",
+      "type": "Melhoria",
+      "depends": [
+        "UI-10",
+        "UI-11",
+        "APP-00",
+        "UX"
+      ],
+      "flow": "Home, command discovery, help, Examples and Diagnostics",
+      "risk": "Discovery can eagerly initialize capabilities or turn shell syntax into arbitrary code execution.",
+      "acceptance": [
+        "Build selected Ledger using public cereja.ui APIs: ordered ephemeral result blocks with selectable prior results and independent composer state. Proposed caps are 20 completed summaries and 2 MiB sanitized retained state, calibrated during implementation; evict oldest completed only, never an active operation, no disk history or retained sensitive fields. Preserve selection/scroll unless already following latest; completion never steals focus.",
+        "Register explicit commands for Home/System/Tree/Context/Compress/Download/Examples/Tools/Diagnostics/Help; parse registered commands only, never eval or OS-shell arbitrary input.",
+        "Catalogue badges distinguish actually executable UI, CLI, Python API and planned integrations. Discovery reads static metadata without eager service imports or side effects.",
+        "Implement truthful parameter/help overlays, non-executable wider catalogue and labelled synthetic examples; test keyboard-only walkthroughs, no-color/no-motion/plain and source-safe rendering. Measure startup/import side effects."
+      ],
+      "evidence": "Shell keyboard snapshots, lazy import tests, catalogue truth audit, startup benchmark and user documentation.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "APP-02",
+      "title": "Integrate System Information into Ledger",
+      "type": "Melhoria",
+      "depends": [
+        "APP-01"
+      ],
+      "flow": "System command, explicit refresh, section results and unavailable fields",
+      "risk": "Hardware collection can block or expose sensitive fields.",
+      "acceptance": [
+        "Use the existing typed hardware.info facade with basic/non-sensitive defaults and explicit Run/Refresh; no automatic periodic polling.",
+        "Show loading/actual elapsed duration, structured sections and unavailable/warning values without zero substitution; no Cancel or numeric progress without a proven domain capability.",
+        "Test partial/unavailable/error collectors through fixtures, refresh serialization and navigation during collection; benchmark bounded collector scenarios and document platform limitations without claiming all collectors run on one host."
+      ],
+      "evidence": "Mocked integration tests, owned-host smoke where available, section snapshots and collector latency evidence.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "DOMAIN-TREE",
+      "title": "Expose bounded structured repository traversal",
+      "type": "Melhoria",
+      "depends": [
+        "UI-00"
+      ],
+      "flow": "Tree root loading and lazy expand/collapse",
+      "risk": "The current formatted-string API cannot safely provide TreeView hierarchy or bounded breadth.",
+      "acceptance": [
+        "Extract/reuse current repository filtering/root/link rules into UI-independent typed nodes and bounded child enumeration; do not parse rendered glyphs or copy ignore logic into widgets.",
+        "Define stable IDs, ordering/pagination, depth/node/work bounds and explicit incomplete/error results, including empty directories and disappeared nodes. Links are displayed but not descended.",
+        "Test parity with existing filtering, wide/deep directories, permission failures, symlink roots and deterministic paging using owned temporary fixtures; benchmark retained memory and enumeration work. Document proposed default limits as calibrated choices."
+      ],
+      "evidence": "Traversal contract tests, CLI rule parity evidence and measured broad/deep fixture bounds.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "APP-03",
+      "title": "Integrate explicit-path hierarchical Tree into Ledger",
+      "type": "Melhoria",
+      "depends": [
+        "APP-01",
+        "DOMAIN-TREE"
+      ],
+      "flow": "Tree parameters, hierarchy navigation and result inspection",
+      "risk": "Integration can grow into a general filesystem browser or hide partial results.",
+      "acceptance": [
+        "Validate explicit root/depth, load structured domain nodes into generic TreeView and preserve selected/expanded IDs across bounded child loads.",
+        "Expose loading/incomplete/error nodes and Unicode truncation with a full-value inspection affordance; no file mutation or generic browser operations.",
+        "Test keyboard expand/collapse, large volumes, path disappearance, narrow resize and navigation during work; document filters/limits and measure end-to-end visible-node response."
+      ],
+      "evidence": "Owned-directory integration fixtures, keyboard flow snapshots and bounded-tree timing/memory evidence.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "APP-04",
+      "title": "Integrate explicit-root Context Search into Ledger",
+      "type": "Melhoria",
+      "depends": [
+        "APP-01"
+      ],
+      "flow": "Query/root form, search, matches, empty/error and hit inspection",
+      "risk": "Result caps can be mistaken for bounded traversal or safe cooperative cancellation.",
+      "acceptance": [
+        "Use typed ContextResponse/results/snippets/skip reasons with explicit roots/query and documented filters; default cache off unless separately accepted.",
+        "Preserve safe highlighted spans, result selection, readable full-path/snippet inspection and honest incomplete/skip reporting; no automatic file opening or writes.",
+        "Execute existing API indeterminately with no Cancel; distinguish final max_results from scan/work limits and reject workloads outside documented v1 bounds rather than claiming a hard scan bound.",
+        "Test no-hit, skipped/binary/permission errors, literal control characters, long Unicode paths and selection restoration; benchmark owned search fixtures and document performance limits."
+      ],
+      "evidence": "Typed adapter tests, safe-highlight snapshots and owned-fixture scan measurements.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "APP-05",
+      "title": "Integrate safe single-file Compress and Decompress workflows",
+      "type": "Melhoria",
+      "depends": [
+        "APP-01"
+      ],
+      "flow": "Action/source/destination form, review, running and actual outcome",
+      "risk": "Existing direct writes and whole-file memory use can damage output or exhaust resources.",
+      "acceptance": [
+        "Use existing compression APIs with verbose=False through a typed adapter; inspect actual source/output mode and validate explicit bounds before execution.",
+        "Stage output in an owned adjacent temporary path, validate result and commit safely; exact-target overwrite confirmation must precede execution and be revalidated at commit. Never silently overwrite source or unrelated output.",
+        "Baseline is indeterminate Running with actual duration/result/error and no Cancel. Do not scrape legacy display or manufacture progress.",
+        "Test roundtrip, invalid input, source/destination collision, existing destination, commit failure and cleanup preserving previous output; measure time/peak memory on bounded fixtures and document supported limits. Directory mode is accepted v1 scope with its own safety and integration tasks; this slice covers single files."
+      ],
+      "evidence": "Temporary-file integration tests, overwrite/failure recovery evidence and size/memory baseline.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "APP-06",
+      "title": "Integrate URL download with real progress and safe destination review",
+      "type": "Melhoria",
+      "depends": [
+        "APP-01"
+      ],
+      "flow": "URL/destination review, known/unknown total transfer and outcome",
+      "risk": "Unbounded network input, destination races or misleading transfer telemetry can violate the flow contract.",
+      "acceptance": [
+        "Validate supported URL scheme and explicit destination; keep one active background operation, finite connection/read behavior and documented v1 byte limits; no full HTTP client interface.",
+        "Use TransferProgress bytes/optional total. Render known total only when valid; unknown total shows bytes plus indeterminate state. Derive speed/ETA only from an explicitly measured/tested sampling contract or omit them.",
+        "Reuse staging/abort semantics while enforcing exact-target overwrite authorization and bounded transfer policy; no Cancel until safe cooperative read/commit behavior is proven.",
+        "Test owned loopback known/unknown total, network/read error, misleading length, byte limit, existing target, final commit failure and partial cleanup. Document redirected URLs/destination behavior and benchmark bounded transfer responsiveness."
+      ],
+      "evidence": "Loopback integration tests and preserved-target cleanup evidence, real telemetry snapshots and responsive UI benchmark.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "DOMAIN-OPS",
+      "title": "Evaluate generic progress and cooperative cancellation extensions",
+      "type": "Investigação",
+      "depends": [
+        "UI-00"
+      ],
+      "flow": "Optional richer feedback for search/compression/download",
+      "risk": "UI-only callbacks or superficial stop buttons can compromise domain reuse and safe commit.",
+      "acceptance": [
+        "Assess domain-level typed progress and cooperative stop points usable by CLI/UI/external callers with no cereja.ui dependency.",
+        "For each service distinguish observable total/advance, interruptible waits, cleanup and commit boundary; include cost and failure/race evidence.",
+        "Prototype only a bounded promising seam with controls; accept instrumentation only when proportionate. Otherwise explicitly retain current functional indeterminate/no-Cancel baseline and defer richer telemetry.",
+        "Record API compatibility, test strategy and documentation impact before follow-up implementation. This investigation does not block the baseline application integrations."
+      ],
+      "evidence": "Per-service proportionality decision and bounded race/cleanup experiment; no blanket cancellation claim.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "APP-ACCEPT",
+      "title": "Validate real Ledger workflows, package and platform acceptance",
+      "type": "Experimento",
+      "depends": [
+        "APP-02",
+        "APP-03",
+        "APP-04",
+        "APP-05",
+        "APP-06",
+        "CORE-PERF",
+        "CORE-PLATFORM",
+        "APP-07"
+      ],
+      "flow": "Five real capabilities plus catalogue/examples and shell lifecycle",
+      "risk": "Browser fixtures or one-host checks can be mistaken for accepted cross-platform product behavior.",
+      "acceptance": [
+        "Run end-to-end owned fixtures for all five areas including file and directory archive operations, keyboard-only navigation, first/second Enter semantics, confirmation, no-color/no-motion/plain, resize and quit during active work.",
+        "Run actual-terminal Windows/Linux/macOS matrix including restoration, redirected streams and supported Python versions; missing hosts remain pending, never passed from virtual/browser evidence.",
+        "Calibrate end-to-end input/layout/paint/write latency, idle output, memory and lazy startup against frozen measured workloads; report raw reproducible evidence and proposed/accepted budgets distinctly.",
+        "Run user task walkthroughs, document discoverability/flow findings, installation/CLI packaging and public API examples; record a stable-contract decision before legacy work."
+      ],
+      "evidence": "Real task walkthrough record, CI/terminal matrix, package checks and calibrated application benchmark report.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "LEGACY-PLAN",
+      "title": "Characterize legacy display and select compatibility strategy after stabilization",
+      "type": "Investigação",
+      "depends": [
+        "APP-ACCEPT"
+      ],
+      "flow": "Later compatibility without constraining the independent toolkit",
+      "risk": "Premature adapters or deprecation can silently change observable legacy behavior.",
+      "acceptance": [
+        "After a recorded stable-contract decision, characterize console/Progress/State signatures, rendering/capture, nesting, concurrency, notebooks and lazy exports.",
+        "Compare observable contracts to the new terminal ownership/model; choose adapter/wrapper/facade or controlled refactor based on evidence, preserving reasonable public compatibility.",
+        "Create small migration issues only after that strategy is reviewed, each with regression/coexistence tests, documentation, rollback boundary and acceptance evidence; do not preselect deprecation."
+      ],
+      "evidence": "Legacy characterization suite, decision matrix and reviewed conditional migration issue set.",
+      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+    },
+    {
+      "key": "DOMAIN-ARCHIVE",
+      "title": "Establish safe bounded directory archive operations",
+      "type": "Melhoria",
+      "depends": [
+        "UI-00"
+      ],
+      "flow": "L4 directory compression and extraction safety boundary",
+      "risk": "Current directory extraction lacks containment/expansion guarantees and can expose partial writes; direct reuse is not sufficient.",
+      "acceptance": [
+        "Define a UI-independent archive safety policy covering canonical destination containment, absolute/parent traversal paths, Windows drive/UNC/alternate-stream names, normalized collisions, duplicate members and file/directory conflicts. Reject unsupported member types explicitly.",
+        "Define symlink and hardlink handling, source traversal/link policy and safe destination traversal. Never follow archive-controlled links outside the owned staging root; document threat/race limitations and fail closed where guarantees cannot be met.",
+        "Enforce member-count, per-member, aggregate expanded-byte and depth budgets during decoding/extraction, not only after completion; reject malformed metadata and decompression bombs using bounded owned fixtures. Distinguish format limitations from UI policy.",
+        "Stage into an owned fresh directory, validate the full outcome before publication and refuse merging into existing destinations by default. Specify supported exact-target replacement/backup/rollback semantics or refuse replacement when safe publication is unsupported; report cleanup/partial outcomes truthfully.",
+        "Test adversarial member paths, links, collisions, budget breaches, corrupt/truncated archives and publication failures, preserving preexisting data. Benchmark bounded valid archives and peak memory. Document current-API gaps and any backward-compatible generic extension before UI integration."
+      ],
+      "evidence": "Domain safety tests on owned temporary roots, explicit format/platform support matrix, bounded extraction measurements and documented publication failure semantics.",
+      "docs": "Archive domain contract and public API safety documentation; no dependency on cereja.ui."
+    },
+    {
+      "key": "APP-07",
+      "title": "Integrate directory Compress and Decompress into Ledger",
+      "type": "Melhoria",
+      "depends": [
+        "APP-05",
+        "DOMAIN-ARCHIVE"
+      ],
+      "flow": "L4 accepted file and directory modes in one Archives area",
+      "risk": "A mode toggle could bypass directory safety policy or imply atomic merging into existing directories.",
+      "acceptance": [
+        "Expose explicit file/directory mode under the same Compress/Decompress command flow. Validate source/destination and domain policy before execution; directory mode must not call unsafe legacy extraction directly.",
+        "Present supported limits and exact destination effects, default existing-directory refusal, and confirmation only for a supported reviewed replacement policy. No automatic merge, source deletion, symlink traversal or overwrite escalation.",
+        "Use indeterminate Running with actual result/duration and no Cancel unless a separately proven domain extension is available. Report excluded/rejected members and partial/cleanup/publication outcomes clearly without fake percentages.",
+        "Test directory roundtrips, empty trees, nested Unicode names, conflict/refusal, safety-policy rejection and staging cleanup through the actual adapter in owned temporary roots. Measure end-to-end time/memory and document supported directory/archive modes."
+      ],
+      "evidence": "Owned-directory integration fixtures, safety-policy propagation and result/confirmation snapshots, measured bounded directory workload.",
+      "docs": "Ledger L4 archive workflow and directory safety/limits documentation."
+    }
+  ],
+  "selected_visual_direction": "Ledger (A), explicitly selected by the maintainer; planning only.",
+  "pending_decisions": []
+}

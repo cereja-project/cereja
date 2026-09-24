@@ -1,0 +1,1902 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cereja UI proposed flows</title><style>body{font-family:system-ui,sans-serif;margin:2rem;color:#202020;background:#fafafa}p{max-width:90ch}a{color:#004b87}pre{font:14px/1.35 monospace;white-space:pre;padding:1rem;background:#181818;color:#e6e6e6;overflow:auto}details{border:1px solid #888;padding:1rem;margin:1rem 0}summary{cursor:pointer;font-weight:bold}summary:focus-visible,pre:focus-visible,a:focus-visible{outline:3px solid #004b87;outline-offset:4px}nav{display:flex;flex-wrap:wrap;gap:.8rem}section{margin-top:3rem}</style><h1>Cereja UI: concrete initial proposals</h1><p>User-selected areas for elaboration: System Information, Repository/Directory Tree, Context Search, Compress/Decompress and Download. Initial IA: Home/Dashboard, Tools/Capabilities, System, Examples, About/Diagnostics. Final acceptance remains pending review. Sample labels are fictional; real-service operations never simulate progress or cancellation. Download uses explicitly fictional TransferProgress event fixtures; those illustrate an existing data contract, not live measurements. Integrations are unbuilt and labelled Planned UI. No browser control executes a capability.</p><p><a href="cereja-ui-ux.md">Flow specification, boundaries and validation gates</a>. References use exact ASCII terminal dimensions. Compact fields scroll with fixed actions; the displayed first page is not the complete form. Browser disclosure and scroll controls are review aids, not implemented TUI controls.</p><nav aria-label="Reference screens">
+<a href="#home-dashboard">Home Dashboard</a>
+<a href="#tools-capabilities">Tools Capabilities</a>
+<a href="#system-information">System Information</a>
+<a href="#system-loading">System Loading</a>
+<a href="#repository-tree">Repository Tree</a>
+<a href="#tree-details">Tree Details</a>
+<a href="#context-search-form">Context Search Form</a>
+<a href="#search-results">Search Results</a>
+<a href="#search-preview">Search Preview</a>
+<a href="#archives-form">Archives Form</a>
+<a href="#archives-running">Archives Running</a>
+<a href="#download-form">Download Form</a>
+<a href="#download-progress">Download Progress</a>
+<a href="#overwrite-confirmation">Overwrite Confirmation</a>
+<a href="#activity">Activity</a>
+<a href="#job-details">Job Details</a>
+<a href="#network-error">Network Error</a>
+<a href="#empty-search">Empty Search</a>
+<a href="#examples">Examples</a>
+<a href="#text-layout-example">Text Layout Example</a>
+<a href="#input-selection-example">Input Selection Example</a>
+<a href="#feedback-example">Feedback Example</a>
+<a href="#about-diagnostics">About Diagnostics</a>
+</nav><main>
+<section id="home-dashboard"><h2>Home Dashboard</h2>
+<details><summary>Home Dashboard: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|HOME DASHBOARD                                                                                                        |
+|Cereja UI proposal | fixture data                                                                                     |
+|Discover and run Cereja capabilities                                                                                  |
+|Cereja: example / Python: example                                                                                     |
+|OS: not collected [System]                                                                                            |
+|&gt; Tools / Capabilities                                                                                                |
+|  System   Examples   About                                                                                           |
+|CPU / RAM / GPU: not collected                                                                                        |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Tools] [System] [Examples] [About]                                                                                   |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Home Dashboard: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|HOME DASHBOARD                                                                |
+|Cereja UI proposal | fixture data                                             |
+|Discover and run Cereja capabilities                                          |
+|Cereja: example / Python: example                                             |
+|OS: not collected [System]                                                    |
+|&gt; Tools / Capabilities                                                        |
+|  System   Examples   About                                                   |
+|CPU / RAM / GPU: not collected                                                |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Tools] [System] [Examples] [About]                                           |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Home Dashboard: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|HOME DASHBOARD                        |
+|Cereja UI proposal | fixture data     |
+|Discover and run Cereja capabilities  |
+|Cereja: example / Python: example     |
+|OS: not collected [System]            |
+|&gt; Tools / Capabilities                |
+|  System   Examples   About           |
+|[Tools] [System] [Examples] [About]   |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="tools-capabilities"><h2>Tools Capabilities</h2>
+<details><summary>Tools Capabilities: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|TOOLS CAPABILITIES                                                                                                    |
+|Select a capability; no auto-run                                                                                      |
+|&gt; System Information    Planned UI                                                                                    |
+|  Repository Tree       Planned UI                                                                                    |
+|  Context Search        Planned UI                                                                                    |
+|  Compress/Decompress   Planned UI                                                                                    |
+|  Download              Planned UI                                                                                    |
+|Other existing tools: CLI / Python API                                                                                |
+|HTTP / encrypt / privacy / security                                                                                   |
+|[Inspect] shows effects and parameters                                                                                |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Inspect] [Back]                                                                                                      |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Tools Capabilities: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|TOOLS CAPABILITIES                                                            |
+|Select a capability; no auto-run                                              |
+|&gt; System Information    Planned UI                                            |
+|  Repository Tree       Planned UI                                            |
+|  Context Search        Planned UI                                            |
+|  Compress/Decompress   Planned UI                                            |
+|  Download              Planned UI                                            |
+|Other existing tools: CLI / Python API                                        |
+|HTTP / encrypt / privacy / security                                           |
+|[Inspect] shows effects and parameters                                        |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Inspect] [Back]                                                              |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Tools Capabilities: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|TOOLS CAPABILITIES                    |
+|Select a capability; no auto-run      |
+|&gt; System Information    Planned UI    |
+|  Repository Tree       Planned UI    |
+|  Context Search        Planned UI    |
+|  Compress/Decompress   Planned UI    |
+|  Download              Planned UI    |
+|[Inspect] [Back]                      |
+|Body rows 1-5 of 8; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="system-information"><h2>System Information</h2>
+<details><summary>System Information: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|SYSTEM INFORMATION                                                                                                    |
+|Basic snapshot | identifiers off                                                                                      |
+|[Load] [Refresh] [Full detail]                                                                                        |
+|&gt; OS           Example OS                                                                                             |
+|  CPU          Example CPU                                                                                            |
+|  Memory       Unavailable                                                                                            |
+|  GPU          Unavailable                                                                                            |
+|Snapshot: fixture; not live inventory                                                                                 |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Load] [Refresh] [Back]                                                                                               |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>System Information: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|SYSTEM INFORMATION                                                            |
+|Basic snapshot | identifiers off                                              |
+|[Load] [Refresh] [Full detail]                                                |
+|&gt; OS           Example OS                                                     |
+|  CPU          Example CPU                                                    |
+|  Memory       Unavailable                                                    |
+|  GPU          Unavailable                                                    |
+|Snapshot: fixture; not live inventory                                         |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Load] [Refresh] [Back]                                                       |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>System Information: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|SYSTEM INFORMATION                    |
+|Basic snapshot | identifiers off      |
+|[Load] [Refresh] [Full detail]        |
+|&gt; OS           Example OS             |
+|  CPU          Example CPU            |
+|  Memory       Unavailable            |
+|  GPU          Unavailable            |
+|[Load] [Refresh] [Back]               |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="system-loading"><h2>System Loading</h2>
+<details><summary>System Loading: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|SYSTEM LOADING                                                                                                        |
+|Working: collecting basic snapshot                                                                                    |
+|OS:       Loading (placeholder)                                                                                       |
+|CPU:      Loading (placeholder)                                                                                       |
+|Memory:   Loading (placeholder)                                                                                       |
+|GPU:      Loading (placeholder)                                                                                       |
+|No percentage; sections not results                                                                                   |
+|Cancellation unavailable                                                                                              |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Activity] [Back]                                                                                                     |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>System Loading: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|SYSTEM LOADING                                                                |
+|Working: collecting basic snapshot                                            |
+|OS:       Loading (placeholder)                                               |
+|CPU:      Loading (placeholder)                                               |
+|Memory:   Loading (placeholder)                                               |
+|GPU:      Loading (placeholder)                                               |
+|No percentage; sections not results                                           |
+|Cancellation unavailable                                                      |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Activity] [Back]                                                             |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>System Loading: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|SYSTEM LOADING                        |
+|Working: collecting basic snapshot    |
+|OS:       Loading (placeholder)       |
+|CPU:      Loading (placeholder)       |
+|Memory:   Loading (placeholder)       |
+|GPU:      Loading (placeholder)       |
+|No percentage; sections not results   |
+|[Activity] [Back]                     |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="repository-tree"><h2>Repository Tree</h2>
+<details><summary>Repository Tree: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|REPOSITORY TREE                                                                                                       |
+|Planned UI | explicit path                                                                                            |
+|Path: ./sample-project                                                                                                |
+|Depth: 3                                                                                                              |
+|&gt; [-] sample-project/                                                                                                 |
+|    [+] docs/                                                                                                         |
+|    [-] tests/                                                                                                        |
+|         test_layout.py                                                                                               |
+|Selected path: ./sample-project/tests                                                                                 |
+|Rows 1-5; visible hierarchy only                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Load] [Details] [Back]                                                                                               |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Repository Tree: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|REPOSITORY TREE                                                               |
+|Planned UI | explicit path                                                    |
+|Path: ./sample-project                                                        |
+|Depth: 3                                                                      |
+|&gt; [-] sample-project/                                                         |
+|    [+] docs/                                                                 |
+|    [-] tests/                                                                |
+|         test_layout.py                                                       |
+|Selected path: ./sample-project/tests                                         |
+|Rows 1-5; visible hierarchy only                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Load] [Details] [Back]                                                       |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Repository Tree: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|REPOSITORY TREE                       |
+|Planned UI | explicit path            |
+|Path: ./sample-project                |
+|Depth: 3                              |
+|&gt; [-] sample-project/                 |
+|    [+] docs/                         |
+|    [-] tests/                        |
+|[Load] [Details] [Back]               |
+|Body rows 1-5 of 8; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="tree-details"><h2>Tree Details</h2>
+<details><summary>Tree Details: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|TREE DETAILS                                                                                                          |
+|Selected node | fixture                                                                                               |
+|./sample-project/tests/test_layout.py                                                                                 |
+|Kind: file                                                                                                            |
+|Label in tree may be truncated.                                                                                       |
+|No open/edit/delete actions.                                                                                          |
+|Selection survives Back and resize.                                                                                   |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Back to tree]                                                                                                        |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Tree Details: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|TREE DETAILS                                                                  |
+|Selected node | fixture                                                       |
+|./sample-project/tests/test_layout.py                                         |
+|Kind: file                                                                    |
+|Label in tree may be truncated.                                               |
+|No open/edit/delete actions.                                                  |
+|Selection survives Back and resize.                                           |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Back to tree]                                                                |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Tree Details: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|TREE DETAILS                          |
+|Selected node | fixture               |
+|./sample-project/tests/test_layout.py |
+|Kind: file                            |
+|Label in tree may be truncated.       |
+|No open/edit/delete actions.          |
+|Selection survives Back and resize.   |
+|[Back to tree]                        |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="context-search-form"><h2>Context Search Form</h2>
+<details><summary>Context Search Form: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|CONTEXT SEARCH FORM                                                                                                   |
+|Planned UI | explicit roots                                                                                           |
+|Roots: ./docs                                                                                                         |
+|       ./tests                                                                                                        |
+|Query: renderer                                                                                                       |
+|Extensions: md, py                                                                                                    |
+|Max results: 10                                                                                                       |
+|Max file bytes: 1048576                                                                                               |
+|Snippets/result: 2; chars/snippet: 240                                                                                |
+|Cache: off                                                                                                            |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Search] [Back]                                                                                                       |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Context Search Form: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|CONTEXT SEARCH FORM                                                           |
+|Planned UI | explicit roots                                                   |
+|Roots: ./docs                                                                 |
+|       ./tests                                                                |
+|Query: renderer                                                               |
+|Extensions: md, py                                                            |
+|Max results: 10                                                               |
+|Max file bytes: 1048576                                                       |
+|Snippets/result: 2; chars/snippet: 240                                        |
+|Cache: off                                                                    |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Search] [Back]                                                               |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Context Search Form: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|CONTEXT SEARCH FORM                   |
+|Planned UI | explicit roots           |
+|Roots: ./docs                         |
+|       ./tests                        |
+|Query: renderer                       |
+|Extensions: md, py                    |
+|Max results: 10                       |
+|[Search] [Back]                       |
+|Body rows 1-5 of 8; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="search-results"><h2>Search Results</h2>
+<details><summary>Search Results: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|SEARCH RESULTS                                                                                                        |
+|Query renderer | roots docs, tests                                                                                    |
+|2 results within limit 10; skipped 1                                                                                  |
+|&gt; docs/rendering.md  score 4.2                                                                                        |
+|  tests/test_cells.py score 3.8                                                                                       |
+|Snippet: [renderer] updates cells                                                                                     |
+|Skipped: file exceeds byte limit                                                                                      |
+|Cancellation: see Activity capability                                                                                 |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Preview] [Edit query] [Back]                                                                                         |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Search Results: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|SEARCH RESULTS                                                                |
+|Query renderer | roots docs, tests                                            |
+|2 results within limit 10; skipped 1                                          |
+|&gt; docs/rendering.md  score 4.2                                                |
+|  tests/test_cells.py score 3.8                                               |
+|Snippet: [renderer] updates cells                                             |
+|Skipped: file exceeds byte limit                                              |
+|Cancellation: see Activity capability                                         |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Preview] [Edit query] [Back]                                                 |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Search Results: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|SEARCH RESULTS                        |
+|Query renderer | roots docs, tests    |
+|2 results within limit 10; skipped 1  |
+|&gt; docs/rendering.md  score 4.2        |
+|  tests/test_cells.py score 3.8       |
+|Snippet: [renderer] updates cells     |
+|Skipped: file exceeds byte limit      |
+|[Preview] [Edit query] [Back]         |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="search-preview"><h2>Search Preview</h2>
+<details><summary>Search Preview: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|SEARCH PREVIEW                                                                                                        |
+|Bounded snippet | result 1 of 2                                                                                       |
+|docs/rendering.md                                                                                                     |
+|12: The [renderer] updates cells.                                                                                     |
+|13: Unchanged cells produce no output.                                                                                |
+|Rows 1-2 of 2                                                                                                         |
+|Not a full-file preview.                                                                                              |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Back to results]                                                                                                     |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Search Preview: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|SEARCH PREVIEW                                                                |
+|Bounded snippet | result 1 of 2                                               |
+|docs/rendering.md                                                             |
+|12: The [renderer] updates cells.                                             |
+|13: Unchanged cells produce no output.                                        |
+|Rows 1-2 of 2                                                                 |
+|Not a full-file preview.                                                      |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Back to results]                                                             |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Search Preview: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|SEARCH PREVIEW                        |
+|Bounded snippet | result 1 of 2       |
+|docs/rendering.md                     |
+|12: The [renderer] updates cells.     |
+|13: Unchanged cells produce no output.|
+|Rows 1-2 of 2                         |
+|Not a full-file preview.              |
+|[Back to results]                     |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="archives-form"><h2>Archives Form</h2>
+<details><summary>Archives Form: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|ARCHIVES FORM                                                                                                         |
+|Planned UI | one area, two modes                                                                                      |
+|Mode: (x) Compress ( ) Decompress                                                                                     |
+|Source: ./sample-data                                                                                                 |
+|Destination: ./sample-data.cjz                                                                                        |
+|Creates output; may need overwrite                                                                                    |
+|No encryption in this proposal.                                                                                       |
+|Progress depends on verified service.                                                                                 |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Run] [Back]                                                                                                          |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Archives Form: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|ARCHIVES FORM                                                                 |
+|Planned UI | one area, two modes                                              |
+|Mode: (x) Compress ( ) Decompress                                             |
+|Source: ./sample-data                                                         |
+|Destination: ./sample-data.cjz                                                |
+|Creates output; may need overwrite                                            |
+|No encryption in this proposal.                                               |
+|Progress depends on verified service.                                         |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Run] [Back]                                                                  |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Archives Form: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|ARCHIVES FORM                         |
+|Planned UI | one area, two modes      |
+|Mode: (x) Compress ( ) Decompress     |
+|Source: ./sample-data                 |
+|Destination: ./sample-data.cjz        |
+|Creates output; may need overwrite    |
+|No encryption in this proposal.       |
+|[Run] [Back]                          |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="archives-running"><h2>Archives Running</h2>
+<details><summary>Archives Running: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|ARCHIVES RUNNING                                                                                                      |
+|Operation A1 | Compress                                                                                               |
+|Working: ./sample-data                                                                                                |
+|Target: ./sample-data.cjz                                                                                             |
+|Total unknown; no percentage                                                                                          |
+|Log: operation started                                                                                                |
+|Log bounded; old entries counted                                                                                      |
+|Cancellation unavailable                                                                                              |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Activity] [Back]                                                                                                     |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Archives Running: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|ARCHIVES RUNNING                                                              |
+|Operation A1 | Compress                                                       |
+|Working: ./sample-data                                                        |
+|Target: ./sample-data.cjz                                                     |
+|Total unknown; no percentage                                                  |
+|Log: operation started                                                        |
+|Log bounded; old entries counted                                              |
+|Cancellation unavailable                                                      |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Activity] [Back]                                                             |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Archives Running: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|ARCHIVES RUNNING                      |
+|Operation A1 | Compress               |
+|Working: ./sample-data                |
+|Target: ./sample-data.cjz             |
+|Total unknown; no percentage          |
+|Log: operation started                |
+|Log bounded; old entries counted      |
+|[Activity] [Back]                     |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="download-form"><h2>Download Form</h2>
+<details><summary>Download Form: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|DOWNLOAD FORM                                                                                                         |
+|Planned UI | URL + destination                                                                                        |
+|URL: https://example.com/file.bin                                                                                     |
+|Destination: ./downloads/file.bin                                                                                     |
+|Network request and local file write                                                                                  |
+|Existing target requires review.                                                                                      |
+|No full HTTP client or assumed resume.                                                                                |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Start] [Back]                                                                                                        |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Download Form: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|DOWNLOAD FORM                                                                 |
+|Planned UI | URL + destination                                                |
+|URL: https://example.com/file.bin                                             |
+|Destination: ./downloads/file.bin                                             |
+|Network request and local file write                                          |
+|Existing target requires review.                                              |
+|No full HTTP client or assumed resume.                                        |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Start] [Back]                                                                |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Download Form: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|DOWNLOAD FORM                         |
+|Planned UI | URL + destination        |
+|URL: https://example.com/file.bin     |
+|Destination: ./downloads/file.bin     |
+|Network request and local file write  |
+|Existing target requires review.      |
+|No full HTTP client or assumed resume.|
+|[Start] [Back]                        |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="download-progress"><h2>Download Progress: unknown-total fixture</h2><p>Fictional events: 0 bytes at t=0 and 524288 at t=8 seconds, with no total. Speed derives from these samples. One active background operation keeps the UI responsive. A second Start is unavailable until completion; no automatic queue is proposed. Simultaneous transfers are deferred.</p>
+<details><summary>Download Progress: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|DOWNLOAD PROGRESS                                                                                                     |
+|Operation D1 | fixture telemetry                                                                                      |
+|Received: 524288 bytes (fixture)                                                                                      |
+|Total unavailable                                                                                                     |
+|Speed: 64 KiB/s (sample-derived)                                                                                      |
+|Destination: ./downloads/file.bin                                                                                     |
+|Cancellation unavailable                                                                                              |
+|Second Start unavailable until done                                                                                   |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Activity] [Back]                                                                                                     |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Download Progress: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|DOWNLOAD PROGRESS                                                             |
+|Operation D1 | fixture telemetry                                              |
+|Received: 524288 bytes (fixture)                                              |
+|Total unavailable                                                             |
+|Speed: 64 KiB/s (sample-derived)                                              |
+|Destination: ./downloads/file.bin                                             |
+|Cancellation unavailable                                                      |
+|Second Start unavailable until done                                           |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Activity] [Back]                                                             |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Download Progress: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|DOWNLOAD PROGRESS                     |
+|Operation D1 | fixture telemetry      |
+|Received: 524288 bytes (fixture)      |
+|Total unavailable                     |
+|Speed: 64 KiB/s (sample-derived)      |
+|Destination: ./downloads/file.bin     |
+|Cancellation unavailable              |
+|[Activity] [Back]                     |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="overwrite-confirmation"><h2>Overwrite Confirmation</h2><p>Shown after parameter/target validation and before execution. Consent binds to the exact displayed target and effect; changing either invalidates it.</p>
+<details><summary>Overwrite Confirmation: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|OVERWRITE CONFIRMATION                                                                                                |
+|Modal | target requires review                                                                                        |
+|Target: ./sample-data.cjz                                                                                             |
+|Effect: replace existing file                                                                                         |
+|Partial-output behavior: inspect first                                                                                |
+|&gt; [Keep existing]                                                                                                     |
+|  [Overwrite and run]                                                                                                 |
+|Escape returns without execution.                                                                                     |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Keep existing] [Overwrite and run]                                                                                   |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Overwrite Confirmation: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|OVERWRITE CONFIRMATION                                                        |
+|Modal | target requires review                                                |
+|Target: ./sample-data.cjz                                                     |
+|Effect: replace existing file                                                 |
+|Partial-output behavior: inspect first                                        |
+|&gt; [Keep existing]                                                             |
+|  [Overwrite and run]                                                         |
+|Escape returns without execution.                                             |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Keep existing] [Overwrite and run]                                           |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Overwrite Confirmation: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|OVERWRITE CONFIRMATION                |
+|Modal | target requires review        |
+|Target: ./sample-data.cjz             |
+|Effect: replace existing file         |
+|Partial-output behavior: inspect first|
+|&gt; [Keep existing]                     |
+|  [Overwrite and run]                 |
+|[Keep existing] [Overwrite and run]   |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="activity"><h2>Activity</h2>
+<details><summary>Activity: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|ACTIVITY                                                                                                              |
+|Current background operation                                                                                          |
+|&gt; A1 Compress: running, total unknown                                                                                 |
+|Second Start unavailable until done                                                                                   |
+|[Return to current operation]                                                                                         |
+|Other operations do not auto-start                                                                                    |
+|Late results retain operation identity.                                                                               |
+|UI remains responsive during work                                                                                     |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Details] [Back]                                                                                                      |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Activity: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|ACTIVITY                                                                      |
+|Current background operation                                                  |
+|&gt; A1 Compress: running, total unknown                                         |
+|Second Start unavailable until done                                           |
+|[Return to current operation]                                                 |
+|Other operations do not auto-start                                            |
+|Late results retain operation identity.                                       |
+|UI remains responsive during work                                             |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Details] [Back]                                                              |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Activity: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|ACTIVITY                              |
+|Current background operation          |
+|&gt; A1 Compress: running, total unknown |
+|Second Start unavailable until done   |
+|[Return to current operation]         |
+|Other operations do not auto-start    |
+|Late results retain operation ident...|
+|[Details] [Back]                      |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="job-details"><h2>Job Details</h2>
+<details><summary>Job Details: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|JOB DETAILS                                                                                                           |
+|D1 | operation details                                                                                                |
+|State: Running (known active work)                                                                                    |
+|Received: 524288 bytes (fixture)                                                                                      |
+|Partial file status: unknown                                                                                          |
+|Work continues outside this view.                                                                                     |
+|No rollback or resume is implied.                                                                                     |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Edit] [Back]                                                                                                         |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Job Details: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|JOB DETAILS                                                                   |
+|D1 | operation details                                                        |
+|State: Running (known active work)                                            |
+|Received: 524288 bytes (fixture)                                              |
+|Partial file status: unknown                                                  |
+|Work continues outside this view.                                             |
+|No rollback or resume is implied.                                             |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Edit] [Back]                                                                 |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Job Details: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|JOB DETAILS                           |
+|D1 | operation details                |
+|State: Running (known active work)    |
+|Received: 524288 bytes (fixture)      |
+|Partial file status: unknown          |
+|Work continues outside this view.     |
+|No rollback or resume is implied.     |
+|[Edit] [Back]                         |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="network-error"><h2>Network Error</h2>
+<details><summary>Network Error: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|NETWORK ERROR                                                                                                         |
+|D1 failed | fixture                                                                                                   |
+|Error: connection interrupted                                                                                         |
+|Partial target: status must be reported                                                                               |
+|Do not assume clean rollback.                                                                                         |
+|Retry is explicit, never automatic.                                                                                   |
+|Review existing destination first.                                                                                    |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Edit] [Retry] [Back]                                                                                                 |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Network Error: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|NETWORK ERROR                                                                 |
+|D1 failed | fixture                                                           |
+|Error: connection interrupted                                                 |
+|Partial target: status must be reported                                       |
+|Do not assume clean rollback.                                                 |
+|Retry is explicit, never automatic.                                           |
+|Review existing destination first.                                            |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Edit] [Retry] [Back]                                                         |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Network Error: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|NETWORK ERROR                         |
+|D1 failed | fixture                   |
+|Error: connection interrupted         |
+|Partial target: status must be repo...|
+|Do not assume clean rollback.         |
+|Retry is explicit, never automatic.   |
+|Review existing destination first.    |
+|[Edit] [Retry] [Back]                 |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="empty-search"><h2>Empty Search</h2>
+<details><summary>Empty Search: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|EMPTY SEARCH                                                                                                          |
+|Completed within explicit bounds                                                                                      |
+|No results within these limits.                                                                                       |
+|Roots: ./docs                                                                                                         |
+|Query: missing-term                                                                                                   |
+|Skipped: 1 (file exceeds limit)                                                                                       |
+|This does not prove no match exists.                                                                                  |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Edit query] [Back]                                                                                                   |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Empty Search: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|EMPTY SEARCH                                                                  |
+|Completed within explicit bounds                                              |
+|No results within these limits.                                               |
+|Roots: ./docs                                                                 |
+|Query: missing-term                                                           |
+|Skipped: 1 (file exceeds limit)                                               |
+|This does not prove no match exists.                                          |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Edit query] [Back]                                                           |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Empty Search: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|EMPTY SEARCH                          |
+|Completed within explicit bounds      |
+|No results within these limits.       |
+|Roots: ./docs                         |
+|Query: missing-term                   |
+|Skipped: 1 (file exceeds limit)       |
+|This does not prove no match exists.  |
+|[Edit query] [Back]                   |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="examples"><h2>Examples</h2>
+<details><summary>Examples: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|EXAMPLES                                                                                                              |
+|Synthetic toolkit dogfooding                                                                                          |
+|&gt; Text/layout: tables, clipping                                                                                       |
+|  Input/selection: text, list                                                                                         |
+|  Feedback: progress, logs, cancel                                                                                    |
+|Synthetic jobs can expose exact totals.                                                                               |
+|No file writes or network activity.                                                                                   |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Open] [Back]                                                                                                         |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Examples: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|EXAMPLES                                                                      |
+|Synthetic toolkit dogfooding                                                  |
+|&gt; Text/layout: tables, clipping                                               |
+|  Input/selection: text, list                                                 |
+|  Feedback: progress, logs, cancel                                            |
+|Synthetic jobs can expose exact totals.                                       |
+|No file writes or network activity.                                           |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Open] [Back]                                                                 |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Examples: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|EXAMPLES                              |
+|Synthetic toolkit dogfooding          |
+|&gt; Text/layout: tables, clipping       |
+|  Input/selection: text, list         |
+|  Feedback: progress, logs, cancel    |
+|Synthetic jobs can expose exact tot...|
+|No file writes or network activity.   |
+|[Open] [Back]                         |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="text-layout-example"><h2>Text Layout Example</h2>
+<details><summary>Text Layout Example: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|TEXT LAYOUT EXAMPLE                                                                                                   |
+|Synthetic table + key-value view                                                                                      |
+|Name             State                                                                                                |
+|Alpha            Ready                                                                                                |
+|Beta             Unavailable                                                                                          |
+|Long labels wrap in details.                                                                                          |
+|Rows 1-2 of 2                                                                                                         |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Back]                                                                                                                |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Text Layout Example: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|TEXT LAYOUT EXAMPLE                                                           |
+|Synthetic table + key-value view                                              |
+|Name             State                                                        |
+|Alpha            Ready                                                        |
+|Beta             Unavailable                                                  |
+|Long labels wrap in details.                                                  |
+|Rows 1-2 of 2                                                                 |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Back]                                                                        |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Text Layout Example: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|TEXT LAYOUT EXAMPLE                   |
+|Synthetic table + key-value view      |
+|Name             State                |
+|Alpha            Ready                |
+|Beta             Unavailable          |
+|Long labels wrap in details.          |
+|Rows 1-2 of 2                         |
+|[Back]                                |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="input-selection-example"><h2>Input Selection Example</h2>
+<details><summary>Input Selection Example: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|INPUT SELECTION EXAMPLE                                                                                               |
+|Synthetic data; session only                                                                                          |
+|Label: [example                  ]                                                                                    |
+|&gt; Alpha                                                                                                               |
+|  Beta                                                                                                                |
+|Selected: Alpha                                                                                                       |
+|Invalid input shows field-level cause.                                                                                |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Apply] [Reset] [Back]                                                                                                |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Input Selection Example: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|INPUT SELECTION EXAMPLE                                                       |
+|Synthetic data; session only                                                  |
+|Label: [example                  ]                                            |
+|&gt; Alpha                                                                       |
+|  Beta                                                                        |
+|Selected: Alpha                                                               |
+|Invalid input shows field-level cause.                                        |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Apply] [Reset] [Back]                                                        |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Input Selection Example: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|INPUT SELECTION EXAMPLE               |
+|Synthetic data; session only          |
+|Label: [example                  ]    |
+|&gt; Alpha                               |
+|  Beta                                |
+|Selected: Alpha                       |
+|Invalid input shows field-level cause.|
+|[Apply] [Reset] [Back]                |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="feedback-example"><h2>Feedback Example</h2>
+<details><summary>Feedback Example: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|FEEDBACK EXAMPLE                                                                                                      |
+|Synthetic 20-step job                                                                                                 |
+|Working: 6/20 (30%)                                                                                                   |
+|[######..............]                                                                                                |
+|Log: step 6 complete                                                                                                  |
+|Motion off retains real count changes.                                                                                |
+|[Cancel] is valid for this fixture.                                                                                   |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Start] [Cancel] [Reset] [Back]                                                                                       |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>Feedback Example: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|FEEDBACK EXAMPLE                                                              |
+|Synthetic 20-step job                                                         |
+|Working: 6/20 (30%)                                                           |
+|[######..............]                                                        |
+|Log: step 6 complete                                                          |
+|Motion off retains real count changes.                                        |
+|[Cancel] is valid for this fixture.                                           |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Start] [Cancel] [Reset] [Back]                                               |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>Feedback Example: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|FEEDBACK EXAMPLE                      |
+|Synthetic 20-step job                 |
+|Working: 6/20 (30%)                   |
+|[######..............]                |
+|Log: step 6 complete                  |
+|Motion off retains real count changes.|
+|[Cancel] is valid for this fixture.   |
+|[Start] [Cancel] [Reset] [Back]       |
+|Fixture data | proposal only          |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section id="about-diagnostics"><h2>About Diagnostics</h2>
+<details><summary>About Diagnostics: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|ABOUT DIAGNOSTICS                                                                                                     |
+|Sanitized session diagnostics                                                                                         |
+|Cereja / Python version: fixture                                                                                      |
+|Terminal: 80x24; ASCII reference                                                                                      |
+|Color: none   Motion: off                                                                                             |
+|Frame ceiling: local 30 / slow 4 Hz                                                                                   |
+|Indicator ceiling: local 8 / slow 2 Hz                                                                                |
+|No automatic export or sensitive IDs.                                                                                 |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Back]                                                                                                                |
+|Fixture data | proposal only                                                                                          |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details>
+<details><summary>About Diagnostics: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|ABOUT DIAGNOSTICS                                                             |
+|Sanitized session diagnostics                                                 |
+|Cereja / Python version: fixture                                              |
+|Terminal: 80x24; ASCII reference                                              |
+|Color: none   Motion: off                                                     |
+|Frame ceiling: local 30 / slow 4 Hz                                           |
+|Indicator ceiling: local 8 / slow 2 Hz                                        |
+|No automatic export or sensitive IDs.                                         |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Back]                                                                        |
+|Fixture data | proposal only                                                  |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details>
+<details open><summary>About Diagnostics: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|ABOUT DIAGNOSTICS                     |
+|Sanitized session diagnostics         |
+|Cereja / Python version: fixture      |
+|Terminal: 80x24; ASCII reference      |
+|Color: none   Motion: off             |
+|Frame ceiling: local 30 / slow 4 Hz   |
+|Indicator ceiling: local 8 / slow 2 Hz|
+|[Back]                                |
+|Body rows 1-5 of 6; scroll            |
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details>
+</section>
+<section><h2>Below-minimum recovery: 30x10</h2><pre tabindex="0">+----------------------------+
+|Terminal too small          |
+|Current: 30x10              |
+|Required: 40x12             |
+|                            |
+|Resize or [Quit]            |
+|                            |
+|                            |
+|                            |
++----------------------------+</pre><p>Retain operation state and accept resize or job-aware Quit. These references do not prove terminal behavior, Unicode width, real progress/cancellation or observed usability.</p></section><section id="download-known-total"><h2>Download: known-total event fixture</h2><p>Fictional TransferProgress events: 0 bytes at t=0, 524288 bytes at t=8 seconds, total 1048576 bytes. Derived average speed is 65536 bytes/s (64 KiB/s). UI must use actual events and elapsed time at runtime. This is not a simulated operational progress timer. No Cancel baseline.</p><details><summary>Download known total: 120 columns x 40 rows</summary><pre tabindex="0">+----------------------------------------------------------------------------------------------------------------------+
+|DOWNLOAD / KNOWN TOTAL                                                                                                |
+|Sample transfer; not a live download                                                                                  |
+|Received: 524288 / 1048576 bytes                                                                                      |
+|Progress: 50% (fixture ratio)                                                                                         |
+|[##########..........]                                                                                                |
+|Speed: 64 KiB/s (bytes/time samples)                                                                                  |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|                                                                                                                      |
+|[Activity] [Back]                                                                                                     |
+|One active job; cancellation unavailable                                                                              |
+|Tab focus | Enter act | Esc back                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+</pre></details><details><summary>Download known total: 80 columns x 24 rows</summary><pre tabindex="0">+------------------------------------------------------------------------------+
+|DOWNLOAD / KNOWN TOTAL                                                        |
+|Sample transfer; not a live download                                          |
+|Received: 524288 / 1048576 bytes                                              |
+|Progress: 50% (fixture ratio)                                                 |
+|[##########..........]                                                        |
+|Speed: 64 KiB/s (bytes/time samples)                                          |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|[Activity] [Back]                                                             |
+|One active job; cancellation unavailable                                      |
+|Tab focus | Enter act | Esc back                                              |
++------------------------------------------------------------------------------+</pre></details><details open><summary>Download known total: 40 columns x 12 rows</summary><pre tabindex="0">+--------------------------------------+
+|DOWNLOAD / KNOWN TOTAL                |
+|Sample transfer; not a live download  |
+|Received: 524288 / 1048576 bytes      |
+|Progress: 50% (fixture ratio)         |
+|[##########..........]                |
+|Speed: 64 KiB/s (bytes/time samples)  |
+|                                      |
+|[Activity] [Back]                     |
+|One active job; cancellation unavai...|
+|Tab focus | Enter act | Esc back      |
++--------------------------------------+</pre></details></section></main></html>

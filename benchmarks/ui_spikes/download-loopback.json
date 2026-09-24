@@ -1,0 +1,148 @@
+{
+  "python": "3.14.5",
+  "os": "Windows",
+  "transport": "owned loopback HTTP only",
+  "payload_bytes": 1536,
+  "chunk_size": 128,
+  "cases": [
+    {
+      "mode": "known",
+      "events": [
+        {
+          "bytes_transferred": 128,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 256,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 384,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 512,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 640,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 768,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 896,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 1024,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 1152,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 1280,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 1408,
+          "total_bytes": 1536
+        },
+        {
+          "bytes_transferred": 1536,
+          "total_bytes": 1536
+        }
+      ],
+      "result_bytes": 1536,
+      "total_bytes": 1536,
+      "status_code": 200,
+      "sha256": "36e6be4f4f765ce6fe212c2fb5bd09c3ca2aec05581afa726a5606ae9100a741",
+      "remaining_part_files": 0
+    },
+    {
+      "mode": "unknown",
+      "events": [
+        {
+          "bytes_transferred": 128,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 256,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 384,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 512,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 640,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 768,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 896,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 1024,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 1152,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 1280,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 1408,
+          "total_bytes": null
+        },
+        {
+          "bytes_transferred": 1536,
+          "total_bytes": null
+        }
+      ],
+      "result_bytes": 1536,
+      "total_bytes": null,
+      "status_code": 200,
+      "sha256": "36e6be4f4f765ce6fe212c2fb5bd09c3ca2aec05581afa726a5606ae9100a741",
+      "remaining_part_files": 0
+    },
+    {
+      "mode": "callback_abort_first_chunk",
+      "events": [
+        {
+          "bytes_transferred": 128,
+          "total_bytes": 1536
+        }
+      ],
+      "old_output_preserved": true,
+      "remaining_part_files": 0
+    }
+  ],
+  "scope": "not full cancellation, commit-race, or hostile-network acceptance",
+  "server_stopped": true,
+  "temporary_directory_cleaned": true,
+  "source_sha256": "b406fe3ed5679e6847ea9b5fcc436f29cd2124bfc59d1fa81736e33f9b74eae3",
+  "revision": "ed7fbfa5bc08f3e5814602f1cb3f09e3d6ad5d87",
+  "sources_sha256": {
+    "benchmarks/ui_spikes/download_probe.py": "b406fe3ed5679e6847ea9b5fcc436f29cd2124bfc59d1fa81736e33f9b74eae3",
+    "cereja/transfers/download.py": "b18b6b4ef222b00879b627f2655b1796744aa376507d2d8d58b9181d7ef10c51",
+    "cereja/transfers/models.py": "dd6df681677d0da07a7bef4674fc6cc2639e80e9fcc77492a77cadbdc5a8f6e8",
+    "cereja/transfers/sinks.py": "ed4142db62a80f415a19ef837256871252ea7f7ef494e2d43eb1504e2ede5732",
+    "cereja/http/sync/client.py": "7312ba9c3e272f6079cb7c0388ceb4a062d2036eeef4414ae68fbfff0abf48dd"
+  }
+}

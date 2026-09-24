@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-09-24",
+  "scope": "HTML bytes included in the UI-00 publication package, not a new visual validation.",
+  "historical_review_limit": "Previously recorded hashes do not match these HTML files, including after newline normalization. The historical visual inspection cannot be bound to these bytes by those hashes.",
+  "artifacts": [
+    {
+      "path": "docs/design/cereja-ui-visual-comparison.html",
+      "sha256": "60cf3f40813a85c5a151d0a069dc3947e22ea4e736cac3c3b456d00e41fd7a25",
+      "previously_recorded_sha256": "fe74c7ed161e107a80f25194e9158afae5c628d077a5da17bc4dfaaf6b2efd04"
+    },
+    {
+      "path": "docs/design/cereja-ui-wireframes.html",
+      "sha256": "6cd61267a466c3bdbf3b14b6c33e48905f755a6e60a230e309280d9977cb2991",
+      "previously_recorded_sha256": "907d1bfc992237bd36948c665ca08c3a33a1f7393fbc157ffcab0c1cdf5315ca"
+    }
+  ]
+}

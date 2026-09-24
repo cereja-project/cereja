@@ -1,0 +1,20 @@
+{
+  "os": "Windows",
+  "python": "3.14.5",
+  "stdin_tty": false,
+  "stdout_tty": false,
+  "terminal_mode_changes": 0,
+  "input_reads": 0,
+  "selector": "SelectSelector",
+  "idle_ready": 0,
+  "idle_wait_ns": 29660400,
+  "posted_ready": 1,
+  "posted_payload": "x",
+  "win32_event": {
+    "idle_result": 258,
+    "wakeup_index": 1,
+    "reset_result": 258
+  },
+  "console_input_available": false,
+  "posix_pty": "not run on Windows"
+}
