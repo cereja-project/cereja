@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import sys
 import tarfile
@@ -162,12 +163,21 @@ def metadata_matches(data, project, version):
     require(name == project and versions[0] == version, 'Distribution Name/Version differs from source metadata')
 
 
+def _is_link_or_reparse_point(path):
+    info = path.lstat()
+    return stat.S_ISLNK(info.st_mode) or bool(
+        getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+
+
 def read_artifacts(dist, project, version):
     directory = Path(os.path.abspath(dist))
-    require(directory.is_dir() and directory.resolve() == directory and directory.parent != directory,
-            'Distribution directory must be an existing owned directory without symlinks')
+    require(directory.is_dir() and directory.parent != directory
+            and not any(_is_link_or_reparse_point(path) for path in (directory, *directory.parents)),
+            'Distribution directory must exist without symlinks or reparse points')
+    # Windows resolves ordinary 8.3 aliases to long names even without any links.
+    directory = directory.resolve(strict=True)
     paths = sorted(directory.iterdir())
-    require(len(paths) == 2 and all(path.is_file() and not path.is_symlink() for path in paths),
+    require(len(paths) == 2 and all(path.is_file() and not _is_link_or_reparse_point(path) for path in paths),
             'Distribution directory must contain exactly one wheel and one source archive')
     wheels = [path for path in paths if path.name.endswith('.whl')]
     sources = [path for path in paths if path.name.endswith('.tar.gz')]

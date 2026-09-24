@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import tarfile
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
@@ -199,13 +200,62 @@ class TestRelease(unittest.TestCase):
         self.assertEqual(extra.read_text(), 'keep me')
 
     def test_distribution_directory_rejects_symlinks(self):
-        link = self.folder / 'linked-artifacts'
+        link = self.folder / 'linked-parent'
+        direct = self.folder / 'linked-artifacts'
         try:
-            link.symlink_to(self.dist, target_is_directory=True)
+            link.symlink_to(self.folder, target_is_directory=True)
+            direct.symlink_to(self.dist, target_is_directory=True)
+        except OSError:
+            self.skipTest('Creating symlinks is unavailable on this host')
+        for directory in (direct, link / self.dist.name):
+            with self.subTest(directory=directory), self.assertRaises(release.ReleaseError):
+                release.read_artifacts(directory, self.project, self.version)
+
+    def test_distribution_directory_rejects_symlinked_files(self):
+        wheel = next(self.dist.glob('*.whl'))
+        target = self.folder / wheel.name
+        wheel.rename(target)
+        try:
+            wheel.symlink_to(target)
         except OSError:
             self.skipTest('Creating symlinks is unavailable on this host')
         with self.assertRaises(release.ReleaseError):
-            release.read_artifacts(link, self.project, self.version)
+            release.read_artifacts(self.dist, self.project, self.version)
+        self.assertTrue(target.is_file())
+
+    def test_distribution_directory_rejects_parent_and_file_reparse_points(self):
+        original_lstat = Path.lstat
+        wheel = next(self.dist.glob('*.whl'))
+        for target in (self.folder, wheel):
+            def lstat(path):
+                info = original_lstat(path)
+                if path == target:
+                    return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
+                return info
+
+            with self.subTest(target=target), patch.object(Path, 'lstat', autospec=True, side_effect=lstat):
+                with self.assertRaises(release.ReleaseError):
+                    release.read_artifacts(self.dist, self.project, self.version)
+        self.assertTrue(wheel.is_file())
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows short paths only')
+    def test_distribution_directory_accepts_windows_short_path_alias(self):
+        import ctypes
+        from ctypes import wintypes
+
+        get_short_path = ctypes.WinDLL('kernel32', use_last_error=True).GetShortPathNameW
+        get_short_path.argtypes = (wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD)
+        get_short_path.restype = wintypes.DWORD
+        buffer = ctypes.create_unicode_buffer(32768)
+        length = get_short_path(str(self.dist), buffer, len(buffer))
+        self.assertGreater(length, 0, ctypes.get_last_error())
+        self.assertLess(length, len(buffer))
+        alias = Path(buffer.value)
+        if alias == alias.resolve():
+            self.skipTest('The filesystem does not provide a distinct short-path alias')
+        expected = release.read_artifacts(self.dist.resolve(), self.project, self.version)
+        actual = release.read_artifacts(alias, self.project, self.version)
+        self.assertEqual(actual, expected)
 
     def test_artifact_selection_reuses_producer_on_failed_jobs_retry(self):
         self.event['workflow_run']['run_attempt'] = 2
