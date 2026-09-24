@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from cereja.system._windows import capture
+from cereja.system._windows import capture, types as native_types
 
 
 PRIMARY = capture.ScreenMonitor("primary", "Primary", 0, 0, 8, 6, True)
@@ -199,20 +199,22 @@ class NativeLifecycleTest(unittest.TestCase):
         self.addCleanup(self.backend.close)
 
     def create_dib(self, dc, pointer, usage, bits, section, offset):
-        info = ctypes.cast(pointer, ctypes.POINTER(capture._BitmapInfo)).contents
+        info = ctypes.cast(pointer, ctypes.POINTER(native_types.BITMAPINFO)).contents
         self.assertEqual((info.bmiHeader.biWidth, info.bmiHeader.biHeight), (8, -6))
+        self.assertEqual((info.bmiHeader.biBitCount, info.bmiHeader.biCompression), (32, 0))
+        self.assertEqual((usage, section, offset), (0, None, 0))
         ctypes.cast(bits, ctypes.POINTER(ctypes.c_void_p))[0] = ctypes.addressof(self.buffer)
         return 14
 
     def cursor_info(self, pointer):
-        cursor = ctypes.cast(pointer, ctypes.POINTER(capture._CursorInfo)).contents
-        self.assertEqual(cursor.cbSize, ctypes.sizeof(capture._CursorInfo))
+        cursor = ctypes.cast(pointer, ctypes.POINTER(native_types.CURSORINFO)).contents
+        self.assertEqual(cursor.cbSize, ctypes.sizeof(native_types.CURSORINFO))
         cursor.flags, cursor.hCursor = 1, 20
         cursor.ptScreenPos.x, cursor.ptScreenPos.y = -7, -1
         return True
 
     def icon_info(self, icon, pointer):
-        info = ctypes.cast(pointer, ctypes.POINTER(capture._IconInfo)).contents
+        info = ctypes.cast(pointer, ctypes.POINTER(native_types.ICONINFO)).contents
         info.xHotspot, info.yHotspot = 2, 3
         info.hbmMask, info.hbmColor = 22, 23
         return True
@@ -262,7 +264,7 @@ class NativeLifecycleTest(unittest.TestCase):
     def test_hidden_or_suppressed_cursor_is_not_copied(self):
         for flags in (0, 2, 3):
             def hidden(pointer):
-                ctypes.cast(pointer, ctypes.POINTER(capture._CursorInfo)).contents.flags = flags
+                ctypes.cast(pointer, ctypes.POINTER(native_types.CURSORINFO)).contents.flags = flags
                 return True
             self.api.GetCursorInfo.side_effect = hidden
             self.backend.draw_cursor(12, 0, 0)
@@ -274,6 +276,9 @@ class NativeLifecycleTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "body"):
             with api.physical_pixels():
                 raise ValueError("body")
+        context = api.SetThreadDpiAwarenessContext.call_args_list[0].args[0]
+        self.assertEqual(ctypes.c_void_p(getattr(context, "value", context)).value,
+                         ctypes.c_void_p(-4).value)
         self.assertEqual(api.SetThreadDpiAwarenessContext.call_args_list[-1].args, (37,))
 
     def test_cleanup_attempts_all_handles_after_delete_failure(self):
@@ -288,8 +293,8 @@ class NativeLifecycleTest(unittest.TestCase):
         self.api.monitor_callback = lambda callback: callback
 
         def information(handle, pointer):
-            info = ctypes.cast(pointer, ctypes.POINTER(capture._MonitorInfo)).contents
-            self.assertEqual(info.cbSize, ctypes.sizeof(capture._MonitorInfo))
+            info = ctypes.cast(pointer, ctypes.POINTER(native_types.MONITORINFOEXW)).contents
+            self.assertEqual(info.cbSize, ctypes.sizeof(native_types.MONITORINFOEXW))
             info.szDevice = rf"\\.\DISPLAY{handle}"
             bounds = (0, 0, 8, 6) if handle == 1 else (-8, -2, 0, 4)
             info.rcMonitor = ctypes.wintypes.RECT(*bounds)
@@ -324,7 +329,7 @@ class SyntheticDibTest(unittest.TestCase):
         self.addCleanup(self.target.close)
         self.user = ctypes.WinDLL("user32", use_last_error=True)
         self.gdi = ctypes.WinDLL("gdi32", use_last_error=True)
-        self.user.CreateIconIndirect.argtypes = [ctypes.POINTER(capture._IconInfo)]
+        self.user.CreateIconIndirect.argtypes = [ctypes.POINTER(native_types.ICONINFO)]
         self.user.CreateIconIndirect.restype = ctypes.wintypes.HANDLE
         self.gdi.CreateBitmap.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.wintypes.UINT,
                                          ctypes.wintypes.UINT, ctypes.c_void_p]
@@ -337,7 +342,7 @@ class SyntheticDibTest(unittest.TestCase):
         return bitmap
 
     def cursor(self, mask, color=None, hotspot=(0, 0)):
-        info = capture._IconInfo(False, hotspot[0], hotspot[1], mask, color)
+        info = native_types.ICONINFO(False, hotspot[0], hotspot[1], mask, color)
         handle = capture._checked(self.user.CreateIconIndirect(ctypes.byref(info)), "CreateIconIndirect")
         self.addCleanup(self.api.DestroyIcon, handle)
         return handle
@@ -348,7 +353,7 @@ class SyntheticDibTest(unittest.TestCase):
         original = self.api.GetCursorInfo
 
         def synthetic_cursor(pointer):
-            info = ctypes.cast(pointer, ctypes.POINTER(capture._CursorInfo)).contents
+            info = ctypes.cast(pointer, ctypes.POINTER(native_types.CURSORINFO)).contents
             info.flags, info.hCursor = 1, icon
             info.ptScreenPos.x, info.ptScreenPos.y = position
             return True

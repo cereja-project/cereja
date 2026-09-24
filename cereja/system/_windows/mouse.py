@@ -7,36 +7,37 @@ from typing import Tuple
 
 from ...utils import is_numeric_sequence
 from .api import get_api
+from .constants import MouseEvent, MouseKeyState, SystemMetric, WindowMessage
 from .types import POINT
 
 
 class Mouse:
     _button_envent_map = {
-        "move": 1,
-        "left_down": 2,
-        "left_up": 4,
-        "right_down": 8,
-        "right_up": 10,
-        "left_click": 6,
-        "right_click": 24
+        "move": MouseEvent.MOVE,
+        "left_down": MouseEvent.LEFTDOWN,
+        "left_up": MouseEvent.LEFTUP,
+        "right_down": MouseEvent.RIGHTDOWN,
+        "right_up": MouseEvent.RIGHTUP,
+        "left_click": MouseEvent.LEFTDOWN | MouseEvent.LEFTUP,
+        "right_click": MouseEvent.RIGHTDOWN | MouseEvent.RIGHTUP,
     }
 
     _mouse_messages_map = {
-        "move": 0x0200,
-        "left_down": 0x0201,
-        "left_up": 0x0202,
-        "WM_LBUTTONDBLCLK": 0x0203,
-        "right_down": 0x0204,
-        "right_up": 0x0205,
-        "WM_RBUTTONDBLCLK": 0x0206,
-        "WM_MBUTTONDOWN": 0x0207,
-        "WM_MBUTTONUP": 0x0208,
-        "WM_MBUTTONDBLCLK": 0x0209,
-        "WM_MOUSEWHEEL": 0x020A,
-        "WM_XBUTTONDOWN": 0x020B,
-        "WM_XBUTTONUP": 0x020C,
-        "WM_XBUTTONDBLCLK": 0x020D,
-        "WM_MOUSEHWHEEL": 0x020E
+        "move": WindowMessage.MOUSEMOVE,
+        "left_down": WindowMessage.LBUTTONDOWN,
+        "left_up": WindowMessage.LBUTTONUP,
+        "WM_LBUTTONDBLCLK": WindowMessage.LBUTTONDBLCLK,
+        "right_down": WindowMessage.RBUTTONDOWN,
+        "right_up": WindowMessage.RBUTTONUP,
+        "WM_RBUTTONDBLCLK": WindowMessage.RBUTTONDBLCLK,
+        "WM_MBUTTONDOWN": WindowMessage.MBUTTONDOWN,
+        "WM_MBUTTONUP": WindowMessage.MBUTTONUP,
+        "WM_MBUTTONDBLCLK": WindowMessage.MBUTTONDBLCLK,
+        "WM_MOUSEWHEEL": WindowMessage.MOUSEWHEEL,
+        "WM_XBUTTONDOWN": WindowMessage.XBUTTONDOWN,
+        "WM_XBUTTONUP": WindowMessage.XBUTTONUP,
+        "WM_XBUTTONDBLCLK": WindowMessage.XBUTTONDBLCLK,
+        "WM_MOUSEHWHEEL": WindowMessage.MOUSEHWHEEL,
     }
 
     def __init__(self,
@@ -48,7 +49,8 @@ class Mouse:
 
     @property
     def window_size(self):
-        return self.user32.GetSystemMetrics(0), self.user32.GetSystemMetrics(1)
+        return (self.user32.GetSystemMetrics(SystemMetric.CXSCREEN),
+                self.user32.GetSystemMetrics(SystemMetric.CYSCREEN))
 
     @property
     def center_position(self):
@@ -101,7 +103,7 @@ class Mouse:
                 position = self.position
             l_param = (position[1] << 16) | position[0]  # y << 16 | x
             self.send_event(self._hwnd, self._mouse_messages_map["move"], 0, l_param)
-            button_state = 0x0001 if button == "left" else 0x0002
+            button_state = MouseKeyState.LBUTTON if button == "left" else MouseKeyState.RBUTTON
             for index in range(n_clicks):
                 if index:
                     time.sleep(interval)
@@ -126,11 +128,11 @@ class Mouse:
             from_l_param = (from_[1] << 16) | from_[0]
             to_l_param = (to[1] << 16) | to[0]
 
-            # Envia evento de localização do mouse
+            # Send the initial client-area position.
             self.send_event(self._hwnd, self._mouse_messages_map["move"], 0, from_l_param)
-            # Envia eventos de clique e arrasto
-            self.send_event(self._hwnd, self._mouse_messages_map["left_down"], 1, from_l_param)
-            # Envia evento de movimento para a posição final
+            # Hold the left button before moving.
+            self.send_event(self._hwnd, self._mouse_messages_map["left_down"], MouseKeyState.LBUTTON, from_l_param)
+            # Send the destination and release the button.
             self.send_event(self._hwnd, self._mouse_messages_map["move"], 0, to_l_param)
             self.send_event(self._hwnd, self._mouse_messages_map["left_up"], 0, to_l_param)
         else:

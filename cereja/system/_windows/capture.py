@@ -9,9 +9,13 @@ from dataclasses import dataclass
 import threading
 
 from .api import _Win32, _checked
+from .constants import (
+    CursorState, DibColorMode, DrawIconFlag, MonitorFlag, PrintWindowFlag,
+    RasterOperation,
+)
 from .types import (
-    DWORD, HANDLE, POINT, RECT,
-    _BitmapInfo, _BitmapInfoHeader, _CursorInfo, _IconInfo, _MonitorInfo,
+    BITMAPINFO, BITMAPINFOHEADER, CURSORINFO, DWORD, HANDLE, ICONINFO,
+    LPVOID, MONITORINFOEXW, POINT, RECT,
 )
 
 
@@ -47,19 +51,19 @@ class _Surface:
         self.width, self.height = width, height
         self.window = window
         self.screen_dc = self.dc = self.bitmap = self.previous = None
-        self.bits = HANDLE()
+        self.bits = LPVOID()
         try:
             # This DC supplies a compatible pixel format, not any pixel data.
             self.screen_dc = _checked(api.GetDC(window), "GetDC")
             self.dc = _checked(api.CreateCompatibleDC(self.screen_dc), "CreateCompatibleDC")
-            info = _BitmapInfo()
-            info.bmiHeader.biSize = ctypes.sizeof(_BitmapInfoHeader)
+            info = BITMAPINFO()
+            info.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
             info.bmiHeader.biWidth = width
             info.bmiHeader.biHeight = -height
             info.bmiHeader.biPlanes = 1
             info.bmiHeader.biBitCount = 32
             self.bitmap = _checked(api.CreateDIBSection(
-                self.screen_dc, ctypes.byref(info), 0, ctypes.byref(self.bits), None, 0,
+                self.screen_dc, ctypes.byref(info), DibColorMode.RGB_COLORS, ctypes.byref(self.bits), None, 0,
             ), "CreateDIBSection")
             _checked(self.bits.value, "CreateDIBSection pixels")
             previous = api.SelectObject(self.dc, self.bitmap)
@@ -123,7 +127,7 @@ class _WindowsCaptureBackend:
         @self.api.monitor_callback
         def visit(handle, _dc, _rect, _data):
             try:
-                info = _MonitorInfo()
+                info = MONITORINFOEXW()
                 info.cbSize = ctypes.sizeof(info)
                 _checked(self.api.GetMonitorInfoW(handle, ctypes.byref(info)), "GetMonitorInfoW")
                 rect = info.rcMonitor
@@ -132,7 +136,7 @@ class _WindowsCaptureBackend:
                     monitors.append(ScreenMonitor(
                         name, name.removeprefix("\\\\.\\"), rect.left, rect.top,
                         rect.right - rect.left, rect.bottom - rect.top,
-                        bool(info.dwFlags & 1),
+                        bool(info.dwFlags & MonitorFlag.PRIMARY),
                     ))
                 return True
             except Exception as error:
@@ -148,13 +152,13 @@ class _WindowsCaptureBackend:
         return tuple(sorted(monitors, key=lambda m: (not m.is_primary, m.left, m.top, m.id)))
 
     def draw_cursor(self, dc, left, top):
-        cursor = _CursorInfo()
+        cursor = CURSORINFO()
         cursor.cbSize = ctypes.sizeof(cursor)
         _checked(self.api.GetCursorInfo(ctypes.byref(cursor)), "GetCursorInfo")
-        if not cursor.flags & 1 or cursor.flags & 2:
+        if not cursor.flags & CursorState.SHOWING or cursor.flags & CursorState.SUPPRESSED:
             return
         icon = _checked(self.api.CopyIcon(cursor.hCursor), "CopyIcon")
-        info = _IconInfo()
+        info = ICONINFO()
         try:
             _checked(self.api.GetIconInfo(icon, ctypes.byref(info)), "GetIconInfo")
             # Native clipping handles negative positions and region boundaries.
@@ -162,7 +166,7 @@ class _WindowsCaptureBackend:
             _checked(self.api.DrawIconEx(
                 dc, cursor.ptScreenPos.x - left - info.xHotspot,
                 cursor.ptScreenPos.y - top - info.yHotspot,
-                icon, 0, 0, 0, None, 3,
+                icon, 0, 0, 0, None, DrawIconFlag.NORMAL,
             ), "DrawIconEx")
         finally:
             # GetIconInfo allocates these bitmaps. The global cursor is borrowed.
@@ -181,7 +185,7 @@ class _WindowsCaptureBackend:
             surface = self._surface_for(width, height)
             _checked(self.api.BitBlt(
                 surface.dc, 0, 0, width, height, surface.screen_dc,
-                left, top, 0x00CC0020 | 0x40000000,
+                left, top, RasterOperation.SRCCOPY | RasterOperation.CAPTUREBLT,
             ), "BitBlt")
             if include_cursor:
                 self.draw_cursor(surface.dc, left, top)
@@ -235,7 +239,10 @@ class _WindowsCaptureBackend:
             surface.clear()
             # PW_RENDERFULLCONTENT plus PW_CLIENTONLY only for the client area.
             # No desktop fallback is permitted, even if PrintWindow fails.
-            if not self.api.PrintWindow(window, surface.dc, 2 | int(only_window_content)):
+            flags = PrintWindowFlag.RENDERFULLCONTENT
+            if only_window_content:
+                flags |= PrintWindowFlag.CLIENTONLY
+            if not self.api.PrintWindow(window, surface.dc, flags):
                 raise OSError("PrintWindow failed; the selected window cannot be captured")
             current = self._window_bounds(window, only_window_content)
             if current[2:] != (width, height):

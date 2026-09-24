@@ -1,52 +1,54 @@
 """Timing and alert helpers retained for the legacy Windows API."""
 
-import time
+from ...utils.time import Timer
 
 from .api import get_api
-
-MB_ICONASTERISK = 0x00000040
-MB_ICONEXCLAMATION = 0x00000030
-MB_ICONHAND = 0x00000010
-MB_ICONQUESTION = 0x00000020
-MB_OK = 0x00000000
+from .constants import AlertSound
 
 
 class Time:
+    """Adapt Timer to the historical Windows timing interface.
+
+    Reading ``time`` starts an idle timer and resets ``last_check_time``.
+    Stopping freezes the reported duration until the next explicit ``start``.
+    """
+
     def __init__(self):
-        self._t0 = None
-        self._started = False
-        self._stopped_on = None
-        self._endtime = None
-        self._last_time_check = None
+        self._timer = Timer(start=False)
+        self._last_check_timer = Timer(start=False)
+        self._stopped_elapsed = None
 
     @property
     def t0(self):
-        return self._t0
+        # Timer has no public start timestamp accessor. Only this legacy
+        # compatibility property reads its stored timestamp directly.
+        return self._timer._start if self._timer.started else None
 
     @property
     def time(self):
-        if self._t0 is None:
+        if not self._timer.started:
             self.start()
-        self._last_time_check = time.monotonic()
-        if self._stopped_on:
-            return self._stopped_on - self._t0
-        return time.monotonic() - self._t0
+        self._last_check_timer.start()
+        return self._timer.elapsed if self._stopped_elapsed is None else self._stopped_elapsed
 
     @property
     def last_check_time(self):
-        return time.monotonic() - self._last_time_check
+        if not self._last_check_timer.started:
+            raise RuntimeError("Time counting has not started. Use Time.start method.")
+        return self._last_check_timer.elapsed
 
     def start(self):
-        self._stopped_on = None
-        self._t0 = time.monotonic()
-        self._last_time_check = self._t0
+        self._timer.start()
+        self._last_check_timer.start()
+        self._stopped_elapsed = None
 
     def stop(self):
-        if self._started:
-            self._stopped_on = time.monotonic()
-            return
-        raise Exception("Time counting has not started. Use Time.start method.")
+        if not self._timer.started:
+            raise RuntimeError("Time counting has not started. Use Time.start method.")
+        if self._stopped_elapsed is None:
+            self._stopped_elapsed = self._timer.elapsed
 
 
-def play_alert_sound(sound_type=MB_ICONHAND):
+def play_alert_sound(sound_type=AlertSound.ICONHAND):
+    """Play a Windows alert using the shared typed API and sound constants."""
     get_api().MessageBeep(sound_type)

@@ -9,10 +9,7 @@ import sys
 import threading
 
 from . import types
-from .types import (
-    ENUMWINDOWSPROC, MONITORENUMPROC,
-    _BitmapInfo, _CursorInfo, _IconInfo, _MonitorInfo,
-)
+from .constants import DpiAwarenessContext
 
 
 def _checked(result, operation):
@@ -32,8 +29,8 @@ class _Win32:
             raise OSError("Win32 APIs require Windows")
         user = ctypes.WinDLL("user32", use_last_error=True)
         gdi = ctypes.WinDLL("gdi32", use_last_error=True)
-        self.monitor_callback = MONITORENUMPROC
-        self.enum_windows_callback = ENUMWINDOWSPROC
+        self.monitor_callback = types.MONITORENUMPROC
+        self.enum_windows_callback = types.ENUMWINDOWSPROC
 
         def bind(library, name, result, *args):
             function = getattr(library, name)
@@ -52,32 +49,32 @@ class _Win32:
              types.WPARAM, types.LPARAM)
         bind(user, "PostMessageW", types.BOOL, types.HWND, types.UINT,
              types.WPARAM, types.LPARAM)
-        bind(user, "GetWindowTextW", ctypes.c_int, types.HWND, types.LPWSTR, ctypes.c_int)
-        bind(user, "GetWindowTextLengthW", ctypes.c_int, types.HWND)
+        bind(user, "GetWindowTextW", types.INT, types.HWND, types.LPWSTR, types.INT)
+        bind(user, "GetWindowTextLengthW", types.INT, types.HWND)
         bind(user, "SetWindowTextW", types.BOOL, types.HWND, types.LPCWSTR)
         bind(user, "IsWindowVisible", types.BOOL, types.HWND)
-        bind(user, "ShowWindow", types.BOOL, types.HWND, ctypes.c_int)
+        bind(user, "ShowWindow", types.BOOL, types.HWND, types.INT)
         bind(user, "EnumWindows", types.BOOL, self.enum_windows_callback, types.LPARAM)
-        bind(user, "GetSystemMetrics", ctypes.c_int, ctypes.c_int)
+        bind(user, "GetSystemMetrics", types.INT, types.INT)
         bind(user, "SetForegroundWindow", types.BOOL, types.HWND)
         bind(user, "BringWindowToTop", types.BOOL, types.HWND)
-        bind(user, "GetAsyncKeyState", types.SHORT, ctypes.c_int)
+        bind(user, "GetAsyncKeyState", types.SHORT, types.INT)
         bind(user, "VkKeyScanW", types.SHORT, types.WCHAR)
         bind(user, "MapVirtualKeyW", types.UINT, types.UINT, types.UINT)
         bind(user, "SetWindowPos", types.BOOL, types.HWND, types.HWND,
-             ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, types.UINT)
+             types.INT, types.INT, types.INT, types.INT, types.UINT)
         bind(user, "IsZoomed", types.BOOL, types.HWND)
         bind(user, "GetForegroundWindow", types.HWND)
         bind(user, "GetCursorPos", types.BOOL, ctypes.POINTER(types.POINT))
-        bind(user, "SetCursorPos", types.BOOL, ctypes.c_int, ctypes.c_int)
+        bind(user, "SetCursorPos", types.BOOL, types.INT, types.INT)
         bind(user, "mouse_event", None, types.DWORD, types.DWORD, types.DWORD,
              types.DWORD, types.ULONG_PTR)
         bind(user, "EnumDisplayMonitors", types.BOOL, types.HDC,
              ctypes.POINTER(types.RECT), self.monitor_callback, types.LPARAM)
         bind(user, "GetMonitorInfoW", types.BOOL, types.HANDLE,
-             ctypes.POINTER(_MonitorInfo))
+             ctypes.POINTER(types.MONITORINFOEXW))
         bind(user, "GetDC", types.HDC, types.HWND)
-        bind(user, "ReleaseDC", ctypes.c_int, types.HWND, types.HDC)
+        bind(user, "ReleaseDC", types.INT, types.HWND, types.HDC)
         bind(user, "IsWindow", types.BOOL, types.HWND)
         bind(user, "IsIconic", types.BOOL, types.HWND)
         bind(user, "IsHungAppWindow", types.BOOL, types.HWND)
@@ -87,24 +84,24 @@ class _Win32:
         bind(user, "GetClientRect", types.BOOL, types.HWND, ctypes.POINTER(types.RECT))
         bind(user, "ClientToScreen", types.BOOL, types.HWND, ctypes.POINTER(types.POINT))
         bind(user, "PrintWindow", types.BOOL, types.HWND, types.HDC, types.UINT)
-        bind(user, "GetCursorInfo", types.BOOL, ctypes.POINTER(_CursorInfo))
+        bind(user, "GetCursorInfo", types.BOOL, ctypes.POINTER(types.CURSORINFO))
         bind(user, "CopyIcon", types.HANDLE, types.HANDLE)
         bind(user, "GetIconInfo", types.BOOL, types.HANDLE,
-             ctypes.POINTER(_IconInfo))
+             ctypes.POINTER(types.ICONINFO))
         bind(user, "DestroyIcon", types.BOOL, types.HANDLE)
-        bind(user, "DrawIconEx", types.BOOL, types.HDC, ctypes.c_int,
-             ctypes.c_int, types.HANDLE, ctypes.c_int, ctypes.c_int,
+        bind(user, "DrawIconEx", types.BOOL, types.HDC, types.INT,
+             types.INT, types.HANDLE, types.INT, types.INT,
              types.UINT, types.HBRUSH, types.UINT)
         bind(gdi, "CreateCompatibleDC", types.HDC, types.HDC)
         bind(gdi, "CreateDIBSection", types.HBITMAP, types.HDC,
-             ctypes.POINTER(_BitmapInfo), types.UINT,
-             ctypes.POINTER(ctypes.c_void_p), types.HANDLE, types.DWORD)
+             ctypes.POINTER(types.BITMAPINFO), types.UINT,
+             ctypes.POINTER(types.LPVOID), types.HANDLE, types.DWORD)
         bind(gdi, "SelectObject", types.HANDLE, types.HDC, types.HANDLE)
         bind(gdi, "DeleteObject", types.BOOL, types.HANDLE)
         bind(gdi, "DeleteDC", types.BOOL, types.HDC)
-        bind(gdi, "BitBlt", types.BOOL, types.HDC, ctypes.c_int,
-             ctypes.c_int, ctypes.c_int, ctypes.c_int, types.HDC,
-             ctypes.c_int, ctypes.c_int, types.DWORD)
+        bind(gdi, "BitBlt", types.BOOL, types.HDC, types.INT,
+             types.INT, types.INT, types.INT, types.HDC,
+             types.INT, types.INT, types.DWORD)
         bind(gdi, "GdiFlush", types.BOOL)
 
     @contextmanager
@@ -112,8 +109,8 @@ class _Win32:
         # Per-monitor v2 applies only to this thread and is restored on exit.
         if self.SetThreadDpiAwarenessContext is None:
             raise OSError("ScreenCapture requires Windows 10 version 1703 or newer")
-        previous = _checked(self.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4)),
-                            "SetThreadDpiAwarenessContext")
+        context = types.HANDLE(DpiAwarenessContext.PER_MONITOR_AWARE_V2)
+        previous = _checked(self.SetThreadDpiAwarenessContext(context), "SetThreadDpiAwarenessContext")
         try:
             yield
         finally:

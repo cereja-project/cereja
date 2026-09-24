@@ -6,5 +6,6 @@ from ._windows.capture import (
 )
 from ._windows.api import _Win32, _checked
 from ._windows.types import (
-    _BitmapInfo, _BitmapInfoHeader, _CursorInfo, _IconInfo, _MonitorInfo,
+    BITMAPINFO as _BitmapInfo, BITMAPINFOHEADER as _BitmapInfoHeader,
+    CURSORINFO as _CursorInfo, ICONINFO as _IconInfo, MONITORINFOEXW as _MonitorInfo,
 )

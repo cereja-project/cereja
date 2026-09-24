@@ -97,7 +97,7 @@ class TestWin32BindingABI(unittest.TestCase):
     def test_windows_message_and_pointer_output_signatures(self):
         pointer = ctypes.POINTER
         dib_arguments = [
-            wintypes.HDC, pointer(self.native._BitmapInfo), wintypes.UINT,
+            wintypes.HDC, pointer(self.types.BITMAPINFO), wintypes.UINT,
             pointer(ctypes.c_void_p), wintypes.HANDLE, wintypes.DWORD,
         ]
         expected = {
@@ -146,19 +146,48 @@ class TestWin32BindingABI(unittest.TestCase):
         self.assertEqual(ctypes.sizeof(self.types.LRESULT), ctypes.sizeof(ctypes.c_void_p))
         self.assertEqual(ctypes.sizeof(self.types.ULONG_PTR), ctypes.sizeof(ctypes.c_void_p))
 
+    def test_capture_flags_cross_the_native_boundary_as_unsigned_integers(self):
+        constants = importlib.import_module('cereja.system._windows.constants')
+        observed = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.HDC, wintypes.UINT)
+        def print_window(hwnd, dc, flags):
+            observed.append(('window', hwnd, dc, flags))
+            return True
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HDC, ctypes.c_int, ctypes.c_int,
+                           ctypes.c_int, ctypes.c_int, wintypes.HDC,
+                           ctypes.c_int, ctypes.c_int, wintypes.DWORD)
+        def copy_region(dc, x, y, width, height, source, left, top, operation):
+            observed.append(('region', dc, x, y, width, height, source, left, top, operation))
+            return True
+
+        self.user.functions['PrintWindow'] = print_window
+        self.gdi.functions['BitBlt'] = copy_region
+        api = self.native._Win32()
+        render = constants.PrintWindowFlag.RENDERFULLCONTENT
+        self.assertTrue(api.PrintWindow(101, 12, render | constants.PrintWindowFlag.CLIENTONLY))
+        self.assertTrue(api.PrintWindow(101, 12, render))
+        operation = constants.RasterOperation.SRCCOPY | constants.RasterOperation.CAPTUREBLT
+        self.assertTrue(api.BitBlt(12, 0, 0, 8, 6, 11, -8, -2, operation))
+        self.assertEqual(observed, [
+            ('window', 101, 12, 3), ('window', 101, 12, 2),
+            ('region', 12, 0, 0, 8, 6, 11, -8, -2, 0x40CC0020),
+        ])
+
     def test_enum_callback_roundtrip_preserves_hwnd_and_python_context_pointer(self):
         hwnd = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8 - 2)) + 59
         received = []
         context = ctypes.py_object(received)
         address = ctypes.cast(ctypes.pointer(context), ctypes.c_void_p).value
 
-        @self.native.ENUMWINDOWSPROC
+        @self.types.ENUMWINDOWSPROC
         def callback(window, parameter):
             values = ctypes.cast(parameter, ctypes.POINTER(ctypes.py_object)).contents.value
             values.append(window)
             return True
 
-        @ctypes.WINFUNCTYPE(wintypes.BOOL, self.native.ENUMWINDOWSPROC, wintypes.LPARAM)
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, self.types.ENUMWINDOWSPROC, wintypes.LPARAM)
         def enumerate_windows(visitor, parameter):
             return visitor(hwnd, parameter)
 
@@ -172,7 +201,7 @@ class TestWin32BindingABI(unittest.TestCase):
         handle = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8 - 2)) + 97
         rectangle = wintypes.RECT(-1920, -200, 0, 880)
 
-        @self.native.MONITORENUMPROC
+        @self.types.MONITORENUMPROC
         def callback(monitor, dc, bounds, parameter):
             observed.append((monitor, dc, bounds.contents.left, bounds.contents.top, parameter))
             return True
@@ -181,13 +210,19 @@ class TestWin32BindingABI(unittest.TestCase):
         self.assertEqual(observed, [(handle, handle + 1, -1920, -200, -23)])
 
     def test_structure_layouts_match_windows_headers(self):
-        self.assertEqual(ctypes.sizeof(self.types._BitmapInfoHeader), 40)
-        self.assertEqual(ctypes.sizeof(self.types._MonitorInfo), 104)
+        self.assertEqual(ctypes.sizeof(self.types.BITMAPINFOHEADER), 40)
+        self.assertEqual(ctypes.sizeof(self.types.RGBQUAD), 4)
+        self.assertEqual(ctypes.sizeof(self.types.BITMAPINFO), 44)
+        self.assertEqual(self.types.BITMAPINFO.bmiColors.offset, 40)
+        color = self.types.RGBQUAD(255, 128, 127, 0)
+        self.assertEqual(bytes(color), b'\xff\x80\x7f\x00')
+        self.assertEqual((color.rgbBlue, color.rgbGreen, color.rgbRed, color.rgbReserved), (255, 128, 127, 0))
+        self.assertEqual(ctypes.sizeof(self.types.MONITORINFOEXW), 104)
         self.assertEqual(ctypes.sizeof(self.types.POINT), 8)
         self.assertEqual(ctypes.sizeof(self.types.RECT), 16)
         pointer_size = ctypes.sizeof(ctypes.c_void_p)
-        self.assertEqual(ctypes.sizeof(self.types._CursorInfo), 24 if pointer_size == 8 else 20)
-        self.assertEqual(ctypes.sizeof(self.types._IconInfo), 32 if pointer_size == 8 else 20)
+        self.assertEqual(ctypes.sizeof(self.types.CURSORINFO), 24 if pointer_size == 8 else 20)
+        self.assertEqual(ctypes.sizeof(self.types.ICONINFO), 32 if pointer_size == 8 else 20)
 
 
 @unittest.skipUnless(sys.platform == 'win32', 'Legacy Windows API')
@@ -292,6 +327,14 @@ class TestLegacySharedBindings(unittest.TestCase):
         self.assertEqual(window.pid, 0xF1234567)
         window.dimensions = (-1200, -20, -600, 380)
         self.assertEqual(self.api.SetWindowPos.calls, [(self.hwnd, 0, -1200, -20, 600, 400, 0)])
+
+    def test_window_show_commands_keep_the_two_no_activate_modes_distinct(self):
+        window = self.window_module.Window(self.hwnd)
+        window.show_no_activate()
+        window.show_na()
+        self.assertEqual(self.api.ShowWindow.calls, [(self.hwnd, 4), (self.hwnd, 8)])
+        self.assertEqual(self.api.SetForegroundWindow.calls, [])
+        self.assertEqual(self.api.BringWindowToTop.calls, [])
 
     def test_legacy_enumeration_roundtrip_uses_a_valid_python_context_pointer(self):
         handles = [self.hwnd, self.hwnd + 1]

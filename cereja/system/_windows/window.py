@@ -5,42 +5,21 @@ import time
 from typing import Optional
 
 from .api import get_api
+from .constants import ShowWindowCommand, WindowMessage
 from .keyboard import Keyboard
 from .mouse import Mouse
 from .types import DWORD, HWND, RECT
 
-SW_HIDE = 0
-SW_SHOW = 5
-SW_RESTORE = 9
-SW_SHOWNA = 4
-
 
 class Window:
-    """
-    Representa uma janela no sistema operacional Windows, fornecendo métodos para interagir com ela.
+    """Query, control and capture a Windows window by its native handle.
 
-    Métodos:
-        title: Obtém ou define o título da janela.
-        is_visible: Retorna True se a janela estiver visível.
-        show: Modifica o estado de exibição da janela.
-        get_all_windows: Retorna todas as janelas visíveis.
-        dimensions: Obtém ou define as dimensões da janela.
-        send_command: Envia um comando para a janela.
-        state: Retorna o estado atual da janela.
-        capture_image_bmp: Captura a imagem da janela como BMP, mesmo se não for a janela foreground.
-
-    Propriedades:
-        hwnd: Handle da janela.
-    """
+    Keyboard and mouse helpers target this HWND. Display methods may
+    activate the window according to the requested Windows command."""
 
     def __init__(self,
                  hwnd: HWND):
-        """
-        Inicializa uma instância da classe Window.
-
-        Args:
-            hwnd (HWND): Handle da janela.
-        """
+        """Associate this instance with a native window handle."""
         self.hwnd = hwnd
         self._keyboard = None
         self._mouse = None
@@ -62,9 +41,7 @@ class Window:
 
     @property
     def title(self) -> str:
-        """
-        Retorna o título da janela.
-        """
+        """Get or set the window title."""
         length = get_api().GetWindowTextLengthW(self.hwnd)
         buff = ctypes.create_unicode_buffer(length + 1)
         get_api().GetWindowTextW(self.hwnd, buff, length + 1)
@@ -73,23 +50,17 @@ class Window:
     @title.setter
     def title(self,
               value: str):
-        """
-        Define o título da janela.
-        """
+        """Get or set the window title."""
         get_api().SetWindowTextW(self.hwnd, value)
 
     @property
     def is_visible(self) -> bool:
-        """
-        Verifica se a janela está visível.
-        """
+        """Return whether the window has the Windows visible style."""
         return bool(get_api().IsWindowVisible(self.hwnd))
 
     @property
     def pid(self) -> int:
-        """
-        Retorna o PID do processo que criou a janela.
-        """
+        """Return the process ID that owns this window."""
         pid = DWORD()
         get_api().GetWindowThreadProcessId(self.hwnd, ctypes.byref(pid))
         return pid.value
@@ -107,9 +78,7 @@ class Window:
 
     @staticmethod
     def get_all_windows():
-        """
-        Retorna uma lista de todas as janelas visíveis.
-        """
+        """Return Window instances for visible top-level windows."""
         windows = []
         api = get_api()
         payload = ctypes.py_object(windows)
@@ -121,26 +90,17 @@ class Window:
     @classmethod
     def find_windows(cls,
                      text: str):
-        """
-        Encontra janelas cujo título contenha 'text' (case-insensitive).
-        """
+        """Return visible windows whose titles contain text, ignoring case."""
         return [w for w in cls.get_all_windows() if text.lower().strip() in w.title.lower()]
 
     @classmethod
     def get_foreground_window(cls) -> "Window":
-        """
-        Retorna a janela que está atualmente em primeiro plano.
-        """
+        """Return the current foreground window."""
         return cls(get_api().GetForegroundWindow())
 
     @property
     def dimensions(self) -> tuple[int, int, int, int]:
-        """
-        Obtém as dimensões da janela (incluindo bordas e título).
-
-        Returns:
-            (left, top, right, bottom)
-        """
+        """Get or set (left, top, right, bottom), including title bar and borders."""
         rect = RECT()
         get_api().GetWindowRect(self.hwnd, ctypes.byref(rect))
         return rect.left, rect.top, rect.right, rect.bottom
@@ -148,12 +108,7 @@ class Window:
     @dimensions.setter
     def dimensions(self,
                    dims: tuple[int, int, int, int]):
-        """
-        Define as dimensões da janela.
-
-        Args:
-            dims: (left, top, right, bottom)
-        """
+        """Get or set (left, top, right, bottom), including title bar and borders."""
         left, top, right, bottom = dims
         width = right - left
         height = bottom - top
@@ -161,9 +116,7 @@ class Window:
 
     @property
     def dimensions_window_content(self) -> tuple[int, int, int, int]:
-        """
-        Obtém as dimensões da área cliente (coords relativas: (0,0) → (width, height)).
-        """
+        """Return the client-area rectangle in client coordinates."""
         client_rect = RECT()
         get_api().GetClientRect(self.hwnd, ctypes.byref(client_rect))
         return (client_rect.left, client_rect.top,
@@ -171,35 +124,24 @@ class Window:
 
     @property
     def size_window_content(self) -> tuple[int, int]:
-        """
-        Retorna (width, height) da área cliente.
-        """
+        """Return the client-area (width, height)."""
         left, top, right, bottom = self.dimensions_window_content
         return (right - left, bottom - top)
 
     @property
     def size(self) -> tuple[int, int]:
-        """
-        Retorna (width, height) da janela inteira.
-        """
+        """Return the full window (width, height)."""
         left, top, right, bottom = self.dimensions
         return (right - left, bottom - top)
 
     def send_command(self,
                      command: int):
-        """
-        Envia um comando (WM_COMMAND) para a janela.
-
-        Args:
-            command: Código do comando a enviar.
-        """
-        get_api().PostMessageW(self.hwnd, 0x0111, command, 0)  # WM_COMMAND = 0x0111
+        """Post a WM_COMMAND message with the supplied command identifier."""
+        get_api().PostMessageW(self.hwnd, WindowMessage.COMMAND, command, 0)
 
     @property
     def state(self) -> str:
-        """
-        Retorna "Minimized", "Maximized" ou "Normal" conforme o estado da janela.
-        """
+        """Return "Minimized", "Maximized" or "Normal"."""
         if get_api().IsIconic(self.hwnd):
             return "Minimized"
         elif get_api().IsZoomed(self.hwnd):
@@ -212,9 +154,9 @@ class Window:
         from .capture import ScreenCapture
 
         if get_api().IsIconic(self.hwnd):
-            get_api().ShowWindow(self.hwnd, SW_RESTORE)
+            get_api().ShowWindow(self.hwnd, ShowWindowCommand.RESTORE)
             time.sleep(0.05)
-            get_api().ShowWindow(self.hwnd, SW_SHOWNA)
+            get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOWNOACTIVATE)
         hwnd = self.hwnd.value if isinstance(self.hwnd, ctypes.c_void_p) else self.hwnd
         with ScreenCapture(include_cursor=False) as capture:
             return capture.grab(window=hwnd, only_window_content=only_window_content)
@@ -267,77 +209,72 @@ class Window:
     def to_png_file(self,
                     png_path: str,
                     only_window_content: bool = True):
-        """
-        Captura a janela (ou área cliente) e salva como PNG.
-        @param png_path:
-        @param only_window_content:
-        @return:
-        """
+        """Capture the window or client area and save a PNG using Tkinter."""
         try:
             from tkinter import PhotoImage, Tk
         except ImportError:
-            raise ImportError("Para salvar como PNG, é necessário ter o Tkinter instalado.")
+            raise ImportError("Saving PNG files requires Tkinter.")
         import cereja as cj
         root = Tk()
         root.withdraw()
 
         ppm_bytes = self.capture_image_ppm(ppm_path=None, only_window_content=only_window_content)
-        assert cj.Path(png_path).ext.replace('.', '') == "png", f"png_path deve ter extensão .png: {png_path}"
+        assert cj.Path(png_path).ext.replace('.', '') == "png", f"png_path must have a .png extension: {png_path}"
         PhotoImage(data=ppm_bytes).write(png_path, format="png")
-        # limpa memória
+        # Release the serialized image buffer.
         del ppm_bytes
 
         root.destroy()
 
-    # Métodos de exibição/ocultação
+    # Window display commands.
     def hide(self):
-        """Oculta a janela completamente."""
-        get_api().ShowWindow(self.hwnd, SW_HIDE)
+        """Hide the window."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.HIDE)
 
     def show_normal(self):
-        """Mostra a janela em estado normal."""
-        get_api().ShowWindow(self.hwnd, 1)
+        """Activate the window and restore its original size and position."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOWNORMAL)
 
     def show_minimized(self):
-        """Minimiza a janela."""
-        get_api().ShowWindow(self.hwnd, 2)
+        """Activate the window and display it minimized."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOWMINIMIZED)
 
     def maximize(self):
-        """Maximiza a janela."""
-        get_api().ShowWindow(self.hwnd, 3)
+        """Activate and maximize the window."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOWMAXIMIZED)
 
     def show_no_activate(self):
-        """Mostra a janela sem ativá-la."""
-        get_api().ShowWindow(self.hwnd, SW_SHOWNA)
+        """Restore the window size and position without activating it."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOWNOACTIVATE)
 
     def show(self):
-        """Mostra/ativa a janela."""
-        get_api().ShowWindow(self.hwnd, SW_SHOW)
+        """Activate the window and display its current size and position."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOW)
 
     def minimize(self):
-        """Minimiza a janela sem restaurar foco."""
-        get_api().ShowWindow(self.hwnd, 6)
+        """Minimize the window and activate the next top-level window."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.MINIMIZE)
 
     def show_min_no_active(self):
-        """Mostra a janela minimizada, sem ativar."""
-        get_api().ShowWindow(self.hwnd, 7)
+        """Display the window minimized without activating it."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOWMINNOACTIVE)
 
     def show_na(self):
-        """Mostra a janela sem ativar."""
-        get_api().ShowWindow(self.hwnd, 8)
+        """Display the current window size and position without activating it."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOWNA)
 
     def restore(self):
-        """Restaura a janela do estado minimizado ou maximizado."""
-        get_api().ShowWindow(self.hwnd, SW_RESTORE)
+        """Activate the window and restore it from a minimized or maximized state."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.RESTORE)
 
     def show_default(self):
-        """Define o estado de exibição com base em STARTUPINFO."""
-        get_api().ShowWindow(self.hwnd, 10)
+        """Use the display state specified in the process startup information."""
+        get_api().ShowWindow(self.hwnd, ShowWindowCommand.SHOWDEFAULT)
 
     def set_foreground(self):
-        """Traz a janela ao primeiro plano."""
+        """Ask Windows to activate this window and bring it to the foreground."""
         get_api().SetForegroundWindow(self.hwnd)
 
     def bring_to_top(self):
-        """Eleva a janela no Z-order sem ativá-la."""
+        """Raise the window in Z-order; a top-level window is also activated."""
         get_api().BringWindowToTop(self.hwnd)
