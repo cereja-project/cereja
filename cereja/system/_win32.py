@@ -51,11 +51,9 @@ ShowWindow = ctypes.windll.user32.ShowWindow
 EnumWindows = ctypes.windll.user32.EnumWindows
 EnumWindowsProc = ctypes.WINFUNCTYPE(BOOL, HWND, LPARAM)
 user32 = ctypes.windll.user32
-gdi32 = ctypes.windll.gdi32
 GetClientRect = user32.GetClientRect
 ClientToScreen = user32.ClientToScreen
 GetSystemMetrics = user32.GetSystemMetrics
-GetDIBits = gdi32.GetDIBits
 SetForegroundWindow = user32.SetForegroundWindow
 BringWindowToTop = user32.BringWindowToTop
 PostMessage = user32.PostMessageW
@@ -66,17 +64,7 @@ GetWindowRect = user32.GetWindowRect
 SetWindowPos = user32.SetWindowPos
 IsIconic = user32.IsIconic
 IsZoomed = user32.IsZoomed
-GetWindowDC = user32.GetWindowDC
-GetDC = user32.GetDC
 GetForegroundWindow = user32.GetForegroundWindow
-ReleaseDC = user32.ReleaseDC
-PrintWindow = user32.PrintWindow
-CreateCompatibleDC = ctypes.windll.gdi32.CreateCompatibleDC
-CreateCompatibleBitmap = ctypes.windll.gdi32.CreateCompatibleBitmap
-SelectObject = ctypes.windll.gdi32.SelectObject
-BitBlt = ctypes.windll.gdi32.BitBlt
-DeleteObject = ctypes.windll.gdi32.DeleteObject
-DeleteDC = ctypes.windll.gdi32.DeleteDC
 GetWindowThreadProcessId = ctypes.windll.user32.GetWindowThreadProcessId
 
 # Constantes para mensagens de teclado
@@ -87,37 +75,6 @@ SW_HIDE = 0
 SW_SHOW = 5
 SW_RESTORE = 9
 SW_SHOWNA = 4
-
-# Constantes GDI e DIB
-SRCCOPY = 0x00CC0020
-BI_RGB = 0
-DIB_RGB_COLORS = 0
-PW_RENDERFULLCONTENT = 0x00000002  # força DWM a renderizar o conteúdo completo, mesmo se não for foreground
-
-
-# Estruturas para GetDIBits
-class BITMAPINFOHEADER(ctypes.Structure):
-    _fields_ = [
-        ("biSize", wintypes.DWORD),
-        ("biWidth", ctypes.c_long),
-        ("biHeight", ctypes.c_long),
-        ("biPlanes", ctypes.c_ushort),
-        ("biBitCount", ctypes.c_ushort),
-        ("biCompression", wintypes.DWORD),
-        ("biSizeImage", wintypes.DWORD),
-        ("biXPelsPerMeter", ctypes.c_long),
-        ("biYPelsPerMeter", ctypes.c_long),
-        ("biClrUsed", wintypes.DWORD),
-        ("biClrImportant", wintypes.DWORD),
-    ]
-
-
-class BITMAPINFO(ctypes.Structure):
-    _fields_ = [
-        ("bmiHeader", BITMAPINFOHEADER),
-        ("bmiColors", wintypes.DWORD * 3),
-    ]
-
 
 class Time:
     def __init__(self):
@@ -766,155 +723,61 @@ class Window:
         else:
             return "Normal"
 
+    def _capture_frame(self, only_window_content=True):
+        """Use the shared capture core, retaining legacy minimized restoration."""
+        from ._screen_capture import ScreenCapture
+
+        if IsIconic(self.hwnd):
+            ShowWindow(self.hwnd, SW_RESTORE)
+            time.sleep(0.05)
+            ShowWindow(self.hwnd, SW_SHOWNA)
+        hwnd = self.hwnd.value if isinstance(self.hwnd, ctypes.c_void_p) else self.hwnd
+        with ScreenCapture(include_cursor=False) as capture:
+            return capture.grab(window=hwnd, only_window_content=only_window_content)
+
     def capture_image_bmp(self,
                           filepath: str = None,
                           only_window_content: bool = True) -> bytes:
+        """Return raw top-down BGRA pixels; optionally write a BMP file.
+
+        The return value has no BMP header, preserving the existing contract.
+        A file written through ``filepath`` includes a 54-byte BMP header.
+        Capturing uses the same PrintWindow core as ScreenCapture, without a
+        desktop fallback. Unlike ScreenCapture, this legacy API restores a
+        minimized window before capture. Native capture failures raise OSError.
         """
-        Captura a janela (ou apenas a área cliente) e retorna os bytes do BMP (header + pixels BGRA 32-bit).
-        Mesmo que a janela não seja a atual, usa PrintWindow com PW_RENDERFULLCONTENT para forçar a renderização
-        pelo DWM. Se estiver minimizada, restaura e mostra sem ativar antes da captura.
+        import struct
 
-        Args:
-            filepath: caminho para salvar o BMP (opcional).
-            only_window_content: se True, captura só a área cliente; caso contrário, captura a janela inteira.
-
-        Returns:
-            bytes: conteúdo raw do BMP (header + pixels).
-        """
-        # 1) Obtém coords da janela inteira e da área cliente
-        left, top, right, bottom = self.dimensions
-        cl_left, cl_top, cl_right, cl_bottom = self.dimensions_window_content
-        cl_width = cl_right - cl_left
-        cl_height = cl_bottom - cl_top
-
-        # Converte (0,0) do cliente para coords de tela
-        pt = wintypes.POINT(cl_left, cl_top)
-        ClientToScreen(self.hwnd, ctypes.byref(pt))
-        client_origin_x = pt.x
-        client_origin_y = pt.y
-
-        # 2) Define origem e tamanho conforme only_window_content
-        if only_window_content:
-            origin_x = client_origin_x
-            origin_y = client_origin_y
-            width = cl_width
-            height = cl_height
-        else:
-            origin_x = left
-            origin_y = top
-            width = right - left
-            height = bottom - top
-
-        if width <= 0 or height <= 0:
-            raise RuntimeError(f"Dimensões inválidas: width={width}, height={height}")
-
-        # 3) Se estiver minimizada, restaura sem ativar
-        if IsIconic(self.hwnd):
-            ShowWindow(self.hwnd, SW_RESTORE)
-            time.sleep(0.05)  # aguarda redraw
-            ShowWindow(self.hwnd, SW_SHOWNA)
-
-        # 4) Tenta PrintWindow com PW_RENDERFULLCONTENT (não muda o foco)
-        window_dc = GetWindowDC(self.hwnd) if not only_window_content else GetDC(self.hwnd)
-        mem_dc = CreateCompatibleDC(window_dc)
-        bmp_handle = CreateCompatibleBitmap(window_dc, width, height)
-        SelectObject(mem_dc, bmp_handle)
-
-        # Usa PW_RENDERFULLCONTENT para capturar mesmo que não esteja em foreground
-        pw_result = PrintWindow(self.hwnd, mem_dc, 0x00000001 | PW_RENDERFULLCONTENT)
-        if not pw_result:
-            # Fallback: PrintWindow sem flags
-            pw_result = PrintWindow(self.hwnd, mem_dc, 0)
-        ReleaseDC(self.hwnd, window_dc)
-
-        # 5) Extrai pixels do bitmap
-        bmi = BITMAPINFO()
-        bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
-        bmi.bmiHeader.biWidth = width
-        bmi.bmiHeader.biHeight = -height  # negativo = top-down
-        bmi.bmiHeader.biPlanes = 1
-        bmi.bmiHeader.biBitCount = 32
-        bmi.bmiHeader.biCompression = BI_RGB
-
-        buffer_size = abs(width * height * 4)
-        bitmap_data = ctypes.create_string_buffer(buffer_size)
-        scan = GetDIBits(mem_dc, bmp_handle, 0, height, bitmap_data, ctypes.byref(bmi), DIB_RGB_COLORS)
-
-        # 6) Se GetDIBits falhar (scan == 0), retorna um BMP preto do tamanho correto
-        if scan == 0:
-            # Preenche buffer com zeros (preto)
-            bitmap_data = ctypes.create_string_buffer(buffer_size)
-
-        # 7) Se foi solicitado, salva em arquivo BMP
+        frame = self._capture_frame(only_window_content)
         if filepath:
-            with open(filepath, "wb") as f:
-                f.write(b"BM")
-                size_file = 54 + buffer_size
-                f.write(size_file.to_bytes(4, "little"))
-                f.write((0).to_bytes(4, "little"))  # reservado
-                f.write((54).to_bytes(4, "little"))  # offset do pixel data
-                f.write(ctypes.string_at(
-                    ctypes.byref(bmi.bmiHeader),
-                    ctypes.sizeof(BITMAPINFOHEADER)
-                ))
-                f.write(bitmap_data.raw)
-
-        # 8) Limpeza dos handles GDI usados
-        DeleteObject(bmp_handle)
-        DeleteDC(mem_dc)
-
-        return bitmap_data.raw
+            header = struct.pack("<2sIHHI", b"BM", 54 + len(frame.bgra), 0, 0, 54)
+            header += struct.pack("<IiiHHIIiiII", 40, frame.width, -frame.height,
+                                  1, 32, 0, 0, 0, 0, 0, 0)
+            with open(filepath, "wb") as output:
+                output.write(header)
+                output.write(frame.bgra)
+        return frame.bgra
 
     def capture_image_ppm(self,
                           ppm_path: Optional[str] = None,
                           only_window_content: bool = True) -> bytes:
+        """Return a P6 PPM image and optionally write it to ``ppm_path``.
+
+        Dimensions and pixels come from one shared capture frame, including
+        when DPI or window dimensions differ from a later desktop query.
         """
-        Captura a janela (ou área cliente) e gera um arquivo PPM (P6) contendo apenas
-        os canais RGB, sem usar dependências externas. Se ppm_path for fornecido,
-        salva o PPM nesse caminho e retorna os bytes do PPM (cabeçalho + dados RGB).
-
-        Args:
-            ppm_path: caminho para salvar o arquivo .ppm (opcional). Se None, retorna apenas os bytes.
-            only_window_content: se True, captura só a área cliente; caso contrário, captura a janela inteira.
-
-        Returns:
-            bytes: conteúdo raw do arquivo PPM (cabeçalho + pixels RGB).
-        """
-        # 1) Captura o BMP bruto (BGRA) em memória
-        raw_bgra = self.capture_image_bmp(filepath=None, only_window_content=only_window_content)
-
-        # 2) Determina largura e altura da região capturada
-        if only_window_content:
-            w, h = self.size_window_content
-        else:
-            w, h = self.size
-
-        # 3) Monta o cabeçalho PPM (P6)
-        header = f"P6\n{w} {h}\n255\n".encode("ascii")
-
-        # 4) Converte cada pixel BGRA → RGB e acumula em bytearray
-        rgb_data = bytearray()
-        # O BMP retornado é top-down, cada linha tem w pixels, cada pixel 4 bytes (B, G, R, A)
-        for y in range(h):
-            row_start = y * w * 4
-            for x in range(w):
-                idx = row_start + x * 4
-                b = raw_bgra[idx]
-                g = raw_bgra[idx + 1]
-                r = raw_bgra[idx + 2]
-                # ignorar alpha (idx+3)
-                rgb_data.extend((r, g, b))
-
-        ppm_bytes = header + rgb_data
-
-        # 5) Se foi fornecido caminho, salva o PPM em disco
+        frame = self._capture_frame(only_window_content)
+        rgb = bytearray(frame.width * frame.height * 3)
+        rgb[0::3] = frame.bgra[2::4]
+        rgb[1::3] = frame.bgra[1::4]
+        rgb[2::3] = frame.bgra[0::4]
+        ppm_bytes = f"P6\n{frame.width} {frame.height}\n255\n".encode("ascii") + bytes(rgb)
         if ppm_path:
             try:
-                with open(ppm_path, "wb") as f:
-                    f.write(ppm_bytes)
-            except Exception as e:
-                raise RuntimeError(f"Não foi possível salvar PPM em '{ppm_path}': {e}")
-
+                with open(ppm_path, "wb") as output:
+                    output.write(ppm_bytes)
+            except Exception as error:
+                raise RuntimeError(f"Could not save PPM to '{ppm_path}': {error}") from error
         return ppm_bytes
 
     def to_png_file(self,

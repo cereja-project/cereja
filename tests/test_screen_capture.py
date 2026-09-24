@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
@@ -114,6 +115,18 @@ class ScreenCaptureContractTest(unittest.TestCase):
                 screen.grab()
         self.assertEqual(self.backend.closed, 1)
 
+    def test_cleanup_failure_preserves_the_primary_exception(self):
+        self.backend.close = Mock(side_effect=OSError("release failed"))
+        primary = RuntimeError("capture consumer failed")
+        with self.assertRaises(RuntimeError) as caught:
+            with capture.ScreenCapture():
+                raise primary
+        self.assertIs(caught.exception, primary)
+        self.assertIn("release failed", primary.__notes__[0])
+        with self.assertRaisesRegex(OSError, "release failed"):
+            with capture.ScreenCapture():
+                pass
+
     def test_thread_affinity_includes_close(self):
         with capture.ScreenCapture() as screen:
             failures = []
@@ -135,6 +148,33 @@ class ScreenCaptureContractTest(unittest.TestCase):
     def test_cursor_option_is_explicit_boolean(self):
         with self.assertRaises(TypeError):
             capture.ScreenCapture(include_cursor=1)
+
+    def test_window_selector_uses_no_monitor_or_cursor_path(self):
+        expected = capture.ScreenFrame(-8, 2, 1, 1, b"\x01\x02\x03\xff")
+        self.backend.grab_window = Mock(return_value=expected)
+        self.backend.list_monitors = Mock(side_effect=AssertionError("monitor path"))
+        with capture.ScreenCapture(include_cursor=True) as screen:
+            self.assertIs(screen.grab(window=101), expected)
+            self.backend.grab_window.assert_called_with(101, True)
+            screen.grab(window=101, only_window_content=False)
+            self.backend.grab_window.assert_called_with(101, False)
+        self.assertEqual(self.backend.calls, [])
+
+    def test_invalid_window_selectors_never_reach_native_capture(self):
+        self.backend.grab_window = Mock()
+        with capture.ScreenCapture() as screen:
+            for value in (False, 1.5, "101", ctypes.c_void_p(101)):
+                with self.subTest(value=value), self.assertRaises(TypeError):
+                    screen.grab(window=value)
+            for value in (0, -1, 1 << (ctypes.sizeof(ctypes.c_void_p) * 8)):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    screen.grab(window=value)
+            for selector in ({"monitor": PRIMARY}, {"region": (0, 0, 1, 1)}):
+                with self.assertRaises(ValueError):
+                    screen.grab(window=101, **selector)
+            with self.assertRaises(TypeError):
+                screen.grab(window=101, only_window_content=1)
+        self.backend.grab_window.assert_not_called()
 
 
 @unittest.skipUnless(sys.platform == "win32", "Win32 structures and calls")
@@ -349,6 +389,223 @@ class SyntheticDibTest(unittest.TestCase):
         mask = self.bitmap(2, 4, b"\x80\x00\x80\x00\x40\x00\x80\x00")
         pixels = self.draw(self.cursor(mask, hotspot=(1, 1)), position=(-8, -2), origin=(-8, -2))
         self.assertEqual(pixels, b"\x00\x00\x00\xff" + b"\x14\x28\x3c\xff" * 3)
+
+
+@unittest.skipUnless(sys.platform == "win32", "Win32 window capture contracts")
+class WindowNativeTest(unittest.TestCase):
+    def setUp(self):
+        fixture = NativeLifecycleTest()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        self.api, self.backend, self.buffer = fixture.api, fixture.backend, fixture.buffer
+        self.backend._window_identities = {}
+        self.backend._invalid_windows = set()
+        self.api.IsWindow = Mock(return_value=True)
+        self.api.IsIconic = Mock(return_value=False)
+        self.api.IsHungAppWindow = Mock(return_value=False)
+        self.process, self.thread = 501, 502
+        self.client_size = (4, 3)
+        self.origin = (-8, 14)
+        self.api.GetWindowThreadProcessId = Mock(side_effect=self.identity)
+        self.api.GetClientRect = Mock(side_effect=self.client_rect)
+        self.api.ClientToScreen = Mock(side_effect=self.client_origin)
+        self.api.GetWindowRect = Mock(side_effect=self.window_rect)
+        self.api.PrintWindow = Mock(side_effect=self.render)
+        self.api.CreateDIBSection.side_effect = self.create_dib
+
+    def identity(self, _window, pointer):
+        ctypes.cast(pointer, ctypes.POINTER(ctypes.wintypes.DWORD))[0] = self.process
+        return self.thread
+
+    def client_rect(self, _window, pointer):
+        rect = ctypes.cast(pointer, ctypes.POINTER(ctypes.wintypes.RECT)).contents
+        rect.left, rect.top, rect.right, rect.bottom = 0, 0, *self.client_size
+        return True
+
+    def client_origin(self, _window, pointer):
+        point = ctypes.cast(pointer, ctypes.POINTER(ctypes.wintypes.POINT)).contents
+        point.x, point.y = self.origin
+        return True
+
+    @staticmethod
+    def window_rect(_window, pointer):
+        rect = ctypes.cast(pointer, ctypes.POINTER(ctypes.wintypes.RECT)).contents
+        rect.left, rect.top, rect.right, rect.bottom = -10, 10, -4, 15
+        return True
+
+    def create_dib(self, _dc, _info, _usage, bits, _section, _offset):
+        ctypes.cast(bits, ctypes.POINTER(ctypes.c_void_p))[0] = ctypes.addressof(self.buffer)
+        return 14
+
+    def render(self, _window, _dc, _flags):
+        size = self.backend.surface.width * self.backend.surface.height
+        ctypes.memmove(self.buffer, b"\x01\x02\x03\x00" * size, size * 4)
+        return True
+
+    def test_client_and_whole_window_flags_bounds_and_owned_bytes(self):
+        client = self.backend.grab_window(101, True)
+        self.assertEqual((client.left, client.top, client.width, client.height), (-8, 14, 4, 3))
+        self.assertEqual(client.bgra, b"\x01\x02\x03\xff" * 12)
+        self.api.PrintWindow.assert_called_with(101, 12, 3)
+        self.api.ReleaseDC.assert_called_once_with(101, 11)
+        self.assertIsNone(self.backend.surface.screen_dc)
+        whole = self.backend.grab_window(101, False)
+        self.assertEqual((whole.left, whole.top, whole.width, whole.height), (-10, 10, 6, 5))
+        self.api.PrintWindow.assert_called_with(101, 12, 2)
+        self.api.GetDC.assert_called_with(101)
+        self.backend.close()
+        self.api.ReleaseDC.assert_called_with(101, 11)
+        self.assertEqual(client.bgra, b"\x01\x02\x03\xff" * 12)
+        self.api.BitBlt.assert_not_called()
+        self.api.GetCursorInfo.assert_not_called()
+
+    def test_partial_paint_cannot_publish_pixels_from_previous_capture(self):
+        self.backend.grab_window(101, True)
+        self.api.PrintWindow.side_effect = None
+        self.api.PrintWindow.return_value = True
+        frame = self.backend.grab_window(101, True)
+        self.assertEqual(frame.bgra, b"\x00\x00\x00\xff" * 12)
+        self.api.CreateDIBSection.assert_called_once()
+        self.api.BitBlt.assert_not_called()
+        self.api.GetCursorInfo.assert_not_called()
+
+    def test_failed_printwindow_does_not_fallback_to_desktop(self):
+        self.api.PrintWindow.side_effect = None
+        self.api.PrintWindow.return_value = False
+        with self.assertRaisesRegex(OSError, "PrintWindow"):
+            self.backend.grab_window(101, True)
+        self.api.PrintWindow.assert_called_once_with(101, 12, 3)
+        self.api.BitBlt.assert_not_called()
+        self.api.GetCursorInfo.assert_not_called()
+        self.backend.close()
+        self.api.ReleaseDC.assert_called_once_with(101, 11)
+
+    def test_minimized_and_unresponsive_targets_are_rejected_before_allocation(self):
+        for state, message in ((self.api.IsIconic, "minimized"),
+                               (self.api.IsHungAppWindow, "not responding")):
+            state.return_value = True
+            with self.assertRaisesRegex(OSError, message):
+                self.backend.grab_window(101, True)
+            state.return_value = False
+        self.api.GetDC.assert_not_called()
+        self.api.PrintWindow.assert_not_called()
+
+    def test_observed_closed_window_cannot_be_reused_even_by_same_process(self):
+        self.api.IsWindow.return_value = False
+        with self.assertRaisesRegex(OSError, "no longer exists"):
+            self.backend.grab_window(101, True)
+        self.api.IsWindow.return_value = True
+        with self.assertRaisesRegex(OSError, "no longer exists"):
+            self.backend.grab_window(101, True)
+        self.api.PrintWindow.assert_not_called()
+
+    def test_changed_owner_is_rejected_before_capture(self):
+        self.backend.grab_window(101, True)
+        self.process += 1
+        with self.assertRaisesRegex(OSError, "identity changed"):
+            self.backend.grab_window(101, True)
+        self.assertEqual(self.api.PrintWindow.call_count, 1)
+
+    def test_disappearing_owner_is_marked_invalid_before_reuse(self):
+        self.api.GetWindowThreadProcessId.side_effect = None
+        self.api.GetWindowThreadProcessId.return_value = 0
+        with self.assertRaisesRegex(OSError, "owner is no longer available"):
+            self.backend.grab_window(101, True)
+        self.api.GetWindowThreadProcessId.side_effect = self.identity
+        with self.assertRaisesRegex(OSError, "no longer exists"):
+            self.backend.grab_window(101, True)
+        self.api.PrintWindow.assert_not_called()
+
+    def test_target_replaced_during_print_is_discarded(self):
+        def render(*args):
+            self.thread += 1
+            return True
+        self.api.PrintWindow.side_effect = render
+        with self.assertRaisesRegex(OSError, "identity changed"):
+            self.backend.grab_window(101, True)
+
+    def test_target_closed_during_print_is_discarded(self):
+        def render(*args):
+            self.api.IsWindow.return_value = False
+            return True
+        self.api.PrintWindow.side_effect = render
+        with self.assertRaisesRegex(OSError, "no longer exists"):
+            self.backend.grab_window(101, True)
+
+    def test_window_movement_is_allowed_but_resize_during_capture_is_rejected(self):
+        def move(*args):
+            self.origin = (20, 30)
+            return True
+        self.api.PrintWindow.side_effect = move
+        frame = self.backend.grab_window(101, True)
+        self.assertEqual((frame.left, frame.top), (20, 30))
+
+        def resize(*args):
+            self.client_size = (5, 3)
+            return True
+        self.api.PrintWindow.side_effect = resize
+        with self.assertRaisesRegex(OSError, "dimensions changed"):
+            self.backend.grab_window(101, True)
+
+
+@unittest.skipUnless(sys.platform == "win32", "Legacy Windows adapter")
+class LegacyWindowCaptureTest(unittest.TestCase):
+    def setUp(self):
+        from cereja.system import _win32
+        self.legacy = _win32
+        self.window = _win32.Window(101)
+        self.frame = capture.ScreenFrame(-8, 14, 2, 1, b"\x01\x02\x03\xff\x04\x05\x06\xff")
+        self.screen = Mock()
+        self.screen.__enter__ = Mock(return_value=self.screen)
+        self.screen.__exit__ = Mock(return_value=False)
+        self.screen.grab.return_value = self.frame
+        self.factory = patch.object(capture, "ScreenCapture", return_value=self.screen).start()
+        self.addCleanup(patch.stopall)
+        self.iconic = patch.object(_win32, "IsIconic", return_value=False).start()
+        self.show = patch.object(_win32, "ShowWindow").start()
+        self.sleep = patch.object(_win32.time, "sleep").start()
+
+    def test_bmp_returns_raw_pixels_and_writes_header(self):
+        import struct
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "frame.bmp"
+            raw = self.window.capture_image_bmp(str(path), only_window_content=False)
+            bmp = path.read_bytes()
+        self.assertEqual(raw, self.frame.bgra)
+        self.assertEqual(bmp[0:2], b"BM")
+        self.assertEqual(struct.unpack_from("<I", bmp, 2)[0], len(bmp))
+        self.assertEqual(struct.unpack_from("<I", bmp, 10)[0], 54)
+        self.assertEqual(struct.unpack_from("<ii", bmp, 18), (2, -1))
+        self.assertEqual(bmp[54:], raw)
+        self.screen.grab.assert_called_once_with(window=101, only_window_content=False)
+        self.factory.assert_called_once_with(include_cursor=False)
+        self.show.assert_not_called()
+
+    def test_ppm_uses_captured_dimensions_and_rgb_channels(self):
+        expected = b"P6\n2 1\n255\n\x03\x02\x01\x06\x05\x04"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "frame.ppm"
+            self.assertEqual(self.window.capture_image_ppm(str(path)), expected)
+            self.assertEqual(path.read_bytes(), expected)
+        self.screen.grab.assert_called_once_with(window=101, only_window_content=True)
+
+    def test_legacy_minimized_restore_and_hwnd_wrapper_are_retained(self):
+        self.window.hwnd = ctypes.c_void_p(101)
+        self.iconic.return_value = True
+        self.assertEqual(self.window.capture_image_bmp(), self.frame.bgra)
+        self.assertEqual([call.args[1] for call in self.show.call_args_list],
+                         [self.legacy.SW_RESTORE, self.legacy.SW_SHOWNA])
+        self.sleep.assert_called_once_with(0.05)
+        self.screen.grab.assert_called_once_with(window=101, only_window_content=True)
+
+    def test_native_failure_closes_adapter_and_does_not_write_bmp(self):
+        self.screen.grab.side_effect = OSError("PrintWindow failed")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "frame.bmp"
+            with self.assertRaisesRegex(OSError, "PrintWindow"):
+                self.window.capture_image_bmp(str(path))
+            self.assertFalse(path.exists())
+        self.screen.__exit__.assert_called_once()
 
 
 class ScreenCaptureImportTest(unittest.TestCase):

@@ -109,6 +109,15 @@ class _Win32:
              ctypes.POINTER(_MonitorInfo))
         bind(user, "GetDC", wintypes.HDC, wintypes.HWND)
         bind(user, "ReleaseDC", ctypes.c_int, wintypes.HWND, wintypes.HDC)
+        bind(user, "IsWindow", wintypes.BOOL, wintypes.HWND)
+        bind(user, "IsIconic", wintypes.BOOL, wintypes.HWND)
+        bind(user, "IsHungAppWindow", wintypes.BOOL, wintypes.HWND)
+        bind(user, "GetWindowThreadProcessId", wintypes.DWORD, wintypes.HWND,
+             ctypes.POINTER(wintypes.DWORD))
+        bind(user, "GetWindowRect", wintypes.BOOL, wintypes.HWND, ctypes.POINTER(wintypes.RECT))
+        bind(user, "GetClientRect", wintypes.BOOL, wintypes.HWND, ctypes.POINTER(wintypes.RECT))
+        bind(user, "ClientToScreen", wintypes.BOOL, wintypes.HWND, ctypes.POINTER(wintypes.POINT))
+        bind(user, "PrintWindow", wintypes.BOOL, wintypes.HWND, wintypes.HDC, wintypes.UINT)
         bind(user, "GetCursorInfo", wintypes.BOOL, ctypes.POINTER(_CursorInfo))
         bind(user, "CopyIcon", wintypes.HANDLE, wintypes.HANDLE)
         bind(user, "GetIconInfo", wintypes.BOOL, wintypes.HANDLE,
@@ -144,13 +153,15 @@ class _Win32:
 class _Surface:
     """A reusable top-down DIB selected into a memory DC."""
 
-    def __init__(self, api, width, height):
+    def __init__(self, api, width, height, window=None):
         self.api = api
         self.width, self.height = width, height
+        self.window = window
         self.screen_dc = self.dc = self.bitmap = self.previous = None
         self.bits = ctypes.c_void_p()
         try:
-            self.screen_dc = _checked(api.GetDC(None), "GetDC")
+            # This DC supplies a compatible pixel format, not any pixel data.
+            self.screen_dc = _checked(api.GetDC(window), "GetDC")
             self.dc = _checked(api.CreateCompatibleDC(self.screen_dc), "CreateCompatibleDC")
             info = _BitmapInfo()
             info.bmiHeader.biSize = ctypes.sizeof(_BitmapInfoHeader)
@@ -166,8 +177,16 @@ class _Surface:
             if previous == ctypes.c_void_p(-1).value:
                 raise OSError("SelectObject failed")
             self.previous = _checked(previous, "SelectObject")
-        except BaseException:
-            self.close()
+            if window is not None:
+                # PrintWindow draws into our memory DC. It does not need this
+                # reference DC, which would become invalid if the target closes.
+                _checked(api.ReleaseDC(window, self.screen_dc), "ReleaseDC")
+                self.screen_dc = None
+        except BaseException as error:
+            try:
+                self.close()
+            except Exception as cleanup_error:
+                error.add_note(f"Capture resource cleanup also failed: {cleanup_error}")
             raise
 
     def close(self):
@@ -177,7 +196,7 @@ class _Surface:
             (self.previous, self.api.SelectObject, (self.dc, self.previous), "SelectObject"),
             (self.bitmap, self.api.DeleteObject, (self.bitmap,), "DeleteObject"),
             (self.dc, self.api.DeleteDC, (self.dc,), "DeleteDC"),
-            (self.screen_dc, self.api.ReleaseDC, (None, self.screen_dc), "ReleaseDC"),
+            (self.screen_dc, self.api.ReleaseDC, (self.window, self.screen_dc), "ReleaseDC"),
         )
         self.previous = self.bitmap = self.dc = self.screen_dc = None
         for resource, function, args, name in actions:
@@ -196,11 +215,18 @@ class _Surface:
         pixels[3::4] = b"\xff" * (self.width * self.height)
         return bytes(pixels)
 
+    def clear(self):
+        # A window may paint only part of its DC. Never publish old pixels.
+        _checked(self.api.GdiFlush(), "GdiFlush")
+        ctypes.memset(self.bits, 0, self.width * self.height * 4)
+
 
 class _WindowsCaptureBackend:
     def __init__(self):
         self.api = _Win32()
         self.surface = None
+        self._window_identities = {}
+        self._invalid_windows = set()
 
     def list_monitors(self):
         monitors, errors = [], []
@@ -263,11 +289,7 @@ class _WindowsCaptureBackend:
 
     def grab(self, left, top, width, height, include_cursor):
         with self.api.physical_pixels():
-            if self.surface and (self.surface.width, self.surface.height) != (width, height):
-                self.close()
-            if self.surface is None:
-                self.surface = _Surface(self.api, width, height)
-            surface = self.surface
+            surface = self._surface_for(width, height)
             _checked(self.api.BitBlt(
                 surface.dc, 0, 0, width, height, surface.screen_dc,
                 left, top, 0x00CC0020 | 0x40000000,
@@ -276,6 +298,62 @@ class _WindowsCaptureBackend:
                 self.draw_cursor(surface.dc, left, top)
             return surface.copy_bytes()
 
+    def _surface_for(self, width, height, window=None):
+        if self.surface and (
+            self.surface.width, self.surface.height, self.surface.window
+        ) != (width, height, window):
+            self.close()
+        if self.surface is None:
+            self.surface = _Surface(self.api, width, height, window)
+        return self.surface
+
+    def _window_bounds(self, window, only_window_content):
+        if window in self._invalid_windows or not self.api.IsWindow(window):
+            self._invalid_windows.add(window)
+            raise OSError("The selected window no longer exists")
+        process = wintypes.DWORD()
+        thread = self.api.GetWindowThreadProcessId(window, ctypes.byref(process))
+        if not thread or not process.value:
+            self._invalid_windows.add(window)
+            raise OSError("The selected window owner is no longer available")
+        identity = (process.value, thread)
+        previous = self._window_identities.setdefault(window, identity)
+        if previous != identity:
+            self._invalid_windows.add(window)
+            raise OSError("The selected window identity changed")
+        if self.api.IsIconic(window):
+            raise OSError("The selected window is minimized")
+        if self.api.IsHungAppWindow(window):
+            raise OSError("The selected window is not responding")
+        rect = wintypes.RECT()
+        if only_window_content:
+            _checked(self.api.GetClientRect(window, ctypes.byref(rect)), "GetClientRect")
+            origin = wintypes.POINT(rect.left, rect.top)
+            _checked(self.api.ClientToScreen(window, ctypes.byref(origin)), "ClientToScreen")
+            left, top = origin.x, origin.y
+        else:
+            _checked(self.api.GetWindowRect(window, ctypes.byref(rect)), "GetWindowRect")
+            left, top = rect.left, rect.top
+        width, height = rect.right - rect.left, rect.bottom - rect.top
+        if width <= 0 or height <= 0:
+            raise OSError("The selected window has no capturable area")
+        return left, top, width, height
+
+    def grab_window(self, window, only_window_content):
+        with self.api.physical_pixels():
+            left, top, width, height = self._window_bounds(window, only_window_content)
+            surface = self._surface_for(width, height, window)
+            surface.clear()
+            # PW_RENDERFULLCONTENT plus PW_CLIENTONLY only for the client area.
+            # No desktop fallback is permitted, even if PrintWindow fails.
+            if not self.api.PrintWindow(window, surface.dc, 2 | int(only_window_content)):
+                raise OSError("PrintWindow failed; the selected window cannot be captured")
+            current = self._window_bounds(window, only_window_content)
+            if current[2:] != (width, height):
+                raise OSError("The selected window dimensions changed during capture")
+            pixels = surface.copy_bytes()
+            return ScreenFrame(current[0], current[1], width, height, pixels)
+
     def close(self):
         surface, self.surface = self.surface, None
         if surface is not None:
@@ -283,7 +361,7 @@ class _WindowsCaptureBackend:
 
 
 class ScreenCapture:
-    """Capture one Windows monitor or a region within it, using physical pixels.
+    """Capture a Windows monitor, region or window, using physical pixels.
 
     Construct, use and close an instance on the same thread. A returned frame
     owns its immutable bytes and remains valid after subsequent grabs or close.
@@ -314,16 +392,28 @@ class ScreenCapture:
         return self._backend.list_monitors()
 
     def grab(self, *, monitor: str | ScreenMonitor | None = None,
-             region: tuple[int, int, int, int] | None = None) -> ScreenFrame:
-        """Capture a monitor by id/object, or (left, top, width, height).
+             region: tuple[int, int, int, int] | None = None,
+             window: int | None = None, only_window_content: bool = True) -> ScreenFrame:
+        """Capture a monitor, (left, top, width, height), or a window HWND.
 
         The selectors are mutually exclusive. The default is the primary
         monitor. Regions must fit entirely within one currently attached monitor.
+        Window mode uses PrintWindow without desktop fallback, omits the cursor,
+        and never restores or activates the target. Minimized, closed or known
+        unresponsive windows raise OSError. PrintWindow itself is synchronous.
         Invalid selectors raise TypeError/ValueError; native failures raise OSError.
         """
         self._check_open()
-        if monitor is not None and region is not None:
-            raise ValueError("Specify either monitor or region, not both")
+        if sum(value is not None for value in (monitor, region, window)) > 1:
+            raise ValueError("Specify at most one of monitor, region or window")
+        if not isinstance(only_window_content, bool):
+            raise TypeError("only_window_content must be a bool")
+        if window is not None:
+            if not isinstance(window, int) or isinstance(window, bool):
+                raise TypeError("window must be a positive integer HWND")
+            if not 0 < window < (1 << (ctypes.sizeof(ctypes.c_void_p) * 8)):
+                raise ValueError("window must be a positive HWND that fits a native pointer")
+            return self._backend.grab_window(window, only_window_content)
         if monitor is not None and not isinstance(monitor, (str, ScreenMonitor)):
             raise TypeError("monitor must be a monitor id or ScreenMonitor")
         if region is not None:
@@ -370,4 +460,9 @@ class ScreenCapture:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
+        try:
+            self.close()
+        except Exception as cleanup_error:
+            if exc_value is None:
+                raise
+            exc_value.add_note(f"ScreenCapture cleanup also failed: {cleanup_error}")

@@ -1,7 +1,7 @@
 # Windows screen capture
 
-`ScreenCapture` captures an attached monitor or a rectangular region within one
-monitor, with no third-party runtime dependencies. It requires Windows 10
+`ScreenCapture` captures an attached monitor, a rectangular region within one
+monitor, or one selected window, with no third-party runtime dependencies. It requires Windows 10
 version 1703 or newer. The public classes are available from `cereja` and
 `cereja.system` on Windows only.
 
@@ -19,13 +19,52 @@ with ScreenCapture(include_cursor=True) as capture:
 and `is_primary`. The primary monitor is listed first. Positions use physical
 pixels in the virtual desktop and can be negative.
 
-`grab()` defaults to the primary monitor. Specify either `monitor`, accepting
-an id or a `ScreenMonitor`, or `region=(left, top, width, height)`. The selectors
+`grab()` defaults to the primary monitor. Specify `monitor`, accepting
+an id or a `ScreenMonitor`, `region=(left, top, width, height)`, or `window`,
+accepting a positive integer Windows HWND. The selectors
 are mutually exclusive. Region values must be integers, dimensions must be
 positive, and the region must fit entirely within one attached monitor. Monitor
 objects are resolved against current device bounds on each grab, so a stale
 object does not silently reuse old coordinates. Invalid selectors raise
 `TypeError` or `ValueError`; native failures raise `OSError`.
+
+## Capture a background window
+
+```python
+with ScreenCapture() as capture:
+    frame = capture.grab(window=selected_hwnd, only_window_content=True)
+```
+
+`only_window_content=True` captures the client area. Set it to `False` to include
+the complete window bounds. Window coordinates and dimensions also use physical
+pixels. A window can remain behind another application; capture does not change
+focus or activation. The new API rejects minimized, closed and already
+unresponsive windows instead of restoring them. Cursor inclusion is ignored in
+window mode: the desktop pointer can belong to a different foreground window.
+
+Window capture calls `PrintWindow` and never falls back to copying desktop
+pixels, even when the target cannot render. The destination is cleared before
+every call so partial painting cannot expose pixels from an earlier frame.
+Failure raises `OSError`. Whether a particular application supplies useful
+pixels depends on its rendering implementation; some applications can return
+success with blank or incomplete content. This cannot be reliably inferred
+from the pixel colors, since a black window can be valid content.
+
+The capture instance records the HWND's process and thread identifiers on its
+first use and verifies them before and after every capture. An observed closed
+or replaced target is rejected for the remainder of that instance's lifetime.
+A resize during a frame is rejected; movement is allowed. These checks cannot
+prove instance identity if Windows recycles the same handle within the same
+process and thread between checks. Applications should stop recording after an
+error and require explicit window selection for a new recording.
+
+`PrintWindow` is synchronous. The preflight rejects an already unresponsive
+target, but the target can become unresponsive during the native call. Run
+capture on a worker thread, not the UI thread; cancellation cannot interrupt a
+native call in progress. See Microsoft's [PrintWindow documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-printwindow)
+and [window handle lifetime warning](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindow).
+
+## Frames and lifetime
 
 The immutable `ScreenFrame` has `left`, `top`, `width`, `height` and `bgra`.
 Pixels run from the top row to the bottom row, then left to right, with four
@@ -46,8 +85,24 @@ alpha or monochrome composition. Hidden or suppressed cursors are omitted.
 Animated cursors use their first image; animation timing is not reproduced.
 Set `include_cursor=False` to omit the cursor.
 
-This API captures the visible desktop. It does not capture a hidden window's
-private content, audio, protected video, the secure desktop, or HDR color data.
+Monitor and region mode capture the visible desktop. Window mode captures the
+selected application's rendering instead. Neither mode supports audio,
+protected video, the secure desktop, or HDR color data.
 Monitor changes during a grab can cause an error. Test mixed DPI setups and
 target display drivers when validating a recording application. Unit tests use
 synthetic buffers and cursor images and do not establish desktop performance.
+
+## Existing Window API
+
+`Window.capture_image_bmp()` and `Window.capture_image_ppm()` delegate to this
+same capture core, sharing native bindings, DIB buffers, pixel copying, DPI
+handling and resource cleanup. `capture_image_bmp()` still returns raw BGRA
+without a header, while an optional `filepath` writes a complete BMP file.
+`capture_image_ppm()` still returns a P6 header and RGB pixels and optionally
+writes them to `ppm_path`. Both support client-area and entire-window capture.
+Capture errors now propagate instead of silently returning a black frame.
+
+The legacy `Window` methods retain their existing restoration of a minimized
+target before capture. Use `ScreenCapture.grab(window=...)` when capture must
+not restore or activate the selected application. Window management, mouse
+and keyboard methods remain separate from pixel capture.
