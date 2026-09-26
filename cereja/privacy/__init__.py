@@ -5,5 +5,6 @@ provide an operating-system network sandbox.
 """
 
 from . import huggingface
+from . import openhands
 
-__all__ = ["huggingface"]
+__all__ = ["huggingface", "openhands"]
