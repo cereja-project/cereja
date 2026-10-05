@@ -120,16 +120,20 @@ def detect_capabilities(input_stream: TextIO, output_stream: TextIO,
     family = term.split("-", 1)[0]
     known_cursor = family in {"xterm", "screen", "tmux", "rxvt", "vt100",
                              "vt102", "vt220", "linux", "ansi"}
+    known_alternate_screen = family in {"xterm", "screen", "tmux", "rxvt"}
+    monochrome = bool({"m", "mono"}.intersection(term.split("-")[1:]))
+    known_color = family in {"xterm", "screen", "tmux", "rxvt", "linux", "ansi"}
     if platform == "win32":
-        known_cursor = False
-    if known_cursor:
+        known_cursor = known_alternate_screen = known_color = False
+    if known_color and not monochrome:
         color = 256 if "256color" in term else 16
         if "truecolor" in term or env.get("COLORTERM", "").lower() in {
                 "truecolor", "24bit"}:
             color = 24
         values["color_depth"], sources["color_depth"] = color, "terminal-hint"
     else:
-        values["color_depth"], sources["color_depth"] = 0, "safe-default"
+        values["color_depth"] = 0
+        sources["color_depth"] = "terminal-monochrome" if monochrome else "safe-default"
     if env.get("NO_COLOR", ""):
         values["color_depth"], sources["color_depth"] = 0, "NO_COLOR"
     if options.color is not None:
@@ -138,8 +142,9 @@ def detect_capabilities(input_stream: TextIO, output_stream: TextIO,
     values["unicode"], sources["unicode"] = _unicode_output(output_stream)
     values["reduced_motion"], sources["reduced_motion"] = False, "safe-default"
     for name in ("cursor", "alternate_screen", "paste"):
-        # TERM establishes cursor capability, but does not assert paste protocol.
-        detected = known_cursor if name != "paste" else False
+        # Navigation, screen switching and paste are independent protocols.
+        detected = {"cursor": known_cursor,
+                    "alternate_screen": known_alternate_screen, "paste": False}[name]
         values[name] = detected
         sources[name] = "terminal-hint" if detected else "safe-default"
     for name in ("unicode", "cursor", "alternate_screen", "paste",
@@ -175,7 +180,14 @@ def _stream_identity(stream: object) -> object:
                 stat = os.stat(os.ttyname(fd))
             except OSError:
                 pass
-        return ("descriptor", stat.st_dev, stat.st_ino, getattr(stat, "st_rdev", 0))
+        descriptor = (stat.st_dev, stat.st_ino, getattr(stat, "st_rdev", 0))
+        if any(descriptor):
+            return ("descriptor", *descriptor)
+        # Windows anonymous pipes can have an all-zero fstat identity. Distinct
+        # descriptors must remain distinct owners when that identity is absent.
+        if sys.platform == "win32" and os.isatty(fd):
+            return ("process-console", os.getpid())
+        return ("descriptor-fd", fd)
     except (AttributeError, OSError, ValueError, TypeError):
         return ("stream", id(stream))
 

@@ -1,4 +1,5 @@
 import io
+from contextlib import ExitStack
 import os
 from dataclasses import FrozenInstanceError
 import tempfile
@@ -8,6 +9,7 @@ from unittest.mock import patch
 from cereja.ui._capabilities import (
     Capabilities, CapabilityOptions, StreamBackend, detect_capabilities,
 )
+from cereja.ui.terminal import TerminalSession
 
 
 class FakeStream(io.StringIO):
@@ -92,6 +94,37 @@ class CapabilityTests(unittest.TestCase):
         self.assertTrue(self.detect(platform="win32").plain)
         caps = self.detect(platform="win32", options=CapabilityOptions(cursor=True))
         self.assertFalse(caps.plain)
+
+    def test_palette_is_independent_from_cursor_and_monochrome_hints(self):
+        for term in ("linux-m", "xterm-mono", "vt100", "vt102", "vt220"):
+            for colorterm in ("", "truecolor"):
+                with self.subTest(term=term, colorterm=colorterm):
+                    env = {"TERM": term, "COLORTERM": colorterm}
+                    caps = self.detect(env=env)
+                    self.assertTrue(caps.cursor)
+                    self.assertFalse(caps.plain)
+                    self.assertEqual(caps.color_depth, 0)
+                    env["NO_COLOR"] = "1"
+                    asserted = self.detect(env=env, options=CapabilityOptions(color=16))
+                    self.assertTrue(asserted.cursor)
+                    self.assertEqual(asserted.color_depth, 16)
+                    self.assertEqual(asserted.sources["color_depth"], "option")
+
+    def test_alternate_screen_is_independent_from_cursor(self):
+        for term in ("vt100", "vt102", "vt220", "linux", "linux-m", "ansi"):
+            with self.subTest(term=term):
+                caps = self.detect(env={"TERM": term})
+                self.assertTrue(caps.cursor)
+                self.assertFalse(caps.alternate_screen)
+                asserted = self.detect(env={"TERM": term}, options=CapabilityOptions(
+                    alternate_screen=True))
+                self.assertTrue(asserted.alternate_screen)
+                self.assertEqual(asserted.sources["alternate_screen"], "option")
+        for term in ("xterm", "xterm-256color", "xterm-mono", "screen", "tmux", "rxvt"):
+            with self.subTest(term=term):
+                self.assertTrue(self.detect(env={"TERM": term}).alternate_screen)
+                self.assertFalse(self.detect(env={"TERM": term}, options=CapabilityOptions(
+                    alternate_screen=False)).alternate_screen)
 
     def test_unicode_motion_and_navigation_are_independent(self):
         ascii_caps = self.detect(options=CapabilityOptions(unicode=False))
@@ -182,6 +215,42 @@ class StreamBackendTests(unittest.TestCase):
                 with patch("cereja.ui._capabilities.os.get_terminal_size",
                            return_value=os.terminal_size((0, 0))):
                     self.assertEqual(first.dimensions(), (0, 0))
+
+    def test_independent_pipes_have_distinct_owners_and_can_open_concurrently(self):
+        with ExitStack() as stack:
+            backends = []
+            for _ in range(2):
+                read_fd, write_fd = os.pipe()
+                input_stream = stack.enter_context(os.fdopen(read_fd, "r", encoding="utf-8"))
+                output_stream = stack.enter_context(os.fdopen(write_fd, "w", encoding="utf-8"))
+                backends.append(StreamBackend(input_stream, output_stream))
+            self.assertNotEqual(backends[0].identity, backends[1].identity)
+            with TerminalSession(backends[0]) as first, TerminalSession(backends[1]) as second:
+                first.write_text("first")
+                second.write_text("second")
+
+    def test_missing_descriptor_identity_uses_fd_except_windows_console(self):
+        class Descriptor(FakeStream):
+            def __init__(self, fd):
+                super().__init__(interactive=False)
+                self.fd = fd
+
+            def fileno(self):
+                return self.fd
+
+        with patch("cereja.ui._capabilities.os.fstat", return_value=os.stat_result((0,) * 10)), \
+                patch("cereja.ui._capabilities.os.ttyname", side_effect=OSError, create=True), \
+                patch("cereja.ui._capabilities.sys.platform", "win32"), \
+                patch("cereja.ui._capabilities.os.isatty", return_value=False):
+            first = StreamBackend(FakeStream(False), Descriptor(100))
+            alias = StreamBackend(FakeStream(False), Descriptor(100))
+            other = StreamBackend(FakeStream(False), Descriptor(101))
+            self.assertEqual(first.identity, alias.identity)
+            self.assertNotEqual(first.identity, other.identity)
+            with patch("cereja.ui._capabilities.os.isatty", return_value=True):
+                console = StreamBackend(FakeStream(False), Descriptor(100))
+                console_alias = StreamBackend(FakeStream(False), Descriptor(101))
+                self.assertEqual(console.identity, console_alias.identity)
 
 
 if __name__ == "__main__":

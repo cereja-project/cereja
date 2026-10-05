@@ -28,6 +28,11 @@ are delivered by #298. Unknown/dumb cursor support or unavailable native
 acquisition selects plain. Every effective capability retains its source in an
 immutable diagnostic mapping. Invalid typed options fail before acquisition.
 Windows environment hints alone do not prove usable native console/VT modes.
+Cursor, palette and alternate-screen hints are resolved separately. The
+monochrome fixtures `linux-m` and `xterm-mono` follow the
+[ncurses terminal descriptions](https://invisible-island.net/ncurses/terminfo.src.html);
+they retain navigation without implicitly enabling color. Explicit per-run
+assertions remain available when the backend can acquire the asserted mode.
 
 ## Sessions and output
 
