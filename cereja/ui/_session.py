@@ -91,8 +91,15 @@ class TerminalSession:
     def _acquire(self):
         self.capabilities = self.backend.capabilities
         self._snapshot = self.backend.capture()
+        output_probed = bool(getattr(self.backend, 'needs_output_probe', False))
+        if output_probed:
+            # Native VT support may require a reversible mode change. It is
+            # performed only after ownership/capture, under the same journal.
+            self._journal.append('output_mode')
+            self.backend.acquire('output_mode', self._snapshot)
+            self.capabilities = self.backend.capabilities
         if not self.capabilities.plain:
-            resources = ['output_mode', 'input_mode']
+            resources = ['input_mode'] if output_probed else ['output_mode', 'input_mode']
             if self.capabilities.alternate_screen:
                 resources.append('alternate_screen')
             if self.capabilities.cursor:

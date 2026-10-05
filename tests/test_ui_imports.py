@@ -29,6 +29,9 @@ import sys, threading
 before = set(threading.enumerate())
 from cereja.ui.terminal import StreamBackend, TerminalSession
 from cereja.ui.testing import VirtualBackend
+from cereja.ui.events import KeyEvent
+from cereja.ui.posix import PosixBackend
+from cereja.ui.windows import WindowsBackend
 assert 'cereja.display' not in sys.modules
 assert 'cereja.system' not in sys.modules
 assert set(threading.enumerate()) == before

@@ -1,4 +1,4 @@
-# Independent terminal foundation (#295)
+# Independent terminal foundation (#295, #296, #297)
 
 `cereja.ui` is a lightweight namespace. Import `cereja.ui.terminal` for capability
 policies and transactional sessions, or `cereja.ui.testing` for the virtual
@@ -7,8 +7,8 @@ acquires modes during import. The existing root exports and CLI are unchanged.
 
 This stage implements capability resolution, backend-neutral ownership and
 lifecycle, acknowledged output, a plain stream transport and a deterministic
-virtual backend. POSIX input/modes/wakeup belong to #296; Win32 input/modes/wakeup
-belong to #297. `StreamBackend` remains plain even when its streams are TTYs,
+virtual backend and explicit POSIX/Win32 transports. `StreamBackend` remains
+plain even when its streams are TTYs,
 because it does not implement native acquisition. There is no production renderer,
 widget application or `cereja ui` command yet.
 
@@ -76,6 +76,69 @@ virtual cells. An empty frame makes zero writes and zero flushes. A failure clos
 the session and requires full invalidation; a broken pipe stops output cleanly
 when restoration succeeds. There is no timeout guarantee for an OS write that
 blocks. Actual unchanged-frame comparison belongs to #299/#300.
+
+## Native backends and input
+
+Import `PosixBackend` from `cereja.ui.posix` on POSIX, or `WindowsBackend` from
+`cereja.ui.windows` on Windows. The toolkit namespace and root package defer these
+imports. Constructing a backend does not acquire modes or start a worker.
+Use it with `TerminalSession`, then call `backend.wait(timeout)` on the owning
+thread. `None` waits for input or wake; finite timeouts are seconds. A worker may
+call `backend.wake()` to notify that consumer. Wake notifications may coalesce;
+they carry no posted payload. The application queue and admission policy remain
+with #301. Call `backend.close()` after use to release owned waiting resources.
+Borrowed terminal streams/handles belong to the caller.
+
+Native reads return immutable values from `cereja.ui.events`: `KeyEvent`,
+`PasteEvent`, `ResizeEvent`, `WakeEvent`, `EOFEvent` and `InputErrorEvent`.
+Key text retains ordinary characters, modifiers use `shift`/`ctrl`/`alt`, and
+repeat counts remain explicit. Raw Ctrl+C is a key with `key='c'`, `ctrl` and
+empty text. The future application must handle it explicitly; receiving a key
+does not execute commands. Paste is one text value, never shortcut replay.
+Input errors must be surfaced by that application. These values supply input,
+not a widget event loop, composer or Ledger application.
+
+POSIX uses captured termios attributes, file blocking state, a selector and a
+nonblocking self-pipe. It preserves and restores installed signal handlers;
+external SIGINT raises `KeyboardInterrupt` so the session unwinds. SIGWINCH
+coalesces a resize notification and wakes the wait. Native descriptors and
+handlers are acquired under the session journal, including partial failures.
+Termios and handlers are restored to their captured values. ANSI screen/cursor/
+paste protocols return to normal screen, visible cursor and paste disabled;
+the backend cannot reconstruct arbitrary prior ANSI state or screen contents.
+
+The POSIX parser retains fragmented UTF-8 and replaces malformed encoding.
+Its Escape deadline is 30 ms, configurable from 10 through 100 ms. Arrival at
+the deadline follows the expired Escape event. Navigation uses the documented
+[xterm key and bracketed-paste sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html).
+The POSIX key subset includes navigation, F1-F12 and their supported modifiers;
+Windows console records additionally expose F13-F24. Recognized CSI/SS3 prefixes
+wait for completion or EOF without an Escape timer, so delayed sequence suffixes
+cannot become shortcuts. Encoded escape sequences are limited to 4 KiB. Paste is limited to 1 MiB of
+decoded UTF-8, including replacement characters. Oversized paste is rejected
+atomically and consumed through its end delimiter. Unsupported control strings
+and malformed/oversized sequences are consumed without shortcut replay.
+No runtime terminal-description or Unicode data downloads occur.
+
+Windows binds typed console and event APIs. A VT mode change is attempted only
+after session ownership and capture, journaled before mutation. Successful
+`SetConsoleMode` enables interactive capabilities before raw input acquisition;
+unsupported VT selects plain without emitting controls. Unexpected API failures
+unwind the journal. This follows Microsoft's
+[console mode contract](https://learn.microsoft.com/en-us/windows/console/setconsolemode).
+Waiting uses console records and an application event, without a socket selector.
+UTF-16 surrogate pairs survive split reads; malformed pairs become U+FFFD.
+Dimensions and resize notifications use the visible viewport. Ordinary legacy
+console records cannot reliably identify paste; no paste-detection guarantee is
+made and requesting that unsupported protocol fails before acquisition.
+
+Plain streams acquire no raw input, alternate screen or signal handlers. The
+Windows output probe is also suppressed for redirected/unavailable streams.
+Native PTY/console tests establish OS transport and restoration within their
+tested host; manual emulator and SSH validation remain separate. The focused
+`UI terminal transports` workflow runs these stdlib-only tests on Python 3.11-3.14
+across Linux, Windows and macOS. A configured matrix establishes coverage intent;
+only a successful run at the delivered commit establishes the checked result.
 
 ## Virtual backend and verification boundary
 

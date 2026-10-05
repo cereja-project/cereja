@@ -1,0 +1,41 @@
+name: UI terminal transports
+
+on:
+  push:
+    branches: [master, develop]
+    paths:
+      - 'cereja/ui/**'
+      - 'tests/test_ui_*.py'
+      - 'tests/ui_windows_console_probe.py'
+      - '.github/workflows/ui-terminal.yml'
+  pull_request:
+    branches: [master, develop]
+    paths:
+      - 'cereja/ui/**'
+      - 'tests/test_ui_*.py'
+      - 'tests/ui_windows_console_probe.py'
+      - '.github/workflows/ui-terminal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transports:
+    name: Native UI (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    env:
+      PYTHONIOENCODING: utf-8
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Check native and virtual transports using only the standard library
+        run: python -B -S -m unittest discover -s tests -p 'test_ui_*.py' -v
