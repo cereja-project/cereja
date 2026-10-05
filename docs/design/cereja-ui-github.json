@@ -1,0 +1,595 @@
+{
+  "milestone": {
+    "number": 5,
+    "html_url": "https://github.com/cereja-project/cereja/milestone/5",
+    "title": "Cereja UI: independent toolkit and terminal application"
+  },
+  "issues": {
+    "UI-00": {
+      "number": 294,
+      "id": 5523588318,
+      "html_url": "https://github.com/cereja-project/cereja/issues/294",
+      "title": "[UI-00] Freeze Cereja UI contracts and executable evidence",
+      "depends": [],
+      "verified_dependencies": [],
+      "verified_milestone": 5,
+      "verified_type_id": 867790969,
+      "verified_body": true
+    },
+    "UI-01": {
+      "number": 295,
+      "id": 5523588484,
+      "html_url": "https://github.com/cereja-project/cereja/issues/295",
+      "title": "[UI-01] Implement capabilities, virtual backend and transactional terminal sessions",
+      "depends": [
+        "UI-00"
+      ],
+      "verified_dependencies": [
+        294
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977,
+      "verified_body": true
+    },
+    "UI-02": {
+      "number": 296,
+      "id": 5523588630,
+      "html_url": "https://github.com/cereja-project/cereja/issues/296",
+      "title": "[UI-02] Implement POSIX input, wakeup and terminal restoration",
+      "depends": [
+        "UI-01"
+      ],
+      "verified_dependencies": [
+        295
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977,
+      "verified_body": true
+    },
+    "UI-03": {
+      "number": 297,
+      "id": 5523588778,
+      "html_url": "https://github.com/cereja-project/cereja/issues/297",
+      "title": "[UI-03] Implement Windows console records, wakeup and VT fallback",
+      "depends": [
+        "UI-01"
+      ],
+      "verified_dependencies": [
+        295
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977,
+      "verified_body": true
+    },
+    "UI-04": {
+      "number": 298,
+      "id": 5523588946,
+      "html_url": "https://github.com/cereja-project/cereja/issues/298",
+      "title": "[UI-04] Implement pinned grapheme metrics and safe text normalization",
+      "depends": [
+        "UI-00"
+      ],
+      "verified_dependencies": [
+        294
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977,
+      "verified_body": true
+    },
+    "UI-05": {
+      "number": 299,
+      "id": 5523589121,
+      "html_url": "https://github.com/cereja-project/cereja/issues/299",
+      "title": "[UI-05] Implement cell buffers and deterministic clipped composition",
+      "depends": [
+        "UI-01",
+        "UI-04"
+      ],
+      "verified_dependencies": [
+        295,
+        298
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977,
+      "verified_body": true
+    },
+    "UI-06": {
+      "number": 300,
+      "id": 5523589240,
+      "html_url": "https://github.com/cereja-project/cereja/issues/300",
+      "title": "[UI-06] Implement diff, secure encoding and committed output transactions",
+      "depends": [
+        "UI-05"
+      ],
+      "verified_dependencies": [
+        299
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977,
+      "verified_body": true
+    },
+    "UI-07": {
+      "number": 301,
+      "id": 5523589397,
+      "html_url": "https://github.com/cereja-project/cereja/issues/301",
+      "title": "[UI-07] Implement event scheduling, bounded posting and cancellable timers",
+      "depends": [
+        "UI-01",
+        "UI-02",
+        "UI-03",
+        "UI-06"
+      ],
+      "verified_dependencies": [
+        295,
+        296,
+        297,
+        300
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977,
+      "verified_body": true
+    },
+    "SCOPE": {
+      "number": 302,
+      "id": 5523589546,
+      "html_url": "https://github.com/cereja-project/cereja/issues/302",
+      "title": "Define Cereja UI v1 Product Scope",
+      "depends": [],
+      "verified_dependencies": [],
+      "verified_milestone": 5,
+      "verified_type_id": 867790969,
+      "verified_body": true,
+      "visual_review_checkpoint": "Explicitly selected Ledger; files and directories accepted; current summary body read back."
+    },
+    "UX": {
+      "number": 303,
+      "id": 5523589693,
+      "html_url": "https://github.com/cereja-project/cereja/issues/303",
+      "title": "[UX] Specify and validate final Cereja UI UX after product scope",
+      "depends": [
+        "SCOPE"
+      ],
+      "verified_dependencies": [
+        302
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790969,
+      "verified_body": true,
+      "visual_review_checkpoint": "Explicitly selected Ledger; files and directories accepted; current summary body read back."
+    },
+    "CORE-PERF": {
+      "number": 304,
+      "id": 5523589813,
+      "html_url": "https://github.com/cereja-project/cereja/issues/304",
+      "title": "[CORE-PERF] Calibrate independent core performance against reproducible baselines",
+      "depends": [
+        "UI-06",
+        "UI-07"
+      ],
+      "verified_dependencies": [
+        300,
+        301
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790973,
+      "verified_body": true
+    },
+    "CORE-PLATFORM": {
+      "number": 305,
+      "id": 5523589938,
+      "html_url": "https://github.com/cereja-project/cereja/issues/305",
+      "title": "[CORE-PLATFORM] Validate independent terminal and rendering core across supported platforms",
+      "depends": [
+        "UI-02",
+        "UI-03",
+        "UI-06",
+        "UI-07"
+      ],
+      "verified_dependencies": [
+        296,
+        297,
+        300,
+        301
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977,
+      "verified_body": true
+    },
+    "DELIVERY": {
+      "number": 306,
+      "id": 5523590068,
+      "html_url": "https://github.com/cereja-project/cereja/issues/306",
+      "title": "[DELIVERY] Decompose scope-approved widgets, application and later compatibility delivery",
+      "depends": [
+        "UX"
+      ],
+      "verified_dependencies": [
+        303
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790969,
+      "verified_body": true,
+      "visual_review_checkpoint": "Explicitly selected Ledger; files and directories accepted; current summary body read back."
+    },
+    "UI-08": {
+      "number": 307,
+      "id": 5523842134,
+      "html_url": "https://github.com/cereja-project/cereja/issues/307",
+      "title": "[UI-08] Implement cell layout and bounded scroll viewports",
+      "depends": [
+        "UI-05",
+        "UI-07",
+        "UX"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        299,
+        301,
+        303
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "UI-09": {
+      "number": 308,
+      "id": 5523842294,
+      "html_url": "https://github.com/cereja-project/cereja/issues/308",
+      "title": "[UI-09] Implement text input, focus and keyboard selection",
+      "depends": [
+        "UI-08",
+        "UI-04",
+        "UI-07"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        298,
+        301,
+        307
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "UI-10": {
+      "number": 309,
+      "id": 5523842461,
+      "html_url": "https://github.com/cereja-project/cereja/issues/309",
+      "title": "[UI-10] Implement suggestion lists, parameter forms and confirmation overlays",
+      "depends": [
+        "UI-09"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        308
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "UI-11": {
+      "number": 310,
+      "id": 5523842651,
+      "html_url": "https://github.com/cereja-project/cereja/issues/310",
+      "title": "[UI-11] Implement tables, selectable lists and hierarchical TreeView",
+      "depends": [
+        "UI-08",
+        "UI-09"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        307,
+        308
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "UI-12": {
+      "number": 311,
+      "id": 5523842812,
+      "html_url": "https://github.com/cereja-project/cereja/issues/311",
+      "title": "[UI-12] Implement reusable inline status, progress and motion components",
+      "depends": [
+        "UI-08",
+        "UI-07"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        301,
+        307
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "APP-00": {
+      "number": 312,
+      "id": 5523842960,
+      "html_url": "https://github.com/cereja-project/cereja/issues/312",
+      "title": "[APP-00] Implement typed background operation lifecycle bridge",
+      "depends": [
+        "UI-07",
+        "UI-12"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        301,
+        311
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "APP-01": {
+      "number": 313,
+      "id": 5523843149,
+      "html_url": "https://github.com/cereja-project/cereja/issues/313",
+      "title": "[APP-01] Build Ledger shell, slash grammar and lazy capability catalogue",
+      "depends": [
+        "UI-10",
+        "UI-11",
+        "APP-00",
+        "UX"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        303,
+        309,
+        310,
+        312
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "APP-02": {
+      "number": 314,
+      "id": 5523843284,
+      "html_url": "https://github.com/cereja-project/cereja/issues/314",
+      "title": "[APP-02] Integrate System Information into Ledger",
+      "depends": [
+        "APP-01"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        313
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "DOMAIN-TREE": {
+      "number": 315,
+      "id": 5523843439,
+      "html_url": "https://github.com/cereja-project/cereja/issues/315",
+      "title": "[DOMAIN-TREE] Expose bounded structured repository traversal",
+      "depends": [
+        "UI-00"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        294
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "APP-03": {
+      "number": 316,
+      "id": 5523843588,
+      "html_url": "https://github.com/cereja-project/cereja/issues/316",
+      "title": "[APP-03] Integrate explicit-path hierarchical Tree into Ledger",
+      "depends": [
+        "APP-01",
+        "DOMAIN-TREE"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        313,
+        315
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "APP-04": {
+      "number": 317,
+      "id": 5523843799,
+      "html_url": "https://github.com/cereja-project/cereja/issues/317",
+      "title": "[APP-04] Integrate explicit-root Context Search into Ledger",
+      "depends": [
+        "APP-01"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        313
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "APP-05": {
+      "number": 318,
+      "id": 5523844010,
+      "html_url": "https://github.com/cereja-project/cereja/issues/318",
+      "title": "[APP-05] Integrate safe single-file Compress and Decompress workflows",
+      "depends": [
+        "APP-01"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        313
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "APP-06": {
+      "number": 319,
+      "id": 5523844187,
+      "html_url": "https://github.com/cereja-project/cereja/issues/319",
+      "title": "[APP-06] Integrate URL download with real progress and safe destination review",
+      "depends": [
+        "APP-01"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        313
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "DOMAIN-OPS": {
+      "number": 320,
+      "id": 5523844355,
+      "html_url": "https://github.com/cereja-project/cereja/issues/320",
+      "title": "[DOMAIN-OPS] Evaluate generic progress and cooperative cancellation extensions",
+      "depends": [
+        "UI-00"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        294
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790969
+    },
+    "APP-ACCEPT": {
+      "number": 321,
+      "id": 5523844556,
+      "html_url": "https://github.com/cereja-project/cereja/issues/321",
+      "title": "[APP-ACCEPT] Validate real Ledger workflows, package and platform acceptance",
+      "depends": [
+        "APP-02",
+        "APP-03",
+        "APP-04",
+        "APP-05",
+        "APP-06",
+        "CORE-PERF",
+        "CORE-PLATFORM",
+        "APP-07"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        304,
+        305,
+        314,
+        316,
+        317,
+        318,
+        319,
+        324
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790973
+    },
+    "LEGACY-PLAN": {
+      "number": 322,
+      "id": 5523844704,
+      "html_url": "https://github.com/cereja-project/cereja/issues/322",
+      "title": "[LEGACY-PLAN] Characterize legacy display and select compatibility strategy after stabilization",
+      "depends": [
+        "APP-ACCEPT"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        321
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790969
+    },
+    "DOMAIN-ARCHIVE": {
+      "number": 323,
+      "id": 5523844884,
+      "html_url": "https://github.com/cereja-project/cereja/issues/323",
+      "title": "[DOMAIN-ARCHIVE] Establish safe bounded directory archive operations",
+      "depends": [
+        "UI-00"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        294
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    },
+    "APP-07": {
+      "number": 324,
+      "id": 5523845036,
+      "html_url": "https://github.com/cereja-project/cereja/issues/324",
+      "title": "[APP-07] Integrate directory Compress and Decompress into Ledger",
+      "depends": [
+        "APP-05",
+        "DOMAIN-ARCHIVE"
+      ],
+      "verified_body": true,
+      "verified_dependencies": [
+        318,
+        323
+      ],
+      "verified_milestone": 5,
+      "verified_type_id": 867790977
+    }
+  },
+  "parent": 293,
+  "board": "unavailable: project scope",
+  "verified": true,
+  "parent_subissues_verified_by_coordinator": [
+    294,
+    295,
+    296,
+    297,
+    298,
+    299,
+    300,
+    301,
+    302,
+    303,
+    304,
+    305,
+    306,
+    307,
+    308,
+    309,
+    310,
+    311,
+    312,
+    313,
+    314,
+    315,
+    316,
+    317,
+    318,
+    319,
+    320,
+    321,
+    322,
+    323,
+    324
+  ],
+  "parent_milestone_verified_by_coordinator": 5,
+  "raw_evidence_publication": {
+    "previous_state": "Initial planning export was not authorized; only technical summaries were published.",
+    "delivery": "Source and raw reports are included in the UI-00 repository package.",
+    "tracking": "https://github.com/cereja-project/cereja/issues/294"
+  },
+  "milestone_issue_count_verified": 32,
+  "planning_status": "Planning package complete: selected Ledger specification, files and directories in v1, 31 published child tasks with verified native parent links/dependencies and milestone membership. Production implementation and future validation are not completed.",
+  "followup_publication_verified": {
+    "count": 18,
+    "numbers": [
+      307,
+      308,
+      309,
+      310,
+      311,
+      312,
+      313,
+      314,
+      315,
+      316,
+      317,
+      318,
+      319,
+      320,
+      321,
+      322,
+      323,
+      324
+    ],
+    "body": true,
+    "milestone": 5,
+    "native_dependencies": true,
+    "parent_links": "Root coordinator verified all native parent links for issues 294 through 324."
+  },
+  "parent_current_summary_verified_by_coordinator": true
+}

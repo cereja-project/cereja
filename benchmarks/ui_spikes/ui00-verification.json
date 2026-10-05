@@ -1,0 +1,71 @@
+{
+  "scope": "saved baseline integrity only; no production or timing acceptance",
+  "ok": true,
+  "errors": [],
+  "recorded_revision": "ed7fbfa5bc08f3e5814602f1cb3f09e3d6ad5d87",
+  "artifact_sha256": {
+    "baseline-windows-py314.json": "941a1ff35d0c7ff0ad09fbdb5e61fb6e05e469252b2d613f45e5f3407d42d5ec",
+    "platform-windows.json": "8d140810bc8eb2020c4752ce08b2b4a74f6b8225bebb35349ccea845b0c9a6a9",
+    "download-loopback.json": "a929edcd5605ddec563490ce64887ab79ec7aae6d5bab593bd744ca3ef1177fa"
+  },
+  "matching_source_entries": [
+    "benchmarks/ui_spikes/model.py",
+    "benchmarks/ui_spikes/platform_probe.py",
+    "benchmarks/ui_spikes/run.py",
+    "benchmarks/ui_spikes/test_model.py",
+    "benchmarks/ui_spikes/download_probe.py",
+    "cereja/transfers/download.py",
+    "cereja/transfers/models.py",
+    "cereja/transfers/sinks.py",
+    "cereja/http/sync/client.py"
+  ],
+  "render_workloads": 15,
+  "render_raw_samples": 2325,
+  "root_import_samples": 9,
+  "root_import_median_ns": 944700,
+  "sparse_model_comparisons": [
+    {
+      "width": 80,
+      "height": 24,
+      "case": "one_row",
+      "lower_median": true,
+      "lower_p95": true
+    },
+    {
+      "width": 80,
+      "height": 24,
+      "case": "ten_percent",
+      "lower_median": true,
+      "lower_p95": true
+    },
+    {
+      "width": 120,
+      "height": 40,
+      "case": "one_row",
+      "lower_median": true,
+      "lower_p95": true
+    },
+    {
+      "width": 120,
+      "height": 40,
+      "case": "ten_percent",
+      "lower_median": true,
+      "lower_p95": true
+    },
+    {
+      "width": 240,
+      "height": 80,
+      "case": "one_row",
+      "lower_median": true,
+      "lower_p95": true
+    },
+    {
+      "width": 240,
+      "height": 80,
+      "case": "ten_percent",
+      "lower_median": true,
+      "lower_p95": true
+    }
+  ],
+  "platform_provenance": "original platform report has no embedded source hash"
+}
