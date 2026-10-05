@@ -103,7 +103,12 @@ nonblocking self-pipe. It preserves and restores installed signal handlers;
 external SIGINT raises `KeyboardInterrupt` so the session unwinds. SIGWINCH
 coalesces a resize notification and wakes the wait. Native descriptors and
 handlers are acquired under the session journal, including partial failures.
-Termios and handlers are restored to their captured values. ANSI screen/cursor/
+Termios configuration and handlers are restored to their captured values. Darwin
+can add the transient `PENDIN` state while restoring canonical input; its
+[TTY implementation](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/kern/tty.c#L1313)
+owns that indicator. Tests allow only that exact addition on Darwin and compare
+all remaining attributes. Restoration uses `TCSANOW` and preserves queued input;
+it does not flush or consume input to clear kernel state. ANSI screen/cursor/
 paste protocols return to normal screen, visible cursor and paste disabled;
 the backend cannot reconstruct arbitrary prior ANSI state or screen contents.
 

@@ -6,7 +6,9 @@ from copy import deepcopy
 import io
 import os
 import signal
+import sys
 import threading
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -217,9 +219,46 @@ class PosixPTYTests(unittest.TestCase):
 
     def assert_restored(self):
         import termios
-        self.assertEqual(termios.tcgetattr(self.slave), self.attrs)
+        actual = termios.tcgetattr(self.slave)
+        if sys.platform == 'darwin' and self.attrs[3] & termios.ICANON:
+            # Darwin adds this kernel state when canonical input is restored.
+            # Permit that exact addition, with every other flag/field unchanged.
+            self.assertIn(actual[3], (self.attrs[3], self.attrs[3] | termios.PENDIN))
+            actual[3] = self.attrs[3]
+        self.assertEqual(actual, self.attrs)
         self.assertEqual(os.get_blocking(self.slave), self.blocking)
         self.assertEqual({sig: signal.getsignal(sig) for sig in self.handlers}, self.handlers)
+
+    @unittest.skipUnless(sys.platform == 'darwin', 'Darwin kernel PENDIN reference')
+    def test_darwin_direct_restore_adds_kernel_pending_state(self):
+        import termios
+        import tty
+        # Independent OS reference: no session or backend acquisition is used.
+        tty.setraw(self.slave, when=termios.TCSANOW)
+        termios.tcsetattr(self.slave, termios.TCSANOW, self.attrs)
+        actual = termios.tcgetattr(self.slave)
+        self.assertEqual(actual[3] ^ self.attrs[3], termios.PENDIN)
+        actual[3] = self.attrs[3]
+        self.assertEqual(actual, self.attrs)
+
+    def test_real_restore_preserves_queued_input_without_flushing(self):
+        import selectors
+        with TerminalSession(self.backend):
+            os.write(self.master, b'typeahead')
+        os.write(self.master, b'\n')
+        expected = b'typeahead\n'
+        received = bytearray()
+        deadline = time.monotonic() + .5
+        with selectors.DefaultSelector() as selector:
+            selector.register(self.slave, selectors.EVENT_READ)
+            while len(received) < len(expected):
+                self.assertTrue(selector.select(max(0, deadline - time.monotonic())),
+                                'restored canonical input must retain the line')
+                data = os.read(self.slave, len(expected) - len(received))
+                self.assertTrue(data, 'queued input must not end before the line')
+                received.extend(data)
+        self.assertEqual(received, expected)
+        self.assert_restored()
 
     def test_real_pty_fragmented_input_wake_resize_and_restoration(self):
         import termios
