@@ -34,6 +34,7 @@ guides/compression-and-encryption
 guides/protected-code
 guides/text-and-data
 guides/utilities
+guides/regex
 ```
 
 ```{toctree}

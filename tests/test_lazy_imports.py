@@ -66,6 +66,30 @@ for prefix in ("cereja.mltools", "cereja._requests", "cereja.scraping",
     assert not any(n == prefix or n.startswith(prefix + ".") for n in sys.modules), prefix
 ''')
 
+    def test_regex_module_is_lazy_and_preserves_import_identity(self):
+        for first in ("cereja.regex", "cereja.utils.regex"):
+            with self.subTest(first=first):
+                result = self.run_python(f'''
+import importlib
+import sys
+import cereja
+import cereja.utils
+assert "regex" in dir(cereja)
+assert "regex" in dir(cereja.utils)
+assert "cereja.utils.regex" not in sys.modules
+first = {first}
+from cereja import regex as root_regex
+from cereja.utils import regex as utils_regex
+direct_regex = importlib.import_module("cereja.utils.regex")
+assert first is root_regex is utils_regex is direct_regex
+assert root_regex.preset("number").fullmatch("-12.34")
+loaded = {{n for n in sys.modules if n == "cereja" or n.startswith("cereja.")}}
+allowed = {MINIMAL!r} | {{"cereja.utils", "cereja.utils.regex"}}
+assert loaded <= allowed, sorted(loaded - allowed)
+''')
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+
     def test_tasklist_does_not_load_process_workers(self):
         self.run_python('''
 import sys
