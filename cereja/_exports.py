@@ -45,7 +45,7 @@ EXPORTS = {
         **_objects("cereja.utils.version", "get_version get_version_pep440_compliant latest_git"),
         **_objects("cereja.utils.time", "Timer set_interval time_format"),
         **_objects("cereja.utils.git.repository", "GitRepository"),
-        **_modules("cereja.utils", "colab colors decorators git time typography version"),
+        **_modules("cereja.utils", "colab colors decorators git regex time typography version"),
         "stride_values": ("cereja.utils._utils", "get_batch_strides"),
     },
     "cereja.system": {
