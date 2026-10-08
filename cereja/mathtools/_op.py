@@ -66,7 +66,7 @@ def greatest_common_multiple(values):
 
 
 def least_common_multiple(values):
-    return reduce((lambda x, y: int(x * y / math.gcd(x, y))), values)
+    return reduce((lambda x, y: int(x * y // math.gcd(x, y))), values)
 
 
 def proportional(
