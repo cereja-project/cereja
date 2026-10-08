@@ -30,6 +30,7 @@ before = set(threading.enumerate())
 from cereja.ui.terminal import StreamBackend, TerminalSession
 from cereja.ui.testing import VirtualBackend
 from cereja.ui.events import KeyEvent
+from cereja.ui.text import TextPolicy, text_metrics
 from cereja.ui.posix import PosixBackend
 from cereja.ui.windows import WindowsBackend
 assert 'cereja.display' not in sys.modules
@@ -37,6 +38,22 @@ assert 'cereja.system' not in sys.modules
 assert set(threading.enumerate()) == before
 assert not any('site-packages' in str(getattr(m, '__file__', ''))
                for m in sys.modules.values())
+'''
+        self.check_process(code)
+
+    def test_terminal_import_defers_unicode_and_metrics_import_is_isolated(self):
+        code = '''
+import sys
+from cereja.ui.terminal import TerminalSession
+assert 'cereja.ui.text' not in sys.modules
+assert 'cereja.ui._unicode17' not in sys.modules
+from cereja.ui.text import text_metrics
+assert text_metrics('test').line_widths() == (4,)
+assert 'unicodedata' not in sys.modules
+assert 'cereja.ui.posix' not in sys.modules
+assert 'cereja.ui.windows' not in sys.modules
+assert 'cereja.display' not in sys.modules
+assert 'cereja.system' not in sys.modules
 '''
         self.check_process(code)
 

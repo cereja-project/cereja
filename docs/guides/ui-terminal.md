@@ -24,7 +24,7 @@ movement, raw input or controls on pipes. Color depth is 0, 16, 256 or 24
 
 Unicode/ASCII and reduced-motion policies are independent of color and navigation.
 They describe renderer policies; pinned Unicode segmentation and cell metrics
-are delivered by #298. Unknown/dumb cursor support or unavailable native
+are provided by [UI text](ui-text.md). Unknown/dumb cursor support or unavailable native
 acquisition selects plain. Every effective capability retains its source in an
 immutable diagnostic mapping. Invalid typed options fail before acquisition.
 Windows environment hints alone do not prove usable native console/VT modes.
@@ -66,7 +66,7 @@ suspended body is propagated without reacquiring resources.
 visible ASCII escapes, tab becomes spaces and newline remains a line separator.
 Unpaired surrogates become U+FFFD. This transport helper performs no layout,
 grapheme segmentation or bidi rendering. Source/path views must use the full
-text policy delivered in #298 before accepting their rendering contract.
+[text policy](ui-text.md) before accepting their rendering contract.
 
 The internal `_write_frame` hook is for the future encoder, not an arbitrary
 ANSI drawing API. Each positive short acknowledgment advances only by that

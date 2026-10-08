@@ -7,6 +7,11 @@ on:
       - 'cereja/ui/**'
       - 'tests/test_ui_*.py'
       - 'tests/ui_windows_console_probe.py'
+      - 'tools/generate_ui_unicode.py'
+      - 'tools/unicode/**'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - '.gitattributes'
       - '.github/workflows/ui-terminal.yml'
   pull_request:
     branches: [master, develop]
@@ -14,6 +19,11 @@ on:
       - 'cereja/ui/**'
       - 'tests/test_ui_*.py'
       - 'tests/ui_windows_console_probe.py'
+      - 'tools/generate_ui_unicode.py'
+      - 'tools/unicode/**'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - '.gitattributes'
       - '.github/workflows/ui-terminal.yml'
   workflow_dispatch:
 
@@ -37,5 +47,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Check native and virtual transports using only the standard library
+      - name: Check frozen Unicode data offline
+        run: python -B -S tools/generate_ui_unicode.py --check
+      - name: Check native transports and text metrics using only the standard library
         run: python -B -S -m unittest discover -s tests -p 'test_ui_*.py' -v

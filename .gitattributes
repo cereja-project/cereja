@@ -1,0 +1,7 @@
+# Byte-pinned official inputs and license notices must survive Windows checkout.
+# Preserve upstream trailing spaces too; SHA-256 verifies these data files.
+tools/unicode/17.0.0/*.txt -text whitespace=-blank-at-eol
+cereja/ui/UNICODE-LICENSE.txt -text
+# The generator verifies exact bytes on every supported host.
+cereja/ui/_unicode17.py text eol=lf
+tools/unicode/17.0.0/manifest.json text eol=lf

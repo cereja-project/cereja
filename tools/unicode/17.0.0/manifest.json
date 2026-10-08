@@ -1,0 +1,51 @@
+{
+  "unicode_version": "17.0.0",
+  "emoji_version": "17.0",
+  "uax29_revision": 47,
+  "sources": {
+    "GraphemeBreakProperty.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/auxiliary/GraphemeBreakProperty.txt",
+      "sha256": "d6b51d1d2ae5c33b451b7ed994b48f1f4dc62b2272a5831e7fd418514a6bae89"
+    },
+    "GraphemeBreakTest.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt",
+      "sha256": "e2d134d2c52919bace503ebb6a551c1855fe1a1faec18478c78fff254a1793ec"
+    },
+    "DerivedCoreProperties.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/DerivedCoreProperties.txt",
+      "sha256": "24c7fed1195c482faaefd5c1e7eb821c5ee1fb6de07ecdbaa64b56a99da22c08"
+    },
+    "DerivedGeneralCategory.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/extracted/DerivedGeneralCategory.txt",
+      "sha256": "d62e5bab70ca74f099343f71224fa051cb1fdd61a1ab45c0488c44cfc0b6102e"
+    },
+    "EastAsianWidth.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/EastAsianWidth.txt",
+      "sha256": "ea7ce50f3444a050333448dffef1cadd9325af55cbb764b4a2280faf52170a33"
+    },
+    "PropList.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/PropList.txt",
+      "sha256": "130dcddcaadaf071008bdfce1e7743e04fdfbc910886f017d9f9ac931d8c64dd"
+    },
+    "emoji-data.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-data.txt",
+      "sha256": "2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b"
+    },
+    "emoji-variation-sequences.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-variation-sequences.txt",
+      "sha256": "bb3d09ef03f206012c7532dd52dc0a21c9efddba0135ea4cf0d9201b8b9bba7e"
+    },
+    "emoji-sequences.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/emoji/emoji-sequences.txt",
+      "sha256": "12cc8267dc33cbd11ed32bcf6fc5dc2ad9c7a77bae1bdfba2f41b1b9b3ead8dd"
+    },
+    "emoji-zwj-sequences.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/emoji/emoji-zwj-sequences.txt",
+      "sha256": "5b25441daed2322b068c5e70cda522946a4f0274df864445a1965a92e5fc5cad"
+    },
+    "LICENSE.txt": {
+      "url": "https://www.unicode.org/license.txt",
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+    }
+  }
+}

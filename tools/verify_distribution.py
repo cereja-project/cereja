@@ -1,5 +1,8 @@
 """Check built archives and the installed wheel outside the source checkout."""
 
+import argparse
+import hashlib
+import json
 import os
 from pathlib import Path
 import runpy
@@ -23,23 +26,38 @@ def run(command, cwd):
     return result.stdout
 
 
-def main():
-    wheels = list((ROOT / 'dist').glob('*.whl'))
-    sdists = list((ROOT / 'dist').glob('*.tar.gz'))
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--dist-dir', type=Path, default=ROOT / 'dist')
+    args = parser.parse_args(argv)
+    wheels = list(args.dist_dir.glob('*.whl'))
+    sdists = list(args.dist_dir.glob('*.tar.gz'))
     if len(wheels) != 1 or len(sdists) != 1:
         raise RuntimeError('Expected exactly one wheel and one sdist in dist/')
     registry = runpy.run_path(str(ROOT / 'cereja' / '_exports.py'))
     required = {name.replace('.', '/') + '/__init__.pyi' for name in registry['EXPORTS']}
     required.add('cereja/py.typed')
+    required.update({'cereja/ui/text.py', 'cereja/ui/_unicode17.py',
+                     'cereja/ui/UNICODE-LICENSE.txt'})
     with zipfile.ZipFile(wheels[0]) as archive:
         missing = required - set(archive.namelist())
         if missing:
             raise AssertionError(f'Missing wheel typing files: {sorted(missing)}')
+        wheel_notice = archive.read('cereja/ui/UNICODE-LICENSE.txt')
     with tarfile.open(sdists[0], 'r:gz') as archive:
-        names = {name.partition('/')[2] for name in archive.getnames()}
-        missing = required - names
+        members = {member.name.partition('/')[2]: member for member in archive.getmembers()}
+        sources_root = 'tools/unicode/17.0.0/'
+        source_files = {'tools/generate_ui_unicode.py', sources_root + 'manifest.json', 'docs/guides/ui-text.md'}
+        missing = (required | source_files) - members.keys()
         if missing:
-            raise AssertionError(f'Missing sdist typing files: {sorted(missing)}')
+            raise AssertionError(f'Missing sdist artifacts: {sorted(missing)}')
+        manifest = json.load(archive.extractfile(members[sources_root + 'manifest.json']))
+        for name, source in manifest['sources'].items():
+            member = members.get(sources_root + name)
+            if member is None or hashlib.sha256(archive.extractfile(member).read()).hexdigest() != source['sha256']:
+                raise AssertionError(f'Missing or altered sdist Unicode input: {name}')
+        if hashlib.sha256(wheel_notice).hexdigest() != manifest['sources']['LICENSE.txt']['sha256']:
+            raise AssertionError('Wheel Unicode license differs from the pinned notice')
     with tempfile.TemporaryDirectory(prefix='cereja-wheel-check-') as directory:
         target = Path(directory)
         environment = target / 'venv'
@@ -67,12 +85,26 @@ assert Path('.').name
 '''], target)
         if output:
             raise AssertionError(f'Installed imports wrote to stdout: {output!r}')
+        output = run([str(executable), '-I', '-c', '''
+import sys
+from pathlib import Path
+from cereja.ui import text
+assert Path(text.__file__).is_relative_to(sys.prefix)
+assert text.text_metrics('e\\u0301\\U0001f6d8').line_widths() == (3,)
+assert text.UNICODE_VERSION == '17.0.0'
+assert 'UNICODE LICENSE V3' in Path(text.__file__).with_name('UNICODE-LICENSE.txt').read_text(encoding='utf-8')
+assert 'cereja.display' not in sys.modules
+assert 'cereja.system' not in sys.modules
+assert 'unicodedata' not in sys.modules
+'''], target)
+        if output:
+            raise AssertionError(f'Installed UI metrics wrote to stdout: {output!r}')
         for command in ([str(executable), '-I', '-m', 'cereja', '--help'],
                         [str(console), '--help'], [str(console), 'security', '--help']):
             output = run(command, target)
             if 'usage:' not in output.lower() or 'Using Cereja' in output:
                 raise AssertionError(f'Unexpected CLI help: {output!r}')
-    print(f'Validated wheel, sdist, {len(required) - 1} export stubs, isolated imports, and CLI entrypoints.')
+    print(f'Validated wheel, sdist, {len(registry["EXPORTS"])} export stubs, Unicode data/license, isolated imports, and CLI entrypoints.')
     return 0
 
 
