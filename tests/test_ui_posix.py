@@ -217,7 +217,11 @@ class PosixFixtureTests(unittest.TestCase):
 @unittest.skipUnless(os.name == 'posix', 'actual POSIX PTY host required')
 class PosixPTYTests(unittest.TestCase):
     def test_real_pty_scheduler_idle_worker_wake_pressure_key_and_shutdown(self):
-        from tests.ui_scheduling_probe import exercise_native
+        # Discovery puts tests/ first, where legacy tests.py shadows the package.
+        if __package__:
+            from .ui_scheduling_probe import exercise_native
+        else:
+            from ui_scheduling_probe import exercise_native
         with TerminalSession(self.backend) as session:
             report = exercise_native(session, lambda: os.write(self.master, b'x'))
         self.assertEqual(report['workload'], 10000)
