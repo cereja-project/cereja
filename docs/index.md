@@ -30,6 +30,7 @@ cli
 guides/files-and-paths
 guides/context-cache
 guides/display-progress
+guides/ui-rendering
 guides/compression-and-encryption
 guides/protected-code
 guides/text-and-data

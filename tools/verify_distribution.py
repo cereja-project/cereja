@@ -37,7 +37,7 @@ def main(argv=None):
     registry = runpy.run_path(str(ROOT / 'cereja' / '_exports.py'))
     required = {name.replace('.', '/') + '/__init__.pyi' for name in registry['EXPORTS']}
     required.add('cereja/py.typed')
-    required.update({'cereja/ui/buffer.py', 'cereja/ui/text.py', 'cereja/ui/_unicode17.py',
+    required.update({'cereja/ui/rendering.py', 'cereja/ui/buffer.py', 'cereja/ui/text.py', 'cereja/ui/_unicode17.py',
                      'cereja/ui/UNICODE-LICENSE.txt'})
     with zipfile.ZipFile(wheels[0]) as archive:
         missing = required - set(archive.namelist())
@@ -48,7 +48,8 @@ def main(argv=None):
         members = {member.name.partition('/')[2]: member for member in archive.getmembers()}
         sources_root = 'tools/unicode/17.0.0/'
         source_files = {'tools/generate_ui_unicode.py', sources_root + 'manifest.json',
-                        'docs/guides/ui-text.md', 'docs/guides/ui-buffer.md', 'benchmarks/ui_buffers.py'}
+                        'docs/guides/ui-text.md', 'docs/guides/ui-buffer.md', 'benchmarks/ui_buffers.py',
+                        'docs/guides/ui-rendering.md', 'benchmarks/ui_rendering.py'}
         missing = (required | source_files) - members.keys()
         if missing:
             raise AssertionError(f'Missing sdist artifacts: {sorted(missing)}')
@@ -91,6 +92,9 @@ import sys
 from pathlib import Path
 from cereja.ui import text
 from cereja.ui.buffer import CellBuffer, Layer, compose
+from cereja.ui.rendering import Cursor, Renderer
+from cereja.ui.testing import VirtualBackend
+from cereja.ui.terminal import TerminalSession
 assert Path(text.__file__).is_relative_to(sys.prefix)
 assert text.text_metrics('e\\u0301\\U0001f6d8').line_widths() == (3,)
 assert text.UNICODE_VERSION == '17.0.0'
@@ -101,6 +105,15 @@ overlay = CellBuffer(1, 1)
 overlay.draw_text(0, 0, 'x')
 frame = compose(2, 1, [Layer(source), Layer(overlay, x=1, z=1)])
 assert [(cell.text, cell.width) for cell in frame.rows[0]] == [(' ', 1), ('x', 1)]
+backend = VirtualBackend(size=(3, 1))
+with TerminalSession(backend) as session:
+    renderer = Renderer(session)
+    frame = frame.resized(3, 1)
+    assert renderer.render(frame, cursor=Cursor(1, 0, True))
+    assert [(c.text, c.width) for c in renderer.front[0]] == [(' ', 1), ('x', 1), (' ', 1)]
+    counts = len(backend.writes), backend.flush_count
+    assert renderer.render(frame.copy(), cursor=Cursor(1, 0, True))
+    assert (len(backend.writes), backend.flush_count) == counts
 assert 'cereja.display' not in sys.modules
 assert 'cereja.system' not in sys.modules
 assert 'unicodedata' not in sys.modules

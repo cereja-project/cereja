@@ -3,3 +3,5 @@ recursive-include tools/unicode/17.0.0 *.txt *.json
 include docs/guides/ui-text.md
 include docs/guides/ui-buffer.md
 include benchmarks/ui_buffers.py
+include docs/guides/ui-rendering.md
+include benchmarks/ui_rendering.py

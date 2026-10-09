@@ -9,8 +9,9 @@ This stage implements capability resolution, backend-neutral ownership and
 lifecycle, acknowledged output, a plain stream transport and a deterministic
 virtual backend and explicit POSIX/Win32 transports. `StreamBackend` remains
 plain even when its streams are TTYs,
-because it does not implement native acquisition. There is no production renderer,
-widget application or `cereja ui` command yet.
+because it does not implement native acquisition. The independent
+[renderer](ui-rendering.md) now supplies diff/encoding and front-buffer transactions;
+the widget application and `cereja ui` command remain subsequent stages.
 
 ## Capability resolution
 
@@ -68,14 +69,16 @@ Unpaired surrogates become U+FFFD. This transport helper performs no layout,
 grapheme segmentation or bidi rendering. Source/path views must use the full
 [text policy](ui-text.md) before accepting their rendering contract.
 
-The internal `_write_frame` hook is for the future encoder, not an arbitrary
+The internal `_write_frame` hook is for the trusted encoder, not an arbitrary
 ANSI drawing API. Each positive short acknowledgment advances only by that
 character count and retries the suffix. Noninteger, zero, negative or oversized
 counts fail. Only a complete acknowledgment and successful flush can commit
 virtual cells. An empty frame makes zero writes and zero flushes. A failure closes
 the session and requires full invalidation; a broken pipe stops output cleanly
 when restoration succeeds. There is no timeout guarantee for an OS write that
-blocks. Actual unchanged-frame comparison belongs to #299/#300.
+blocks. The [renderer](ui-rendering.md) compares unchanged frames/cursors and
+tracks session output generations; ordinary `write_text` invalidates its screen
+knowledge. Native backends do not require the virtual `commit_cells` test hook.
 
 ## Native backends and input
 

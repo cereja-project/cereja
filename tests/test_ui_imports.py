@@ -32,6 +32,7 @@ from cereja.ui.testing import VirtualBackend
 from cereja.ui.events import KeyEvent
 from cereja.ui.text import TextPolicy, text_metrics
 from cereja.ui.buffer import CellBuffer, Layer, compose
+from cereja.ui.rendering import Cursor, Renderer, full_diff, dirty_diff
 from cereja.ui.posix import PosixBackend
 from cereja.ui.windows import WindowsBackend
 assert 'cereja.display' not in sys.modules

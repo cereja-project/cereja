@@ -41,7 +41,7 @@ dotted-circle marks.
 components 0..255. `bold`, `dim`, `italic`, `underline`, `reverse` and
 `strikethrough` are booleans. No field accepts a raw ANSI string. Composition
 replaces the entire style; the caller resolves theme/inheritance first.
-Capability fallback and escape encoding belong to #300.
+Capability fallback and escape encoding belong to the [renderer](ui-rendering.md).
 
 Effective styles and immutable blank cells are shared through caches of at most
 256 entries each. Live buffers keep their own references; equality is by value,
@@ -104,7 +104,8 @@ concurrently with composition. Snapshots include the complete dimensions,
 text, effective styles and occupancy required for subsequent full-frame diffing.
 
 This stage does not write a terminal, track dirty regions, encode cursor state,
-commit a front buffer or prevent emulator autowrap. Those remain #300. Ledger
+commit a front buffer or prevent emulator autowrap. The [renderer](ui-rendering.md)
+owns those concerns. Ledger
 and the independent core remain the approved direction; legacy display and
 application features are unchanged.
 
