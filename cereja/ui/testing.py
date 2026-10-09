@@ -4,6 +4,7 @@ from collections import deque
 from copy import deepcopy
 from dataclasses import replace
 import math
+import threading
 from typing import Callable, Iterable, Mapping
 
 from ._capabilities import Capabilities, CapabilityOptions, detect_capabilities
@@ -76,6 +77,7 @@ class VirtualBackend:
         self._clock = clock
         self._elapsed = 0.0
         self._input = deque(input_events)
+        self._wake = threading.Event()
         self._write_counts = deque(write_counts)
         self.writes: list[str] = []
         self.flush_count = 0
@@ -207,3 +209,28 @@ class VirtualBackend:
         if timeout is not None:
             self._elapsed += timeout
         return False
+
+    def wake(self) -> bool:
+        """Producer-safe virtual notification; wait_events consumes it."""
+        self._wake.set()
+        return True
+
+    def wait_events(self, timeout: float | None, *, read_input=True) -> tuple:
+        """Deterministic scheduler adapter. Existing wait/read_input stay intact.
+
+        An infinite virtual wait records suspension and returns; real backends
+        block. Use individual turns for idle fake-clock tests, not an idle run().
+        """
+        from .events import WakeEvent
+        timeout = None if timeout is None else self._duration(timeout)
+        self._step('wait_events', timeout, read_input)
+        events = []
+        if read_input:
+            for _ in range(min(4096, len(self._input))):
+                events.append(self._input.popleft())
+        if self._wake.is_set():
+            self._wake.clear()
+            events.append(WakeEvent())
+        if not events and timeout is not None:
+            self._elapsed += timeout
+        return tuple(events)

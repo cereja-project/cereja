@@ -259,7 +259,7 @@ class WindowsBackend:
         events.append(EOFEvent())
         return tuple(events)
 
-    def wait(self, timeout):
+    def wait(self, timeout, *, read_input=True):
         milliseconds = self._timeout(timeout)
         with self._condition:
             if self._closed or self._closing:
@@ -269,7 +269,7 @@ class WindowsBackend:
             if self._waiters:
                 raise RuntimeError("Windows input has one wait consumer")
             self._waiters += 1
-            handles = self._wake_handle, self._input
+            handles = (self._wake_handle, self._input) if read_input else (self._wake_handle,)
         try:
             try:
                 result = self._api.wait(handles, milliseconds)
@@ -279,8 +279,16 @@ class WindowsBackend:
                 if result == WAIT_TIMEOUT:
                     return ()
                 if result == 0:
+                    # A continuously signaled application event wins the first
+                    # handle. Inspect console readiness in that same turn so
+                    # producer wakes cannot starve keyboard actions.
+                    if read_input and self._api.input_pending(self._input):
+                        records = self._api.read_input(self._input, 128)
+                        if not records:
+                            return self._finish_input()
+                        return self._decode(records) + (WakeEvent(),)
                     return (WakeEvent(),)
-                if result != 1:
+                if result != 1 or not read_input:
                     return self._finish_input(OSError("unexpected native wait result"))
                 records = self._api.read_input(self._input, 128)
                 if not records:

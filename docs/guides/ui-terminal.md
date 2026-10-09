@@ -158,8 +158,9 @@ by a renderer/test; output escape sequences are not parsed into cells.
 Finite `wait` advances virtual time, and queued input wakes it immediately.
 An infinite idle wait returns without consuming real wall time.
 
-The virtual backend is a test fixture. It does not implement the bounded event
-queue, timers or scheduling policies owned by #301. Virtual lifecycle tests prove
+The virtual backend is a test fixture. Its `wait_events` adapter and producer-safe
+`wake` support the separate [scheduler](ui-scheduling.md); it does not implement
+the bounded inbox or timers itself. Virtual lifecycle tests prove
 the session journal and failure behavior, not OS mode restoration or emulator
 compatibility. Native/PTY/real-terminal evidence remains with #296/#297/#305.
 

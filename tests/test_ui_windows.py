@@ -125,6 +125,10 @@ class FakeAPI:
         self.step("read_input", handle, limit)
         return self.records.popleft() if self.records else ()
 
+    def input_pending(self, handle):
+        self.step('input_pending', handle)
+        return len(self.records[0]) if self.records else 0
+
     def write_console(self, handle, data):
         self.step("write_console", handle, data)
         count = self.write_counts.popleft() if self.write_counts else len(data) // 2
@@ -138,6 +142,15 @@ class FakeAPI:
 
 
 class WindowsBackendTests(unittest.TestCase):
+    def test_sustained_wake_also_inspects_ready_key_and_paused_admission_does_not(self):
+        backend, api, _ = self.acquired()
+        api.records.append((key(ord('x')),))
+        api.wait_results.extend((0, 0, 0))
+        self.assertEqual(backend.wait(0, read_input=False), (WakeEvent(),))
+        self.assertEqual(api.log[-1], ('wait', (backend._wake_handle,), 0))
+        self.assertEqual(backend.wait(0), (KeyEvent('x', 'x'), WakeEvent()))
+        self.assertEqual(backend.wait(0), (WakeEvent(),))
+
     def backend(self, api=None, **kwargs):
         api = api or FakeAPI()
         backend = WindowsBackend(io.StringIO(), io.StringIO(), _api=api,
@@ -440,6 +453,10 @@ class WindowsBackendTests(unittest.TestCase):
         self.assertTrue(report["vt"])
         self.assertTrue(report["raw"])
         self.assertEqual(report["records"], 4)
+        scheduling = report['scheduling']
+        self.assertEqual(scheduling['workload'], 10000)
+        self.assertLessEqual(scheduling['key_inspection_turn'], scheduling['key_injection_turn'] + 1)
+        self.assertTrue(scheduling['worker_joined'])
         for name in ("unicode_write", "wake", "suspend", "modes_restored",
                      "cursor_restored", "cursor_position_restored", "wake_handle_closed"):
             self.assertTrue(report[name], name)

@@ -30,6 +30,7 @@ before = set(threading.enumerate())
 from cereja.ui.terminal import StreamBackend, TerminalSession
 from cereja.ui.testing import VirtualBackend
 from cereja.ui.events import KeyEvent
+from cereja.ui.scheduling import EventLoop, Cancellation, payload_bytes
 from cereja.ui.text import TextPolicy, text_metrics
 from cereja.ui.buffer import CellBuffer, Layer, compose
 from cereja.ui.rendering import Cursor, Renderer, full_diff, dirty_diff
@@ -47,6 +48,7 @@ assert not any('site-packages' in str(getattr(m, '__file__', ''))
         code = '''
 import sys
 from cereja.ui.terminal import TerminalSession
+from cereja.ui.scheduling import EventLoop
 assert 'cereja.ui.text' not in sys.modules
 assert 'cereja.ui.buffer' not in sys.modules
 assert 'cereja.ui._unicode17' not in sys.modules

@@ -65,13 +65,28 @@ class Selector:
 
     def select(self, timeout):
         self.timeouts.append(timeout)
-        return [(SimpleNamespace(data=self.registered[fd]), 1) for fd in self.ready]
+        return [(SimpleNamespace(data=self.registered[fd]), 1) for fd in self.ready
+                if fd in self.registered]
 
     def close(self):
         self.closed = True
 
 
 class PosixFixtureTests(unittest.TestCase):
+    def test_paused_admission_unregisters_input_and_retains_parser_deadline(self):
+        with TerminalSession(self.backend):
+            self.selector.ready = [3, 30]
+            self.reads[3].append(b'a')
+            self.reads[30].append(b'w')
+            self.parser.deadline = 10.03
+            self.assertEqual(self.backend.wait(None, read_input=False), (WakeEvent(),))
+            self.assertIsNone(self.selector.timeouts[-1])
+            self.assertEqual(self.parser.calls, [])
+            self.assertEqual(self.backend.input_deadline, 10.03)
+            self.assertEqual(self.selector.registered[3], 'input')
+            self.selector.ready = [3]
+            self.assertEqual(self.backend.wait(0), (KeyEvent('a', 'a'),))
+
     def setUp(self):
         from cereja.ui import posix
         self.module = posix
@@ -201,6 +216,15 @@ class PosixFixtureTests(unittest.TestCase):
 
 @unittest.skipUnless(os.name == 'posix', 'actual POSIX PTY host required')
 class PosixPTYTests(unittest.TestCase):
+    def test_real_pty_scheduler_idle_worker_wake_pressure_key_and_shutdown(self):
+        from tests.ui_scheduling_probe import exercise_native
+        with TerminalSession(self.backend) as session:
+            report = exercise_native(session, lambda: os.write(self.master, b'x'))
+        self.assertEqual(report['workload'], 10000)
+        self.assertLessEqual(report['key_inspection_turn'], report['key_injection_turn'] + 1)
+        self.assertTrue(report['worker_joined'])
+        self.assert_restored()
+
     def setUp(self):
         import pty
         import termios

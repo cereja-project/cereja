@@ -57,6 +57,8 @@ class TerminalSession:
         self._journal = []
         self._snapshot = None
         self._output_generation = 0
+        self.write_count = 0
+        self.flush_count = 0
 
     @property
     def animations_enabled(self):
@@ -203,10 +205,12 @@ class TerminalSession:
         try:
             offset = 0
             while offset < len(text):
+                self.write_count += 1
                 count = self.backend.write(text[offset:])
                 if type(count) is not int or not 0 < count <= len(text) - offset:
                     raise OSError('terminal write did not acknowledge valid progress')
                 offset += count
+            self.flush_count += 1
             self.backend.flush()
             if cells is not None:
                 commit = getattr(self.backend, 'commit_cells', None)

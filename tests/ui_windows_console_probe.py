@@ -14,6 +14,7 @@ from cereja.ui._win32 import BOOL, COORD, CONSOLE_SCREEN_BUFFER_INFO, DWORD, HAN
 from cereja.ui.events import KeyEvent, ResizeEvent, WakeEvent
 from cereja.ui.terminal import TerminalSession
 from cereja.ui.windows import WindowsBackend
+from tests.ui_scheduling_probe import exercise_native
 
 
 def key(unit, vk=0, *, modifiers=0, repeat=1):
@@ -101,6 +102,18 @@ def probe():
                     if api.get_mode(backend._input) != before_modes[0]:
                         raise AssertionError("suspend did not restore input mode")
                 result["suspend"] = not backend.capabilities.plain
+                if not dll.FlushConsoleInputBuffer(backend._input):
+                    raise C.WinError(C.get_last_error())
+                # Suspend reacquires a new event; verify the current handle.
+                event_handle = backend._wake_handle
+                def inject_key():
+                    record = key(ord('x'))
+                    count = DWORD()
+                    if not dll.WriteConsoleInputW(backend._input, C.byref(record), 1, C.byref(count)):
+                        raise C.WinError(C.get_last_error())
+                    if count.value != 1:
+                        raise AssertionError('pressure key injection was incomplete')
+                result['scheduling'] = exercise_native(session, inject_key)
             result["modes_restored"] = before_modes == (api.get_mode(backend._input), api.get_mode(backend._output))
             result["cursor_restored"] = before_cursor == api.get_cursor(backend._output)
             result["cursor_position_restored"] = before_position == api.get_screen(backend._output)[2:]

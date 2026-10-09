@@ -57,3 +57,37 @@ class InputErrorEvent:
     def __post_init__(self):
         if not isinstance(self.message, str):
             raise TypeError('input error message must be text')
+
+
+@dataclass(frozen=True)
+class FocusEvent:
+    focused: bool
+
+
+@dataclass(frozen=True)
+class ProgressEvent:
+    source: str
+    completed: int
+    total: int | None = None
+    message: str = ''
+    generation: int = 0
+
+
+@dataclass(frozen=True)
+class ResultEvent:
+    source: str
+    generation: int
+    value: str | bytes | int | float | bool | None = None
+
+
+@dataclass(frozen=True)
+class TimerEvent:
+    owner: str
+    timer_id: int
+    deadline: float
+    now: float
+
+
+@dataclass(frozen=True)
+class QuitEvent:
+    reason: str = ''

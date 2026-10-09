@@ -261,7 +261,11 @@ class PosixBackend(StreamBackend):
         self._selector.unregister(self._input_fd)
         return self._parser.eof()
 
-    def wait(self, timeout=None):
+    @property
+    def input_deadline(self):
+        return self._parser.deadline
+
+    def wait(self, timeout=None, *, read_input=True):
         self._check_open()
         if timeout is not None:
             if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
@@ -272,16 +276,25 @@ class PosixBackend(StreamBackend):
         if self._selector is None:
             raise RuntimeError('POSIX input is not acquired')
         now = self._clock()
-        pending = self._parser.expire(now)
+        pending = self._parser.expire(now) if read_input else ()
         if pending:
             return pending
-        deadline = self._parser.deadline
+        deadline = self._parser.deadline if read_input else None
         if deadline is not None:
             remaining = max(0.0, deadline - now)
             timeout = remaining if timeout is None else min(timeout, remaining)
-        ready = self._selector.select(timeout)
+        # Temporarily unregister readiness as well as skipping read(), so a
+        # full retained batch cannot create an input-ready busy loop.
+        paused = not read_input
+        if paused:
+            self._selector.unregister(self._input_fd)
+        try:
+            ready = self._selector.select(timeout)
+        finally:
+            if paused:
+                self._selector.register(self._input_fd, selectors.EVENT_READ, 'input')
         now = self._clock()
-        events = list(self._parser.expire(now))
+        events = list(self._parser.expire(now)) if read_input else []
         woke = False
         for key, mask in ready:
             if key.data == 'wake':
