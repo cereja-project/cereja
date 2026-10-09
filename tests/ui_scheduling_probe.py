@@ -86,7 +86,9 @@ def exercise_native(session, inject_key):
         if worker.is_alive() or errors or received != list(range(10000)):
             raise AssertionError(f'ordered producer failed: {errors!r}')
         if inspection_turn is None or inspection_turn > injection_turn + 1:
-            raise AssertionError('native key was not inspected by the next turn')
+            raise AssertionError('native key was not inspected by the next turn: '
+                f'injected={injection_turn}, inspected={inspection_turn}, '
+                f'total_turns={loop.metrics.turns}, admission_pauses={loop.metrics.admission_pauses}')
         pressure = asdict(loop.metrics)
         pressure_seconds = time.monotonic() - started
         # Full inbox, capacity-waiting producer and live timer at shutdown.

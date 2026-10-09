@@ -450,6 +450,11 @@ class WindowsBackendTests(unittest.TestCase):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", timeout=15)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         report = json.loads(completed.stdout)
+        report_directory = os.environ.get('CEREJA_UI_EVIDENCE_DIR')
+        if report_directory:
+            destination = Path(report_directory)
+            destination.mkdir(parents=True, exist_ok=True)
+            (destination / 'windows-console.json').write_text(completed.stdout, encoding='utf-8')
         self.assertTrue(report["vt"])
         self.assertTrue(report["raw"])
         self.assertEqual(report["records"], 4)
@@ -457,6 +462,13 @@ class WindowsBackendTests(unittest.TestCase):
         self.assertEqual(scheduling['workload'], 10000)
         self.assertLessEqual(scheduling['key_inspection_turn'], scheduling['key_injection_turn'] + 1)
         self.assertTrue(scheduling['worker_joined'])
+        self.assertIsNotNone(report['rendering']['resized_dimensions'])
+        self.assertEqual(report['rendering']['unchanged_writes_flushes'], 0)
+        self.assertFalse(report['rendering']['presentation_checked'])
+        self.assertEqual(report['fallbacks']['color_depth'], 0)
+        self.assertTrue(report['fallbacks']['ascii_only'])
+        self.assertTrue(report['fallbacks']['reduced_motion'])
+        self.assertTrue(report['fallback_restored'])
         for name in ("unicode_write", "wake", "suspend", "modes_restored",
                      "cursor_restored", "cursor_position_restored", "wake_handle_closed"):
             self.assertTrue(report[name], name)

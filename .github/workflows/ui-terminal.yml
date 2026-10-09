@@ -11,6 +11,7 @@ on:
       - 'tests/ui_windows_console_probe.py'
       - 'tests/ui_scheduling_probe.py'
       - 'tools/generate_ui_unicode.py'
+      - 'tools/check_ui_distribution.py'
       - 'tools/unicode/**'
       - 'pyproject.toml'
       - 'MANIFEST.in'
@@ -26,6 +27,7 @@ on:
       - 'tests/ui_windows_console_probe.py'
       - 'tests/ui_scheduling_probe.py'
       - 'tools/generate_ui_unicode.py'
+      - 'tools/check_ui_distribution.py'
       - 'tools/unicode/**'
       - 'pyproject.toml'
       - 'MANIFEST.in'
@@ -43,6 +45,7 @@ jobs:
     timeout-minutes: 5
     env:
       PYTHONIOENCODING: utf-8
+      CEREJA_UI_EVIDENCE_DIR: ui-platform-evidence
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +60,10 @@ jobs:
         run: python -B -S tools/generate_ui_unicode.py --check
       - name: Check native transports and text metrics using only the standard library
         run: python -B -S -m unittest discover -s tests -p 'test_ui_*.py' -v
+      - name: Prepare build-only tools
+        run: python -m pip install 'setuptools>=61' wheel
+      - name: Install wheel and sdist offline in empty environments
+        run: python -B tools/check_ui_distribution.py --output ui-platform-evidence/distribution.json
       - name: Smoke reproducible core measurement paths (no timing gate)
         run: |
           python -B -S benchmarks/ui_rendering.py --samples 1 --warmup 1 --memory-samples 1 --width 80 --height 24 --output rendering-smoke.json
@@ -66,3 +73,10 @@ jobs:
       - name: Smoke isolated native Windows output measurements
         if: runner.os == 'Windows'
         run: python -B -S benchmarks/ui_rendering.py --transport windows --samples 1 --warmup 1 --output console-smoke.json
+      - name: Preserve core platform evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-platform-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: ui-platform-evidence/
+          if-no-files-found: error

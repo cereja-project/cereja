@@ -4,7 +4,10 @@ from collections import deque
 from contextlib import ExitStack
 from copy import deepcopy
 import io
+import json
 import os
+from pathlib import Path
+import platform
 import signal
 import sys
 import threading
@@ -216,14 +219,95 @@ class PosixFixtureTests(unittest.TestCase):
 
 @unittest.skipUnless(os.name == 'posix', 'actual POSIX PTY host required')
 class PosixPTYTests(unittest.TestCase):
+    def test_real_pty_rendering_resize_and_static_ascii_no_color(self):
+        import selectors
+        import termios
+        from cereja.ui.buffer import CellBuffer, Style
+        from cereja.ui.rendering import Renderer
+        from cereja.ui.scheduling import EventLoop
+        from cereja.ui.terminal import CapabilityOptions
+        from cereja.ui.text import TextPolicy
+
+        def drain():
+            output = bytearray()
+            with selectors.DefaultSelector() as selector:
+                selector.register(self.master, selectors.EVENT_READ)
+                self.assertTrue(selector.select(.5), 'flushed PTY output was unavailable')
+                while selector.select(0):
+                    output.extend(os.read(self.master, 65536))
+            return output.decode('utf-8')
+
+        original_size = termios.tcgetwinsize(self.slave)
+        self.addCleanup(termios.tcsetwinsize, self.slave, original_size)
+        cases = []
+        for fallback in (False, True):
+            with self.subTest(fallback=fallback):
+                options = CapabilityOptions(unicode=False, reduced_motion=True) if fallback else None
+                backend = PosixBackend(self.input, self.output, options=options,
+                    environ={'TERM': 'xterm-256color', **({'NO_COLOR': '1'} if fallback else {})})
+                self.addCleanup(backend.close)
+                termios.tcsetwinsize(self.slave, (12, 40))
+                with TerminalSession(backend) as session:
+                    cases.append({name: getattr(session.capabilities, name) for name in
+                                  ('plain', 'color_depth', 'unicode', 'cursor', 'alternate_screen',
+                                   'paste', 'reduced_motion')})
+                    renderer = Renderer(session, verify_damage=True)
+                    for width, height in ((40, 12), (32, 10)):
+                        termios.tcsetwinsize(self.slave, (height, width))
+                        os.kill(os.getpid(), signal.SIGWINCH)
+                        self.assertIn(ResizeEvent(width, height), backend.wait(.5))
+                        frame = CellBuffer(width, height, policy=TextPolicy(ascii_only=fallback))
+                        frame.draw_text(0, 0, 'e\u0301界😀\x1b]52;c;x\x07', style=Style(1, bold=True))
+                        self.assertTrue(renderer.render(frame))
+                        output = drain()
+                        self.assertNotIn('\x1b]52;', output)
+                        self.assertNotIn('\x07', output)
+                        self.assertIn('?' if fallback else '界😀', output)
+                        if fallback:
+                            self.assertTrue(output.isascii())
+                            self.assertTrue(all(cell.style.foreground is None
+                                                for row in renderer.front for cell in row))
+                        else:
+                            self.assertEqual(renderer.front[0][0].style, Style(1, bold=True))
+                        counts = session.write_count, session.flush_count
+                        self.assertTrue(renderer.render(frame.copy(), damage=[]))
+                        self.assertEqual((session.write_count, session.flush_count), counts)
+                    if fallback:
+                        self.assertFalse(session.animations_enabled)
+                        loop = EventLoop(session, lambda event: None)
+                        self.assertIsNone(loop.call_later(1, owner='spinner', decorative=True))
+                        loop.close()
+                self.assert_restored()
+        report_directory = os.environ.get('CEREJA_UI_EVIDENCE_DIR')
+        if report_directory:
+            destination = Path(report_directory)
+            destination.mkdir(parents=True, exist_ok=True)
+            (destination / 'posix-pty.json').write_text(json.dumps({
+                'host': 'OS PTY (not emulator)', 'platform': platform.platform(), 'python': sys.version,
+                'encoding': self.output.encoding, 'dimensions': [[40, 12], [32, 10]],
+                'capabilities': cases,
+                'unicode_color': True, 'ascii_no_color_reduced_motion': True,
+                'resize': True, 'restored': True, 'unchanged_writes_flushes': 0,
+                'presentation_checked': False, 'emulator': None, 'emulator_version': None,
+            }, indent=2) + '\n', encoding='utf-8')
+
     def test_real_pty_scheduler_idle_worker_wake_pressure_key_and_shutdown(self):
+        import selectors
         # Discovery puts tests/ first, where legacy tests.py shadows the package.
         if __package__:
             from .ui_scheduling_probe import exercise_native
         else:
             from ui_scheduling_probe import exercise_native
+        def inject_ready_key():
+            os.write(self.master, b'x')
+            # PTY master acknowledgement is not slave readiness under producer
+            # pressure. Observe availability without consuming the key, then
+            # retain the existing next-turn fairness assertion.
+            with selectors.DefaultSelector() as selector:
+                selector.register(self.slave, selectors.EVENT_READ)
+                self.assertTrue(selector.select(.5), 'injected PTY key did not become readable')
         with TerminalSession(self.backend) as session:
-            report = exercise_native(session, lambda: os.write(self.master, b'x'))
+            report = exercise_native(session, inject_ready_key)
         self.assertEqual(report['workload'], 10000)
         self.assertLessEqual(report['key_inspection_turn'], report['key_injection_turn'] + 1)
         self.assertTrue(report['worker_joined'])

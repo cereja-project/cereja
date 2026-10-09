@@ -62,6 +62,31 @@ assert 'cereja.system' not in sys.modules
 '''
         self.check_process(code)
 
+    def test_imports_never_attempt_workers_handlers_or_terminal_acquisition(self):
+        # A before/after snapshot alone would miss a short-lived worker or a
+        # handler/mode installed and then restored during import.
+        code = '''
+import ctypes, os, selectors, signal, subprocess, threading
+from contextlib import ExitStack
+from unittest.mock import patch
+targets = [(threading.Thread, 'start'), (signal, 'signal'),
+           (subprocess, 'Popen'), (os, 'open'), (selectors, 'DefaultSelector')]
+if os.name == 'posix':
+    import termios
+    targets.append((termios, 'tcsetattr'))
+if os.name == 'nt':
+    targets.append((ctypes, 'WinDLL'))
+with ExitStack() as stack:
+    for owner, name in targets:
+        stack.enter_context(patch.object(owner, name,
+                            side_effect=AssertionError('import acquired ' + name)))
+    import cereja
+    import cereja.ui
+    from cereja.ui import terminal, testing, events, scheduling
+    from cereja.ui import text, buffer, rendering, posix, windows
+'''
+        self.check_process(code)
+
     def check_process(self, code):
         result = subprocess.run([sys.executable, '-S', '-c', code], cwd=ROOT,
                                 capture_output=True, text=True, timeout=15)
