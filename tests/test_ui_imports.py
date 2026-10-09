@@ -31,6 +31,7 @@ from cereja.ui.terminal import StreamBackend, TerminalSession
 from cereja.ui.testing import VirtualBackend
 from cereja.ui.events import KeyEvent
 from cereja.ui.text import TextPolicy, text_metrics
+from cereja.ui.buffer import CellBuffer, Layer, compose
 from cereja.ui.posix import PosixBackend
 from cereja.ui.windows import WindowsBackend
 assert 'cereja.display' not in sys.modules
@@ -46,6 +47,7 @@ assert not any('site-packages' in str(getattr(m, '__file__', ''))
 import sys
 from cereja.ui.terminal import TerminalSession
 assert 'cereja.ui.text' not in sys.modules
+assert 'cereja.ui.buffer' not in sys.modules
 assert 'cereja.ui._unicode17' not in sys.modules
 from cereja.ui.text import text_metrics
 assert text_metrics('test').line_widths() == (4,)

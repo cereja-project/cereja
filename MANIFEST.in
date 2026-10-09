@@ -1,3 +1,5 @@
 include tools/generate_ui_unicode.py
 recursive-include tools/unicode/17.0.0 *.txt *.json
 include docs/guides/ui-text.md
+include docs/guides/ui-buffer.md
+include benchmarks/ui_buffers.py

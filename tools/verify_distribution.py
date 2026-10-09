@@ -37,7 +37,7 @@ def main(argv=None):
     registry = runpy.run_path(str(ROOT / 'cereja' / '_exports.py'))
     required = {name.replace('.', '/') + '/__init__.pyi' for name in registry['EXPORTS']}
     required.add('cereja/py.typed')
-    required.update({'cereja/ui/text.py', 'cereja/ui/_unicode17.py',
+    required.update({'cereja/ui/buffer.py', 'cereja/ui/text.py', 'cereja/ui/_unicode17.py',
                      'cereja/ui/UNICODE-LICENSE.txt'})
     with zipfile.ZipFile(wheels[0]) as archive:
         missing = required - set(archive.namelist())
@@ -47,7 +47,8 @@ def main(argv=None):
     with tarfile.open(sdists[0], 'r:gz') as archive:
         members = {member.name.partition('/')[2]: member for member in archive.getmembers()}
         sources_root = 'tools/unicode/17.0.0/'
-        source_files = {'tools/generate_ui_unicode.py', sources_root + 'manifest.json', 'docs/guides/ui-text.md'}
+        source_files = {'tools/generate_ui_unicode.py', sources_root + 'manifest.json',
+                        'docs/guides/ui-text.md', 'docs/guides/ui-buffer.md', 'benchmarks/ui_buffers.py'}
         missing = (required | source_files) - members.keys()
         if missing:
             raise AssertionError(f'Missing sdist artifacts: {sorted(missing)}')
@@ -89,10 +90,17 @@ assert Path('.').name
 import sys
 from pathlib import Path
 from cereja.ui import text
+from cereja.ui.buffer import CellBuffer, Layer, compose
 assert Path(text.__file__).is_relative_to(sys.prefix)
 assert text.text_metrics('e\\u0301\\U0001f6d8').line_widths() == (3,)
 assert text.UNICODE_VERSION == '17.0.0'
 assert 'UNICODE LICENSE V3' in Path(text.__file__).with_name('UNICODE-LICENSE.txt').read_text(encoding='utf-8')
+source = CellBuffer(2, 1)
+source.draw_text(0, 0, '\\u754c')
+overlay = CellBuffer(1, 1)
+overlay.draw_text(0, 0, 'x')
+frame = compose(2, 1, [Layer(source), Layer(overlay, x=1, z=1)])
+assert [(cell.text, cell.width) for cell in frame.rows[0]] == [(' ', 1), ('x', 1)]
 assert 'cereja.display' not in sys.modules
 assert 'cereja.system' not in sys.modules
 assert 'unicodedata' not in sys.modules

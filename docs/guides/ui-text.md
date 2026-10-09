@@ -78,7 +78,8 @@ select a single line's cell interval `[left, left + cells)`. Tabs become spaces.
 A wide cluster intersecting either clipping edge becomes blanks for its visible
 cells. Clipping preserves whole clusters and adds no padding past actual text.
 Multi-line input raises `ValueError`; the caller selects the line explicitly.
-Wide-cell replacement and overlapping composition belong to #299.
+Wide-cell replacement and overlapping composition use the
+[cell-buffer contracts](ui-buffer.md).
 
 The shared cache includes normalized text, Unicode version and the complete
 policy. It retains at most 128 entries, only for strings of at most 1,024 code
