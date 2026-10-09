@@ -5,3 +5,6 @@ cereja/ui/UNICODE-LICENSE.txt -text
 # The generator verifies exact bytes on every supported host.
 cereja/ui/_unicode17.py text eol=lf
 tools/unicode/17.0.0/manifest.json text eol=lf
+# Benchmark seals hash exact report bytes, including the collection host's EOL.
+benchmarks/ui_core_samples/**/*.json -text whitespace=cr-at-eol
+benchmarks/ui_core_samples/**/*.jsonl -text whitespace=cr-at-eol

@@ -5,10 +5,12 @@ from dataclasses import asdict
 import json
 import os
 from pathlib import Path
-import platform
 import statistics
 import subprocess
 import sys
+from time import perf_counter_ns
+
+from _ui_bench import emit, environment, summaries, traced
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -97,16 +99,68 @@ def posix():
         os.close(slave)
 
 
+def timers(width, height, count):
+    """Real elapsed compute over fake deadlines, with small fixed callbacks."""
+    from cereja.ui.buffer import CellBuffer
+    from cereja.ui.events import TimerEvent
+    from cereja.ui.scheduling import EventLoop
+    from cereja.ui.terminal import TerminalSession
+    from cereja.ui.testing import VirtualBackend
+    backend = VirtualBackend(size=(width, height))
+    received = []
+    with TerminalSession(backend) as session:
+        loop = EventLoop(session, received.append, clock=backend.clock)
+        start = perf_counter_ns()
+        for index in range(count):
+            loop.call_later(.125, owner=f'timer-{index}')
+        create_ns = perf_counter_ns() - start
+        backend.advance(.125)
+        start = perf_counter_ns()
+        while loop.timer_count:
+            loop.turn()
+        dispatch_ns = perf_counter_ns() - start
+        assert len(received) == count and all(type(event) is TimerEvent for event in received)
+        frame = CellBuffer(width, height)
+        frame.draw_text(0, 0, 'Ledger e\u0301 \u754c \U0001f469\u200d\U0001f4bb')
+        start = perf_counter_ns()
+        loop.request_render(frame)
+        loop.turn()
+        first_render_ns = perf_counter_ns() - start
+        before = (session.write_count, session.flush_count)
+        backend.advance(1)
+        start = perf_counter_ns()
+        loop.request_render(frame)
+        loop.turn()
+        unchanged_render_ns = perf_counter_ns() - start
+        assert (session.write_count, session.flush_count) == before
+        counters = asdict(loop.metrics)
+        loop.close()
+        return {'create_ns': create_ns, 'dispatch_ns': dispatch_ns,
+                'first_render_ns': first_render_ns, 'unchanged_render_ns': unchanged_render_ns,
+                **counters}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--transport', choices=('virtual', 'windows', 'posix'), default='virtual')
     parser.add_argument('--samples', type=int, default=5)
+    parser.add_argument('--warmup', type=int, default=3)
+    parser.add_argument('--memory-samples', type=int, default=7)
+    parser.add_argument('--output')
     args = parser.parse_args()
-    if not 1 <= args.samples <= 31:
-        parser.error('samples must be in 1..31')
+    if not 1 <= args.samples <= 31 or min(args.warmup, args.memory_samples) < 1:
+        parser.error('samples must be in 1..31; warmup and memory samples positive')
+    for _ in range(args.warmup):
+        globals()[args.transport]()
     samples = [globals()[args.transport]() for _ in range(args.samples)]
-    result = {'python': sys.version, 'platform': platform.platform(),
+    result = {'environment': environment(),
               'transport': args.transport, 'samples': samples,
+              'conditions': {'warmup': args.warmup, 'samples': args.samples,
+                             'memory_samples': args.memory_samples, 'seed': None,
+                             'callbacks': 'Small append, fixed 10,000 integer results, UTF-8 source names.',
+                             'fake_clock': args.transport == 'virtual',
+                             'limits': 'Fake time validates scheduling, never native latency; native injection '
+                                       'includes worker/thread/instrumentation costs, not emulator or Ledger latency.'},
               'policies': {'envelopes': 1024, 'bytes': 1048576,
                            'events_per_turn': 64, 'producer_seconds': .004,
                            'local_hz': 30, 'low_bandwidth_hz': 4, 'spinner_hz': 8}}
@@ -115,7 +169,19 @@ def main():
             sample['key_latency_seconds'] for sample in samples)
         result['median_idle_post_latency_seconds'] = statistics.median(
             sample['idle_post_latency_seconds'] for sample in samples)
-    print(json.dumps(result, indent=2, ensure_ascii=True))
+        result['summary'] = summaries(samples)
+    else:
+        result['timer_results'] = []
+        for width, height in ((80, 24), (120, 40), (240, 80)):
+            for count in (1, 64, 1024):
+                for _ in range(args.warmup):
+                    timers(width, height, count)
+                raw = [timers(width, height, count) for _ in range(args.samples)]
+                memory = [traced(lambda: timers(width, height, count)) for _ in range(args.memory_samples)]
+                result['timer_results'].append({'width': width, 'height': height, 'timers': count,
+                                                'raw': raw, 'summary': summaries(raw),
+                                                'memory_raw': memory, 'memory_summary': summaries(memory)})
+    emit(result, args.output)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,55 @@
+{
+  "environment": {
+    "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+    "implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "pointer_bits": 64,
+    "gc_enabled": true,
+    "head": "383598f96ab4619530e7783797c7a4a55aac653c",
+    "head_tree": "1fb748a7b024a04c8515c669c4c2c593c3fbc87a",
+    "dirty": true,
+    "source_sha256": {
+      "cereja/ui/__init__.py": "14d024045a95ea60044f19b787f32173ea0a243e2dbc8381b951422c9185b78a",
+      "cereja/ui/_capabilities.py": "f232ee5d55446209cc125e6b836dabda076d041e6c17330bda6075888f854976",
+      "cereja/ui/_input.py": "744040c21a8d9fe2376062d25f122696fb7c4fbea5433ef2d9b2bdd968036dc7",
+      "cereja/ui/_posting.py": "a6eef1dc4028e87b49645bd9eb844cf25d33d13e096b2dc245eba19ed7cf3a62",
+      "cereja/ui/_session.py": "1386b1783297d5f0cba0d20673b86314724cdcd6e7ce7c7ba40acf130b0bee3c",
+      "cereja/ui/_unicode17.py": "271b1230d0e119ec8b6a16d6a6958ab6e2f14c24aa8da750821696542d8caa70",
+      "cereja/ui/_win32.py": "03025e4feb359275a77166170693d4c4876d220cdc90779cadb904f11513c81b",
+      "cereja/ui/buffer.py": "2eab2e387220931f7830750cb579f2839f509c129160f07c2b78df56e66223e9",
+      "cereja/ui/events.py": "93e14079df801b05c3881a4b5e8fd0ca25834c92be5095bc473daca099e8384e",
+      "cereja/ui/posix.py": "c2d330f87ac68c579be96dad5593872a782d8ee98474a663ab06b70516dfb687",
+      "cereja/ui/rendering.py": "9a2b11348d14fd334671124f0d67f9dbbf2bd2e83e5eb2470d597314204b627f",
+      "cereja/ui/scheduling.py": "5c8caab2ae02711ea22441cf3564fded9a64e86dcc7c29d591b524c8726484ab",
+      "cereja/ui/terminal.py": "066f3203dceec6f203219f3281addac94e0312a0240cebde3299feea02bab048",
+      "cereja/ui/testing.py": "0a763aad35c702890b229a1c5a187dbdef04cb43ef803e1041096b029de7b43f",
+      "cereja/ui/text.py": "b0dd9bcbb4c2ad180255022169d9dc4d45d440523d426d4847f428bef93ded75",
+      "cereja/ui/windows.py": "c1744f53ee1bd735614f9054e5a8d1330808b8d20169057a947e9a2f77f80c66",
+      "benchmarks/_ui_bench.py": "43b2dd77ed073f29e71366df0403e1748416205b173c90a287f2cd4623874484",
+      "benchmarks/ui_buffers.py": "cc46f6bd0e30535c62145f3036644db2bf4ed8082d398cb3eb889425287c5aaf",
+      "benchmarks/ui_rendering.py": "0fb32d9dd87c54a42886aa33f46755486878fd7b857553dace57a8fb5c12a15b",
+      "benchmarks/ui_scheduling.py": "52065febe4e606f1981b63287bbe57afee356c6a6cbc1b83d3f0c371d06f34e5",
+      "benchmarks/imports.py": "2660009015553f2f0750de1b8f9b230875dd2e3258856314ea9290d62a19fada",
+      "tests/ui_scheduling_probe.py": "cf96ae40f52f6b856f6054910481cfe9d9212abeeb9605c724f80292eda8d68c",
+      "tests/ui_windows_console_probe.py": "fd20b906436b57c415b96e6021e8640bbda7c0b38e1a25d4eec7e2be09c29e40"
+    },
+    "execution": "One benchmark process at a time; affinity/power/background load uncontrolled; filesystem/import caches may be OS-warm; no cross-host comparison."
+  },
+  "conditions": {
+    "dimensions": [
+      240,
+      80
+    ],
+    "profile": "unicode_styles",
+    "long_input": true,
+    "warmup": 1,
+    "profiled_calls": 3,
+    "limits": "Diagnostic cumulative call attribution; cProfile overhead included, not latency/throughput samples or a candidate comparison."
+  },
+  "profiles": {
+    "paint_full": "         25600392 function calls in 6.494 seconds\n\n   Ordered by: cumulative time\n   List reduced from 47 to 20 due to restriction <20>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        3    0.000    0.000    6.898    2.299 profile_core.py:26(<lambda>)\n        3    0.001    0.000    6.898    2.299 ui_rendering.py:76(draw_workload)\n      240    0.015    0.000    6.704    0.028 ui_rendering.py:63(row_text)\n      480    0.004    0.000    6.609    0.014 text.py:302(text_metrics)\n      240    0.626    0.003    5.826    0.024 text.py:282(_measure)\n   745680    0.885    0.000    2.758    0.000 text.py:147(_display_grapheme)\n   745920    0.864    0.000    1.949    0.000 text.py:37(grapheme_spans)\n  4879440    0.816    0.000    1.458    0.000 text.py:32(_contains)\n  7403280    1.100    0.000    1.100    0.000 {built-in method _bisect.bisect_right}\n  1434000    0.445    0.000    1.097    0.000 text.py:155(<genexpr>)\n  2523840    0.479    0.000    0.937    0.000 text.py:25(_lookup)\n      480    0.387    0.001    0.778    0.002 text.py:117(normalize_text)\n   688320    0.169    0.000    0.399    0.000 text.py:142(_scalar_width)\n      240    0.021    0.000    0.192    0.001 buffer.py:219(draw_text)\n  2642400    0.191    0.000    0.191    0.000 {built-in method builtins.ord}\n  1774560    0.147    0.000    0.147    0.000 {method 'append' of 'list' objects}\n      240    0.078    0.000    0.132    0.001 text.py:253(clip)\n    49680    0.024    0.000    0.101    0.000 buffer.py:200(_paint)\n   787683    0.074    0.000    0.074    0.000 {built-in method builtins.max}\n    49680    0.025    0.000    0.070    0.000 buffer.py:192(_put)\n\n\n",
+    "prepare_unchanged": "         232302 function calls in 0.054 seconds\n\n   Ordered by: cumulative time\n   List reduced from 31 to 20 due to restriction <20>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        3    0.000    0.000    0.070    0.023 profile_core.py:27(<lambda>)\n        3    0.027    0.009    0.070    0.023 rendering.py:151(_prepare_frame)\n   115467    0.018    0.000    0.026    0.000 <string>:29(__hash__)\n   115467    0.008    0.000    0.008    0.000 {built-in method builtins.hash}\n        3    0.000    0.000    0.000    0.000 buffer.py:212(clear)\n      240    0.000    0.000    0.000    0.000 buffer.py:192(_put)\n      240    0.000    0.000    0.000    0.000 buffer.py:185(_erase)\n        3    0.000    0.000    0.000    0.000 buffer.py:172(copy)\n        3    0.000    0.000    0.000    0.000 {method 'copy' of 'list' objects}\n       15    0.000    0.000    0.000    0.000 buffer.py:57(__post_init__)\n      240    0.000    0.000    0.000    0.000 <string>:15(__eq__)\n        3    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}\n       30    0.000    0.000    0.000    0.000 buffer.py:24(_color)\n        3    0.000    0.000    0.000    0.000 buffer.py:133(__init__)\n        3    0.000    0.000    0.000    0.000 buffer.py:177(_clip)\n        9    0.000    0.000    0.000    0.000 <string>:2(__init__)\n        3    0.000    0.000    0.000    0.000 buffer.py:114(intersection)\n      252    0.000    0.000    0.000    0.000 buffer.py:143(width)\n        9    0.000    0.000    0.000    0.000 buffer.py:108(__post_init__)\n        6    0.000    0.000    0.000    0.000 buffer.py:74(_style)\n\n\n"
+  }
+}

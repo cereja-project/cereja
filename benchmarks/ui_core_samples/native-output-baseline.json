@@ -1,0 +1,2140 @@
+{
+  "environment": {
+    "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+    "implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "pointer_bits": 64,
+    "gc_enabled": true,
+    "head": "383598f96ab4619530e7783797c7a4a55aac653c",
+    "head_tree": "1fb748a7b024a04c8515c669c4c2c593c3fbc87a",
+    "dirty": true,
+    "source_sha256": {
+      "cereja/ui/__init__.py": "14d024045a95ea60044f19b787f32173ea0a243e2dbc8381b951422c9185b78a",
+      "cereja/ui/_capabilities.py": "f232ee5d55446209cc125e6b836dabda076d041e6c17330bda6075888f854976",
+      "cereja/ui/_input.py": "744040c21a8d9fe2376062d25f122696fb7c4fbea5433ef2d9b2bdd968036dc7",
+      "cereja/ui/_posting.py": "a6eef1dc4028e87b49645bd9eb844cf25d33d13e096b2dc245eba19ed7cf3a62",
+      "cereja/ui/_session.py": "1386b1783297d5f0cba0d20673b86314724cdcd6e7ce7c7ba40acf130b0bee3c",
+      "cereja/ui/_unicode17.py": "271b1230d0e119ec8b6a16d6a6958ab6e2f14c24aa8da750821696542d8caa70",
+      "cereja/ui/_win32.py": "03025e4feb359275a77166170693d4c4876d220cdc90779cadb904f11513c81b",
+      "cereja/ui/buffer.py": "2eab2e387220931f7830750cb579f2839f509c129160f07c2b78df56e66223e9",
+      "cereja/ui/events.py": "93e14079df801b05c3881a4b5e8fd0ca25834c92be5095bc473daca099e8384e",
+      "cereja/ui/posix.py": "c2d330f87ac68c579be96dad5593872a782d8ee98474a663ab06b70516dfb687",
+      "cereja/ui/rendering.py": "9a2b11348d14fd334671124f0d67f9dbbf2bd2e83e5eb2470d597314204b627f",
+      "cereja/ui/scheduling.py": "5c8caab2ae02711ea22441cf3564fded9a64e86dcc7c29d591b524c8726484ab",
+      "cereja/ui/terminal.py": "066f3203dceec6f203219f3281addac94e0312a0240cebde3299feea02bab048",
+      "cereja/ui/testing.py": "0a763aad35c702890b229a1c5a187dbdef04cb43ef803e1041096b029de7b43f",
+      "cereja/ui/text.py": "b0dd9bcbb4c2ad180255022169d9dc4d45d440523d426d4847f428bef93ded75",
+      "cereja/ui/windows.py": "c1744f53ee1bd735614f9054e5a8d1330808b8d20169057a947e9a2f77f80c66",
+      "benchmarks/_ui_bench.py": "43b2dd77ed073f29e71366df0403e1748416205b173c90a287f2cd4623874484",
+      "benchmarks/ui_buffers.py": "cc46f6bd0e30535c62145f3036644db2bf4ed8082d398cb3eb889425287c5aaf",
+      "benchmarks/ui_rendering.py": "0fb32d9dd87c54a42886aa33f46755486878fd7b857553dace57a8fb5c12a15b",
+      "benchmarks/ui_scheduling.py": "52065febe4e606f1981b63287bbe57afee356c6a6cbc1b83d3f0c371d06f34e5",
+      "benchmarks/imports.py": "2660009015553f2f0750de1b8f9b230875dd2e3258856314ea9290d62a19fada",
+      "tests/ui_scheduling_probe.py": "cf96ae40f52f6b856f6054910481cfe9d9212abeeb9605c724f80292eda8d68c",
+      "tests/ui_windows_console_probe.py": "fd20b906436b57c415b96e6021e8640bbda7c0b38e1a25d4eec7e2be09c29e40"
+    },
+    "execution": "One benchmark process at a time; affinity/power/background load uncontrolled; filesystem/import caches may be OS-warm; no cross-host comparison."
+  },
+  "conditions": {
+    "transport": "Hidden fresh Windows console, WriteConsoleW UTF-16; UTF-8 bytes are logical payload accounting",
+    "long_input": false,
+    "samples": 31,
+    "warmup": 3,
+    "dimensions": [
+      [
+        80,
+        24
+      ],
+      [
+        120,
+        40
+      ],
+      [
+        240,
+        80
+      ]
+    ],
+    "limits": "Fixed encoded payloads, not Renderer viewport validation or visual acknowledgement. Logical dimensions may exceed native viewport; no emulator/SSH/ConPTY or application latency. Session acquisition/setup/encode/restoration outside timing; stage wrappers inside transaction."
+  },
+  "results": [
+    {
+      "width": 80,
+      "height": 24,
+      "profile": "ascii",
+      "workload": "full_encoded_payload",
+      "raw": [
+        {
+          "write_ns": 241100,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 246200,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 225200,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 230400,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 227100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 231500,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 230300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 234600,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 221000,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 225300,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 225200,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 229400,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 228400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 232500,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 221900,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 232300,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 226400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 230800,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 215600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 219600,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 222400,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 226400,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 221700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 226100,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 226700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 231000,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 221400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 225800,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 223700,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 228900,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 231600,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 236100,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 234000,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 239000,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 229200,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 233800,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 223200,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 227100,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 220300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 224400,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 257600,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 264800,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 235900,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 242400,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 237400,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 242900,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 225800,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 231000,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 233200,
+          "flush_ns": 800,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 241600,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 267300,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 275700,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 283000,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 288600,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 230400,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 234700,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 227000,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 231100,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 225600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 229600,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        },
+        {
+          "write_ns": 229800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 234000,
+          "utf8_bytes": 2098,
+          "utf16_code_units": 2098
+        }
+      ],
+      "summary": {
+        "write_ns": {
+          "n": 31,
+          "median": 227000,
+          "p95": 267300,
+          "mad": 4600,
+          "min": 215600,
+          "max": 283000
+        },
+        "flush_ns": {
+          "n": 31,
+          "median": 300,
+          "p95": 600,
+          "mad": 0,
+          "min": 300,
+          "max": 800
+        },
+        "writes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "transaction_instrumented_ns": {
+          "n": 31,
+          "median": 231500,
+          "p95": 275700,
+          "mad": 4400,
+          "min": 219600,
+          "max": 288600
+        },
+        "utf8_bytes": {
+          "n": 31,
+          "median": 2098,
+          "p95": 2098,
+          "mad": 0,
+          "min": 2098,
+          "max": 2098
+        },
+        "utf16_code_units": {
+          "n": 31,
+          "median": 2098,
+          "p95": 2098,
+          "mad": 0,
+          "min": 2098,
+          "max": 2098
+        }
+      }
+    },
+    {
+      "width": 80,
+      "height": 24,
+      "profile": "unicode_styles",
+      "workload": "full_encoded_payload",
+      "raw": [
+        {
+          "write_ns": 388800,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 395000,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 359800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 364700,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 347000,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 351200,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 364600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 368900,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 353800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 357900,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 467800,
+          "flush_ns": 800,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 476400,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 478600,
+          "flush_ns": 700,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 487100,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 550900,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 556300,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 390100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 394500,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 357800,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 363100,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 354800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 359900,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 485100,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 490100,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 363700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 368300,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 345100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 349500,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 348700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 353500,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 357900,
+          "flush_ns": 6600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 368700,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 349900,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 354500,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 355900,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 359900,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 343500,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 347600,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 347800,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 352100,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 345900,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 350400,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 351800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 355800,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 346700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 351200,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 335500,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 339700,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 351100,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 355200,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 345700,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 349500,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 351700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 355600,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 361400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 365900,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 343200,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 347600,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 344100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 348500,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        },
+        {
+          "write_ns": 355800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 359700,
+          "utf8_bytes": 4848,
+          "utf16_code_units": 3288
+        }
+      ],
+      "summary": {
+        "write_ns": {
+          "n": 31,
+          "median": 353800,
+          "p95": 485100,
+          "mad": 7600,
+          "min": 335500,
+          "max": 550900
+        },
+        "flush_ns": {
+          "n": 31,
+          "median": 300,
+          "p95": 800,
+          "mad": 0,
+          "min": 200,
+          "max": 6600
+        },
+        "writes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "transaction_instrumented_ns": {
+          "n": 31,
+          "median": 357900,
+          "p95": 490100,
+          "mad": 8000,
+          "min": 339700,
+          "max": 556300
+        },
+        "utf8_bytes": {
+          "n": 31,
+          "median": 4848,
+          "p95": 4848,
+          "mad": 0,
+          "min": 4848,
+          "max": 4848
+        },
+        "utf16_code_units": {
+          "n": 31,
+          "median": 3288,
+          "p95": 3288,
+          "mad": 0,
+          "min": 3288,
+          "max": 3288
+        }
+      }
+    },
+    {
+      "width": 120,
+      "height": 40,
+      "profile": "ascii",
+      "workload": "full_encoded_payload",
+      "raw": [
+        {
+          "write_ns": 468200,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 472400,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 482200,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 486300,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 464100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 468300,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 473800,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 479200,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 460200,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 464700,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 456700,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 461300,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 473700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 477900,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 483100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 487100,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 462100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 466100,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 468000,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 471900,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 460500,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 464400,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 459900,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 464400,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 466600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 470900,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 466300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 470500,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 454300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 458400,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 461800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 465800,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 477700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 481700,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 469800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 474000,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 545700,
+          "flush_ns": 2000,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 566700,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 2479800,
+          "flush_ns": 700,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2492300,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 500000,
+          "flush_ns": 700,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 509000,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 488700,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 495000,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 518500,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 526400,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 497300,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 503600,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 464800,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 470000,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 491300,
+          "flush_ns": 700,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 498300,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 505700,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 511400,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 496400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 500900,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 738700,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 743300,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 531700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 536100,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        },
+        {
+          "write_ns": 473500,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 477500,
+          "utf8_bytes": 5074,
+          "utf16_code_units": 5074
+        }
+      ],
+      "summary": {
+        "write_ns": {
+          "n": 31,
+          "median": 473700,
+          "p95": 738700,
+          "mad": 13200,
+          "min": 454300,
+          "max": 2479800
+        },
+        "flush_ns": {
+          "n": 31,
+          "median": 300,
+          "p95": 700,
+          "mad": 0,
+          "min": 200,
+          "max": 2000
+        },
+        "writes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "transaction_instrumented_ns": {
+          "n": 31,
+          "median": 477900,
+          "p95": 743300,
+          "mad": 13200,
+          "min": 458400,
+          "max": 2492300
+        },
+        "utf8_bytes": {
+          "n": 31,
+          "median": 5074,
+          "p95": 5074,
+          "mad": 0,
+          "min": 5074,
+          "max": 5074
+        },
+        "utf16_code_units": {
+          "n": 31,
+          "median": 5074,
+          "p95": 5074,
+          "mad": 0,
+          "min": 5074,
+          "max": 5074
+        }
+      }
+    },
+    {
+      "width": 120,
+      "height": 40,
+      "profile": "unicode_styles",
+      "workload": "full_encoded_payload",
+      "raw": [
+        {
+          "write_ns": 838300,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 842900,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 843200,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 847700,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 862900,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 867100,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 835100,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 839400,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 825400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 829400,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 831700,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 835800,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 829900,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 833800,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 831300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 835500,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 835600,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 839700,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 817200,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 821200,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 833400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 837300,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 831600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 835400,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 840100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 844100,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 906800,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 911200,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 871000,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 875500,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 833100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 837600,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 829300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 833600,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 809900,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 814600,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 864600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 869600,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 845600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 850700,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 840700,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 845000,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 843500,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 848100,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 841900,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 846500,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 883500,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 887300,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 845300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 849600,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 819100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 823600,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 865300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 870000,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 835500,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 839900,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 871900,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 877200,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 854700,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 859300,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        },
+        {
+          "write_ns": 833100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 838300,
+          "utf8_bytes": 11940,
+          "utf16_code_units": 7780
+        }
+      ],
+      "summary": {
+        "write_ns": {
+          "n": 31,
+          "median": 838300,
+          "p95": 883500,
+          "mad": 7000,
+          "min": 809900,
+          "max": 906800
+        },
+        "flush_ns": {
+          "n": 31,
+          "median": 300,
+          "p95": 500,
+          "mad": 0,
+          "min": 200,
+          "max": 600
+        },
+        "writes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "transaction_instrumented_ns": {
+          "n": 31,
+          "median": 842900,
+          "p95": 887300,
+          "mad": 7500,
+          "min": 814600,
+          "max": 911200
+        },
+        "utf8_bytes": {
+          "n": 31,
+          "median": 11940,
+          "p95": 11940,
+          "mad": 0,
+          "min": 11940,
+          "max": 11940
+        },
+        "utf16_code_units": {
+          "n": 31,
+          "median": 7780,
+          "p95": 7780,
+          "mad": 0,
+          "min": 7780,
+          "max": 7780
+        }
+      }
+    },
+    {
+      "width": 240,
+      "height": 80,
+      "profile": "ascii",
+      "workload": "full_encoded_payload",
+      "raw": [
+        {
+          "write_ns": 1851900,
+          "flush_ns": 700,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1858900,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1897800,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1904100,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1782400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1787300,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1770000,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1774400,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 2303800,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2310100,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1787600,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1793400,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1759300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1764400,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 2872900,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2878900,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1796400,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1802400,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1770100,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1775500,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1750900,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1757000,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1901500,
+          "flush_ns": 800,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1913100,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 2203200,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2211200,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1794100,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1799100,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1783700,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1788200,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1763600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1768000,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1770600,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1774800,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1784400,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1856400,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1769900,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1774900,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1738300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1742600,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 2253500,
+          "flush_ns": 1600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2271200,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 3438900,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3450500,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1850300,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1855900,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1773700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1778200,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1839700,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1844300,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1770800,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1775100,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1809700,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1813900,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1738400,
+          "flush_ns": 200,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1743000,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 2145400,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2151500,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1785400,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1790000,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        },
+        {
+          "write_ns": 1818900,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 1823700,
+          "utf8_bytes": 19714,
+          "utf16_code_units": 19714
+        }
+      ],
+      "summary": {
+        "write_ns": {
+          "n": 31,
+          "median": 1787600,
+          "p95": 2872900,
+          "mad": 28300,
+          "min": 1738300,
+          "max": 3438900
+        },
+        "flush_ns": {
+          "n": 31,
+          "median": 400,
+          "p95": 800,
+          "mad": 100,
+          "min": 200,
+          "max": 1600
+        },
+        "writes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "transaction_instrumented_ns": {
+          "n": 31,
+          "median": 1799100,
+          "p95": 2878900,
+          "mad": 34700,
+          "min": 1742600,
+          "max": 3450500
+        },
+        "utf8_bytes": {
+          "n": 31,
+          "median": 19714,
+          "p95": 19714,
+          "mad": 0,
+          "min": 19714,
+          "max": 19714
+        },
+        "utf16_code_units": {
+          "n": 31,
+          "median": 19714,
+          "p95": 19714,
+          "mad": 0,
+          "min": 19714,
+          "max": 19714
+        }
+      }
+    },
+    {
+      "width": 240,
+      "height": 80,
+      "profile": "unicode_styles",
+      "workload": "full_encoded_payload",
+      "raw": [
+        {
+          "write_ns": 3188400,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3196100,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3073200,
+          "flush_ns": 1300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3087700,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3602900,
+          "flush_ns": 800,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3613800,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3103700,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3109900,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3095100,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3100500,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3071700,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3079400,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3076400,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3082200,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3530700,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3537300,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 2985200,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2991200,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3032400,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3037300,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 2957700,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2963800,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 2948500,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 2953900,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3270000,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3275500,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3298000,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3302300,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3243400,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3248600,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3140700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3145000,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3100100,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3103700,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3080300,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3084600,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 4073100,
+          "flush_ns": 1000,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 4081800,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3068400,
+          "flush_ns": 600,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3075800,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3096700,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3102500,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3449000,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3454900,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3237200,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3242100,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3062000,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3065900,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3180200,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3185500,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3071900,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3076500,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3479600,
+          "flush_ns": 500,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3485000,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3017800,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3022200,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3098600,
+          "flush_ns": 400,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3104100,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3067700,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3080100,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        },
+        {
+          "write_ns": 3064900,
+          "flush_ns": 300,
+          "writes": 1,
+          "flushes": 1,
+          "transaction_instrumented_ns": 3069200,
+          "utf8_bytes": 45610,
+          "utf16_code_units": 28970
+        }
+      ],
+      "summary": {
+        "write_ns": {
+          "n": 31,
+          "median": 3096700,
+          "p95": 3602900,
+          "mad": 64300,
+          "min": 2948500,
+          "max": 4073100
+        },
+        "flush_ns": {
+          "n": 31,
+          "median": 400,
+          "p95": 1000,
+          "mad": 100,
+          "min": 300,
+          "max": 1300
+        },
+        "writes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "transaction_instrumented_ns": {
+          "n": 31,
+          "median": 3102500,
+          "p95": 3613800,
+          "mad": 65200,
+          "min": 2953900,
+          "max": 4081800
+        },
+        "utf8_bytes": {
+          "n": 31,
+          "median": 45610,
+          "p95": 45610,
+          "mad": 0,
+          "min": 45610,
+          "max": 45610
+        },
+        "utf16_code_units": {
+          "n": 31,
+          "median": 28970,
+          "p95": 28970,
+          "mad": 0,
+          "min": 28970,
+          "max": 28970
+        }
+      }
+    }
+  ],
+  "native_viewport": [
+    120,
+    30
+  ],
+  "native_color_depth": 24,
+  "modes_restored": true,
+  "cleanup_failures": 0
+}

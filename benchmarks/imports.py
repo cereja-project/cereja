@@ -9,10 +9,13 @@ import argparse
 import json
 import os
 from pathlib import Path
-import platform
 import statistics
 import subprocess
 import sys
+
+# runpy-based consumers do not place this script's directory on sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _ui_bench import environment, summary  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = {
@@ -21,6 +24,12 @@ CASES = {
     "file": "from cereja.file import FileIO",
     "concurrently": "from cereja.concurrently import TaskList",
     "timer": "from cereja.utils import Timer",
+    "ui": "import cereja.ui",
+    "ui_terminal": "import cereja.ui.terminal",
+    "ui_text": "import cereja.ui.text",
+    "ui_buffer": "import cereja.ui.buffer",
+    "ui_rendering": "import cereja.ui.rendering",
+    "ui_scheduling": "import cereja.ui.scheduling",
 }
 PROBE = r'''
 import contextlib
@@ -35,9 +44,13 @@ with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
     start = time.perf_counter_ns()
     exec(sys.argv[1], {})
     elapsed = time.perf_counter_ns() - start
+    start = time.perf_counter_ns()
+    exec(sys.argv[1], {})
+    warm_elapsed = time.perf_counter_ns() - start
 added = sorted(set(sys.modules) - before_modules)
 report = {
     "elapsed_ns": elapsed,
+    "warm_elapsed_ns": warm_elapsed,
     "modules_added": len(added),
     "cereja_modules": sorted(n for n in sys.modules if n == "cereja" or n.startswith("cereja.")),
     "stdout": out.getvalue(),
@@ -106,7 +119,7 @@ def positive_samples(value):
 
 def execute(code, *args):
     result = subprocess.run(
-        [sys.executable, "-c", code, *args], cwd=ROOT,
+        [sys.executable, "-B", "-S", "-c", code, *args], cwd=ROOT,
         env=dict(os.environ, PYTHONPATH=str(ROOT), PYTHONIOENCODING="utf-8"),
         capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
@@ -120,17 +133,30 @@ def main(argv=None):
     parser.add_argument("--samples", type=positive_samples, default=7)
     parser.add_argument("--case", choices=CASES, action="append", dest="cases")
     parser.add_argument("--inventory", action="store_true")
+    parser.add_argument("--output", help="Save the same JSON-lines report")
     args = parser.parse_args(argv)
-    print(json.dumps({"python": platform.python_version(), "platform": sys.platform}))
+    lines = [json.dumps({"environment": environment(),
+                        "conditions": "Fresh -B -S process per sample; import statement only timed; "
+                        "startup excluded, OS file cache uncontrolled. Second identical exec uses sys.modules. "
+                        "Captures stdout/stderr and surviving threads; not a full syscall/side-effect trace."})]
     for case in args.cases or CASES:
         probes = [json.loads(execute(PROBE, CASES[case])) for _ in range(args.samples)]
         report = dict(probes[-1], case=case)
         report.pop("elapsed_ns")
+        report.pop("warm_elapsed_ns")
         report["median_ms"] = statistics.median(p["elapsed_ns"] for p in probes) / 1_000_000
         report["samples_ms"] = [p["elapsed_ns"] / 1_000_000 for p in probes]
-        print(json.dumps(report, sort_keys=True))
+        report['summary_ns'] = summary([p['elapsed_ns'] for p in probes])
+        report['warm_summary_ns'] = summary([p['warm_elapsed_ns'] for p in probes])
+        report['raw'] = probes
+        lines.append(json.dumps(report, sort_keys=True))
     if args.inventory:
-        print(execute(INVENTORY), end="")
+        lines.extend(execute(INVENTORY).splitlines())
+    data = '\n'.join(lines) + '\n'
+    if args.output:
+        Path(args.output).write_text(data, encoding='utf-8')
+    else:
+        print(data, end='')
     return 0
 
 

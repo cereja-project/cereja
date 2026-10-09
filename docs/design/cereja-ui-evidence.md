@@ -5,6 +5,9 @@ primitive observations, not a production implementation or platform certificatio
 The requested independent core supersedes the reference design's early display integration.
 No production module, dependency, terminal mode, or public API was changed by these spikes.
 
+For measurements of the implemented library (rather than this historical
+spike), see [#304 core performance calibration](cereja-ui-core-performance.md).
+
 ## Reproduce
 
 From the repository root, with Python 3.11 or newer and no third-party packages:
