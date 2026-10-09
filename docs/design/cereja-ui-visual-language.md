@@ -14,9 +14,20 @@ No message bubbles, assistant avatar, model selector, conversational response an
 
 Composition: a continuous reading column of rich command/result sections above the composer, separated by whitespace and a short left stem. No outer boxes around ordinary results. The cherry stem marks only the active result heading and the composer focus marker. A result reads top to bottom: command name, compact state, important result, supporting detail. V1 retains ordered ephemeral result blocks, with the newest active block nearest the bottom composer and earlier blocks selectable above it. The composer draft is independent of the result sequence. There is no disk history, retained sensitive field or queued work. Retention is bounded by the resource policy below, preserving Ledger's sequential reading model.
 
-The HTML prototype reserves three top rows (identity, rule and clearance), 33 result rows and four bottom rows (composer rule, input, hint and status) at 120x40. Content begins at column 3; at most 88 columns are used for prose, while tables may use the remaining width. `/system` uses full-width section headings followed by aligned label/value rows. A selected result has a `>` marker and a brighter heading, not a surrounding frame.
+The current [Ledger cell specimen](cereja-ui-ledger.html) reserves three top rows
+(identity, rule and clearance), 32 result-body rows, one independent pager row and
+four bottom rows (composer rule, input, hint and status) at 120x40. Content begins
+at column 3; prose normally uses at most 75 cells, while tables/details can use
+the available width. `/system` uses stacked section headings and aligned values.
+A selected result has a `>` marker and a brighter heading, not an outer frame.
 
-At 80x24: three top rows, 17 result rows and four bottom rows. At 40x12: three top rows, five result rows and four bottom rows. Composer outer width is viewport minus two cells. Long input scrolls horizontally by grapheme; the insertion point stays visible. Long results wrap or scroll in their own surface without displacing the composer.
+At 80x24: 3 + 16 + 1 + 4 rows. At 40x12: 3 + 4 + 1 + 4 rows.
+The pager is always reserved, including when all content fits. Composer rule width
+is viewport minus two cells; the final column remains unused to respect the core
+interactive output contract. Long input scrolls horizontally by grapheme; the
+insertion point stays visible. Long results scroll without displacing the composer.
+Exact coordinates and form budgets are owned by the
+[final UX contract](cereja-ui-ux.md#final-ledger-review-contract-303).
 
 The empty shell shows a short purpose line and three command examples aligned with the reading column. It avoids a dashboard grid. Initial focus is in the composer. Hierarchy is deliberately sparse: the bottom accent locates action, the current result heading locates output, subdued separators distinguish supporting metadata.
 
@@ -45,16 +56,16 @@ Both use the same cherry accent and command grammar. Preference should therefore
 
 ## Keyboard, focus and overlays
 
-| Action | Proposed key and behavior |
+| Action | Specified key and behavior (application implementation pending) |
 | --- | --- |
 | Open discovery | Type `/` in composer. Suggestions open above it, maximum seven rows (heading, five items, hint) at wide sizes and three at 40x12. |
 | Suggestion selection | Up/Down changes selected suggestion; Enter accepts it without executing. Selection and focus have distinct text markers. |
 | Complete | Tab accepts an unambiguous suggestion while discovery is open; otherwise cycles enabled visible controls. Shift+Tab cycles backward. |
 | Submit | Enter with discovery closed validates a complete command. Required field overlays or effects review occur before execution. |
 | Composer/result focus | Tab cycles composer and result region when no discovery overlay is open. In the browser review prototype, F6 returns to external review controls so keyboard users are not trapped; that escape is not a product command. |
-| Context help | `/help` opens a contextual overlay; current command context is preserved. F1 remains an optional product binding, not implemented by this prototype. Help closes back to the exact caret/selection. |
+| Context help | F1 or a visible Help action opens contextual help without submitting or changing the draft. `/help` opens general help after its own explicit submission. Both restore the invoking caret/selection, overlay values, result identity and scroll. The review viewer's controls are outside the terminal specimen. |
 | Escape | Close the top overlay, then dismiss discovery. It does not cancel work or erase the whole command implicitly. |
-| Result movement | The prototype implements arrows and Enter for Tree/Context/Examples and PageUp/PageDown for content scrolling. Full Home/End and grapheme editing remain toolkit acceptance work; the browser input is not proof of those contracts. |
+| Result movement | Arrows select within the focused collection; Enter inspects. PageUp/PageDown move content by a page minus one overlap row. Header Left/Right selects retained blocks. Full Home/End, Unicode editing and all real key behavior remain toolkit/application acceptance work. |
 | Exit | Ctrl+C requests application exit through the operation-aware lifecycle. Never promise it safely cancels unsupported work. |
 
 The composer owns normal typing even when result content is visible; typing while a result control has focus must not secretly rewrite it. A visible focus marker and contextual hint name the current target. Bracketed paste inserts bounded text without dispatching slash commands. Newline-containing paste requires explicit submission after review. Control text is sanitized before measurement and output.
@@ -147,15 +158,18 @@ The composition and typography skills inform hierarchy, protected text regions, 
 
 ## Review gates
 
-Compare both at identical dimensions and content in color and monochrome, with motion off first. Evaluate where users first look, whether they locate the composer, discover slash commands, distinguish selection from execution, inspect System, recover from error, and return to unfinished input without state loss. Record observations instead of claiming usability from a screenshot.
+Review only the selected Ledger at all three dimensions in color and monochrome,
+with motion off first. Workbench remains historical. Evaluate discovery, insertion
+versus execution, System inspection, recovery and return to unfinished input.
+Record participant observations separately from authored structural walkthroughs.
 
 Structural preflight: total allocated rows equal viewport height; composer always visible; overlays have bounded scroll; required actions reachable at 40x12; one active operation; no color-only meaning; no fabricated service telemetry. Browser mockups can validate composition and copy, not terminal Unicode width, event handling, host restoration or assistive-technology support.
 
 Ledger is the user-selected visual direction and can drive concrete high-level planning tasks. Files and directories are both accepted v1 scope; directory-specific safety stages and acceptance criteria remain required. Selection does not establish runtime, real-terminal, accessibility or usability validation.
 
-## Ledger sequential-result cell specimen
+## Historical Ledger sequential-result cell specimen
 
-Static 80x24 cell specimen for the selected retention contract. Both blocks are
+Earlier static 80x24 cell specimen for the selected retention contract. Both blocks are
 fixtures, not live hardware/network output. This supplements the comparison HTML,
 which still replaces the current result and does not implement session retention.
 The System summary is completed; Download is the sole active operation. The user
@@ -196,3 +210,19 @@ Block selection and the Latest affordance remain keyboard reachable. The compose
 keeps its four rows, the result pager keeps its own row, and no value is overwritten.
 Eviction announces `Oldest completed result removed from this session` with the
 remaining count, without exposing dropped content or moving composer focus.
+
+## Current #303 review artifact
+
+[Ledger specimens and walkthrough viewer](cereja-ui-ledger.html) supersede the
+comparison's current-result-only behavior for UX review. They show sequential
+blocks, independent editing/inspection state, compact forms and exact-target
+review. The viewer selects authored snapshots and pages; it does not dispatch
+commands, implement widgets or call Cereja services. Synthetic data is labelled;
+Download byte snapshots are explicitly replayed from the existing loopback report.
+Generation and structural verification use
+`python benchmarks/ui_ux/specimens.py --check`.
+
+The [review record](cereja-ui-visual-review.md#ledger-ux-303-review-2026-10-09)
+separates structural checks, browser inspection, terminal trials and human review.
+Twenty completed results and 2 MiB remain calibration candidates. Runtime
+eviction, responsiveness and Unicode caret behavior are not validated by this viewer.

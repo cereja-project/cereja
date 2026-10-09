@@ -163,8 +163,9 @@
         "Evaluate every requested loading/motion/feedback effect with shared timers/dirty rendering, rate ceilings, low-bandwidth and static fallbacks.",
         "Validate selected task walkthroughs and derive required components from those screens; record user review and limitations before high-level implementation tasks are accepted."
       ],
-      "evidence": "Final scope-traceable UX and design/motion system, wireframes and actual walkthrough evidence, distinguishing structural and user validation.",
-      "docs": "Final UX artifacts to be created only after SCOPE; current visuals exploratory"
+      "evidence": "Final selected-Ledger specification and authored exact-cell walkthroughs; structural and browser evidence are separate from pending terminal and human task review.",
+      "docs": "docs/design/cereja-ui-ux.md; docs/design/cereja-ui-visual-language.md; docs/design/cereja-ui-ledger.html; docs/design/cereja-ui-visual-review.md; benchmarks/ui_ux/specimens.py",
+      "review_state": "Specification ready for review; terminal and human acceptance pending. No widget/application implementation."
     },
     {
       "key": "CORE-PERF",

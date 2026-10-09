@@ -98,3 +98,63 @@ Ledger retains ordered result blocks within a bounded ephemeral session. The
 resource policy and state restoration are specified in the selected visual-language
 document; the current-result-only comparison prototype does not implement that
 retention extension and is not evidence that it has been runtime validated.
+
+## Ledger UX #303 review (2026-10-09)
+
+Disposition: specification and concrete review artifact ready for human review.
+This section is current; the earlier sections describe the historical comparison.
+No comparison was reopened. No application, widget or domain integration was built.
+The consumer is #303 review and the next #306 readiness assessment; maintain this
+bounded fixture generator with the UX document, not with domain/runtime contracts.
+
+Artifacts: [Ledger viewer](cereja-ui-ledger.html),
+[final UX contract](cereja-ui-ux.md#final-ledger-review-contract-303),
+[generator/checker](../../benchmarks/ui_ux/specimens.py).
+The [fingerprint record](cereja-ui-visual-artifacts.json) identifies the generated
+HTML/source Git blob bytes (canonical LF); Windows checkout line endings are
+separate. It preserves earlier artifact provenance separately.
+
+| Verification layer | Observed result and limitation |
+| --- | --- |
+| Structural | `python benchmarks/ui_ux/specimens.py --check` passed: 44 authored states, nine walkthroughs, 273 ASCII frames/pages at 120x40, 80x24, 40x12 and 32x10 recovery. Checked row/column budgets, unused last column, pager/dock separation, complete paged values, fixed overlay actions, visible result-action hint and immutable recorded state across generation/resize. Also checked insertion without a new job, safe default/invalidated consent, refused second start, help/completion and Tree/snippet return snapshot continuity. These are assertions about authored data, not a working app's behavior. |
+| HTML/browser | Generated JavaScript parsed with Node. Chrome viewer replay passed all nine walkthroughs (49 authored steps), 15 size/palette samples, and all five compact Context form pages with Search/Back/Help fixed. Checked recorded caret/selection/block/item/anchor continuity during help/completion and below-minimum recovery. Palette/motion controls never modify state or telemetry. The viewer selects snapshots; it does not send terminal key events. |
+| Visual inspection | Actual browser images inspected: initial 80x24, sequential completed/active blocks at 80x24, Context form and conditional confirmation at 40x12 monochrome, Tree at 120x40, active-job recovery at 32x10. Composer/pager remain separate; compact forms keep actions; confirmation starts on Keep; paths/effects are paged rather than lost. Screenshots establish sampled composition only, not all states/palettes. |
+| Terminal/emulator | Not executed for this UX delivery. The application is absent. Existing core automated CI is separate; real emulators, SSH and ConPTY trials remain pending. ASCII/browser cells do not validate terminal Unicode widths, caret editing or input routing. |
+| Human/accessibility/usability | No participant task review or assistive-technology trial conducted. No usability, accessibility or final human acceptance claim. #303's combined walkthrough/user-review criterion remains incomplete. |
+
+Reproduction: generate with `python benchmarks/ui_ux/specimens.py`, serve
+`docs/design` on loopback and open `cereja-ui-ledger.html` in a browser. External
+Walkthrough/Step/Cells/Palette and content-page controls select authored specimens.
+Replay discovery (first Enter insertion versus later submission), Refresh focus/error,
+Tree detail return, Context validation/snippet return, all four archive modes and
+safety/refusal cases, Download known/unknown captured events/error, references,
+help/completion/return, second-start refusal and active-job exit. At 40x12 page the
+Context form through all five pages; at 32x10 verify recovery, then return to 40x12.
+Inspect recorded state alongside frames, without interpreting it as an app trace.
+
+The first browser launch failed in the host sandbox; file-protocol navigation was
+blocked. A scoped native Chrome test session and loopback-only static server enabled
+the reported review. These are host execution limitations, not Cereja/EDD defects.
+No dependency or credential installation was required.
+
+Fixtures: System values, all paths/outcomes/policies and examples are synthetic.
+Download 768/1536 bytes (50%) and 768 bytes with unknown total are fixed events read
+from [the retained loopback report](../../benchmarks/ui_spikes/download-loopback.json),
+not live activity or a new transfer measurement. No speed/ETA is inferred. The
+conditional Replace specimen explicitly assumes a synthetic supported policy;
+it does not certify current file/directory publication safety. No real operation
+offers Cancel. Motion is static; rate ceilings are specified, not rebenchmarked.
+
+One bounded source/diff assessment and geometry/browser review were performed.
+Corrections made within that assessment: replace stale result budgets with an
+independent pager, preserve the unfinished-draft selection visually, show a current
+result-action hint, add a Refresh-focus snapshot without execution and fit slash
+discovery into its separate three-row compact shelf. The scope
+manifest now references these artifacts. No production-code or export change.
+
+Next action: maintainer reviews selected Ledger L1-L6 and shared lifecycle in the
+viewer, recording accepted flows or actionable corrections on #303. Then decide
+#306 readiness explicitly. #302 records accepted scope; both issues remain open
+in Reviewing at this checkpoint. Twenty results and 2 MiB, real retention/memory,
+runtime focus/input, safe domain integration and real-terminal/human acceptance
+remain outside the claims established here.

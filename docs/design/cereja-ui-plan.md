@@ -28,14 +28,15 @@ Unicode limitations, existing import baseline and local native wake primitives.
 future terminal/platform tests. Local checks are not multi-platform certification.
 
 Frozen in UI-00: [core architecture contracts](cereja-ui.md#ui-00-decision-and-coverage),
-including initial scheduling/resource policies. Their implementation and platform
-acceptance remain future work. Public API signatures, application bounds and
+including initial scheduling/resource policies. The core now has technical
+implementation/verification evidence (see the current checkpoint below); real
+emulator/SSH/ConPTY and human acceptance remain pending. Public application APIs, bounds and
 Ledger implementation details remain proposals within the selected product scope.
 Numerical full-application budgets remain provisional until a real application
 baseline exists. No native acceleration is justified by the current evidence.
 
-Open: [Define Cereja UI v1 Product Scope](cereja-ui-product-scope.md), including
-implementation-calibrated bounds and future acceptance evidence. Objective,
+Recorded: [Define Cereja UI v1 Product Scope](cereja-ui-product-scope.md), with
+implementation-calibrated bounds and future acceptance still separate. Objective,
 audiences, real product plus reference role and initial five-area selection are
 decided: System, Tree, Context Search, Compress/Decompress and Download.
 The [capability inclusion matrix](cereja-ui-capabilities.md) records bounded
@@ -212,3 +213,29 @@ native issue types and every native dependency edge verified. Together with the
 | LEGACY-PLAN | [322](https://github.com/cereja-project/cereja/issues/322) | #321 |
 | DOMAIN-ARCHIVE | [323](https://github.com/cereja-project/cereja/issues/323) | #294 |
 | APP-07 | [324](https://github.com/cereja-project/cereja/issues/324) | #318, #323 |
+
+## Current scope/UX checkpoint (2026-10-09)
+
+#302's six recording criteria are reconciled against existing accepted choices in
+[the scope record](cereja-ui-product-scope.md#302-criterion-reconciliation-2026-10-09).
+This records decisions, not final application acceptance or a reopened plan.
+
+#303 now has [exact-cell Ledger UX](cereja-ui-ux.md#final-ledger-review-contract-303),
+[a review-only cell viewer](cereja-ui-ledger.html) and
+[structural/browser evidence](cereja-ui-visual-review.md#ledger-ux-303-review-2026-10-09).
+The old dashboard wireframes and Workbench comparison remain historical proposals.
+Human UX review is pending; the existing #306 mapping prepares its later readiness
+review only. No #306 or other backlog implementation is part of this checkpoint.
+
+Code inspected at `d7b21a35e817e4f9484dc278ed029e9f4367698b`: `cereja/ui/` has
+terminal/text/buffer/rendering/scheduling core modules. There is no Ledger application
+or `ui` entry in `cereja/commands/registry.py`. The source tree is
+`71ad1dd7506d5bc3eb17aefdd9efd7ad5158e9a5`.
+[The supplied core CI run](https://github.com/cereja-project/cereja/actions/runs/37900749649)
+was read back successful on that SHA for Python 3.11-3.14 on Windows/Linux/macOS
+(12 jobs). This is previous core evidence, not validation of the new UX artifacts.
+Real emulator, SSH, ConPTY and human acceptance remain pending; #305 is unchanged.
+
+Twenty retained completed summaries and 2 MiB remain calibration candidates,
+not measurements. Directory safety and publication gaps remain separate domain
+and integration gates. Publication of the UX specification does not close those gaps.

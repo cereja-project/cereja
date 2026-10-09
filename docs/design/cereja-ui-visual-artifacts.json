@@ -17,5 +17,20 @@
       "crlf_sha256": "907d1bfc992237bd36948c665ca08c3a33a1f7393fbc157ffcab0c1cdf5315ca"
     }
   ],
-  "reconciled_on": "2026-10-05"
+  "reconciled_on": "2026-10-05",
+  "ledger_ux_review": {
+    "recorded_on": "2026-10-09",
+    "scope": "Selected Ledger authored cell artifacts, structurally checked and sampled in Chrome; terminal and human review pending.",
+    "artifacts": [
+      {
+        "path": "docs/design/cereja-ui-ledger.html",
+        "sha256": "802cb8a01acc8bad23c427570b4f2553168b31bd5c6ba1237edfa841a20534bd"
+      },
+      {
+        "path": "benchmarks/ui_ux/specimens.py",
+        "sha256": "ccea9b9466a37d7bb6978d538492248c17c8babb91ce47ea233ebbd9c570d2eb"
+      }
+    ],
+    "hash_basis": "Git blob bytes / canonical LF; Windows checkout CRLF conversion is not a new artifact revision."
+  }
 }
