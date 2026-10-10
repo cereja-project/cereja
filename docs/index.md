@@ -32,6 +32,7 @@ guides/context-cache
 guides/display-progress
 guides/ui-rendering
 guides/ui-layout
+guides/ui-editing
 guides/compression-and-encryption
 guides/protected-code
 guides/text-and-data

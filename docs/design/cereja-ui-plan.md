@@ -264,7 +264,13 @@ independent cell partitions, padding, clipped lazy viewports and bounded geometr
 damage. [Public API and example](../guides/ui-layout.md),
 [tests](../../tests/test_ui_layout.py) and
 [baseline](../../benchmarks/ui_layout_samples/baseline-windows-py314.json).
-It does not provide text editing, clipboard transport, widgets, the official
-`cereja ui` command or domain workflows. Next increment: #308 after #307 review,
-using the approved grapheme/focus/selection and clean-copy contract. Real task,
-emulator/SSH/ConPTY and accessibility/usability acceptance remain under #321.
+#308 / UI-09 adds opt-in canonical-text editing/selection and explicit focus
+scopes, reusing Unicode, layout and scheduling. [Public API/example](../guides/ui-editing.md),
+[tests](../../tests/test_ui_editing.py) and
+[baseline](../../benchmarks/ui_editing_samples/baseline-windows-py314.json).
+Copy and submit/exit are intents only; current key ownership and retained revision
+are explicit. Real clipboard, suggestion/form widgets (#309), collections (#310),
+official `cereja ui` and Ledger/domain workflows remain unimplemented.
+The next incremental widget stage is #309 under #306; do not execute it merely
+because it is next. Real task, emulator/SSH/ConPTY and accessibility/usability
+acceptance remain under #321.

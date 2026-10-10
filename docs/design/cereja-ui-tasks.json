@@ -256,8 +256,8 @@
         "Provide explicit focus scopes, forward/backward traversal, selection markers and focus restoration; test long input, combining/ZWJ text, narrow resize and overlay return.",
         "Keep input bindings separate from application command parsing; publish examples and measured input-to-frame baseline."
       ],
-      "evidence": "Virtual-backend keyboard scenarios and Unicode regression cases with documented unsupported cases.",
-      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+      "evidence": "tests/test_ui_editing.py: canonical revision/range, grapheme edits, bounded paste/repeats, focus scopes/restoration and virtual scheduled frames; benchmarks/ui_editing_samples/baseline-windows-py314.json: frozen virtual input-to-flushed-frame baseline. Real terminal/editor/clipboard and human acceptance remain separate.",
+      "docs": "docs/guides/ui-editing.md; runnable bounded example in benchmarks/ui_editing.py. Pure copy/submit/exit intents; no clipboard transport, application, domain or legacy display integration."
     },
     {
       "key": "UI-10",

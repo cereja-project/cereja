@@ -49,7 +49,7 @@ with ExitStack() as stack:
     import cereja.ui
     assert not any(n.startswith('cereja.ui.') for n in sys.modules)
     from cereja.ui import terminal, text, buffer, rendering, scheduling, testing, events
-    from cereja.ui import posix, windows
+    from cereja.ui import posix, windows, editing, focus, layout
 assert set(threading.enumerate()) == before
 assert 'cereja.display' not in sys.modules and 'cereja.system' not in sys.modules
 assert 'unicodedata' not in sys.modules
@@ -59,6 +59,12 @@ for name, fingerprint in expected.items():
     assert hashlib.sha256((package / 'ui' / name).read_bytes()).hexdigest() == fingerprint, name
 assert text.UNICODE_VERSION == '17.0.0'
 assert text.text_metrics('e\u0301\U0001f600').line_widths() == (3,)
+draft = editing.TextInput('installed', 'a\u0301界')
+draft.handle(events.KeyEvent('left', modifiers=frozenset({'shift'})))
+assert draft.handle(events.KeyEvent('c', modifiers=frozenset({'ctrl'}))).selection.text == '界'
+owners = focus.FocusManager(focus.FocusScope('base', (focus.FocusTarget('draft'),)))
+owners.push(focus.FocusScope('help', (focus.FocusTarget('close'),)))
+assert owners.pop() == 'draft'
 backend = testing.VirtualBackend(size=(8, 2))
 with terminal.TerminalSession(backend) as session:
     renderer = rendering.Renderer(session, verify_damage=True)
@@ -135,7 +141,8 @@ def main():
         with tarfile.open(sdist) as archive:
             names = archive.getnames()
             for suffix in ('tools/generate_ui_unicode.py', 'tools/unicode/17.0.0/manifest.json',
-                           'tools/unicode/17.0.0/LICENSE.txt'):
+                           'tools/unicode/17.0.0/LICENSE.txt', 'docs/guides/ui-editing.md',
+                           'benchmarks/ui_editing.py', 'benchmarks/_ui_bench.py'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))

@@ -5,3 +5,6 @@ include docs/guides/ui-buffer.md
 include benchmarks/ui_buffers.py
 include docs/guides/ui-rendering.md
 include benchmarks/ui_rendering.py
+include docs/guides/ui-editing.md
+include benchmarks/ui_editing.py
+include benchmarks/_ui_bench.py
