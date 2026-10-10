@@ -190,6 +190,12 @@ service execution, application shell, production widgets or persistent history.
 
 ### Exact cells and recovery
 
+The maintainer approved the current design for incremental implementation on
+2026-10-09 and explicitly authorized starting #306. This includes the subtle
+snippet surface and accepted clean-copy contract. It is a design decision,
+not a participant walkthrough, assistive-technology trial or terminal result.
+The first #307 implementation is documented in [ui-layout](../guides/ui-layout.md).
+
 Coordinates are one-based, inclusive. H is height and W is width. One cell scale,
 no pixel-based font hierarchy. Column W is unused in interactive frames. Normal
 content starts at column 3, ends by W-2 and reserves outer clearance. Prose uses
@@ -418,7 +424,7 @@ editing/width, focus manager, real retention/memory, responsiveness and domain
 safety are unimplemented application acceptance, not passes from these specimens.
 Real emulator/SSH/ConPTY trials and human task/accessibility review remain pending.
 
-The existing traceability maps to #306 only for its next review:
+The original traceability is retained for the authorized incremental #306 delivery:
 
 | Contract | Existing slice |
 | --- | --- |
@@ -433,6 +439,8 @@ The existing traceability maps to #306 only for its next review:
 | L4 file / directory safety / directory integration | #318 / #323 / #324 |
 | L5 / optional instrumentation / real acceptance | #319 / #320 / #321 |
 
-No task creation, #306 execution, #304 optimization, #305 alteration, File I/O 2.0
-change or legacy migration is included. Next action is human review of these
-Ledger flows and gaps, then an explicit #306 readiness decision.
+The #303 specimen checkpoint did not include backlog execution. The maintainer's
+2026-10-09 approval now authorizes #306 by increments, with #307 geometry first
+and #308 input/focus/selection next. #304 optimization, #305 alteration, File I/O
+2.0 and legacy migration remain outside this delivery. Real task and terminal
+acceptance are still pending; design approval does not replace them.

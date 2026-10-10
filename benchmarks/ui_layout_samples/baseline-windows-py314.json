@@ -1,0 +1,656 @@
+{
+  "environment": {
+    "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+    "implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "pointer_bits": 64,
+    "gc_enabled": true,
+    "head": "ad0b525f8d0ac7259f67cfdd200cfb72e2a4aba2",
+    "head_tree": "6194522d6c4ce4c4920bf1718bac1aae8610bf06",
+    "dirty": true,
+    "source_sha256": {
+      "cereja/ui/__init__.py": "14d024045a95ea60044f19b787f32173ea0a243e2dbc8381b951422c9185b78a",
+      "cereja/ui/_capabilities.py": "f232ee5d55446209cc125e6b836dabda076d041e6c17330bda6075888f854976",
+      "cereja/ui/_input.py": "744040c21a8d9fe2376062d25f122696fb7c4fbea5433ef2d9b2bdd968036dc7",
+      "cereja/ui/_posting.py": "a6eef1dc4028e87b49645bd9eb844cf25d33d13e096b2dc245eba19ed7cf3a62",
+      "cereja/ui/_session.py": "1386b1783297d5f0cba0d20673b86314724cdcd6e7ce7c7ba40acf130b0bee3c",
+      "cereja/ui/_unicode17.py": "271b1230d0e119ec8b6a16d6a6958ab6e2f14c24aa8da750821696542d8caa70",
+      "cereja/ui/_win32.py": "03025e4feb359275a77166170693d4c4876d220cdc90779cadb904f11513c81b",
+      "cereja/ui/buffer.py": "2eab2e387220931f7830750cb579f2839f509c129160f07c2b78df56e66223e9",
+      "cereja/ui/events.py": "93e14079df801b05c3881a4b5e8fd0ca25834c92be5095bc473daca099e8384e",
+      "cereja/ui/layout.py": "3102bee758f483f1b2342cd715d8ff6853f0848f05669b11921d8c7f5013d63b",
+      "cereja/ui/posix.py": "c2d330f87ac68c579be96dad5593872a782d8ee98474a663ab06b70516dfb687",
+      "cereja/ui/rendering.py": "9a2b11348d14fd334671124f0d67f9dbbf2bd2e83e5eb2470d597314204b627f",
+      "cereja/ui/scheduling.py": "5c8caab2ae02711ea22441cf3564fded9a64e86dcc7c29d591b524c8726484ab",
+      "cereja/ui/terminal.py": "066f3203dceec6f203219f3281addac94e0312a0240cebde3299feea02bab048",
+      "cereja/ui/testing.py": "0a763aad35c702890b229a1c5a187dbdef04cb43ef803e1041096b029de7b43f",
+      "cereja/ui/text.py": "b0dd9bcbb4c2ad180255022169d9dc4d45d440523d426d4847f428bef93ded75",
+      "cereja/ui/windows.py": "c1744f53ee1bd735614f9054e5a8d1330808b8d20169057a947e9a2f77f80c66",
+      "benchmarks/_ui_bench.py": "43b2dd77ed073f29e71366df0403e1748416205b173c90a287f2cd4623874484",
+      "benchmarks/ui_buffers.py": "cc46f6bd0e30535c62145f3036644db2bf4ed8082d398cb3eb889425287c5aaf",
+      "benchmarks/ui_layout.py": "d1152d903c1546f63d81136bb744b206a2c40b188c97f576906e642f19a9feb2",
+      "benchmarks/ui_rendering.py": "0fb32d9dd87c54a42886aa33f46755486878fd7b857553dace57a8fb5c12a15b",
+      "benchmarks/ui_scheduling.py": "52065febe4e606f1981b63287bbe57afee356c6a6cbc1b83d3f0c371d06f34e5",
+      "benchmarks/imports.py": "2660009015553f2f0750de1b8f9b230875dd2e3258856314ea9290d62a19fada",
+      "tests/ui_scheduling_probe.py": "d9150d862a53d5c9df4f45e335d67bc6373ee04f9aa592da744dee7a96990a38",
+      "tests/ui_windows_console_probe.py": "58511b2317aa34f6a83826abb2cd90472750321f1f197cbe4aa75a39bcbd54e0"
+    },
+    "execution": "One benchmark process at a time; affinity/power/background load uncontrolled; filesystem/import caches may be OS-warm; no cross-host comparison."
+  },
+  "source_git_lf_sha256": {
+    "cereja/ui/layout.py": "3102bee758f483f1b2342cd715d8ff6853f0848f05669b11921d8c7f5013d63b",
+    "benchmarks/ui_layout.py": "d1152d903c1546f63d81136bb744b206a2c40b188c97f576906e642f19a9feb2",
+    "benchmarks/_ui_bench.py": "43b2dd77ed073f29e71366df0403e1748416205b173c90a287f2cd4623874484"
+  },
+  "conditions": {
+    "sizes": [
+      [
+        120,
+        40
+      ],
+      [
+        80,
+        24
+      ],
+      [
+        40,
+        12
+      ]
+    ],
+    "iterations_per_sample": 100,
+    "content_rows": 1000000,
+    "content_columns": 256,
+    "selected_row": 800071,
+    "samples": 31,
+    "memory_samples": 7,
+    "warmup": 3,
+    "workloads": [
+      "resize",
+      "long_content"
+    ],
+    "window": "Warm pure geometry, visible-target adjustment and geometry damage; GC enabled.",
+    "data": "Synthetic logical content dimensions; no million-row list is constructed.",
+    "limits": "No rendering, clipboard, terminal, input, domain, RSS or application performance.",
+    "memory": "Separate untimed tracemalloc windows; retained sample result and peak Python bytes."
+  },
+  "results": [
+    {
+      "workload": "resize",
+      "raw": [
+        {
+          "elapsed_ns": 1763800,
+          "ns_per_iteration": 17638.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 1889000,
+          "ns_per_iteration": 18890.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2001000,
+          "ns_per_iteration": 20010.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2047400,
+          "ns_per_iteration": 20474.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2050800,
+          "ns_per_iteration": 20508.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2066500,
+          "ns_per_iteration": 20665.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2141100,
+          "ns_per_iteration": 21411.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2152400,
+          "ns_per_iteration": 21524.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2021900,
+          "ns_per_iteration": 20219.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2042100,
+          "ns_per_iteration": 20421.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2167200,
+          "ns_per_iteration": 21672.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2148700,
+          "ns_per_iteration": 21487.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2148300,
+          "ns_per_iteration": 21483.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2075600,
+          "ns_per_iteration": 20756.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2123600,
+          "ns_per_iteration": 21236.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2192300,
+          "ns_per_iteration": 21923.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2196300,
+          "ns_per_iteration": 21963.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2057000,
+          "ns_per_iteration": 20570.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 1988200,
+          "ns_per_iteration": 19882.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 1915700,
+          "ns_per_iteration": 19157.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 1899500,
+          "ns_per_iteration": 18995.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2016200,
+          "ns_per_iteration": 20162.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2087500,
+          "ns_per_iteration": 20875.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2023100,
+          "ns_per_iteration": 20231.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 1904300,
+          "ns_per_iteration": 19043.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 1855800,
+          "ns_per_iteration": 18558.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 1848500,
+          "ns_per_iteration": 18485.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2266200,
+          "ns_per_iteration": 22662.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2147800,
+          "ns_per_iteration": 21478.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2088500,
+          "ns_per_iteration": 20885.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        },
+        {
+          "elapsed_ns": 2020000,
+          "ns_per_iteration": 20200.0,
+          "visible_rows": 32,
+          "damage_regions": 8
+        }
+      ],
+      "summary": {
+        "elapsed_ns": {
+          "n": 31,
+          "median": 2050800,
+          "p95": 2196300,
+          "mad": 90300,
+          "min": 1763800,
+          "max": 2266200
+        },
+        "ns_per_iteration": {
+          "n": 31,
+          "median": 20508.0,
+          "p95": 21963.0,
+          "mad": 903.0,
+          "min": 17638.0,
+          "max": 22662.0
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 32,
+          "p95": 32,
+          "mad": 0,
+          "min": 32,
+          "max": 32
+        },
+        "damage_regions": {
+          "n": 31,
+          "median": 8,
+          "p95": 8,
+          "mad": 0,
+          "min": 8,
+          "max": 8
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 11824,
+          "peak_bytes": 14376,
+          "live_traced_blocks": 118
+        },
+        {
+          "retained_bytes": 11824,
+          "peak_bytes": 14376,
+          "live_traced_blocks": 118
+        },
+        {
+          "retained_bytes": 11824,
+          "peak_bytes": 14376,
+          "live_traced_blocks": 118
+        },
+        {
+          "retained_bytes": 11824,
+          "peak_bytes": 14376,
+          "live_traced_blocks": 118
+        },
+        {
+          "retained_bytes": 11824,
+          "peak_bytes": 14376,
+          "live_traced_blocks": 118
+        },
+        {
+          "retained_bytes": 11824,
+          "peak_bytes": 14376,
+          "live_traced_blocks": 118
+        },
+        {
+          "retained_bytes": 11824,
+          "peak_bytes": 14376,
+          "live_traced_blocks": 118
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 7,
+          "median": 11824,
+          "p95": 11824,
+          "mad": 0,
+          "min": 11824,
+          "max": 11824
+        },
+        "peak_bytes": {
+          "n": 7,
+          "median": 14376,
+          "p95": 14376,
+          "mad": 0,
+          "min": 14376,
+          "max": 14376
+        },
+        "live_traced_blocks": {
+          "n": 7,
+          "median": 118,
+          "p95": 118,
+          "mad": 0,
+          "min": 118,
+          "max": 118
+        }
+      }
+    },
+    {
+      "workload": "long_content",
+      "raw": [
+        {
+          "elapsed_ns": 674400,
+          "ns_per_iteration": 6744.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 674400,
+          "ns_per_iteration": 6744.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 676100,
+          "ns_per_iteration": 6761.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 669800,
+          "ns_per_iteration": 6698.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 671800,
+          "ns_per_iteration": 6718.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 662000,
+          "ns_per_iteration": 6620.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 657200,
+          "ns_per_iteration": 6572.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 657800,
+          "ns_per_iteration": 6578.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 655900,
+          "ns_per_iteration": 6559.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 819300,
+          "ns_per_iteration": 8193.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 1001000,
+          "ns_per_iteration": 10010.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 999300,
+          "ns_per_iteration": 9993.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 970800,
+          "ns_per_iteration": 9708.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 791100,
+          "ns_per_iteration": 7911.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 692100,
+          "ns_per_iteration": 6921.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 682500,
+          "ns_per_iteration": 6825.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 685100,
+          "ns_per_iteration": 6851.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 665100,
+          "ns_per_iteration": 6651.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 662400,
+          "ns_per_iteration": 6624.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 671500,
+          "ns_per_iteration": 6715.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 660200,
+          "ns_per_iteration": 6602.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 662600,
+          "ns_per_iteration": 6626.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 661200,
+          "ns_per_iteration": 6612.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 658100,
+          "ns_per_iteration": 6581.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 662700,
+          "ns_per_iteration": 6627.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 647900,
+          "ns_per_iteration": 6479.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 668300,
+          "ns_per_iteration": 6683.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 675000,
+          "ns_per_iteration": 6750.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 679700,
+          "ns_per_iteration": 6797.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 699200,
+          "ns_per_iteration": 6992.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        },
+        {
+          "elapsed_ns": 901800,
+          "ns_per_iteration": 9018.0,
+          "visible_rows": 32,
+          "damage_regions": 0
+        }
+      ],
+      "summary": {
+        "elapsed_ns": {
+          "n": 31,
+          "median": 671800,
+          "p95": 999300,
+          "mad": 10700,
+          "min": 647900,
+          "max": 1001000
+        },
+        "ns_per_iteration": {
+          "n": 31,
+          "median": 6718.0,
+          "p95": 9993.0,
+          "mad": 107.0,
+          "min": 6479.0,
+          "max": 10010.0
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 32,
+          "p95": 32,
+          "mad": 0,
+          "min": 32,
+          "max": 32
+        },
+        "damage_regions": {
+          "n": 31,
+          "median": 0,
+          "p95": 0,
+          "mad": 0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 11424,
+          "peak_bytes": 12888,
+          "live_traced_blocks": 113
+        },
+        {
+          "retained_bytes": 11456,
+          "peak_bytes": 12888,
+          "live_traced_blocks": 114
+        },
+        {
+          "retained_bytes": 11424,
+          "peak_bytes": 12888,
+          "live_traced_blocks": 113
+        },
+        {
+          "retained_bytes": 11424,
+          "peak_bytes": 12888,
+          "live_traced_blocks": 113
+        },
+        {
+          "retained_bytes": 11424,
+          "peak_bytes": 12888,
+          "live_traced_blocks": 113
+        },
+        {
+          "retained_bytes": 11424,
+          "peak_bytes": 12888,
+          "live_traced_blocks": 113
+        },
+        {
+          "retained_bytes": 11424,
+          "peak_bytes": 12888,
+          "live_traced_blocks": 113
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 7,
+          "median": 11424,
+          "p95": 11456,
+          "mad": 0,
+          "min": 11424,
+          "max": 11456
+        },
+        "peak_bytes": {
+          "n": 7,
+          "median": 12888,
+          "p95": 12888,
+          "mad": 0,
+          "min": 12888,
+          "max": 12888
+        },
+        "live_traced_blocks": {
+          "n": 7,
+          "median": 113,
+          "p95": 114,
+          "mad": 0,
+          "min": 113,
+          "max": 114
+        }
+      }
+    }
+  ]
+}

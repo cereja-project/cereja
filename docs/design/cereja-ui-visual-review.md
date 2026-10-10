@@ -217,3 +217,37 @@ continuation establishes source/structural checks only, not a new visual inspect
 contrast/accessibility result or human acceptance. Earlier browser observations
 remain bound to their previous published artifacts. Next action: refresh the viewer
 and inspect the Context snippet and clean-copy cases for the requested subtlety.
+
+## Design approval and implementation handoff (2026-10-09)
+
+The maintainer approved the current design and explicitly authorized starting
+#306 by increments. This accepts the selected design, including the snippet
+surface and clean-copy decision, for implementation. No participant task
+walkthrough or accessibility/assistive-technology test was reported; those
+remain pending. The earlier source/browser observations keep their original
+revision and scope. No new browser inspection is claimed.
+
+The first implementation is [#307 geometry](../guides/ui-layout.md), independent
+from keyboard/widgets/application/domain integration. Nineteen focused layout
+tests cover exact allocations, wide/nested clipping, empty/undersized windows,
+selected-target resize, lazy visible rows and bounded geometry damage. The
+combined layout/import/buffer/rendering run passed 76 tests. The broader UI run
+passed 233 tests with nine platform skips on Windows/Python 3.14. POSIX/macOS
+checks skipped locally are not passes. Export-stub consistency and fatal lint
+checks passed. The first sandbox import run failed only on the interpreter's
+stderr location warning; the same unmodified tests passed outside that restriction.
+
+[Frozen geometry baseline](../../benchmarks/ui_layout_samples/baseline-windows-py314.json):
+31 samples of 100 iterations, seven separate memory samples, three warmups.
+Resize median/p95 20.5/22.0 microseconds per iteration; long-content geometry
+6.7/10.0 microseconds. Median peak traced Python memory 14376/12888 bytes.
+Synthetic logical row dimensions are inputs; timings and traced bytes are real
+measurements of the declared window. No content scan/rendering/terminal/input,
+clipboard, RSS or application latency was measured; #304 budgets are unchanged.
+
+The bounded ASCII/no-color example prints one frame or recovery; it has no
+keyboard dispatch or domain actions. It is a runnable geometry example, not
+the official Ledger application. `cereja ui` remains unimplemented. Next action:
+review #307's API, then continue #308 under the approved input/focus/selection
+contract. Terminal clipboard roundtrips and real task/human/accessibility
+acceptance stay under #321.

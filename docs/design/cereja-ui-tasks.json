@@ -165,7 +165,7 @@
       ],
       "evidence": "Final selected-Ledger specification and authored exact-cell walkthroughs; structural and browser evidence are separate from pending terminal and human task review.",
       "docs": "docs/design/cereja-ui-ux.md; docs/design/cereja-ui-visual-language.md; docs/design/cereja-ui-ledger.html; docs/design/cereja-ui-visual-review.md; benchmarks/ui_ux/specimens.py",
-      "review_state": "Specification ready for review; clean canonical-text copy and active-selection priority accepted on 2026-10-09. Clipboard transport, terminal and full human acceptance pending. No widget/application implementation."
+      "review_state": "Current design approved for incremental implementation on 2026-10-09; clean canonical-text copy and active-selection priority accepted. #306 explicitly authorized; #307 is the first increment. Participant walkthroughs, clipboard transport, terminal and accessibility/usability acceptance remain pending."
     },
     {
       "key": "CORE-PERF",
@@ -219,7 +219,7 @@
         "Associate authorized follow-up issues with the Cereja UI milestone and explicit dependencies; do not execute production implementation merely because tasks exist."
       ],
       "evidence": "Reviewed dependency DAG, small verified GitHub tasks with milestone associations and screen-to-component traceability, including explicit later legacy stage.",
-      "docs": "Future implementation decomposition after accepted scope and UX"
+      "docs": "Existing implementation decomposition retained; incremental execution explicitly authorized on 2026-10-09. First increment #307; no legacy migration authorized."
     },
     {
       "key": "UI-08",
@@ -237,8 +237,8 @@
         "Keep composer allocation fixed at 120x40, 80x24 and 40x12; reserve a separate pager row; test nested clipping, zero/undersized dimensions and resize with a selected item.",
         "Expose dirty regions and bounded layout invalidation; benchmark resize and long content with frozen workloads; document geometry and overflow policy."
       ],
-      "evidence": "Deterministic cell snapshots, resize/clipping tests and measured layout baseline.",
-      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+      "evidence": "tests/test_ui_layout.py: exact Ledger allocations, nested/wide clipping, zero/undersized state restoration, lazy visible rows and bounded geometry damage; benchmarks/ui_layout_samples/baseline-windows-py314.json: frozen geometry-only workloads.",
+      "docs": "docs/guides/ui-layout.md; runnable bounded ASCII/no-color example in benchmarks/ui_layout.py. First production increment, independent from application/domain/legacy display."
     },
     {
       "key": "UI-09",

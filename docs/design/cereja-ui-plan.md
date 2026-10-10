@@ -250,3 +250,21 @@ This scoped choice does not accept the entire UX or select a clipboard backend.
 [The verification record](cereja-ui-visual-review.md#clean-copy-continuation-2026-10-09)
 separates authored/browser checks from pending real clipboard and terminal trials.
 No implementation or #306/backlog execution is included.
+
+## Incremental implementation authorization (2026-10-09)
+
+After reviewing the current viewer, the maintainer approved the design and
+explicitly authorized #306 by increments, superseding the earlier prohibition
+on widget/application implementation. Other boundaries remain: this checkout
+and develop; no new branch/worktree/chat/subagents, merge/release, #304/#305
+change, File I/O 2.0 or legacy migration.
+
+The existing dependency order is retained. The first increment is #307 / UI-08:
+independent cell partitions, padding, clipped lazy viewports and bounded geometry
+damage. [Public API and example](../guides/ui-layout.md),
+[tests](../../tests/test_ui_layout.py) and
+[baseline](../../benchmarks/ui_layout_samples/baseline-windows-py314.json).
+It does not provide text editing, clipboard transport, widgets, the official
+`cereja ui` command or domain workflows. Next increment: #308 after #307 review,
+using the approved grapheme/focus/selection and clean-copy contract. Real task,
+emulator/SSH/ConPTY and accessibility/usability acceptance remain under #321.

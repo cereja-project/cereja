@@ -34,6 +34,7 @@ from cereja.ui.scheduling import EventLoop, Cancellation, payload_bytes
 from cereja.ui.text import TextPolicy, text_metrics
 from cereja.ui.buffer import CellBuffer, Layer, compose
 from cereja.ui.rendering import Cursor, Renderer, full_diff, dirty_diff
+from cereja.ui.layout import Constraint, Viewport, split_rows, split_columns, inset, layout_damage
 from cereja.ui.posix import PosixBackend
 from cereja.ui.windows import WindowsBackend
 assert 'cereja.display' not in sys.modules
@@ -83,7 +84,7 @@ with ExitStack() as stack:
     import cereja
     import cereja.ui
     from cereja.ui import terminal, testing, events, scheduling
-    from cereja.ui import text, buffer, rendering, posix, windows
+    from cereja.ui import text, buffer, rendering, layout, posix, windows
 '''
         self.check_process(code)
 
