@@ -39,6 +39,7 @@ from cereja.ui.editing import TextContent, TextSelection, TextInput, copy_action
 from cereja.ui.focus import FocusManager, FocusScope, FocusTarget
 from cereja.ui.overlays import Suggestions, ParameterForm, Confirmation, OverlayStack
 from cereja.ui.collections import SelectableList, Table, TreeView
+from cereja.ui.feedback import InlineStatus, ProgressBar, ActivityIndicator
 from cereja.ui.posix import PosixBackend
 from cereja.ui.windows import WindowsBackend
 assert 'cereja.display' not in sys.modules
@@ -88,7 +89,7 @@ with ExitStack() as stack:
     import cereja
     import cereja.ui
     from cereja.ui import terminal, testing, events, scheduling
-    from cereja.ui import text, buffer, rendering, layout, editing, focus, overlays, collections, posix, windows
+    from cereja.ui import text, buffer, rendering, layout, editing, focus, overlays, collections, feedback, posix, windows
 '''
         self.check_process(code)
 

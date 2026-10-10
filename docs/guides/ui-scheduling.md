@@ -149,8 +149,13 @@ heap entries and releases owner references, with no long-lived tombstones.
 Call `cancel_timer(id)` or `cancel_owner(name)` on removal/hiding. This is an
 ownership hook, without implementing widgets. `set_reduced_motion(True)` removes
 decorative timers and pending decorative frames; real progress/frames continue.
-Plain sessions reject decorative timers/frames. Repeated decorative timers respect
-the frame ceiling; spinner additionally uses at most 8 Hz.
+When a decorative snapshot coalesces over pending real data, the latest frame
+retains the real-data obligation and survives motion-off. Plain sessions reject
+decorative timers/frames. Repeated decorative timers respect
+the frame ceiling; spinner additionally uses at most 8 Hz locally and 2 Hz in
+low-bandwidth mode. These remain candidate ceilings. The read-only
+`indicator_interval` exposes that minimum interval; `has_timer(id)` checks live
+membership after cancellation. Reusable widgets are in [inline feedback](ui-feedback.md).
 
 `request_render(frame, cursor=..., decorative=False)` keeps a UI-owned copy of
 one latest complete frame. Render starts are limited to 30 Hz locally or 4 Hz

@@ -49,7 +49,7 @@ with ExitStack() as stack:
     import cereja.ui
     assert not any(n.startswith('cereja.ui.') for n in sys.modules)
     from cereja.ui import terminal, text, buffer, rendering, scheduling, testing, events
-    from cereja.ui import posix, windows, editing, focus, layout, overlays, collections
+    from cereja.ui import posix, windows, editing, focus, layout, overlays, collections, feedback
 assert set(threading.enumerate()) == before
 assert 'cereja.display' not in sys.modules and 'cereja.system' not in sys.modules
 assert 'unicodedata' not in sys.modules
@@ -95,6 +95,14 @@ with terminal.TerminalSession(backend) as session:
     assert (session.write_count, session.flush_count) == counts
     seen = []
     loop = scheduling.EventLoop(session, seen.append, clock=backend.clock)
+    status = feedback.ActivityIndicator(loop, 'installed-feedback', 'Known work', active=True)
+    loop.set_reduced_motion(True)
+    status.paint(frame, buffer.Rect(0, 0, 7, 1))
+    assert loop.timer_count == 0
+    status.update('success', 'Complete')
+    status.close()
+    progress = feedback.ProgressBar('installed-counts', 'Bytes', completed=3, total=8, reliable_total=True)
+    assert progress.percent == 37
     request = loop.begin_request('example')
     event = events.ResultEvent('example', request.generation, 'complete')
     assert loop.post(event)
@@ -152,7 +160,7 @@ def main():
         source.mkdir()
         export_tree(tree, source)
         expected = {name: sha256((source / 'cereja' / 'ui' / name).read_bytes()).hexdigest()
-                    for name in ('_unicode17.py', 'UNICODE-LICENSE.txt', 'collections.py')}
+                    for name in ('_unicode17.py', 'UNICODE-LICENSE.txt', 'collections.py', 'feedback.py', 'scheduling.py')}
         run([sys.executable, '-B', '-c', 'from setuptools import build_meta as b; '
              'b.build_sdist("dist"); b.build_wheel("dist")'], cwd=source)
         wheel = next((source / 'dist').glob('*.whl'))
@@ -165,7 +173,9 @@ def main():
                            'docs/guides/ui-overlays.md', 'benchmarks/ui_overlays.py',
                            'benchmarks/ui_overlays_samples/baseline-windows-py314.json',
                            'docs/guides/ui-collections.md', 'benchmarks/ui_collections.py',
-                           'benchmarks/ui_collections_samples/baseline-windows-py314.json'):
+                           'benchmarks/ui_collections_samples/baseline-windows-py314.json',
+                           'docs/guides/ui-feedback.md', 'benchmarks/ui_feedback.py',
+                           'benchmarks/ui_feedback_samples/baseline-windows-py314.json'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))

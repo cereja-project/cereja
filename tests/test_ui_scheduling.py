@@ -365,7 +365,7 @@ class SchedulingTest(unittest.TestCase):
                                     decorative=True, spinner=True)
             loop.turn()
             self.assertEqual(seen[-1].timer_id, timer)
-            self.assertEqual(loop._timers[timer].deadline, max(.125, ceiling))
+            self.assertEqual(loop._timers[timer].deadline, .5 if bandwidth else .125)
 
     def test_timer_callback_cancels_itself_and_timer_storage_is_finite(self):
         loop, backend, seen = self.loop()

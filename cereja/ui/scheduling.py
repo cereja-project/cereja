@@ -78,6 +78,7 @@ class EventLoop:
         self._generation = 0
         self._reduced_motion = session.capabilities.reduced_motion
         self._frame_interval = 1 / (4 if low_bandwidth else 30)
+        self._indicator_interval = .5 if low_bandwidth else .125
         self._renderer = None
         self._pending_frame = None
         self._render_deadline = None
@@ -134,6 +135,16 @@ class EventLoop:
     @property
     def timer_count(self):
         return len(self._timers)
+
+    @property
+    def indicator_interval(self):
+        """Candidate active-indicator ceiling: 8 Hz local, 2 Hz low-bandwidth."""
+        return self._indicator_interval
+
+    def has_timer(self, timer_id):
+        """Whether a timer still belongs to this loop, including after cancellation."""
+        self._check_thread()
+        return timer_id in self._timers
 
     @property
     def metrics(self):
@@ -207,7 +218,8 @@ class EventLoop:
         """Bounded monotonic heap timer; owner removal uses cancel_owner().
 
         Decorative repeating timers respect the frame ceiling; spinner adds the
-        8 Hz ceiling. Late intervals start anew from current time, with no replay.
+        8/2 Hz local/low-bandwidth ceiling. Late intervals start anew from current
+        time, with no replay.
         Plain/reduced motion rejects decorative timers without allocating them.
         """
         self._check_active()
@@ -224,7 +236,7 @@ class EventLoop:
             if interval <= 0:
                 raise ValueError('timer interval must be positive')
             if decorative:
-                interval = max(interval, self._frame_interval, .125 if spinner else 0)
+                interval = max(interval, self._frame_interval, self._indicator_interval if spinner else 0)
         if decorative and (self._reduced_motion or self.session.capabilities.plain):
             return None
         if len(self._timers) >= MAX_EVENTS or self._timer_bytes + size > MAX_BYTES:
@@ -286,6 +298,10 @@ class EventLoop:
             return False
         if self._renderer is None:
             self._renderer = Renderer(self.session)
+        # A newer full snapshot includes earlier real changes. Motion-off must
+        # not discard those changes just because decoration coalesced after them.
+        if self._pending_frame is not None and not self._pending_frame[2]:
+            decorative = False
         self._pending_frame = (frame.copy(), cursor, decorative)
         now = self.clock()
         self._render_deadline = now if self._last_render is None else max(

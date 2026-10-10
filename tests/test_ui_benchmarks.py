@@ -15,6 +15,7 @@ class CoreBenchmarksTest(unittest.TestCase):
         sys.path.insert(0, str(ROOT / 'benchmarks'))
         cls.rendering = runpy.run_path(str(ROOT / 'benchmarks/ui_rendering.py'))
         cls.scheduling = runpy.run_path(str(ROOT / 'benchmarks/ui_scheduling.py'))
+        cls.feedback = runpy.run_path(str(ROOT / 'benchmarks/ui_feedback.py'))
         cls.helpers = runpy.run_path(str(ROOT / 'benchmarks/_ui_bench.py'))
 
     def test_p95_nearest_rank_and_dispersion(self):
@@ -39,6 +40,25 @@ class CoreBenchmarksTest(unittest.TestCase):
             self.assertEqual(result['renders'], 2)
             self.assertEqual((result['writes'], result['flushes']), (1, 1))
             self.assertEqual(result['blocking_waits'], 0)
+
+    def test_feedback_aggregate_idle_and_motion_boundaries(self):
+        for mode in ('local', 'low-bandwidth', 'off', 'plain'):
+            for output in (False, True):
+                result = self.feedback['sample'](16, mode, output=output)
+                active = mode in ('local', 'low-bandwidth')
+                self.assertEqual(result['peak_timers'], 16 if active else 0)
+                self.assertEqual(result['active_timer_events'], 64 if active else 0)
+                self.assertEqual(result['active_paints'], 64 if active else 0)
+                self.assertEqual(result['active_writes'], 4 if active and output else 0)
+                self.assertEqual(result['ordered_keys'], 4)
+                self.assertEqual(result['final_timers'], 0)
+                for key in ('timer_events', 'renders', 'writes', 'flushes'):
+                    self.assertEqual(result['idle_' + key], 0)
+        for mode in ({}, {'motion': True, 'kind': 'dots'}, {'motion': True, 'plain': True}):
+            rows = self.feedback['example'](**mode)
+            self.assertTrue(any('3/8 (37%)' in row for row in rows))
+            self.assertTrue(any('total unavailable' in row for row in rows))
+            self.assertFalse(any('\x1b' in row for row in rows))
 
     def test_tracing_retains_value_and_stops_after_window(self):
         result = self.helpers['traced'](lambda: bytearray(4096))
