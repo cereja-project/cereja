@@ -77,6 +77,15 @@ emulator copy and unsupported clipboard backends have separate limits; the
 [accepted copy contract](cereja-ui-ux.md#accepted-clean-copy-contract-2026-10-09)
 owns the complete behavior and pending verification.
 
+Snippet content has a restrained neutral surface, separate from cherry focus/status
+accents: dark #241E26 over #18141A, light #EEEBEF over #FAFAFA, 256-color #262626.
+The shade affects only the snippet's content cells, including wrapped continuation
+rows, and consumes no extra rows/columns. No animated emphasis or syntax-color
+dependency. No-color/16-color retain the explicit Snippet/Source label and ordinary
+spacing rather than inventing a reliable subtle background. The external canonical
+copy preview has a muted surface and thin neutral edge for review; its browser
+border/radius are not terminal widget geometry. All styling stays outside copy text.
+
 Overlays open directly above the composer and never cover its active line. Wide overlays are limited to the composer width and available result height. Small screens use a single scrolling overlay with a fixed title/action row; overlay focus is contained until close, then restored. Only one topmost overlay captures keys. Confirmation overlays state exact targets and effects, default to keep/back, and bind consent to the validated target. Suggestions use no execution-style confirmation language.
 
 During one active operation, the composer remains editable for discovery/help/navigation, but another execution is refused visibly with `Working: <operation>` and Return to current. Nothing queues or starts later. No Cancel appears without proven safe cooperative interruption. Completion does not steal composer focus or discard an unfinished command.

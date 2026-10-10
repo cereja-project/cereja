@@ -100,9 +100,10 @@ def corpus():
         selected="03", item="src/tools.py:12", focus="results", anchor=3,
         actions=("Snippet", "Edit", "Help", "Exit"), form=context_form)
     add("context-detail", "Context / literal match snippet", "L3", [
-        "src/tools.py:12", "return [needle] + value", "Bounded synthetic snippet; untrusted text never executes.",
+        "Snippet | src/tools.py:12", "return [needle] + value", "Bounded synthetic snippet; untrusted text never executes.",
         "Back restores result identity and anchor."], overlay=True, selected="03", item="src/tools.py:12",
         focus="detail", anchor=3, actions=("Back", "Help"), form=context_form)
+    states["context-detail"]["snippet_line_range"] = [1, 2]
     add("empty", "Context / empty within bounds", "L3", [
         "> 03 /context | Empty within limits", "Roots: /fixture/repo; /fixture/docs", "Query: absent",
         "Skipped: 1 oversized file", "Not proof of no match outside these limits."], actions=("Edit", "Help", "Exit"))
@@ -248,12 +249,14 @@ def corpus():
                                    logical_range=list(region), plain_text=expected, selection_active=True,
                                    ctrl_c="Copy", outcome="Ready", clipboard_ack=False,
                                    scope="Selected retained text; synthetic expected payload only")
+        states[key]["snippet_line_range"] = [4, 4 + len(source.splitlines())]
     states["copy-failed"] = copy.deepcopy(states["copy-code"])
     states["copy-failed"]["name"] = "Copy failed / preserve selection and work"
     states["copy-failed"]["lines"] = [
         "Error: clipboard write denied (synthetic)", "No Copied claim; no fall-through to exit",
         "Text/selection/focus/inspection and job preserved", "Retry copy explicitly; payload stays inspectable"]
     states["copy-failed"]["copy"]["outcome"] = "Failed"
+    states["copy-failed"].pop("snippet_line_range")
     states["copy-unavailable"] = copy.deepcopy(states["copy-failed"])
     states["copy-unavailable"]["name"] = "Clipboard unavailable / native fallback limit"
     states["copy-unavailable"]["lines"] = [
@@ -272,6 +275,7 @@ def corpus():
         "Selected row is navigation, not a textual range", "Explicit Copy content uses retained source",
         "Ctrl+C without active text selection follows Exit", "Clipboard transport is not implemented"]
     states["copy-row"]["copy"].update(selection_active=False, ctrl_c="Exit", scope="Explicit Copy content only")
+    states["copy-row"].pop("snippet_line_range")
 
     walks = [
         dict(name="L1 discovery and explicit load", steps=["initial", "slash", "inserted", "system-working", "system"], keys=["type /sys", "Enter inserts", "Enter submits", "domain completion"]),
@@ -319,7 +323,8 @@ def frame(state, width, height, page=0):
         for y, line in enumerate(recovery[:height]):
             put(y, 1, line)
         return {"cells": ["".join(r) for r in cells], "pages": 1, "body": recovery,
-                "visible": recovery[:height], "actions": ["Resize", "Exit"], "recovery": True}
+                "visible": recovery[:height], "actions": ["Resize", "Exit"], "recovery": True,
+                "snippet_rows": []}
 
     put(0, 1, "CEREJA | UX REVIEW FIXTURE")
     put(1, 1, "-" * (width - 2))
@@ -341,8 +346,14 @@ def frame(state, width, height, page=0):
         start = body_top + 1
     else:
         start = body_top
+    source_start, source_end = state.get("snippet_line_range", (0, 0))
+    snippet_start = len(wrapped(state["lines"][:source_start], width - 4))
+    snippet_end = len(wrapped(state["lines"][:source_end], width - 4))
+    snippet_rows = []
     for y, line in enumerate(visible, start):
         put(y, 2, line)
+        if snippet_start <= page * capacity + y - start < snippet_end:
+            snippet_rows.append(y)
     pager = f"Page {page + 1}/{pages} | " + ("Tab: actions" if state["overlay"] else "Tab: header/actions")
     put(pager_y, 2, pager)
     put(dock_y, 1, "-" * (width - 2))
@@ -358,7 +369,8 @@ def frame(state, width, height, page=0):
     put(dock_y + 3, 2, "Working: " + (state["active"] or "none") + " | no queue")
     return {"cells": ["".join(r) for r in cells], "pages": pages, "body": content,
             "visible": visible, "actions": state["actions"], "recovery": False,
-            "input_row": dock_y + 1, "pager_row": pager_y, "capacity": capacity}
+            "input_row": dock_y + 1, "pager_row": pager_y, "capacity": capacity,
+            "snippet_rows": snippet_rows}
 
 
 def verify(states, walks):
@@ -376,6 +388,7 @@ def verify(states, walks):
                     assert f["input_row"] == height - 3 and f["pager_row"] == height - 5
                     assert "cj " in f["cells"][height - 3]
                     assert "Page " in f["cells"][height - 5]
+                    assert all(3 <= y < height - 5 for y in f["snippet_rows"])
                     if state["overlay"]:
                         for action in state["actions"]:
                             assert "[" + action + "]" in f["cells"][height - 6]
@@ -432,12 +445,14 @@ def verify(states, walks):
 
 
 def document(states, walks):
-    data = {"states": states, "walks": walks, "sizes": [], "frames": {}}
+    data = {"states": states, "walks": walks, "sizes": [], "frames": {}, "snippetRows": {}}
     for width, height in SIZES:
         size = f"{width}x{height}"
         data["sizes"].append(size)
         data["frames"][size] = {key: [frame(s, width, height, p)["cells"]
                                       for p in range(frame(s, width, height)["pages"])] for key, s in states.items()}
+        data["snippetRows"][size] = {key: [frame(s, width, height, p)["snippet_rows"]
+                                           for p in range(frame(s, width, height)["pages"])] for key, s in states.items()}
     payload = json.dumps(data, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c")
     return TEMPLATE.replace("__DATA__", payload)
 
@@ -448,12 +463,13 @@ TEMPLATE = '''<!doctype html>
 <style>
 body{margin:0;background:#f2eee9;color:#30252b;font:16px/1.5 system-ui}main{max-width:1280px;margin:auto;padding:24px}
 h1{font-size:24px;margin:0}p{max-width:85ch}label{display:inline-block;margin:8px 16px 8px 0}select,button{font:inherit;padding:5px}
-button{margin:4px}a{color:#7b2042}.scroll{overflow:auto}.terminal{display:inline-block;background:#18141a;color:#e9e1e5;padding:0;font:14px/20px Consolas,'Liberation Mono',monospace}
+button{margin:4px}a{color:#7b2042}.scroll{overflow:auto}.terminal{--snippet-bg:#241e26;display:inline-block;background:#18141a;color:#e9e1e5;padding:0;font:14px/20px Consolas,'Liberation Mono',monospace}
 .row{white-space:pre;height:20px}.row.heading,.row.dock{color:#ff89aa}.row.pager{font-weight:bold}.terminal.light{background:#fafafa;color:#202020}.terminal.light .heading,.terminal.light .dock{color:#004b87}
 .draft-selected{text-decoration:underline;font-weight:bold}.draft-caret{box-shadow:inset 1px 0 currentColor}
+.row.snippet{background:linear-gradient(to right,transparent 2ch,var(--snippet-bg) 2ch,var(--snippet-bg) calc(100% - 2ch),transparent calc(100% - 2ch))}.terminal.light{--snippet-bg:#eeebef}.terminal.c256{--snippet-bg:#262626}.terminal.mono .row.snippet,.terminal.c16 .row.snippet{background:none}
 .terminal.mono{background:#000;color:#fff}.terminal.mono .row{color:inherit}.terminal.c16{background:#000;color:#fff}.terminal.c16 .heading,.terminal.c16 .dock{color:#f0f}.terminal.c256{background:#1c1c1c;color:#d7d7d7}.terminal.c256 .heading,.terminal.c256 .dock{color:#ff87af}
 details{margin:12px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.5 Consolas,monospace}.notice{border-left:3px solid #9c264c;padding-left:12px}#description{min-height:3em}
-#copyPayload{white-space:pre;overflow:auto;overflow-wrap:normal;background:#fff;padding:12px}
+#copyPayload{white-space:pre;overflow:auto;overflow-wrap:normal;background:#eee7eb;border:1px solid #cbbfc6;border-left:3px solid #b49fae;border-radius:4px;padding:12px}
 </style><main>
 <h1>Ledger: cells, flows and return state</h1>
 <p class="notice">Review-only authored snapshots for #303. No commands execute. All domain values, paths and outcomes are synthetic except labelled captured loopback byte events. No production widgets or application are implemented.</p>
@@ -477,7 +493,7 @@ function steps(){el('step').replaceChildren();data.walks[+el('walk').value].step
 function draw(){const w=data.walks[+el('walk').value], index=+el('step').value, key=w.steps[index], state=data.states[key], size=el('size').value;
  const pages=data.frames[size][key];currentPage=Math.min(currentPage,pages.length-1);const rows=pages[currentPage];const h=rows.length;
  const host=el('terminal');host.replaceChildren();host.className='terminal '+el('palette').value;
- rows.forEach((text,y)=>{const row=document.createElement('div');row.className='row'+(y===0?' heading':y===h-4?' dock':y===h-5?' pager':'');
+ rows.forEach((text,y)=>{const row=document.createElement('div');row.className='row'+(y===0?' heading':y===h-4?' dock':y===h-5?' pager':'')+(data.snippetRows[size][key][currentPage].includes(y)?' snippet':'');
  if(y===h-3 && size!=='32x10'){const width=text.length,offset=Math.max(0,Math.min(state.caret,state.draft.length)-(width-9)+1);Array.from(text).forEach((ch,x)=>{const span=document.createElement('span');span.textContent=ch;const pos=x-7+offset;if(x>=7&&pos>=state.selection[0]&&pos<state.selection[1])span.classList.add('draft-selected');if(x>=7&&pos===state.caret&&state.focus==='composer')span.classList.add('draft-caret');row.append(span);});}else row.textContent=text;
  row.dataset.cells=text.length;host.append(row);});
  el('description').textContent=state.name+' | content page '+(currentPage+1)+'/'+pages.length+(index? ' | Authored transition: '+w.keys[index-1]:' | Start specimen');

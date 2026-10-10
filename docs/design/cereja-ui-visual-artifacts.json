@@ -20,15 +20,15 @@
   "reconciled_on": "2026-10-05",
   "ledger_ux_review": {
     "recorded_on": "2026-10-09",
-    "scope": "Selected Ledger and accepted clean-copy authored artifacts, structurally checked and sampled in Chrome; real clipboard, terminal and full human review pending.",
+    "scope": "Selected Ledger and clean-copy artifacts with requested subtle snippet surface. Latest refinement structurally checked; current browser inspection blocked; previous browser evidence retained separately.",
     "artifacts": [
       {
         "path": "docs/design/cereja-ui-ledger.html",
-        "sha256": "46725960f79ef6419b10f90bcd31049bb3fbbf72268a43b6113903c88175b943"
+        "sha256": "fc5a2d1deb69a9e3fdb672208d27d2f85b005a56724722863e9fb0ff439ac741"
       },
       {
         "path": "benchmarks/ui_ux/specimens.py",
-        "sha256": "556c50feebb12855ce3c57e2e1700669712e778cd16d6116ab4324cb64c1164d"
+        "sha256": "7c83a1cfd310fc037a2b7306457d3ba1661e271747d339bea5d54d10154a44bb"
       }
     ],
     "hash_basis": "Git blob bytes / canonical LF; Windows checkout CRLF conversion is not a new artifact revision.",
@@ -44,6 +44,21 @@
           "sha256": "ccea9b9466a37d7bb6978d538492248c17c8babb91ce47ea233ebbd9c570d2eb"
         }
       ]
-    }
+    },
+    "prior_published_versions": [
+      {
+        "revision": "b1a8bd72c2b0a9067577505912d038d57eb83d43",
+        "artifacts": [
+          {
+            "path": "docs/design/cereja-ui-ledger.html",
+            "sha256": "46725960f79ef6419b10f90bcd31049bb3fbbf72268a43b6113903c88175b943"
+          },
+          {
+            "path": "benchmarks/ui_ux/specimens.py",
+            "sha256": "556c50feebb12855ce3c57e2e1700669712e778cd16d6116ab4324cb64c1164d"
+          }
+        ]
+      }
+    ]
   }
 }

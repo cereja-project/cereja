@@ -196,3 +196,24 @@ Next action: review the clean-copy specimens with L1-L6 and the shared lifecycle
 on #303. Real backends must later prove plain-text source fidelity and failure
 behavior on supported local/remote hosts under #321. Existing #308/#310/#313
 traceability is preparation only; no #306 or backlog execution occurred.
+
+## Snippet surface refinement (2026-10-09)
+
+The maintainer requested a slightly more distinct snippet region. The updated
+viewer uses a restrained neutral surface on snippet rows and a muted surface/thin
+edge on the external canonical-text preview. Color roles stay separate from focus,
+selection and status. The no-color/16-color treatment retains explicit text labels.
+Source line ranges drive semantic row metadata across wrapping/paging; they do not
+insert decorations into the copied payload or allocate more terminal cells.
+
+Executed: generator and `--check` passed for the same 52 states, ten walkthroughs,
+323 frames/pages and eight copy expectations. Copy records were compared against
+the prior published HTML and remained identical. Region rows stay within the result
+body; JavaScript syntax, local links, Git/LF fingerprints and diff checks passed.
+
+Current browser inspection was unavailable: the browser-use policy rejected reading
+the open file-protocol tab. No alternate route/browser was used to bypass it. This
+continuation establishes source/structural checks only, not a new visual inspection,
+contrast/accessibility result or human acceptance. Earlier browser observations
+remain bound to their previous published artifacts. Next action: refresh the viewer
+and inspect the Context snippet and clean-copy cases for the requested subtlety.
