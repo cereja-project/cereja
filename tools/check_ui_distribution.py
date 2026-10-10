@@ -49,7 +49,7 @@ with ExitStack() as stack:
     import cereja.ui
     assert not any(n.startswith('cereja.ui.') for n in sys.modules)
     from cereja.ui import terminal, text, buffer, rendering, scheduling, testing, events
-    from cereja.ui import posix, windows, editing, focus, layout
+    from cereja.ui import posix, windows, editing, focus, layout, overlays
 assert set(threading.enumerate()) == before
 assert 'cereja.display' not in sys.modules and 'cereja.system' not in sys.modules
 assert 'unicodedata' not in sys.modules
@@ -65,6 +65,14 @@ assert draft.handle(events.KeyEvent('c', modifiers=frozenset({'ctrl'}))).selecti
 owners = focus.FocusManager(focus.FocusScope('base', (focus.FocusTarget('draft'),)))
 owners.push(focus.FocusScope('help', (focus.FocusTarget('close'),)))
 assert owners.pop() == 'draft'
+composer = editing.TextInput('composer', '/sy')
+stack = overlays.OverlayStack(focus.FocusManager(focus.FocusScope(
+    'installed-base', (focus.FocusTarget('composer'),))))
+stack.open(overlays.Suggestions('slash', composer, (
+    overlays.Suggestion('system', '/system', '/system '),)))
+assert stack.handle(events.KeyEvent('enter')).kind == 'inserted'
+assert composer.text == '/system ' and stack.top is None
+assert composer.handle(events.KeyEvent('enter')).kind == 'submit'
 backend = testing.VirtualBackend(size=(8, 2))
 with terminal.TerminalSession(backend) as session:
     renderer = rendering.Renderer(session, verify_damage=True)
@@ -142,7 +150,9 @@ def main():
             names = archive.getnames()
             for suffix in ('tools/generate_ui_unicode.py', 'tools/unicode/17.0.0/manifest.json',
                            'tools/unicode/17.0.0/LICENSE.txt', 'docs/guides/ui-editing.md',
-                           'benchmarks/ui_editing.py', 'benchmarks/_ui_bench.py'):
+                           'benchmarks/ui_editing.py', 'benchmarks/_ui_bench.py',
+                           'docs/guides/ui-overlays.md', 'benchmarks/ui_overlays.py',
+                           'benchmarks/ui_overlays_samples/baseline-windows-py314.json'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))

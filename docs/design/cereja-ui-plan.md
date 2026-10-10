@@ -269,8 +269,15 @@ scopes, reusing Unicode, layout and scheduling. [Public API/example](../guides/u
 [tests](../../tests/test_ui_editing.py) and
 [baseline](../../benchmarks/ui_editing_samples/baseline-windows-py314.json).
 Copy and submit/exit are intents only; current key ownership and retained revision
-are explicit. Real clipboard, suggestion/form widgets (#309), collections (#310),
-official `cereja ui` and Ledger/domain workflows remain unimplemented.
-The next incremental widget stage is #309 under #306; do not execute it merely
-because it is next. Real task, emulator/SSH/ConPTY and accessibility/usability
-acceptance remain under #321.
+are explicit.
+
+#309 / UI-10 adds opt-in `cereja.ui.overlays`: stable prefix insertion, labelled
+parameter forms, bounded help/inspection and exact-target confirmation bound to
+the full caller-normalized tuple and validated field revisions. Back is the default;
+all results are intents with zero domain execution.
+[API/example](../guides/ui-overlays.md), [tests](../../tests/test_ui_overlays.py)
+and [baseline](../../benchmarks/ui_overlays_samples/baseline-windows-py314.json).
+Real clipboard, collections (#310), official `cereja ui`, application catalogue
+and Ledger/domain workflows remain unimplemented. The next incremental widget
+stage is #310 under #306 and requires a bounded mandate. Real task,
+emulator/SSH/ConPTY and accessibility/usability acceptance remain under #321.

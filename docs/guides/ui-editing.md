@@ -108,9 +108,9 @@ visible target; an empty scope has no focused target. All mutation is UI-owned.
 
 The manager retains identity only. Composer content, form values, selected
 row/node, result scroll and inspected revision belong to their separate owners.
-Opening/closing help therefore does not copy or overwrite edit state. Actual
-suggestion lists/forms/confirmation overlays are #309, collections #310, and
-Ledger/application key routing #313.
+Opening/closing help therefore does not copy or overwrite edit state.
+[UI-10 overlays](ui-overlays.md) provide suggestions/forms/confirmation;
+collections remain #310 and Ledger/application key routing #313.
 
 ## Runnable example and measurement
 

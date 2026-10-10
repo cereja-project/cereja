@@ -273,8 +273,8 @@
         "Implement generic forms with visible labels/errors and anchored overlays that fit compact terminals; help restores underlying view, draft, caret and selection.",
         "Confirmation binds the exact normalized action/source/destination and invalidates after edits; destructive/default overwrite must never be the default selection. Document overlay focus and restoration."
       ],
-      "evidence": "Keyboard replay tests including first-Enter/second-Enter regression, compact snapshots and stale-confirmation tests.",
-      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+      "evidence": "tests/test_ui_overlays.py: prefix insertion, field validation/state retention, help/focus return, compact frames, exact tuple/revision consent invalidation and virtual keyboard replay; benchmarks/ui_overlays_samples/baseline-windows-py314.json: frozen toolkit filtering/validation/paging baseline. Real terminal, clipboard and human acceptance remain separate.",
+      "docs": "docs/guides/ui-overlays.md; runnable bounded synthetic views in benchmarks/ui_overlays.py. No parser, domain operations, clipboard, application or legacy display integration."
     },
     {
       "key": "UI-11",

@@ -8,3 +8,6 @@ include benchmarks/ui_rendering.py
 include docs/guides/ui-editing.md
 include benchmarks/ui_editing.py
 include benchmarks/_ui_bench.py
+include docs/guides/ui-overlays.md
+include benchmarks/ui_overlays.py
+include benchmarks/ui_overlays_samples/*.json
