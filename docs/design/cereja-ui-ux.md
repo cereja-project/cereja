@@ -50,7 +50,7 @@ This shared flow is proposed for the selected initial areas; it is not final des
 3. **Configure:** edit typed parameters with visible defaults and required markers. Validation explains the specific field error, retains other entries and performs no execution. Selecting a capability or moving focus never runs it.
 4. **Review and run:** show effective nonsecret parameters and targets. An explicit Run action initiates parameter validation and effects review. Execution begins only after any required confirmation bound to the exact target and effect. Read-only operations without additional effects execute after validation without a blanket second confirmation. Default behavior refuses an existing target. Explicit overwrite is a proposal only where safe output publication supports it, not blanket consent. A changed target invalidates any previous effect review.
 5. **Observe:** retain the operation identity and parameters while reporting Working and bounded output. Use a percentage only when the service supplies a reliable denominator. Keep input/navigation responsive. A Cancel action exists only with verified safe cooperative interruption. Leaving the view or stopping observation is navigation, never a cancellation substitute. Do not label unacknowledged work Canceled.
-6. **Inspect result:** distinguish successful domain completion, partial completion, cancellation and failure. Show useful structured results or bounded safe text. Preserve source/target provenance and indicate truncated output. Export, clipboard and file writes are not implied by the presence of a result panel.
+6. **Inspect result:** distinguish successful domain completion, partial completion, cancellation and failure. Show useful structured results or bounded safe text. Preserve source/target provenance and indicate truncated output. Explicit clean text copy follows the contract below; export/file writes are not implied by a result panel.
 7. **Recover or return:** restore the composer command or parameter overlay; Edit preserves safe values; retry is explicit and never automatic for non-idempotent work. Surface partial side effects before offering retry. Back restores the invoking composer caret/selection or result focus and scroll. Secrets are excluded from history/diagnostics and are not silently persisted.
 
 The application must call existing domain services or an explicit presentation-independent adapter, not construct a shell command from form values. An operation that lacks a suitable result, progress or cancellation contract creates adapter work; it does not justify fabricated progress, thread termination or claims of rollback. Escape during active work needs an operation-specific decision about cancellation versus leaving the result view.
@@ -87,7 +87,7 @@ Tools labels have literal meanings: **Available** only for an actually runnable 
 
 Modal proposal: an overwrite confirmation states source, exact target, effect and any known partial-output behavior. Default focus is Keep existing/Back, not overwrite. Enter activates only the focused action. Escape closes without running and restores the invoking control. Changed targets invalidate a prior confirmation. Run first validates parameters and the exact target, then obtains any required confirmation, and only then launches execution. Bind consent to that target and intended effect. Recheck destination state immediately before execution to handle races; confirmation does not provide an atomic overwrite guarantee.
 
-Activity proposal: track operation ID, state, start time, safe parameters and bounded messages. The single current operation has states running, cancel requested only if supported, succeeded, failed, canceled only with acknowledgment, and outcome unknown. There is no implicit queue or persistent history; completed inline blocks follow the bounded ephemeral Ledger policy. Leaving a view does not cancel work. Closing the app with active work invokes an explicit job-aware exit decision; the UI never claims forced thread termination or rollback. If safe cooperative interruption is unavailable, omit Cancel and explain that work continues when leaving the view. Stop observing is not a cancellation action. Ctrl+C routes through the same lifecycle and restores terminal modes.
+Activity proposal: track operation ID, state, start time, safe parameters and bounded messages. The single current operation has states running, cancel requested only if supported, succeeded, failed, canceled only with acknowledgment, and outcome unknown. There is no implicit queue or persistent history; completed inline blocks follow the bounded ephemeral Ledger policy. Leaving a view does not cancel work. Closing the app with active work invokes an explicit job-aware exit decision; the UI never claims forced thread termination or rollback. If safe cooperative interruption is unavailable, omit Cancel and explain that work continues when leaving the view. Stop observing is not a cancellation action. Ctrl+C not consumed by active-text copy routes through the same exit lifecycle and restores terminal modes.
 
 ## Reference wireframes and review scope
 
@@ -245,7 +245,7 @@ anchors to valid bounds and reveal the focused item. No commands auto-submit.
 | Help | F1 or visible Help saves invoking state and opens context help. `/help` is explicit general help. Close restores exact draft selection/caret, form values/focus, block/item/anchor. Typing a help command itself naturally edits the draft; F1 does not. |
 | Escape | Close top help/review/form/detail, then discovery, otherwise return focus to composer. It never implicitly clears draft or stops an operation. Form Back retains values for reopening during this session. |
 | Edit/Retry | Edit restores safe parameters into a form. A nonempty unrelated draft requires Keep draft/Replace review before replacement. Retry revalidates effects/targets and partial-output state; no automatic retry. |
-| Exit | Ctrl+C or visible Exit. If idle, restore terminal and exit. If working without proven cooperative stop, default Stay; offer Wait then exit. Waiting keeps UI responsive and allows Stay. Completion permits exit after reporting outcome. No forced worker kill or rollback claim. |
+| Copy / Exit | Ctrl+C with an active textual selection in the key-owning surface requests clean copy, never exit/cancel (including copy failure). A selected row/node alone is not a textual selection. Without active text selection, Ctrl+C or visible Exit follows the job-aware exit flow. If idle, restore terminal and exit. If working without proven cooperative stop, default Stay; offer Wait then exit. Waiting keeps UI responsive and allows Stay. No forced worker kill or rollback claim. |
 
 Focus and selection are separate. Worker completion updates its own block only,
 never moves focus, closes an overlay or changes draft/inspection. New-result notice
@@ -255,6 +255,70 @@ enabled control in the same surface, then its header, then composer. Selected-bl
 eviction follows the existing nearest-survivor rule with an explicit notice.
 These are application acceptance requirements; authored snapshot continuity is
 not a runtime test of focus management or Unicode input.
+
+### Accepted clean-copy contract (2026-10-09)
+
+The maintainer explicitly accepted copy priority for active text selection and
+clean content copying in this #303 continuation. This is a scoped UX decision;
+clipboard transport and real-host behavior remain unimplemented and unverified.
+
+Copy uses the canonical safe textual content before terminal layout, bound to
+content identity/revision and logical selection offsets. Never reconstruct it from
+screen cells, screenshots, ANSI output, wrapped rows or padded table columns.
+Markdown is copied as its original Markdown source; a code snippet is copied as
+its source text. Copy content and Copy snippet name the exact bounded payload.
+A selection copies only its logical range, including original line breaks.
+Structured results need an explicit stable plain-text representation from their
+typed data; cell-aligned rendering is not that representation.
+
+Exclude renderer-added margins, stems, borders, focus markers, line-number gutters,
+column alignment spaces, soft wraps, ellipses, spinner frames, terminal color/style
+sequences and clipboard rich formatting. Preserve source indentation, tabs, blank
+lines, intentional leading/trailing spaces, Markdown hard-break spaces and code
+fences that belong to Markdown. Do not use blanket strip/dedent or collapse runs
+of whitespace. Clean means free of presentation artifacts, not removal of syntax.
+Use the existing safe-text/redaction boundary before retention/copy; this contract
+does not authorize exporting raw hidden control sequences or secret diagnostic data.
+
+Active text selection belongs to the current key-owning surface. A preserved but
+inactive selection in another input does not intercept its Ctrl+C. A selected
+result row/tree node is navigation: use explicit Copy content/snippet to copy it,
+or create a textual range first. During textual selection, pin the inspected
+content revision and selection anchor within the existing bounded retention budget.
+New domain output/completion can continue; it must not replace the selected text
+or shift its offsets. Keep animation/redraw from modifying the selected region.
+If that snapshot can no longer be retained, explain the limit and invalidate the
+selection explicitly instead of silently copying different content.
+
+| Copy condition | Observable behavior |
+| --- | --- |
+| Active text selection + Ctrl+C | Copy selected canonical text as plain text; preserve draft/caret/range, result identity/focus/scroll and active operation. Never fall through to exit. |
+| Explicit Copy content/snippet | Copy the named retained payload without visual decorations; no hidden source fetch, implicit whole-file access or file export. |
+| Clipboard unavailable/denied/failure | Explain Copy unavailable/failed, retain selection/state and operation; do not report Copied or invoke exit. Keep text inspectable for the host's native copy fallback. |
+| Copy succeeds | Copied appears only after the supported backend acknowledges the actual write. No focus steal or automatic deselection; plaintext only, no ANSI/HTML/RTF styling. |
+| Payload truncated/not fully retained | Name the copy scope as retained snippet/content and show the omission outside the copied payload. Do not insert warning text into code/Markdown or claim full-file copying. |
+
+The clean guarantee applies to the application's explicit canonical-text copy on
+supported, tested clipboard backends. Copying terminal cells with the emulator's
+mouse selection remains host behavior and can include margins/soft-wrap artifacts.
+The [Win32 selection API](https://learn.microsoft.com/en-us/windows/console/getconsoleselectioninfo)
+has no VT equivalent; it does not establish Windows Terminal/ConPTY/SSH support.
+[Windows Terminal copy](https://learn.microsoft.com/en-us/windows/terminal/customize-settings/actions#copy)
+operates on its selected terminal content. Host integrations must be
+capability-specific. No clipboard reading/polling, silent remote-to-local clipboard
+write, automatic copy or OSC 52/native backend is selected by this UX decision.
+
+Acceptance requires comparing real plain clipboard text with independently defined
+expected Markdown/code/range fixtures at all three sizes, no-color/ASCII/Motion off,
+including tabs, nested indentation, blank lines, Markdown trailing spaces, long
+wrapped lines and redacted content. Check focus/selection/scroll preservation,
+completion during selection, denied/failed writes and unavailable local/SSH hosts.
+The review viewer shows expected payloads and authored outcomes without writing
+the real clipboard. These examples do not prove a future clipboard backend.
+
+Existing #308/#310/#313 contracts and #321 acceptance receive this traceability
+input through #303; no implementation, backlog execution or #306 modification
+is authorized by recording it here.
 
 ### Forms and exact-target review
 

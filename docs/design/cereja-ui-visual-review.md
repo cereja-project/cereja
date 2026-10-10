@@ -102,7 +102,8 @@ retention extension and is not evidence that it has been runtime validated.
 ## Ledger UX #303 review (2026-10-09)
 
 Disposition: specification and concrete review artifact ready for human review.
-This section is current; the earlier sections describe the historical comparison.
+This is the initial #303 checkpoint; the clean-copy continuation below updates it.
+The earlier sections describe the historical comparison.
 No comparison was reopened. No application, widget or domain integration was built.
 The consumer is #303 review and the next #306 readiness assessment; maintain this
 bounded fixture generator with the UX document, not with domain/runtime contracts.
@@ -158,3 +159,40 @@ viewer, recording accepted flows or actionable corrections on #303. Then decide
 in Reviewing at this checkpoint. Twenty results and 2 MiB, real retention/memory,
 runtime focus/input, safe domain integration and real-terminal/human acceptance
 remain outside the claims established here.
+
+## Clean-copy continuation (2026-10-09)
+
+The maintainer accepted active-selection copy priority and copying clean content
+without terminal formatting. [The accepted contract](cereja-ui-ux.md#accepted-clean-copy-contract-2026-10-09)
+now distinguishes canonical Markdown/code/range content from padded/rendered cells,
+preserving semantic whitespace instead of trimming it. Failed/unavailable copy
+retains selection and work and never falls through to exit. Native emulator copy
+has a separate host-dependent limit. No production clipboard backend is implemented.
+
+The viewer adds eight authored cases: Markdown with hard-break spaces/code fences,
+code indentation/blank lines, tabs, a selected logical range, denied copy, unavailable
+clipboard, completion during selection and row navigation versus explicit Copy.
+Expected payloads appear outside the terminal-cell frame for direct inspection.
+All eight are synthetic and acknowledge no real clipboard write.
+
+Executed checks: generator and `--check` passed with 52 states, ten walkthroughs,
+323 frames/pages and eight source/range copy expectations. Chrome replay passed
+57 authored steps, 15 size/palette samples and the five compact form pages.
+The new copy-specific replay checked eight cases at all three supported sizes
+(24 samples), exact expected payload strings, Markdown trailing spaces, code
+indentation/blank lines, literal tabs, dispatch priority and recorded state/revision
+preservation across failure/unavailability/completion. Node syntax and diff checks
+passed. Actual screenshots inspected: clean code at 40x12 monochrome and Markdown
+at 80x24 monochrome, showing canonical content separately from the terminal layout.
+
+No real clipboard read/write, terminal input, native-selection detection or
+clipboard transport roundtrip was performed. These are authored/browser checks,
+not proof of runtime copy fidelity, accessibility or overall UX acceptance. The
+existing Git/LF artifact fingerprints retain the initial published checkpoint
+and identify the updated generator/HTML. The accepted copy choice is narrower
+than final human review of the entire Ledger experience, which remains pending.
+
+Next action: review the clean-copy specimens with L1-L6 and the shared lifecycle
+on #303. Real backends must later prove plain-text source fidelity and failure
+behavior on supported local/remote hosts under #321. Existing #308/#310/#313
+traceability is preparation only; no #306 or backlog execution occurred.

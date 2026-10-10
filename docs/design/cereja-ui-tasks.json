@@ -165,7 +165,7 @@
       ],
       "evidence": "Final selected-Ledger specification and authored exact-cell walkthroughs; structural and browser evidence are separate from pending terminal and human task review.",
       "docs": "docs/design/cereja-ui-ux.md; docs/design/cereja-ui-visual-language.md; docs/design/cereja-ui-ledger.html; docs/design/cereja-ui-visual-review.md; benchmarks/ui_ux/specimens.py",
-      "review_state": "Specification ready for review; terminal and human acceptance pending. No widget/application implementation."
+      "review_state": "Specification ready for review; clean canonical-text copy and active-selection priority accepted on 2026-10-09. Clipboard transport, terminal and full human acceptance pending. No widget/application implementation."
     },
     {
       "key": "CORE-PERF",

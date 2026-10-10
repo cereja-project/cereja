@@ -225,6 +225,54 @@ def corpus():
         "No proven cooperative Cancel", "Terminal restoration does not mean rollback"],
         overlay=True, active="05", blocks=blocks, anchor=1, focus="Stay", actions=("Stay", "Wait", "Help"))
 
+    # These are independently authored expected copy payloads, not a clipboard API.
+    markdown = '## Notes\n\nA Markdown hard break.  \nNext line.\n\n- item\n\n```python\n    value = "two  spaces"\n```\n'
+    code = 'def preserve(value):\n    if value:\n        return "two  spaces"\n\n    return None\n'
+    tabs = 'def tab_indent():\n\treturn "value"\n'
+    selected_line = '        return "two  spaces"\n'
+    selected_start = code.index(selected_line)
+    copy_blocks = [{"id": "03", "command": "/context", "state": "Done"}, blocks[1]]
+    for key, title, fmt, source, region, expected in (
+        ("copy-markdown", "Markdown / clean source copy", "Markdown", markdown, (0, len(markdown)), markdown),
+        ("copy-code", "Code / indentation and blank lines", "code", code, (0, len(code)), code),
+        ("copy-tabs", "Code / preserve source tabs", "code", tabs, (0, len(tabs)), tabs),
+        ("copy-range", "Selected text / logical range only", "code", code,
+         (selected_start, selected_start + len(selected_line)), selected_line),
+    ):
+        add(key, title, "L6", [
+            "> 03 /context | selected retained snippet", "SYNTHETIC COPY EXPECTATION; no clipboard write",
+            "Ctrl+C: copy active text, never exit/cancel", "Source " + fmt + ":", *source.splitlines(),
+            "No terminal margins/soft wraps/ANSI in payload"], selected="03", item="snippet", anchor=2,
+            focus="detail", active="05", blocks=copy_blocks, actions=("Copy", "Help", "Exit"))
+        states[key]["copy"] = dict(source_id="fixture/snippet", revision=1, format=fmt, source=source,
+                                   logical_range=list(region), plain_text=expected, selection_active=True,
+                                   ctrl_c="Copy", outcome="Ready", clipboard_ack=False,
+                                   scope="Selected retained text; synthetic expected payload only")
+    states["copy-failed"] = copy.deepcopy(states["copy-code"])
+    states["copy-failed"]["name"] = "Copy failed / preserve selection and work"
+    states["copy-failed"]["lines"] = [
+        "Error: clipboard write denied (synthetic)", "No Copied claim; no fall-through to exit",
+        "Text/selection/focus/inspection and job preserved", "Retry copy explicitly; payload stays inspectable"]
+    states["copy-failed"]["copy"]["outcome"] = "Failed"
+    states["copy-unavailable"] = copy.deepcopy(states["copy-failed"])
+    states["copy-unavailable"]["name"] = "Clipboard unavailable / native fallback limit"
+    states["copy-unavailable"]["lines"] = [
+        "Copy unavailable on this host (synthetic)", "No automatic remote clipboard write",
+        "Native emulator copy may include screen padding", "Canonical text remains inspectable; no exit"]
+    states["copy-unavailable"]["copy"]["outcome"] = "Unavailable"
+    states["copy-completed"] = copy.deepcopy(states["copy-code"])
+    states["copy-completed"]["name"] = "Completion during selection / pinned text"
+    states["copy-completed"]["active"] = None
+    states["copy-completed"]["blocks"][1]["state"] = "Done"
+    states["copy-completed"]["lines"] += ["New completion does not replace the selected source revision"]
+    states["copy-row"] = copy.deepcopy(states["copy-code"])
+    states["copy-row"]["name"] = "Selected row / explicit Copy content"
+    states["copy-row"]["focus"] = "header"
+    states["copy-row"]["lines"] = [
+        "Selected row is navigation, not a textual range", "Explicit Copy content uses retained source",
+        "Ctrl+C without active text selection follows Exit", "Clipboard transport is not implemented"]
+    states["copy-row"]["copy"].update(selection_active=False, ctrl_c="Exit", scope="Explicit Copy content only")
+
     walks = [
         dict(name="L1 discovery and explicit load", steps=["initial", "slash", "inserted", "system-working", "system"], keys=["type /sys", "Enter inserts", "Enter submits", "domain completion"]),
         dict(name="L1 refresh failure", steps=["system", "system-actions", "system-refresh", "system-error"], keys=["Tab to Refresh, no execution", "Enter Refresh", "domain error"]),
@@ -235,6 +283,8 @@ def corpus():
         dict(name="L6 reference surfaces", steps=["examples", "catalogue", "diagnostics"], keys=["review catalogue", "review diagnostics"]),
         dict(name="One job, help, completion, return", steps=["ledger", "busy", "help", "completion-help", "returned", "eviction", "exit"], keys=["second Run refused", "Help", "domain completion", "Escape", "independent eviction case", "independent active-exit case"]),
         dict(name="Compact form and size recovery", steps=["context-form", "context-form", "context-form"], keys=["resize below minimum", "resize back"]),
+        dict(name="Clean copy / source, selection and failure", steps=["copy-markdown", "copy-code", "copy-tabs", "copy-range", "copy-failed", "copy-unavailable", "copy-completed", "copy-row"],
+             keys=["independent code fixture", "independent tab fixture", "select logical range", "synthetic denied-copy case", "independent unavailable-host case", "completion during selection", "independent row-navigation case"]),
     ]
     return states, walks
 
@@ -355,11 +405,29 @@ def verify(states, walks):
     assert states["confirm"]["focus"] == "Keep"
     assert all("Cancel" not in s["actions"] for s in states.values())
     assert all(s["provenance"] for s in states.values())
+    copy_cases = [s for s in states.values() if "copy" in s]
+    for s in copy_cases:
+        c = s["copy"]
+        start, end = c["logical_range"]
+        assert c["source"][start:end] == c["plain_text"]
+        assert "\x1b" not in c["plain_text"]
+        assert not c["clipboard_ack"], "Viewer never acknowledges a real clipboard write"
+        assert c["ctrl_c"] == ("Copy" if c["selection_active"] else "Exit")
+        assert all(c["plain_text"] != "\n".join(frame(s, w, h)["cells"]) for w, h in SIZES)
+    assert 'hard break.  \n' in states["copy-markdown"]["copy"]["plain_text"]
+    assert '        return "two  spaces"\n\n' in states["copy-code"]["copy"]["plain_text"]
+    assert '\n\treturn ' in states["copy-tabs"]["copy"]["plain_text"]
+    assert states["copy-range"]["copy"]["plain_text"] == '        return "two  spaces"\n'
+    for other in ("copy-failed", "copy-unavailable", "copy-completed"):
+        for field in stable + ("focus",):
+            assert states["copy-code"][field] == states[other][field]
+        for field in ("source_id", "revision", "source", "logical_range", "plain_text"):
+            assert states["copy-code"]["copy"][field] == states[other]["copy"][field]
     for walk in walks:
         assert len(walk["keys"]) == len(walk["steps"]) - 1
         assert all(key in states for key in walk["steps"])
     return {"states": len(states), "walkthroughs": len(walks), "frames_and_pages": count,
-            "sizes": [list(s) for s in SIZES], "result": "passed",
+            "sizes": [list(s) for s in SIZES], "copy_expectations": len(copy_cases), "result": "passed",
             "scope": "Authored ASCII geometry/paging/actions/state continuity only; no app/terminal/user test"}
 
 
@@ -385,6 +453,7 @@ button{margin:4px}a{color:#7b2042}.scroll{overflow:auto}.terminal{display:inline
 .draft-selected{text-decoration:underline;font-weight:bold}.draft-caret{box-shadow:inset 1px 0 currentColor}
 .terminal.mono{background:#000;color:#fff}.terminal.mono .row{color:inherit}.terminal.c16{background:#000;color:#fff}.terminal.c16 .heading,.terminal.c16 .dock{color:#f0f}.terminal.c256{background:#1c1c1c;color:#d7d7d7}.terminal.c256 .heading,.terminal.c256 .dock{color:#ff87af}
 details{margin:12px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.5 Consolas,monospace}.notice{border-left:3px solid #9c264c;padding-left:12px}#description{min-height:3em}
+#copyPayload{white-space:pre;overflow:auto;overflow-wrap:normal;background:#fff;padding:12px}
 </style><main>
 <h1>Ledger: cells, flows and return state</h1>
 <p class="notice">Review-only authored snapshots for #303. No commands execute. All domain values, paths and outcomes are synthetic except labelled captured loopback byte events. No production widgets or application are implemented.</p>
@@ -393,7 +462,9 @@ details{margin:12px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/
 <label>Cells <select id="size"></select></label><label>Palette <select id="palette"><option value="">Ledger dark</option><option value="light">Light candidate</option><option value="c256">256 candidate</option><option value="c16">16 candidate</option><option value="mono">No color / ASCII</option></select></label>
 <div><button id="previous">Previous specimen</button><button id="next">Next specimen</button><button id="pageBack">Previous content page</button><button id="pageNext">Next content page</button></div>
 <p id="description" aria-live="polite"></p><div class="scroll"><div class="terminal" id="terminal" role="img" aria-label="Authored ASCII terminal-cell snapshot"></div></div>
-<p id="provenance"></p><details open><summary>Independent editing / inspection / overlay state</summary><pre id="state"></pre></details>
+<p id="provenance"></p>
+<section id="copyReview" hidden><h2>Expected canonical plain text</h2><p id="copyScope"></p><pre id="copyPayload"></pre><p>Source-bound copy expectation, not reconstructed screen cells. Original Markdown/code spaces and newlines are preserved. This viewer never reads or writes your clipboard.</p></section>
+<details open><summary>Independent editing / inspection / overlay state</summary><pre id="state"></pre></details>
 <p>Viewer controls are external to the terminal. Tab reaches these controls; Next specimen replays an authored step, not a real key event. Motion is always off. No timers advance progress, no network/filesystem calls and no session persistence. Below-minimum recovery retains the authored state.</p>
 <p>These snapshots support geometry and copy review. Terminal glyphs, key routing, responsiveness, retention memory, screen readers, usability and human acceptance require later evidence.</p>
 </main><script>
@@ -411,6 +482,7 @@ function draw(){const w=data.walks[+el('walk').value], index=+el('step').value, 
  row.dataset.cells=text.length;host.append(row);});
  el('description').textContent=state.name+' | content page '+(currentPage+1)+'/'+pages.length+(index? ' | Authored transition: '+w.keys[index-1]:' | Start specimen');
  el('provenance').textContent=state.provenance+' | ASCII cells | Motion off';el('state').textContent=JSON.stringify(state,null,2);
+ el('copyReview').hidden=!state.copy;el('copyPayload').textContent=state.copy?state.copy.plain_text:'';el('copyScope').textContent=state.copy?state.copy.scope+' | '+state.copy.outcome+' | Ctrl+C: '+state.copy.ctrl_c:'';
  el('previous').disabled=index===0;el('next').disabled=index===w.steps.length-1;el('pageBack').disabled=currentPage===0;el('pageNext').disabled=currentPage===pages.length-1;
 }
 el('walk').onchange=steps;el('step').onchange=()=>{currentPage=0;draw();};el('size').onchange=()=>{currentPage=0;draw();};el('palette').onchange=draw;

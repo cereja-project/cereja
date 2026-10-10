@@ -239,3 +239,14 @@ Real emulator, SSH, ConPTY and human acceptance remain pending; #305 is unchange
 Twenty retained completed summaries and 2 MiB remain calibration candidates,
 not measurements. Directory safety and publication gaps remain separate domain
 and integration gates. Publication of the UX specification does not close those gaps.
+
+## Accepted clean-copy continuation (2026-10-09)
+
+The maintainer accepted active-text copy priority and source-faithful plain copying
+within #303. [The copy contract](cereja-ui-ux.md#accepted-clean-copy-contract-2026-10-09)
+and [eight review cases](cereja-ui-ledger.html) distinguish canonical Markdown/code
+from cell padding, borders, ANSI and soft wraps while retaining semantic whitespace.
+This scoped choice does not accept the entire UX or select a clipboard backend.
+[The verification record](cereja-ui-visual-review.md#clean-copy-continuation-2026-10-09)
+separates authored/browser checks from pending real clipboard and terminal trials.
+No implementation or #306/backlog execution is included.

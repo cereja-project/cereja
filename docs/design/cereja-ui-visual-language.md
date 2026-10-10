@@ -66,9 +66,16 @@ Both use the same cherry accent and command grammar. Preference should therefore
 | Context help | F1 or a visible Help action opens contextual help without submitting or changing the draft. `/help` opens general help after its own explicit submission. Both restore the invoking caret/selection, overlay values, result identity and scroll. The review viewer's controls are outside the terminal specimen. |
 | Escape | Close the top overlay, then dismiss discovery. It does not cancel work or erase the whole command implicitly. |
 | Result movement | Arrows select within the focused collection; Enter inspects. PageUp/PageDown move content by a page minus one overlap row. Header Left/Right selects retained blocks. Full Home/End, Unicode editing and all real key behavior remain toolkit/application acceptance work. |
-| Exit | Ctrl+C requests application exit through the operation-aware lifecycle. Never promise it safely cancels unsupported work. |
+| Copy / Exit | Ctrl+C first copies active textual selection in the key-owning surface using canonical plain text; copy failure never falls through to exit. Without textual selection it requests job-aware exit. A selected row/node alone is not text selection. See the accepted clean-copy contract in the UX document. |
 
 The composer owns normal typing even when result content is visible; typing while a result control has focus must not secretly rewrite it. A visible focus marker and contextual hint name the current target. Bracketed paste inserts bounded text without dispatching slash commands. Newline-containing paste requires explicit submission after review. Control text is sanitized before measurement and output.
+
+Explicit Copy content/snippet uses the retained safe content before cell layout,
+excluding padding/borders/soft wraps/ANSI while preserving Markdown/code whitespace.
+It binds to a stable content revision and preserves inspection/edit state. Native
+emulator copy and unsupported clipboard backends have separate limits; the
+[accepted copy contract](cereja-ui-ux.md#accepted-clean-copy-contract-2026-10-09)
+owns the complete behavior and pending verification.
 
 Overlays open directly above the composer and never cover its active line. Wide overlays are limited to the composer width and available result height. Small screens use a single scrolling overlay with a fixed title/action row; overlay focus is contained until close, then restored. Only one topmost overlay captures keys. Confirmation overlays state exact targets and effects, default to keep/back, and bind consent to the validated target. Suggestions use no execution-style confirmation language.
 
