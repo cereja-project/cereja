@@ -91,3 +91,38 @@ class TimerEvent:
 @dataclass(frozen=True)
 class QuitEvent:
     reason: str = ''
+
+
+@dataclass(frozen=True)
+class OperationStartedEvent:
+    source: str
+    generation: int
+    name: str
+    cancellable: bool = False
+
+
+@dataclass(frozen=True)
+class OperationPhaseEvent:
+    source: str
+    generation: int
+    phase: str
+
+
+@dataclass(frozen=True)
+class OperationResultEvent:
+    source: str
+    generation: int
+    state: str
+    value: str | bytes | int | float | bool | None = None
+
+
+@dataclass(frozen=True)
+class OperationErrorEvent:
+    source: str
+    generation: int
+    state: str
+    message: str
+    primary_error: str = ''
+    phase: str = 'Validating'
+    value: str | bytes | int | float | bool | None = None
+    result_available: bool = False

@@ -30,6 +30,7 @@ CASES = {
     "ui_buffer": "import cereja.ui.buffer",
     "ui_rendering": "import cereja.ui.rendering",
     "ui_scheduling": "import cereja.ui.scheduling",
+    "ui_operations": "import cereja.ui.operations",
 }
 PROBE = r'''
 import contextlib

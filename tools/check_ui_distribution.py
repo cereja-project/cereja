@@ -49,7 +49,7 @@ with ExitStack() as stack:
     import cereja.ui
     assert not any(n.startswith('cereja.ui.') for n in sys.modules)
     from cereja.ui import terminal, text, buffer, rendering, scheduling, testing, events
-    from cereja.ui import posix, windows, editing, focus, layout, overlays, collections, feedback
+    from cereja.ui import posix, windows, editing, focus, layout, overlays, collections, feedback, operations
 assert set(threading.enumerate()) == before
 assert 'cereja.display' not in sys.modules and 'cereja.system' not in sys.modules
 assert 'unicodedata' not in sys.modules
@@ -108,7 +108,23 @@ with terminal.TerminalSession(backend) as session:
     assert loop.post(event)
     loop.turn()
     assert seen == [event]
-    loop.close()
+    bridge = operations.OperationBridge(loop, 'installed-operation')
+    loop.handler = bridge.handle
+    def work(context):
+        context.running()
+        context.progress(1, total=1, reliable_total=True)
+        return 'installed'
+    try:
+        bridge.start('Installed bounded operation', work)
+        deadline = __import__('time').monotonic() + 5
+        while bridge.active and __import__('time').monotonic() < deadline:
+            loop.turn()
+            __import__('time').sleep(.001)
+        assert bridge.snapshot.state == 'Succeeded'
+        assert bridge.snapshot.delivery == 'delivered'
+    finally:
+        bridge.close()
+        loop.close()
 print(json.dumps({'installed_only': ['cereja'], 'requires_dist': [],
     'unicode_version': text.UNICODE_VERSION, 'imports_silent_and_guarded': True,
     'legacy_isolated': True, 'examples_passed': True,
@@ -160,7 +176,7 @@ def main():
         source.mkdir()
         export_tree(tree, source)
         expected = {name: sha256((source / 'cereja' / 'ui' / name).read_bytes()).hexdigest()
-                    for name in ('_unicode17.py', 'UNICODE-LICENSE.txt', 'collections.py', 'feedback.py', 'scheduling.py')}
+                    for name in ('_unicode17.py', 'UNICODE-LICENSE.txt', 'collections.py', 'feedback.py', 'scheduling.py', 'operations.py', 'events.py', '_posting.py')}
         run([sys.executable, '-B', '-c', 'from setuptools import build_meta as b; '
              'b.build_sdist("dist"); b.build_wheel("dist")'], cwd=source)
         wheel = next((source / 'dist').glob('*.whl'))
@@ -175,7 +191,9 @@ def main():
                            'docs/guides/ui-collections.md', 'benchmarks/ui_collections.py',
                            'benchmarks/ui_collections_samples/baseline-windows-py314.json',
                            'docs/guides/ui-feedback.md', 'benchmarks/ui_feedback.py',
-                           'benchmarks/ui_feedback_samples/baseline-windows-py314.json'):
+                           'benchmarks/ui_feedback_samples/baseline-windows-py314.json',
+                           'docs/guides/ui-operations.md', 'benchmarks/ui_operations.py',
+                           'benchmarks/ui_operations_samples/baseline-windows-py314.json'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))

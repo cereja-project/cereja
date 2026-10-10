@@ -9,6 +9,7 @@ import threading
 from .events import (
     EOFEvent, FocusEvent, InputErrorEvent, KeyEvent, PasteEvent, ProgressEvent,
     QuitEvent, ResizeEvent, ResultEvent, TimerEvent, WakeEvent,
+    OperationStartedEvent, OperationPhaseEvent, OperationResultEvent, OperationErrorEvent,
 )
 
 
@@ -84,17 +85,28 @@ def payload_bytes(event):
     if kind is ResultEvent:
         _integer(event.generation, minimum=1)
         size = _text(event.source, limit=MAX_ID_BYTES)
-        value = event.value
-        if type(value) is str:
-            size += _text(value)
-        elif type(value) is bytes:
-            size += len(value)
-        elif type(value) is int:
-            _integer(value, minimum=-(1 << 63))
-        elif type(value) is float:
-            _number(value)
-        elif value is not None and type(value) is not bool:
-            raise TypeError('results accept only bounded scalar/text/bytes values')
+        return size + _value_bytes(event.value)
+    if kind in (OperationStartedEvent, OperationPhaseEvent,
+                OperationResultEvent, OperationErrorEvent):
+        _integer(event.generation, minimum=1)
+        size = _text(event.source, limit=MAX_ID_BYTES)
+        if kind is OperationStartedEvent:
+            if type(event.cancellable) is not bool:
+                raise TypeError('cancellable must be bool')
+            size += _text(event.name, limit=MAX_ID_BYTES)
+        elif kind is OperationPhaseEvent:
+            _choice(event.phase, ('Running', 'Committing', 'CancelRequested'))
+        else:
+            _choice(event.state, ('Succeeded', 'Cancelled') if kind is OperationResultEvent
+                    else ('Failed', 'CleanupFailed'))
+            size += _value_bytes(event.value)
+            if kind is OperationErrorEvent:
+                size += _text(event.message, limit=4096) + _text(event.primary_error, limit=4096)
+                _choice(event.phase, ('Validating', 'Running', 'Committing', 'CancelRequested'))
+                if type(event.result_available) is not bool:
+                    raise TypeError('result_available must be bool')
+        if size > 65536:
+            raise _Oversized('operation event exceeds 64 KiB')
         return size
     if kind is TimerEvent:
         _integer(event.timer_id, minimum=1)
@@ -104,6 +116,25 @@ def payload_bytes(event):
     if kind in (EOFEvent, WakeEvent):
         return 0
     raise TypeError('unsupported event type or event subclass')
+
+
+def _choice(value, choices):
+    if type(value) is not str or value not in choices:
+        raise ValueError('unsupported operation state')
+
+
+def _value_bytes(value):
+    if type(value) is str:
+        return _text(value)
+    if type(value) is bytes:
+        return len(value)
+    if type(value) is int:
+        _integer(value, minimum=-(1 << 63))
+    elif type(value) is float:
+        _number(value)
+    elif value is not None and type(value) is not bool:
+        raise TypeError('results accept only bounded scalar/text/bytes values')
+    return 0
 
 
 class Cancellation:

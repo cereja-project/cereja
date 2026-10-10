@@ -19,3 +19,7 @@ include benchmarks/ui_collections_samples/*.json
 include docs/guides/ui-feedback.md
 include benchmarks/ui_feedback.py
 include benchmarks/ui_feedback_samples/*.json
+
+include docs/guides/ui-operations.md
+include benchmarks/ui_operations.py
+include benchmarks/ui_operations_samples/*.json

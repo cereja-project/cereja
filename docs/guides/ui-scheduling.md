@@ -226,3 +226,7 @@ nor cross-platform throughput. POSIX PTY integration is checked on its native
 CI hosts; their performance requires separate samples. Manual emulator, SSH,
 ConPTY and real-disconnection walkthroughs remain pending. The issue owns the
 tested/reviewed tree, delivered commit, actual CI result and human acceptance.
+
+The opt-in [operation lifecycle bridge](ui-operations.md) builds on these requests,
+bounded posts and wake signals. It separates final consumption from domain worker
+exit and documents capability-gated cancellation and job-aware exit.

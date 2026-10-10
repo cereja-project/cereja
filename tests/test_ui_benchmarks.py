@@ -15,6 +15,7 @@ class CoreBenchmarksTest(unittest.TestCase):
         sys.path.insert(0, str(ROOT / 'benchmarks'))
         cls.rendering = runpy.run_path(str(ROOT / 'benchmarks/ui_rendering.py'))
         cls.scheduling = runpy.run_path(str(ROOT / 'benchmarks/ui_scheduling.py'))
+        cls.operations = runpy.run_path(str(ROOT / 'benchmarks/ui_operations.py'))
         cls.feedback = runpy.run_path(str(ROOT / 'benchmarks/ui_feedback.py'))
         cls.helpers = runpy.run_path(str(ROOT / 'benchmarks/_ui_bench.py'))
 
@@ -59,6 +60,23 @@ class CoreBenchmarksTest(unittest.TestCase):
             self.assertTrue(any('3/8 (37%)' in row for row in rows))
             self.assertTrue(any('total unavailable' in row for row in rows))
             self.assertFalse(any('\x1b' in row for row in rows))
+
+
+    def test_operations_real_producers_and_memory_boundary(self):
+        for mode in ('local', 'low-bandwidth', 'off', 'plain'):
+            result = self.operations['sample'](mode, output=True, pressure=True, duration=.02)
+            self.assertEqual(result['final_events'], 1)
+            self.assertTrue(result['worker_exited'])
+            self.assertEqual(result['outcome'], 'Succeeded')
+            self.assertGreater(result['attempted_progress'], 0)
+            self.assertGreater(result['latency_ns']['n'], 0)
+            self.assertGreater(result['pressure_events'], 0)
+            self.assertLessEqual(result['peak_sampled_envelopes'], 1024)
+            self.assertLessEqual(result['peak_sampled_payload_bytes'], 1048576)
+            self.assertEqual(result['idle_periodic_work'], 0)
+            self.assertTrue(result['editor_selection_preserved'])
+            if mode in ('off', 'plain'):
+                self.assertEqual(result['metrics']['timer_events'], 0)
 
     def test_tracing_retains_value_and_stops_after_window(self):
         result = self.helpers['traced'](lambda: bytearray(4096))

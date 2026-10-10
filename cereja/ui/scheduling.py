@@ -10,7 +10,8 @@ from ._posting import (
     Cancellation, MAX_BYTES, MAX_EVENTS, _Inbox, _integer, _number, _text,
     payload_bytes,
 )
-from .events import EOFEvent, ProgressEvent, QuitEvent, ResultEvent, TimerEvent, WakeEvent
+from .events import (EOFEvent, ProgressEvent, QuitEvent, ResultEvent, TimerEvent, WakeEvent,
+    OperationStartedEvent, OperationPhaseEvent, OperationResultEvent, OperationErrorEvent)
 
 
 @dataclass(frozen=True)
@@ -193,6 +194,13 @@ class EventLoop:
             self._request_bytes += size
         return request
 
+    def request_active(self, request):
+        """UI-thread observation of generation/presentation, never worker liveness."""
+        self._check_thread()
+        current = self._requests.get(request.source)
+        return bool(not self._stopped and current and current[1]
+                    and current[0] is request)
+
     def cancel_request(self, source, *, cooperative=False):
         """Suppress presentation. Signal a proven cooperative path only when requested."""
         self._check_active()
@@ -207,10 +215,13 @@ class EventLoop:
             request.cancellation.cancel()
         return True
 
-    def forget_request(self, source):
+    def forget_request(self, source, *, request=None):
+        """Remove an owned generation; an optional Request protects a newer owner."""
         self._check_active()
-        if self._requests.pop(source, None) is None:
+        current = self._requests.get(source)
+        if current is None or (request is not None and current[0] is not request):
             return False
+        del self._requests[source]
         self._request_bytes -= _text(source, limit=4096)
         return True
 
@@ -337,9 +348,10 @@ class EventLoop:
     def _dispatch(self, event):
         if type(event) is WakeEvent:
             return
-        if type(event) in (ResultEvent, ProgressEvent):
+        if type(event) in (ResultEvent, ProgressEvent, OperationStartedEvent,
+                           OperationPhaseEvent, OperationResultEvent, OperationErrorEvent):
             current = self._requests.get(event.source)
-            if (type(event) is ResultEvent or event.generation != 0 or current is not None):
+            if (type(event) is not ProgressEvent or event.generation != 0 or current is not None):
                 if current is None or not current[1] or current[0].generation != event.generation:
                     self._counts['suppressed_results'] += 1
                     return
