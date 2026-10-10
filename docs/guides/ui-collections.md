@@ -196,23 +196,24 @@ At 40x12, 31 samples per workload (three warmups), median/p95 End-event-to-buffe
 
 | Fixture | Body rows painted | Retained / examined | Median / p95 (microseconds) |
 | --- | ---: | ---: | ---: |
-| List, 64 rows | 11 | 64 / 64 | 495.5 / 1340.9 |
-| List, 4096 rows | 11 | 4096 / 4096 | 622.2 / 1478.5 |
-| Table, three columns | 10 | 4096 / 4096 | 780.6 / 1156.8 |
-| Broad tree | 11 | 4096 / 4096 | 648.8 / 904.4 |
-| 100000-node source, count cutoff | 11 | 4096 / 4097 | 718.8 / 1296.4 |
-| 10000-deep source, depth cutoff | 11 | 129 / 130 | 864.4 / 2108.2 |
-| Canonical-byte cutoff | 11 | 23 / 24 | 581.8 / 1288.9 |
+| List, 64 rows | 11 | 64 / 64 | 598.2 / 1408.3 |
+| List, 4096 rows | 11 | 4096 / 4096 | 514.3 / 1574.6 |
+| Table, three columns | 10 | 4096 / 4096 | 765.0 / 2103.1 |
+| Broad tree | 11 | 4096 / 4096 | 593.4 / 1634.7 |
+| 100000-node source, count cutoff | 11 | 4096 / 4097 | 621.3 / 1575.2 |
+| 10000-deep source, depth cutoff | 11 | 129 / 130 | 854.3 / 1675.4 |
+| Canonical-byte cutoff | 11 | 23 / 24 | 553.8 / 1316.1 |
 
-Broad count-capped admission median was 30.824 ms; its single root expansion
-was 348.6 microseconds. Deep admission was 796.9 microseconds; 129 explicit
-expansions together took 1.803 ms. These windows differ from visible repaint.
-The canonical-byte fixture admits 1036866 bytes but has a median 5467127 traced
-bytes retained and 6279250 peak, demonstrating why payload caps are not heap
-caps. Three separate memory samples per case; shared immutable fixture text is
-counted once in Python objects but per row in conservative payload accounting.
-Background load, affinity and power were uncontrolled; p95 dispersion does not
-establish a latency budget or cross-host comparison.
+Broad count-capped admission median was 29.767 ms; its single root expansion
+was 332.4 microseconds. Deep admission was
+783.4 microseconds; 129 explicit expansions together took
+1.793 ms. These windows differ from visible repaint.
+The canonical-byte fixture admits 1036866 bytes but has a median
+5467127 traced bytes retained and 6279250 peak, demonstrating why
+payload caps are not heap caps. Three separate memory samples per case; shared
+immutable fixture text is counted once in Python objects but per row in
+conservative payload accounting. Background load, affinity and power were
+uncontrolled; p95 dispersion does not establish a latency budget or cross-host comparison.
 
 No scheduler pacing, renderer/output acknowledgement, real widget terminal trial,
 human input, clipboard roundtrip, domain/application latency, accessibility or

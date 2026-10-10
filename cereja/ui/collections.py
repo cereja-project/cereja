@@ -554,6 +554,8 @@ class TreeView(_Collection):
 
     def handle(self, event, *, focused=True):
         self._owned()
+        if type(focused) is not bool:
+            raise TypeError('focused must be bool')
         if (not focused or not isinstance(event, KeyEvent) or event.modifiers or
                 event.key not in ('left', 'right')):
             return super().handle(event, focused=focused)

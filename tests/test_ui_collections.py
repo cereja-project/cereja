@@ -297,6 +297,13 @@ class TreeNavigationTest(unittest.TestCase):
             self.assertEqual(widget.order, ('root', 'child'))
             self.assertEqual(widget.status.state, 'complete')
 
+    def test_tree_focus_flag_validation_does_not_mutate_navigation(self):
+        widget = self.fixture()
+        for event in (key('right'), key('left'), key('down')):
+            with self.assertRaises(TypeError):
+                widget.handle(event, focused='another-owner')
+        self.assertEqual((widget.selected, widget.expanded), ('a', frozenset()))
+
     def test_invalid_hierarchy_atomic(self):
         widget = self.fixture()
         for nodes in ([TreeNode('orphan', 'orphan', parent='absent')],
