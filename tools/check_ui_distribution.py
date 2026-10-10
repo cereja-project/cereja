@@ -49,7 +49,7 @@ with ExitStack() as stack:
     import cereja.ui
     assert not any(n.startswith('cereja.ui.') for n in sys.modules)
     from cereja.ui import terminal, text, buffer, rendering, scheduling, testing, events
-    from cereja.ui import posix, windows, editing, focus, layout, overlays
+    from cereja.ui import posix, windows, editing, focus, layout, overlays, collections
 assert set(threading.enumerate()) == before
 assert 'cereja.display' not in sys.modules and 'cereja.system' not in sys.modules
 assert 'unicodedata' not in sys.modules
@@ -73,6 +73,17 @@ stack.open(overlays.Suggestions('slash', composer, (
 assert stack.handle(events.KeyEvent('enter')).kind == 'inserted'
 assert composer.text == '/system ' and stack.top is None
 assert composer.handle(events.KeyEvent('enter')).kind == 'submit'
+canonical = editing.TextContent('installed-source', 3, '  code\t  \n\n')
+table = collections.Table('table', (collections.Column('Preview'),),
+                          (collections.Row('row', ('short',), canonical),))
+table.set_text_selection('row', 0, len(canonical.text))
+assert table.handle(events.KeyEvent('c', modifiers=frozenset({'ctrl'}))).selection.text == canonical.text
+tree = collections.TreeView('tree', (collections.TreeNode('root', 'root', branch=True),
+                                    collections.TreeNode('child', 'child', parent='root')))
+assert tree.handle(events.KeyEvent('right')).kind == 'changed'
+assert tree.handle(events.KeyEvent('right')).kind == 'changed'
+assert tree.selected == 'child'
+assert table.paint(buffer.CellBuffer(20, 5), buffer.Rect(0, 0, 19, 5)).painted_rows == 1
 backend = testing.VirtualBackend(size=(8, 2))
 with terminal.TerminalSession(backend) as session:
     renderer = rendering.Renderer(session, verify_damage=True)
@@ -141,7 +152,7 @@ def main():
         source.mkdir()
         export_tree(tree, source)
         expected = {name: sha256((source / 'cereja' / 'ui' / name).read_bytes()).hexdigest()
-                    for name in ('_unicode17.py', 'UNICODE-LICENSE.txt')}
+                    for name in ('_unicode17.py', 'UNICODE-LICENSE.txt', 'collections.py')}
         run([sys.executable, '-B', '-c', 'from setuptools import build_meta as b; '
              'b.build_sdist("dist"); b.build_wheel("dist")'], cwd=source)
         wheel = next((source / 'dist').glob('*.whl'))
@@ -152,7 +163,9 @@ def main():
                            'tools/unicode/17.0.0/LICENSE.txt', 'docs/guides/ui-editing.md',
                            'benchmarks/ui_editing.py', 'benchmarks/_ui_bench.py',
                            'docs/guides/ui-overlays.md', 'benchmarks/ui_overlays.py',
-                           'benchmarks/ui_overlays_samples/baseline-windows-py314.json'):
+                           'benchmarks/ui_overlays_samples/baseline-windows-py314.json',
+                           'docs/guides/ui-collections.md', 'benchmarks/ui_collections.py',
+                           'benchmarks/ui_collections_samples/baseline-windows-py314.json'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))

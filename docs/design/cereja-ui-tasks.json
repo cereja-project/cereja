@@ -291,8 +291,8 @@
         "TreeView consumes generic hierarchical nodes with expansion/loading/incomplete/error states; arrows expand/collapse/select without a full filesystem browser.",
         "Test empty/error/disappeared nodes, broad/deep fixtures and resize preservation; benchmark visible-region work and retained node limits. Document complete versus truncated results."
       ],
-      "evidence": "Collection widget snapshots, stable-selection tests and bounded large-fixture measurements.",
-      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+      "evidence": "tests/test_ui_collections.py: bounded collections, stable row/node selection, generic hierarchy, source states, canonical-copy priority and resize; benchmarks/ui_collections_samples/baseline-windows-py314.json: visible paint versus admission/projection work and retained limits. Real terminal and human acceptance remain separate.",
+      "docs": "docs/guides/ui-collections.md; bounded runnable synthetic examples in benchmarks/ui_collections.py. No filesystem/browser, domain, clipboard transport, Ledger application or legacy integration."
     },
     {
       "key": "UI-12",

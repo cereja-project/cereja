@@ -277,7 +277,12 @@ the full caller-normalized tuple and validated field revisions. Back is the defa
 all results are intents with zero domain execution.
 [API/example](../guides/ui-overlays.md), [tests](../../tests/test_ui_overlays.py)
 and [baseline](../../benchmarks/ui_overlays_samples/baseline-windows-py314.json).
-Real clipboard, collections (#310), official `cereja ui`, application catalogue
-and Ledger/domain workflows remain unimplemented. The next incremental widget
-stage is #310 under #306 and requires a bounded mandate. Real task,
+#310 / UI-11 adds opt-in read-only tables/lists and generic parent-linked TreeView,
+bounded admission and visible painting, stable row/node selection and explicit
+canonical-copy ranges. [API/example](../guides/ui-collections.md),
+[tests](../../tests/test_ui_collections.py) and
+[baseline](../../benchmarks/ui_collections_samples/baseline-windows-py314.json).
+Source completeness and local truncation remain distinct. Real clipboard, official
+`cereja ui`, application catalogue and Ledger/domain workflows remain unimplemented.
+The next generic widget stage is #311 under #306 with its own bounded mandate. Real task,
 emulator/SSH/ConPTY and accessibility/usability acceptance remain under #321.

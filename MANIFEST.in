@@ -11,3 +11,7 @@ include benchmarks/_ui_bench.py
 include docs/guides/ui-overlays.md
 include benchmarks/ui_overlays.py
 include benchmarks/ui_overlays_samples/*.json
+
+include docs/guides/ui-collections.md
+include benchmarks/ui_collections.py
+include benchmarks/ui_collections_samples/*.json
