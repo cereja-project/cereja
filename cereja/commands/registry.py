@@ -32,6 +32,7 @@ COMMANDS = (
     CommandSpec("system", "Inspect local system information.", "cereja.commands.system"),
     CommandSpec("privacy", "Run tools with process-scoped privacy policies.", "cereja.commands.privacy"),
     CommandSpec("module", "Manage Cereja module scaffolding.", "cereja.commands.module"),
+    CommandSpec("ui", "Open the Ledger terminal application.", "cereja.commands.ui"),
 )
 
 _BY_NAME = {command.name: command for command in COMMANDS}

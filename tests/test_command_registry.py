@@ -21,6 +21,7 @@ EXPECTED_COMMANDS = (
     "system",
     "privacy",
     "module",
+    "ui",
 )
 
 

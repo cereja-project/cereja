@@ -3,7 +3,8 @@
 APP-00 / [#312](https://github.com/cereja-project/cereja/issues/312) adds opt-in
 `cereja.ui.operations`. Python 3.11+, standard library only. Importing it starts
 no threads or terminal resources. This is a toolkit bridge and bounded synthetic
-demonstration; the Ledger application and official `cereja ui` remain unimplemented.
+demonstration. The subsequent [Ledger application](ui-ledger.md) composes this
+bridge and provides the official `cereja ui` entry, with explicit native-input limits.
 
 ## Public API and ownership
 

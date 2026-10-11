@@ -121,7 +121,7 @@ inactive selections do not intercept Ctrl+C from another surface.
 
 `OverlayStack(focus)` uses the existing FocusManager and its depth bound.
 `open(overlay)`, `close()`, `top`, `handle(event, current_target=None)` and
-`paint(frame, bounds, composer, current_target=None)` support these four overlay
+`paint(frame, bounds, composer, current_target=None, height=12)` support these four overlay
 types. Only the active top scope handles keys. A foreign focus scope covers it
 without editing hidden inputs; close refuses to pop foreign focus. Failed help
 construction/depth is a visible rejection preserving the invoking state.
@@ -139,6 +139,10 @@ queue, disk history or domain state is introduced. Callers paint the persistent
 composer, reserve the final terminal column and schedule frames/cursor normally.
 For a suggestion shelf the composer owns its visible caret; form painting returns
 the field caret. No-color, ASCII and reduced motion keep their existing contracts.
+
+Ledger supplies the available result-body height explicitly. A two-row compact
+field viewport reveals the focused label/input and places any validation error
+on the label row, keeping actions in the separate footer.
 
 ## Runnable bounded examples and baseline
 

@@ -5,6 +5,9 @@ on:
     branches: [master, develop]
     paths:
       - 'cereja/ui/**'
+      - 'cereja/ledger/**'
+      - 'cereja/commands/ui.py'
+      - 'cereja/commands/registry.py'
       - 'benchmarks/*ui*.py'
       - 'benchmarks/imports.py'
       - 'tests/test_ui_*.py'
@@ -21,6 +24,9 @@ on:
     branches: [master, develop]
     paths:
       - 'cereja/ui/**'
+      - 'cereja/ledger/**'
+      - 'cereja/commands/ui.py'
+      - 'cereja/commands/registry.py'
       - 'benchmarks/*ui*.py'
       - 'benchmarks/imports.py'
       - 'tests/test_ui_*.py'
@@ -68,6 +74,7 @@ jobs:
         run: |
           python -B -S benchmarks/ui_rendering.py --samples 1 --warmup 1 --memory-samples 1 --width 80 --height 24 --output rendering-smoke.json
           python -B -S benchmarks/ui_operations.py --samples 1 --warmup 1 --duration .05 --output operations-smoke.json
+          python -B -S benchmarks/ui_ledger.py --samples 1 --warmup 0 --memory-samples 1 --smoke --output ledger-smoke.json
           python -B -S benchmarks/ui_feedback.py --samples 1 --warmup 1 --output feedback-smoke.json
           python -B -S benchmarks/ui_collections.py --samples 1 --warmup 1 --memory-samples 1 --output collections-smoke.json
           python -B -S benchmarks/ui_overlays.py --samples 1 --warmup 1 --memory-samples 1 --output overlays-smoke.json

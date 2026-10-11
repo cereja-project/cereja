@@ -23,3 +23,7 @@ include benchmarks/ui_feedback_samples/*.json
 include docs/guides/ui-operations.md
 include benchmarks/ui_operations.py
 include benchmarks/ui_operations_samples/*.json
+
+include docs/guides/ui-ledger.md
+include benchmarks/ui_ledger.py
+include benchmarks/ui_ledger_samples/*.json

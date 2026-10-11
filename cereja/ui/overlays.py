@@ -641,7 +641,7 @@ class OverlayStack:
             return self._help()
         return action
 
-    def paint(self, frame: CellBuffer, bounds: Rect, composer: Rect, *, current_target=None):
+    def paint(self, frame: CellBuffer, bounds: Rect, composer: Rect, *, current_target=None, height=12):
         _owned(self)
         if not isinstance(frame, CellBuffer):
             raise TypeError('paint needs CellBuffer')
@@ -650,7 +650,7 @@ class OverlayStack:
         if overlay is None:
             empty = overlay_bounds(bounds, composer, height=0)
             return OverlayView(empty, Viewport(empty, 0, 0))
-        rect = overlay_bounds(bounds, composer)
+        rect = overlay_bounds(bounds, composer, height=height)
         title, body, footer = split_rows(rect, (Constraint.fixed(1), Constraint(), Constraint.fixed(1)))
         body = inset(body, left=1, right=1)
         frame.clear(clip=rect)
@@ -664,8 +664,8 @@ class OverlayStack:
             view = Viewport(body, body.width, len(overlay.fields) * 3, scroll_y=overlay._scroll_y)
             index = next((index for index, spec in enumerate(overlay.fields)
                           if spec.identity == focused), None)
-            if index is not None and body.height >= 3:
-                view = view.ensure_visible(Rect(0, index * 3, min(1, body.width), 3))
+            if index is not None and body.height >= 2:
+                view = view.ensure_visible(Rect(0, index * 3, min(1, body.width), min(3, body.height)))
             if body.width and body.height:
                 overlay._scroll_y = view.offset[1]
             ox, oy = view.origin
@@ -675,6 +675,8 @@ class OverlayStack:
                 if y + 3 <= body.y or y >= body.y + body.height:
                     continue
                 label = spec.label + (' *' if spec.required else '') + f' [{overlay.max_input_bytes}B]'
+                if body.height == 2 and spec.identity in errors:
+                    label = spec.label + ': ' + errors[spec.identity]
                 if not spec.enabled:
                     label += ' disabled'
                 frame.draw_text(ox, y, label, clip=Rect(body.x, y, body.width, 1).intersection(body))

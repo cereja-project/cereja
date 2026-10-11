@@ -50,13 +50,15 @@ with ExitStack() as stack:
     assert not any(n.startswith('cereja.ui.') for n in sys.modules)
     from cereja.ui import terminal, text, buffer, rendering, scheduling, testing, events
     from cereja.ui import posix, windows, editing, focus, layout, overlays, collections, feedback, operations
+    from cereja.ledger import catalogue, app as ledger
+    from cereja.commands import ui as ui_command
 assert set(threading.enumerate()) == before
 assert 'cereja.display' not in sys.modules and 'cereja.system' not in sys.modules
 assert 'unicodedata' not in sys.modules
 package = Path(cereja.__file__).resolve().parent
 assert Path(sys.prefix).resolve() in package.parents, package
 for name, fingerprint in expected.items():
-    assert hashlib.sha256((package / 'ui' / name).read_bytes()).hexdigest() == fingerprint, name
+    assert hashlib.sha256((package / name).read_bytes()).hexdigest() == fingerprint, name
 assert text.UNICODE_VERSION == '17.0.0'
 assert text.text_metrics('e\u0301\U0001f600').line_widths() == (3,)
 draft = editing.TextInput('installed', 'a\u0301界')
@@ -125,6 +127,21 @@ with terminal.TerminalSession(backend) as session:
     finally:
         bridge.close()
         loop.close()
+with terminal.TerminalSession(testing.VirtualBackend(size=(40, 12))) as session:
+    application = ledger.Ledger(session)
+    try:
+        application.handle(events.PasteEvent('/ex'))
+        application.handle(events.KeyEvent('enter'))
+        assert application.composer.text == '/examples '
+        assert not application.bridge.active
+        application.handle(events.KeyEvent('enter'))
+        assert application.overlays.top.identity == 'examples-form'
+    finally:
+        application.close()
+import contextlib, io
+with contextlib.redirect_stdout(io.StringIO()) as plain_output:
+    assert ui_command.main(['--plain']) == 0
+assert 'Planned UI' in plain_output.getvalue() and '\x1b' not in plain_output.getvalue()
 print(json.dumps({'installed_only': ['cereja'], 'requires_dist': [],
     'unicode_version': text.UNICODE_VERSION, 'imports_silent_and_guarded': True,
     'legacy_isolated': True, 'examples_passed': True,
@@ -175,8 +192,11 @@ def main():
         source = owned / 'source'
         source.mkdir()
         export_tree(tree, source)
-        expected = {name: sha256((source / 'cereja' / 'ui' / name).read_bytes()).hexdigest()
+        expected = {'ui/' + name: sha256((source / 'cereja' / 'ui' / name).read_bytes()).hexdigest()
                     for name in ('_unicode17.py', 'UNICODE-LICENSE.txt', 'collections.py', 'feedback.py', 'scheduling.py', 'operations.py', 'events.py', '_posting.py')}
+        expected.update({str(path.relative_to(source / 'cereja')).replace('\\', '/'):
+                         sha256(path.read_bytes()).hexdigest()
+                         for path in [*(source / 'cereja/ledger').glob('*.py'), source / 'cereja/commands/ui.py']})
         run([sys.executable, '-B', '-c', 'from setuptools import build_meta as b; '
              'b.build_sdist("dist"); b.build_wheel("dist")'], cwd=source)
         wheel = next((source / 'dist').glob('*.whl'))
@@ -193,7 +213,9 @@ def main():
                            'docs/guides/ui-feedback.md', 'benchmarks/ui_feedback.py',
                            'benchmarks/ui_feedback_samples/baseline-windows-py314.json',
                            'docs/guides/ui-operations.md', 'benchmarks/ui_operations.py',
-                           'benchmarks/ui_operations_samples/baseline-windows-py314.json'):
+                           'benchmarks/ui_operations_samples/baseline-windows-py314.json',
+                           'docs/guides/ui-ledger.md', 'benchmarks/ui_ledger.py',
+                           'benchmarks/ui_ledger_samples/baseline-windows-py314.json'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))
