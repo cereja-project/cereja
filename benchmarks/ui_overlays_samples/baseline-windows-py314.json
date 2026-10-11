@@ -1,0 +1,2179 @@
+{
+  "environment": {
+    "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+    "implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "pointer_bits": 64,
+    "gc_enabled": true,
+    "head": "add392bd9cffdb5c00eab0dfafadaa3f7c41260f",
+    "head_tree": "dcb2f989c8737acfdd71eea8ee9653b801c315e1",
+    "dirty": true,
+    "source_sha256": {
+      "cereja/ui/__init__.py": "14d024045a95ea60044f19b787f32173ea0a243e2dbc8381b951422c9185b78a",
+      "cereja/ui/_capabilities.py": "f232ee5d55446209cc125e6b836dabda076d041e6c17330bda6075888f854976",
+      "cereja/ui/_input.py": "744040c21a8d9fe2376062d25f122696fb7c4fbea5433ef2d9b2bdd968036dc7",
+      "cereja/ui/_posting.py": "a6eef1dc4028e87b49645bd9eb844cf25d33d13e096b2dc245eba19ed7cf3a62",
+      "cereja/ui/_session.py": "1386b1783297d5f0cba0d20673b86314724cdcd6e7ce7c7ba40acf130b0bee3c",
+      "cereja/ui/_unicode17.py": "271b1230d0e119ec8b6a16d6a6958ab6e2f14c24aa8da750821696542d8caa70",
+      "cereja/ui/_win32.py": "03025e4feb359275a77166170693d4c4876d220cdc90779cadb904f11513c81b",
+      "cereja/ui/buffer.py": "2eab2e387220931f7830750cb579f2839f509c129160f07c2b78df56e66223e9",
+      "cereja/ui/editing.py": "610997b1ff3fe745dedb40dada73693376fe2a59884815546b1fe381571d225b",
+      "cereja/ui/events.py": "93e14079df801b05c3881a4b5e8fd0ca25834c92be5095bc473daca099e8384e",
+      "cereja/ui/focus.py": "999389d7f60f4a6c42cae295d51f56a53490efc621572836b661a37dd63efd4d",
+      "cereja/ui/layout.py": "3102bee758f483f1b2342cd715d8ff6853f0848f05669b11921d8c7f5013d63b",
+      "cereja/ui/overlays.py": "64c7fa7f805615452d40626c95471ee21cc80a533e9f3b53f928c4f31edae6c5",
+      "cereja/ui/posix.py": "c2d330f87ac68c579be96dad5593872a782d8ee98474a663ab06b70516dfb687",
+      "cereja/ui/rendering.py": "9a2b11348d14fd334671124f0d67f9dbbf2bd2e83e5eb2470d597314204b627f",
+      "cereja/ui/scheduling.py": "5c8caab2ae02711ea22441cf3564fded9a64e86dcc7c29d591b524c8726484ab",
+      "cereja/ui/terminal.py": "066f3203dceec6f203219f3281addac94e0312a0240cebde3299feea02bab048",
+      "cereja/ui/testing.py": "0a763aad35c702890b229a1c5a187dbdef04cb43ef803e1041096b029de7b43f",
+      "cereja/ui/text.py": "b0dd9bcbb4c2ad180255022169d9dc4d45d440523d426d4847f428bef93ded75",
+      "cereja/ui/windows.py": "c1744f53ee1bd735614f9054e5a8d1330808b8d20169057a947e9a2f77f80c66",
+      "benchmarks/_ui_bench.py": "43b2dd77ed073f29e71366df0403e1748416205b173c90a287f2cd4623874484",
+      "benchmarks/ui_buffers.py": "cc46f6bd0e30535c62145f3036644db2bf4ed8082d398cb3eb889425287c5aaf",
+      "benchmarks/ui_editing.py": "73f8d9e8aaa5fe54afd141ecabd37ea57aa78a20f8d8dbf65ade84f7ffb7c91f",
+      "benchmarks/ui_layout.py": "d1152d903c1546f63d81136bb744b206a2c40b188c97f576906e642f19a9feb2",
+      "benchmarks/ui_overlays.py": "3648a4cdb0fbf2ad9c176dbfdf4d8b44cc1e4690d98c07f3a7d72e74bb7cbf22",
+      "benchmarks/ui_rendering.py": "0fb32d9dd87c54a42886aa33f46755486878fd7b857553dace57a8fb5c12a15b",
+      "benchmarks/ui_scheduling.py": "52065febe4e606f1981b63287bbe57afee356c6a6cbc1b83d3f0c371d06f34e5",
+      "benchmarks/imports.py": "2660009015553f2f0750de1b8f9b230875dd2e3258856314ea9290d62a19fada",
+      "tests/ui_scheduling_probe.py": "d9150d862a53d5c9df4f45e335d67bc6373ee04f9aa592da744dee7a96990a38",
+      "tests/ui_windows_console_probe.py": "58511b2317aa34f6a83826abb2cd90472750321f1f197cbe4aa75a39bcbd54e0"
+    },
+    "execution": "One benchmark process at a time; affinity/power/background load uncontrolled; filesystem/import caches may be OS-warm; no cross-host comparison."
+  },
+  "source_git_lf_sha256": {
+    "cereja/ui/overlays.py": "64c7fa7f805615452d40626c95471ee21cc80a533e9f3b53f928c4f31edae6c5",
+    "benchmarks/ui_overlays.py": "3648a4cdb0fbf2ad9c176dbfdf4d8b44cc1e4690d98c07f3a7d72e74bb7cbf22",
+    "benchmarks/_ui_bench.py": "43b2dd77ed073f29e71366df0403e1748416205b173c90a287f2cd4623874484"
+  },
+  "conditions": {
+    "sizes": [
+      [
+        120,
+        40
+      ],
+      [
+        80,
+        24
+      ],
+      [
+        40,
+        12
+      ]
+    ],
+    "samples": 31,
+    "warmup": 3,
+    "memory_samples": 3,
+    "workloads": {
+      "filter_256": "Stable prefix filtering over 256 caller-supplied synthetic suggestions.",
+      "form_error": "Three fields; explicit validation and first-error reveal.",
+      "long_review_page": "Synthetic target of 512 CJK characters; full details wrapping and paging stress."
+    },
+    "window": "One UI-owned keyboard event through models/layout/paint into a fresh cell buffer; GC enabled.",
+    "units": "microseconds; separate untimed traced Python bytes/blocks",
+    "limits": "No scheduler pacing, renderer/output acknowledgement, OS terminal, human input, clipboard, domain/application, RSS or absolute performance gate. No change to #304 budgets.",
+    "memory": "Untimed window includes fixture construction, canonical state, wrapping and frame; not cumulative allocations."
+  },
+  "results": [
+    {
+      "size": [
+        120,
+        40
+      ],
+      "workload": "filter_256",
+      "raw": [
+        {
+          "event_to_buffer_us": 891.3,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 881.2,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 886.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 852.5,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 844.9,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 902.0,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 891.9,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 873.2,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 850.0,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 858.0,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1868.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 942.4,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 863.5,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 878.4,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 873.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 856.5,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1530.0,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 910.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 887.2,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 900.9,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 871.0,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 958.3,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 871.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 883.3,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 899.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 886.5,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 870.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1322.5,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1010.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 888.0,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 877.8,
+          "visible_rows": 10,
+          "cells": 4800
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 886.5,
+          "p95": 1530.0,
+          "mad": 15.5,
+          "min": 844.9,
+          "max": 1868.7
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 10,
+          "p95": 10,
+          "mad": 0,
+          "min": 10,
+          "max": 10
+        },
+        "cells": {
+          "n": 31,
+          "median": 4800,
+          "p95": 4800,
+          "mad": 0,
+          "min": 4800,
+          "max": 4800
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 138709,
+          "live_traced_blocks": 59
+        },
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 138709,
+          "live_traced_blocks": 59
+        },
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 138709,
+          "live_traced_blocks": 59
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 3620,
+          "p95": 3620,
+          "mad": 0,
+          "min": 3620,
+          "max": 3620
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 138709,
+          "p95": 138709,
+          "mad": 0,
+          "min": 138709,
+          "max": 138709
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 59,
+          "p95": 59,
+          "mad": 0,
+          "min": 59,
+          "max": 59
+        }
+      }
+    },
+    {
+      "size": [
+        120,
+        40
+      ],
+      "workload": "form_error",
+      "raw": [
+        {
+          "event_to_buffer_us": 1008.0,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 997.9,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 990.6,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1031.8,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1016.9,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1021.6,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1027.1,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1018.1,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1012.7,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 983.8,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 997.8,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1030.0,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1029.2,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1020.8,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 984.7,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 995.8,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1003.1,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1033.7,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1006.9,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1102.7,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 988.1,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1012.3,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1012.1,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1021.6,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1037.0,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1030.2,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1017.2,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1019.7,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1026.3,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1002.7,
+          "visible_rows": 9,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1002.5,
+          "visible_rows": 9,
+          "cells": 4800
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 1016.9,
+          "p95": 1037.0,
+          "mad": 13.100000000000023,
+          "min": 983.8,
+          "max": 1102.7
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 9,
+          "p95": 9,
+          "mad": 0,
+          "min": 9,
+          "max": 9
+        },
+        "cells": {
+          "n": 31,
+          "median": 4800,
+          "p95": 4800,
+          "mad": 0,
+          "min": 4800,
+          "max": 4800
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 5936,
+          "peak_bytes": 67081,
+          "live_traced_blocks": 87
+        },
+        {
+          "retained_bytes": 5936,
+          "peak_bytes": 67081,
+          "live_traced_blocks": 87
+        },
+        {
+          "retained_bytes": 5936,
+          "peak_bytes": 67081,
+          "live_traced_blocks": 87
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 5936,
+          "p95": 5936,
+          "mad": 0,
+          "min": 5936,
+          "max": 5936
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 67081,
+          "p95": 67081,
+          "mad": 0,
+          "min": 67081,
+          "max": 67081
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 87,
+          "p95": 87,
+          "mad": 0,
+          "min": 87,
+          "max": 87
+        }
+      }
+    },
+    {
+      "size": [
+        120,
+        40
+      ],
+      "workload": "long_review_page",
+      "raw": [
+        {
+          "event_to_buffer_us": 1416.8,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1368.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1422.3,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1327.3,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 2578.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1401.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1407.2,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1397.3,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1377.8,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1381.4,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1394.8,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1393.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1340.4,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 3551.2,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1379.2,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1403.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1408.4,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 2332.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1411.0,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1385.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1375.4,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1361.0,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1524.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1421.3,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1347.4,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1402.1,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1439.3,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1408.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1380.2,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1346.7,
+          "visible_rows": 10,
+          "cells": 4800
+        },
+        {
+          "event_to_buffer_us": 1430.6,
+          "visible_rows": 10,
+          "cells": 4800
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 1401.1,
+          "p95": 2578.7,
+          "mad": 21.200000000000045,
+          "min": 1327.3,
+          "max": 3551.2
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 10,
+          "p95": 10,
+          "mad": 0,
+          "min": 10,
+          "max": 10
+        },
+        "cells": {
+          "n": 31,
+          "median": 4800,
+          "p95": 4800,
+          "mad": 0,
+          "min": 4800,
+          "max": 4800
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 127719,
+          "live_traced_blocks": 64
+        },
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 127719,
+          "live_traced_blocks": 64
+        },
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 127719,
+          "live_traced_blocks": 64
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 4056,
+          "p95": 4056,
+          "mad": 0,
+          "min": 4056,
+          "max": 4056
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 127719,
+          "p95": 127719,
+          "mad": 0,
+          "min": 127719,
+          "max": 127719
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 64,
+          "p95": 64,
+          "mad": 0,
+          "min": 64,
+          "max": 64
+        }
+      }
+    },
+    {
+      "size": [
+        80,
+        24
+      ],
+      "workload": "filter_256",
+      "raw": [
+        {
+          "event_to_buffer_us": 817.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 803.9,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 829.1,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 790.9,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 820.1,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 821.6,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 823.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 847.4,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1687.3,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 861.3,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 855.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 819.9,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 828.9,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 832.8,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 821.8,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 840.5,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 837.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 837.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 850.6,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 861.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 840.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 848.4,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 847.9,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 802.3,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 830.9,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 831.8,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 2103.8,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 844.4,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 799.4,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 816.1,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 838.4,
+          "visible_rows": 10,
+          "cells": 1920
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 832.8,
+          "p95": 1687.3,
+          "mad": 12.899999999999977,
+          "min": 790.9,
+          "max": 2103.8
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 10,
+          "p95": 10,
+          "mad": 0,
+          "min": 10,
+          "max": 10
+        },
+        "cells": {
+          "n": 31,
+          "median": 1920,
+          "p95": 1920,
+          "mad": 0,
+          "min": 1920,
+          "max": 1920
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 113429,
+          "live_traced_blocks": 59
+        },
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 113429,
+          "live_traced_blocks": 59
+        },
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 113429,
+          "live_traced_blocks": 59
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 3620,
+          "p95": 3620,
+          "mad": 0,
+          "min": 3620,
+          "max": 3620
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 113429,
+          "p95": 113429,
+          "mad": 0,
+          "min": 113429,
+          "max": 113429
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 59,
+          "p95": 59,
+          "mad": 0,
+          "min": 59,
+          "max": 59
+        }
+      }
+    },
+    {
+      "size": [
+        80,
+        24
+      ],
+      "workload": "form_error",
+      "raw": [
+        {
+          "event_to_buffer_us": 989.5,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1012.8,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1285.6,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1564.2,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1005.9,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 995.1,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1001.2,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 962.4,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 963.1,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 953.0,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 965.6,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 978.2,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 988.4,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 960.4,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1007.8,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1600.4,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1010.5,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 996.4,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1006.6,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1001.3,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1010.9,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 998.0,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 981.5,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 981.4,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 986.8,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 987.1,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 984.2,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 983.1,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1008.4,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 995.2,
+          "visible_rows": 9,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 982.2,
+          "visible_rows": 9,
+          "cells": 1920
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 995.1,
+          "p95": 1564.2,
+          "mad": 12.899999999999977,
+          "min": 953.0,
+          "max": 1600.4
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 9,
+          "p95": 9,
+          "mad": 0,
+          "min": 9,
+          "max": 9
+        },
+        "cells": {
+          "n": 31,
+          "median": 1920,
+          "p95": 1920,
+          "mad": 0,
+          "min": 1920,
+          "max": 1920
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 5936,
+          "peak_bytes": 41801,
+          "live_traced_blocks": 87
+        },
+        {
+          "retained_bytes": 5936,
+          "peak_bytes": 41801,
+          "live_traced_blocks": 87
+        },
+        {
+          "retained_bytes": 5936,
+          "peak_bytes": 41801,
+          "live_traced_blocks": 87
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 5936,
+          "p95": 5936,
+          "mad": 0,
+          "min": 5936,
+          "max": 5936
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 41801,
+          "p95": 41801,
+          "mad": 0,
+          "min": 41801,
+          "max": 41801
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 87,
+          "p95": 87,
+          "mad": 0,
+          "min": 87,
+          "max": 87
+        }
+      }
+    },
+    {
+      "size": [
+        80,
+        24
+      ],
+      "workload": "long_review_page",
+      "raw": [
+        {
+          "event_to_buffer_us": 1338.1,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1340.7,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1336.8,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1314.1,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1336.1,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1326.0,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1335.1,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1359.3,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1340.0,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1730.3,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1331.6,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1318.7,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1389.8,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1303.3,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1380.4,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1304.9,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1343.1,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1293.6,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1334.9,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1687.0,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1369.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1335.5,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1370.0,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1359.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1322.5,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1346.7,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1365.3,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1341.2,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1372.8,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1323.7,
+          "visible_rows": 10,
+          "cells": 1920
+        },
+        {
+          "event_to_buffer_us": 1361.4,
+          "visible_rows": 10,
+          "cells": 1920
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 1340.0,
+          "p95": 1687.0,
+          "mad": 19.200000000000045,
+          "min": 1293.6,
+          "max": 1730.3
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 10,
+          "p95": 10,
+          "mad": 0,
+          "min": 10,
+          "max": 10
+        },
+        "cells": {
+          "n": 31,
+          "median": 1920,
+          "p95": 1920,
+          "mad": 0,
+          "min": 1920,
+          "max": 1920
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 102439,
+          "live_traced_blocks": 64
+        },
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 102439,
+          "live_traced_blocks": 64
+        },
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 102439,
+          "live_traced_blocks": 64
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 4056,
+          "p95": 4056,
+          "mad": 0,
+          "min": 4056,
+          "max": 4056
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 102439,
+          "p95": 102439,
+          "mad": 0,
+          "min": 102439,
+          "max": 102439
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 64,
+          "p95": 64,
+          "mad": 0,
+          "min": 64,
+          "max": 64
+        }
+      }
+    },
+    {
+      "size": [
+        40,
+        12
+      ],
+      "workload": "filter_256",
+      "raw": [
+        {
+          "event_to_buffer_us": 510.5,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 505.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 512.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 497.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 500.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 509.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 509.7,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 504.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 487.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 504.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 531.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 501.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 503.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 486.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 501.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 501.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 498.4,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 500.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 498.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 500.4,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 496.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 531.4,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 511.4,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 514.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 507.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 517.7,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 504.7,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 506.7,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 515.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 512.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 500.7,
+          "visible_rows": 6,
+          "cells": 480
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 504.7,
+          "p95": 531.2,
+          "mad": 5.100000000000023,
+          "min": 486.6,
+          "max": 531.4
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 6,
+          "p95": 6,
+          "mad": 0,
+          "min": 6,
+          "max": 6
+        },
+        "cells": {
+          "n": 31,
+          "median": 480,
+          "p95": 480,
+          "mad": 0,
+          "min": 480,
+          "max": 480
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 94685,
+          "live_traced_blocks": 59
+        },
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 94685,
+          "live_traced_blocks": 59
+        },
+        {
+          "retained_bytes": 3620,
+          "peak_bytes": 94685,
+          "live_traced_blocks": 59
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 3620,
+          "p95": 3620,
+          "mad": 0,
+          "min": 3620,
+          "max": 3620
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 94685,
+          "p95": 94685,
+          "mad": 0,
+          "min": 94685,
+          "max": 94685
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 59,
+          "p95": 59,
+          "mad": 0,
+          "min": 59,
+          "max": 59
+        }
+      }
+    },
+    {
+      "size": [
+        40,
+        12
+      ],
+      "workload": "form_error",
+      "raw": [
+        {
+          "event_to_buffer_us": 626.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 611.3,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 615.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 606.7,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 615.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 617.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 611.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 613.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 614.5,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 618.5,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 613.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 607.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 599.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 615.0,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 608.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 604.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 609.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 589.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 590.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 612.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 609.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 606.4,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 622.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 606.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 622.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 612.3,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 602.4,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 615.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 609.5,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 612.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 615.2,
+          "visible_rows": 6,
+          "cells": 480
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 612.2,
+          "p95": 622.6,
+          "mad": 3.599999999999909,
+          "min": 589.9,
+          "max": 626.8
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 6,
+          "p95": 6,
+          "mad": 0,
+          "min": 6,
+          "max": 6
+        },
+        "cells": {
+          "n": 31,
+          "median": 480,
+          "p95": 480,
+          "mad": 0,
+          "min": 480,
+          "max": 480
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 5696,
+          "peak_bytes": 26410,
+          "live_traced_blocks": 85
+        },
+        {
+          "retained_bytes": 5696,
+          "peak_bytes": 26410,
+          "live_traced_blocks": 85
+        },
+        {
+          "retained_bytes": 5696,
+          "peak_bytes": 26410,
+          "live_traced_blocks": 85
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 5696,
+          "p95": 5696,
+          "mad": 0,
+          "min": 5696,
+          "max": 5696
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 26410,
+          "p95": 26410,
+          "mad": 0,
+          "min": 26410,
+          "max": 26410
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 85,
+          "p95": 85,
+          "mad": 0,
+          "min": 85,
+          "max": 85
+        }
+      }
+    },
+    {
+      "size": [
+        40,
+        12
+      ],
+      "workload": "long_review_page",
+      "raw": [
+        {
+          "event_to_buffer_us": 804.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 794.5,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 785.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 803.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 799.5,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 782.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 787.5,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 817.3,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 810.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 875.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 809.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 784.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 798.7,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 2515.4,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 828.1,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 811.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 794.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 790.0,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 812.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 812.0,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 846.8,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 837.5,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 782.0,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 814.0,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 809.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 811.0,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 791.6,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 807.2,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 803.0,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 796.9,
+          "visible_rows": 6,
+          "cells": 480
+        },
+        {
+          "event_to_buffer_us": 788.7,
+          "visible_rows": 6,
+          "cells": 480
+        }
+      ],
+      "summary": {
+        "event_to_buffer_us": {
+          "n": 31,
+          "median": 804.1,
+          "p95": 875.6,
+          "mad": 9.899999999999977,
+          "min": 782.0,
+          "max": 2515.4
+        },
+        "visible_rows": {
+          "n": 31,
+          "median": 6,
+          "p95": 6,
+          "mad": 0,
+          "min": 6,
+          "max": 6
+        },
+        "cells": {
+          "n": 31,
+          "median": 480,
+          "p95": 480,
+          "mad": 0,
+          "min": 480,
+          "max": 480
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 65831,
+          "live_traced_blocks": 64
+        },
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 65831,
+          "live_traced_blocks": 64
+        },
+        {
+          "retained_bytes": 4056,
+          "peak_bytes": 65831,
+          "live_traced_blocks": 64
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 4056,
+          "p95": 4056,
+          "mad": 0,
+          "min": 4056,
+          "max": 4056
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 65831,
+          "p95": 65831,
+          "mad": 0,
+          "min": 65831,
+          "max": 65831
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 64,
+          "p95": 64,
+          "mad": 0,
+          "min": 64,
+          "max": 64
+        }
+      }
+    }
+  ]
+}

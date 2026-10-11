@@ -10,7 +10,7 @@ import threading
 import unittest
 
 from cereja.ui._capabilities import CapabilityOptions
-from cereja.ui.events import EOFEvent, InputErrorEvent, KeyEvent, ResizeEvent, WakeEvent
+from cereja.ui.events import EOFEvent, InputErrorEvent, KeyEvent, PasteEvent, ResizeEvent, WakeEvent
 from cereja.ui import _win32
 from cereja.ui.windows import WindowsBackend
 from cereja.ui.terminal import TerminalCleanupError
@@ -40,6 +40,12 @@ def resize(width, height):
     record.Event.WindowBufferSizeEvent.dwSize.X = width
     record.Event.WindowBufferSizeEvent.dwSize.Y = height
     return record
+
+
+def vt_records(text, *, down=True):
+    data = text.encode('utf-16-le')
+    return tuple(key(int.from_bytes(data[i:i + 2], 'little'), vk=0 if down else 18, down=down)
+                 for i in range(0, len(data), 2))
 
 
 class FakeAPI:
@@ -125,6 +131,10 @@ class FakeAPI:
         self.step("read_input", handle, limit)
         return self.records.popleft() if self.records else ()
 
+    def input_pending(self, handle):
+        self.step('input_pending', handle)
+        return len(self.records[0]) if self.records else 0
+
     def write_console(self, handle, data):
         self.step("write_console", handle, data)
         count = self.write_counts.popleft() if self.write_counts else len(data) // 2
@@ -138,6 +148,15 @@ class FakeAPI:
 
 
 class WindowsBackendTests(unittest.TestCase):
+    def test_sustained_wake_also_inspects_ready_key_and_paused_admission_does_not(self):
+        backend, api, _ = self.acquired()
+        api.records.append((key(ord('x')),))
+        api.wait_results.extend((0, 0, 0))
+        self.assertEqual(backend.wait(0, read_input=False), (WakeEvent(),))
+        self.assertEqual(api.log[-1], ('wait', (backend._wake_handle,), 0))
+        self.assertEqual(backend.wait(0), (KeyEvent('x', 'x'), WakeEvent()))
+        self.assertEqual(backend.wait(0), (WakeEvent(),))
+
     def backend(self, api=None, **kwargs):
         api = api or FakeAPI()
         backend = WindowsBackend(io.StringIO(), io.StringIO(), _api=api,
@@ -243,8 +262,9 @@ class WindowsBackendTests(unittest.TestCase):
         explicit, _, _ = self.acquired(environ={"NO_COLOR": "1"},
                                       options=CapabilityOptions(color=16))
         self.assertEqual(explicit.capabilities.color_depth, 16)
-        with self.assertRaises(ValueError):
-            self.backend(options=CapabilityOptions(paste=True))
+        protected, api, _ = self.acquired(options=CapabilityOptions(paste=True))
+        self.assertTrue(protected.capabilities.paste)
+        self.assertTrue(api.modes[10] & 0x200)
 
     def test_key_names_modifiers_repeats_and_key_up(self):
         backend, api, _ = self.acquired()
@@ -259,6 +279,125 @@ class WindowsBackendTests(unittest.TestCase):
         waits = [op for op in api.log if op[0] == "wait"]
         self.assertEqual(waits[-1][2], 25)
         self.assertEqual(waits[-1][1][1], 10)
+
+    def test_vt_split_paste_preserves_unicode_and_never_emits_shortcuts(self):
+        backend, api, _ = self.acquired(options=CapabilityOptions(paste=True))
+        text = '/examples progress\n/home\x03\t界😀'
+        api.wait_results.extend((1, 1, 1))
+        api.records.extend((vt_records('\x1b[200~' + text[:-1]) + (key(0xD83D, vk=18, down=False),),
+                            (key(0xDE00, vk=18, down=False),) + vt_records('\x1b[201'), vt_records('~\r')))
+        self.assertEqual(backend.wait(0), ())
+        self.assertEqual(backend.wait(0), ())
+        self.assertEqual(backend.wait(0), (PasteEvent(text), KeyEvent('enter')))
+
+    def test_vt_oversized_paste_discards_through_end_and_incomplete_eof(self):
+        backend, api, _ = self.acquired(options=CapabilityOptions(paste=True))
+        backend._parser.max_paste_bytes = 4
+        api.wait_results.extend((1, 1, 1))
+        api.records.extend((vt_records('\x1b[200~abcde\n\x03'), vt_records('\x1b[201~x'), ()))
+        self.assertEqual(backend.wait(0), ())
+        events = backend.wait(0)
+        self.assertIsInstance(events[0], InputErrorEvent)
+        self.assertEqual(events[1:], (KeyEvent('x', 'x'),))
+        self.assertEqual(backend.wait(0), (EOFEvent(),))
+        other, api, _ = self.acquired(options=CapabilityOptions(paste=True))
+        api.wait_results.extend((1, 1))
+        api.records.extend((vt_records('\x1b[200~/home\n'), ()))
+        self.assertEqual(other.wait(0), ())
+        self.assertEqual(tuple(type(e) for e in other.wait(0)), (InputErrorEvent, EOFEvent))
+        self.assertEqual(other.wait(0), ())
+
+    def test_vt_parser_deadline_respects_paused_input_and_native_wait(self):
+        clock = [0.0]
+        backend, api, _ = self.acquired(options=CapabilityOptions(paste=True), _clock=lambda: clock[0])
+        api.wait_results.append(1)
+        api.records.append(vt_records('\x1b'))
+        self.assertEqual(backend.wait(0), ())
+        self.assertEqual(backend.input_deadline, .03)
+        def wait(handles, milliseconds):
+            self.assertEqual(milliseconds, 30)
+            clock[0] = .031
+            return _win32.WAIT_TIMEOUT
+        api.wait = wait
+        self.assertEqual(backend.wait(None), (KeyEvent('escape'),))
+        api.wait = lambda *args: 0
+        api.records.append(vt_records('\x1b'))
+        self.assertEqual(backend.wait(0), (WakeEvent(),))
+        clock[0] = 1
+        self.assertEqual(backend.wait(0, read_input=False), (WakeEvent(),))
+        self.assertIsNotNone(backend.input_deadline)
+        self.assertEqual(backend.wait(0), (KeyEvent('escape'),))
+
+    def test_vt_unicode_packets_physical_keyup_and_keys(self):
+        backend, api, _ = self.acquired(options=CapabilityOptions(paste=True))
+        api.wait_results.append(1)
+        api.records.append(vt_records('界😀', down=False) + (key(ord('x'), 88, down=False),
+                           key(ord('é'), vk=231), key(ord('é'), vk=231, down=False)) +
+                           vt_records('\x1b[A\x03\x00') + (resize(1, 1),))
+        self.assertEqual(backend.wait(0), (KeyEvent('界', '界'), KeyEvent('😀', '😀'), KeyEvent('é', 'é'), KeyEvent('up'),
+                                          KeyEvent('c', modifiers=frozenset({'ctrl'})),
+                                          KeyEvent('space', modifiers=frozenset({'ctrl'})), ResizeEvent(80, 25)))
+
+    def test_vt_wake_inspects_delimited_input_in_same_turn(self):
+        backend, api, _ = self.acquired(options=CapabilityOptions(paste=True))
+        api.wait_results.append(0)
+        api.records.append(vt_records('\x1b[200~/home\n\x1b[201~'))
+        self.assertEqual(backend.wait(0), (PasteEvent('/home\n'), WakeEvent()))
+
+    def test_vt_surrogate_repeat_is_codepoint_repeat_and_eof_replaces_pending(self):
+        backend, api, _ = self.acquired(options=CapabilityOptions(paste=True))
+        api.wait_results.extend((1, 1, 1, 1))
+        api.records.extend((vt_records('\x1b[200~') + (key(0xD83D, repeat=3),),
+                            (key(0xDE00, repeat=3),) + vt_records('\x1b[201~'),
+                            (key(0xD83D, repeat=2),), ()))
+        self.assertEqual(backend.wait(0), ())
+        self.assertEqual(backend.wait(0), (PasteEvent('😀' * 3),))
+        self.assertEqual(backend.wait(0), ())
+        self.assertEqual(backend.wait(0), (KeyEvent('\ufffd', '\ufffd'), KeyEvent('\ufffd', '\ufffd'), EOFEvent()))
+
+    def test_vt_native_batch_overflow_ends_admission_without_paste_replay(self):
+        backend, api, _ = self.acquired(options=CapabilityOptions(paste=True))
+        api.wait_results.append(1)
+        api.records.append(vt_records('\x1b[200~') + (key(ord('x'), repeat=65535),) + vt_records('\x03\r'))
+        self.assertEqual(tuple(type(e) for e in backend.wait(0)), (InputErrorEvent, InputErrorEvent, EOFEvent))
+        self.assertEqual(backend.wait(0), ())
+
+    def test_vt_paste_acquisition_failure_restores_modes_and_wake(self):
+        from cereja.ui.terminal import TerminalSession
+        backend, api = self.backend(options=CapabilityOptions(paste=True))
+        modes = dict(api.modes)
+        write = api.write_console
+        def fail_paste(handle, data):
+            if data == '\x1b[?2004h'.encode('utf-16-le'):
+                raise OSError('paste protocol write failed')
+            return write(handle, data)
+        api.write_console = fail_paste
+        with self.assertRaises(OSError):
+            with TerminalSession(backend):
+                pass
+        self.assertEqual(api.modes, modes)
+        self.assertIsNone(backend._wake_handle)
+        self.assertIn('\x1b[?2004l', api.written.decode('utf-16-le'))
+
+    def test_vt_input_mode_failure_unwinds_and_eof_can_reacquire(self):
+        from cereja.ui.terminal import TerminalSession
+        backend, api = self.backend(options=CapabilityOptions(paste=True))
+        modes = dict(api.modes)
+        api.failures['set_mode:10'] = native_error(87)
+        with self.assertRaises(OSError):
+            with TerminalSession(backend):
+                pass
+        self.assertEqual(api.modes, modes)
+        self.assertIsNone(backend._wake_handle)
+        with TerminalSession(backend):
+            api.wait_results.append(1)
+            api.records.append(())
+            self.assertEqual(backend.wait(0), (EOFEvent(),))
+        with TerminalSession(backend):
+            api.wait_results.append(1)
+            api.records.append(vt_records('\x1b[200~x\x1b[201~'))
+            self.assertEqual(backend.wait(0), (PasteEvent('x'),))
+        self.assertEqual(api.modes, modes)
 
     def test_surrogates_across_reads_and_malformed_replacement(self):
         backend, api, _ = self.acquired()
@@ -437,9 +576,25 @@ class WindowsBackendTests(unittest.TestCase):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", timeout=15)
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         report = json.loads(completed.stdout)
+        report_directory = os.environ.get('CEREJA_UI_EVIDENCE_DIR')
+        if report_directory:
+            destination = Path(report_directory)
+            destination.mkdir(parents=True, exist_ok=True)
+            (destination / 'windows-console.json').write_text(completed.stdout, encoding='utf-8')
         self.assertTrue(report["vt"])
         self.assertTrue(report["raw"])
         self.assertEqual(report["records"], 4)
+        scheduling = report['scheduling']
+        self.assertEqual(scheduling['workload'], 10000)
+        self.assertLessEqual(scheduling['key_inspection_turn'], scheduling['key_injection_turn'] + 1)
+        self.assertTrue(scheduling['worker_joined'])
+        self.assertIsNotNone(report['rendering']['resized_dimensions'])
+        self.assertEqual(report['rendering']['unchanged_writes_flushes'], 0)
+        self.assertFalse(report['rendering']['presentation_checked'])
+        self.assertEqual(report['fallbacks']['color_depth'], 0)
+        self.assertTrue(report['fallbacks']['ascii_only'])
+        self.assertTrue(report['fallbacks']['reduced_motion'])
+        self.assertTrue(report['fallback_restored'])
         for name in ("unicode_write", "wake", "suspend", "modes_restored",
                      "cursor_restored", "cursor_position_restored", "wake_handle_closed"):
             self.assertTrue(report[name], name)

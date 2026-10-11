@@ -9,8 +9,9 @@ This stage implements capability resolution, backend-neutral ownership and
 lifecycle, acknowledged output, a plain stream transport and a deterministic
 virtual backend and explicit POSIX/Win32 transports. `StreamBackend` remains
 plain even when its streams are TTYs,
-because it does not implement native acquisition. There is no production renderer,
-widget application or `cereja ui` command yet.
+because it does not implement native acquisition. The independent
+[renderer](ui-rendering.md) now supplies diff/encoding and front-buffer transactions;
+the widget application and `cereja ui` command remain subsequent stages.
 
 ## Capability resolution
 
@@ -24,7 +25,7 @@ movement, raw input or controls on pipes. Color depth is 0, 16, 256 or 24
 
 Unicode/ASCII and reduced-motion policies are independent of color and navigation.
 They describe renderer policies; pinned Unicode segmentation and cell metrics
-are delivered by #298. Unknown/dumb cursor support or unavailable native
+are provided by [UI text](ui-text.md). Unknown/dumb cursor support or unavailable native
 acquisition selects plain. Every effective capability retains its source in an
 immutable diagnostic mapping. Invalid typed options fail before acquisition.
 Windows environment hints alone do not prove usable native console/VT modes.
@@ -66,16 +67,18 @@ suspended body is propagated without reacquiring resources.
 visible ASCII escapes, tab becomes spaces and newline remains a line separator.
 Unpaired surrogates become U+FFFD. This transport helper performs no layout,
 grapheme segmentation or bidi rendering. Source/path views must use the full
-text policy delivered in #298 before accepting their rendering contract.
+[text policy](ui-text.md) before accepting their rendering contract.
 
-The internal `_write_frame` hook is for the future encoder, not an arbitrary
+The internal `_write_frame` hook is for the trusted encoder, not an arbitrary
 ANSI drawing API. Each positive short acknowledgment advances only by that
 character count and retries the suffix. Noninteger, zero, negative or oversized
 counts fail. Only a complete acknowledgment and successful flush can commit
 virtual cells. An empty frame makes zero writes and zero flushes. A failure closes
 the session and requires full invalidation; a broken pipe stops output cleanly
 when restoration succeeds. There is no timeout guarantee for an OS write that
-blocks. Actual unchanged-frame comparison belongs to #299/#300.
+blocks. The [renderer](ui-rendering.md) compares unchanged frames/cursors and
+tracks session output generations; ordinary `write_text` invalidates its screen
+knowledge. Native backends do not require the virtual `commit_cells` test hook.
 
 ## Native backends and input
 
@@ -134,8 +137,16 @@ unwind the journal. This follows Microsoft's
 Waiting uses console records and an application event, without a socket selector.
 UTF-16 surrogate pairs survive split reads; malformed pairs become U+FFFD.
 Dimensions and resize notifications use the visible viewport. Ordinary legacy
-console records cannot reliably identify paste; no paste-detection guarantee is
-made and requesting that unsupported protocol fails before acquisition.
+console records cannot reliably identify paste. With `CapabilityOptions(paste=True)`,
+the caller explicitly asserts a host preserving bracketed-paste delimiters;
+acquisition enables `ENABLE_VIRTUAL_TERMINAL_INPUT` and the paste protocol.
+The same bounded parser used on POSIX consumes VT key records and Unicode packets,
+including split UTF-16 pairs, while retaining native resize and wake events.
+Paste is one literal event; rejected/unfinished paste never replays shortcuts.
+No detection guarantee is made for unmarked paste or a host that drops delimiters.
+The legacy record path remains the default when paste support is not asserted.
+The Windows Terminal maintainers describe this
+[VT record contract](https://github.com/microsoft/terminal/issues/18094#issuecomment-2428349974).
 
 Plain streams acquire no raw input, alternate screen or signal handlers. The
 Windows output probe is also suppressed for redirected/unavailable streams.
@@ -155,8 +166,9 @@ by a renderer/test; output escape sequences are not parsed into cells.
 Finite `wait` advances virtual time, and queued input wakes it immediately.
 An infinite idle wait returns without consuming real wall time.
 
-The virtual backend is a test fixture. It does not implement the bounded event
-queue, timers or scheduling policies owned by #301. Virtual lifecycle tests prove
+The virtual backend is a test fixture. Its `wait_events` adapter and producer-safe
+`wake` support the separate [scheduler](ui-scheduling.md); it does not implement
+the bounded inbox or timers itself. Virtual lifecycle tests prove
 the session journal and failure behavior, not OS mode restoration or emulator
 compatibility. Native/PTY/real-terminal evidence remains with #296/#297/#305.
 

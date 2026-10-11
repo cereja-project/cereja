@@ -8,6 +8,7 @@ include-package-data = false
 [tool.setuptools.package-data]
 "*" = ["*.pyi"]
 "cereja" = ["py.typed"]
+"cereja.ui" = ["UNICODE-LICENSE.txt"]
 
 [tool.setuptools.packages.find]
 include = ["cereja*"]

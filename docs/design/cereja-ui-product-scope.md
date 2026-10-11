@@ -69,9 +69,9 @@ underlying API. The source-grounded inclusion matrix and operation contracts
 document gaps and proposed bounds. Synthetic examples validate reusable
 components and complement real capability execution, rather than replacing it.
 
-Help and Settings are open proposals: contextual help can improve discoverability
-but adds a navigation surface; session settings expose color/motion policies but
-could instead be launch options. These choices affect screens and focus paths.
+Contextual help is part of the selected Ledger interaction, with exact return-state
+preservation. A separate Settings surface remains an open proposal; session options
+must not add unselected screens or persistence.
 A broad command launcher still adds unselected forms, secrets and operations.
 The selected path-based Tree and explicit-root Search now have user authorization
 for flow elaboration; they do not authorize a generic browser, file management,
@@ -95,7 +95,7 @@ authorization and production implementation authorization.
 
 The review artifacts are [visual comparison](cereja-ui-visual-comparison.html)
 and [visual-language contracts](cereja-ui-visual-language.md). The earlier 73
-wireframes remain functional/responsive evidence, not the final visual language.
+wireframes remain historical functional/responsive proposals, not the current UX.
 No general authorization to detail tasks overrides the specific instruction to
 review the visual proposal before final high-level decomposition.
 
@@ -127,3 +127,27 @@ Ledger retains ordered result blocks within a bounded ephemeral session. The
 resource policy and state restoration are specified in the selected visual-language
 document; the current-result-only comparison prototype does not implement that
 retention extension and is not evidence that it has been runtime validated.
+
+## #302 criterion reconciliation (2026-10-09)
+
+The six criteria in [#302](https://github.com/cereja-project/cereja/issues/302)
+are recording criteria. They do not certify implementation, measured budgets or
+final human acceptance. The accepted decisions above and the issue's existing
+Accepted product scope are the sources; this update does not repeat planning.
+
+| Criterion | Evidence and disposition |
+| --- | --- |
+| Objective and audiences | Established decisions record capability discovery/inspection/execution, reference/dogfooding and both audiences. Recorded. |
+| Five areas and files/directories | Established decisions and Accepted directory scope update record the five explicit-input areas and separate safety stages. Recorded. |
+| Choices, hypotheses and final acceptance | Ledger A and archive scope are accepted choices. Settings, syntax and numerical bounds retain proposal/calibration status. Historical dashboard and Workbench studies are unselected. Terminal, accessibility, usability and human acceptance remain separate and pending. Recorded. |
+| Toolkit consequences and core independence | Parallel technical work and the flow-to-component table in the selected visual specification record reusable contracts and application ownership. Recorded. |
+| Honest operation lifecycle | Established decisions and the source-grounded operation contracts preserve real telemetry, indeterminate execution, proven cooperative Cancel only and separate optional instrumentation. Recorded. |
+| Selected direction and task mapping | Recorded visual direction decision, accepted directory update, L1-L6 and the existing task manifest map Ledger to #307-#324 through #306. Recorded; this delivery does not execute those tasks. |
+
+The original selection conversation is not linked from the issue. Existing
+versioned decisions and the maintainer's explicit 2026-10-09 continuation confirm
+the selection; do not invent an older decision timestamp or user-test record.
+Detailed UX is reviewable in [the Ledger specimen](cereja-ui-ledger.html) and
+[the #303 specification](cereja-ui-ux.md#final-ledger-review-contract-303).
+Remaining implementation safety gaps are owned by the existing operation and
+delivery tasks. Final UX review is still required before downstream acceptance.

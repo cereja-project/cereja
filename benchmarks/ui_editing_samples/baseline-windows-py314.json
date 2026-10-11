@@ -1,0 +1,3246 @@
+{
+  "environment": {
+    "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+    "implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "pointer_bits": 64,
+    "gc_enabled": true,
+    "head": "ca9d3b4e9a86114896e0e666adb8431cf1a8f1e3",
+    "head_tree": "2d622dcdd6a55862ecc443453a5f15d4b71dbd56",
+    "dirty": true,
+    "source_sha256": {
+      "cereja/ui/__init__.py": "14d024045a95ea60044f19b787f32173ea0a243e2dbc8381b951422c9185b78a",
+      "cereja/ui/_capabilities.py": "f232ee5d55446209cc125e6b836dabda076d041e6c17330bda6075888f854976",
+      "cereja/ui/_input.py": "744040c21a8d9fe2376062d25f122696fb7c4fbea5433ef2d9b2bdd968036dc7",
+      "cereja/ui/_posting.py": "a6eef1dc4028e87b49645bd9eb844cf25d33d13e096b2dc245eba19ed7cf3a62",
+      "cereja/ui/_session.py": "1386b1783297d5f0cba0d20673b86314724cdcd6e7ce7c7ba40acf130b0bee3c",
+      "cereja/ui/_unicode17.py": "271b1230d0e119ec8b6a16d6a6958ab6e2f14c24aa8da750821696542d8caa70",
+      "cereja/ui/_win32.py": "03025e4feb359275a77166170693d4c4876d220cdc90779cadb904f11513c81b",
+      "cereja/ui/buffer.py": "2eab2e387220931f7830750cb579f2839f509c129160f07c2b78df56e66223e9",
+      "cereja/ui/editing.py": "610997b1ff3fe745dedb40dada73693376fe2a59884815546b1fe381571d225b",
+      "cereja/ui/events.py": "93e14079df801b05c3881a4b5e8fd0ca25834c92be5095bc473daca099e8384e",
+      "cereja/ui/focus.py": "999389d7f60f4a6c42cae295d51f56a53490efc621572836b661a37dd63efd4d",
+      "cereja/ui/layout.py": "3102bee758f483f1b2342cd715d8ff6853f0848f05669b11921d8c7f5013d63b",
+      "cereja/ui/posix.py": "c2d330f87ac68c579be96dad5593872a782d8ee98474a663ab06b70516dfb687",
+      "cereja/ui/rendering.py": "9a2b11348d14fd334671124f0d67f9dbbf2bd2e83e5eb2470d597314204b627f",
+      "cereja/ui/scheduling.py": "5c8caab2ae02711ea22441cf3564fded9a64e86dcc7c29d591b524c8726484ab",
+      "cereja/ui/terminal.py": "066f3203dceec6f203219f3281addac94e0312a0240cebde3299feea02bab048",
+      "cereja/ui/testing.py": "0a763aad35c702890b229a1c5a187dbdef04cb43ef803e1041096b029de7b43f",
+      "cereja/ui/text.py": "b0dd9bcbb4c2ad180255022169d9dc4d45d440523d426d4847f428bef93ded75",
+      "cereja/ui/windows.py": "c1744f53ee1bd735614f9054e5a8d1330808b8d20169057a947e9a2f77f80c66",
+      "benchmarks/_ui_bench.py": "43b2dd77ed073f29e71366df0403e1748416205b173c90a287f2cd4623874484",
+      "benchmarks/ui_buffers.py": "cc46f6bd0e30535c62145f3036644db2bf4ed8082d398cb3eb889425287c5aaf",
+      "benchmarks/ui_editing.py": "73f8d9e8aaa5fe54afd141ecabd37ea57aa78a20f8d8dbf65ade84f7ffb7c91f",
+      "benchmarks/ui_layout.py": "d1152d903c1546f63d81136bb744b206a2c40b188c97f576906e642f19a9feb2",
+      "benchmarks/ui_rendering.py": "0fb32d9dd87c54a42886aa33f46755486878fd7b857553dace57a8fb5c12a15b",
+      "benchmarks/ui_scheduling.py": "52065febe4e606f1981b63287bbe57afee356c6a6cbc1b83d3f0c371d06f34e5",
+      "benchmarks/imports.py": "2660009015553f2f0750de1b8f9b230875dd2e3258856314ea9290d62a19fada",
+      "tests/ui_scheduling_probe.py": "d9150d862a53d5c9df4f45e335d67bc6373ee04f9aa592da744dee7a96990a38",
+      "tests/ui_windows_console_probe.py": "58511b2317aa34f6a83826abb2cd90472750321f1f197cbe4aa75a39bcbd54e0"
+    },
+    "execution": "One benchmark process at a time; affinity/power/background load uncontrolled; filesystem/import caches may be OS-warm; no cross-host comparison."
+  },
+  "source_git_lf_sha256": {
+    "cereja/ui/editing.py": "610997b1ff3fe745dedb40dada73693376fe2a59884815546b1fe381571d225b",
+    "cereja/ui/focus.py": "999389d7f60f4a6c42cae295d51f56a53490efc621572836b661a37dd63efd4d",
+    "benchmarks/ui_editing.py": "73f8d9e8aaa5fe54afd141ecabd37ea57aa78a20f8d8dbf65ade84f7ffb7c91f",
+    "benchmarks/_ui_bench.py": "43b2dd77ed073f29e71366df0403e1748416205b173c90a287f2cd4623874484"
+  },
+  "conditions": {
+    "sizes": [
+      [
+        120,
+        40
+      ],
+      [
+        80,
+        24
+      ],
+      [
+        40,
+        12
+      ]
+    ],
+    "workloads": [
+      "ascii",
+      "unicode",
+      "long_input"
+    ],
+    "samples": 31,
+    "warmup": 3,
+    "memory_samples": 3,
+    "units": "milliseconds; separate traced Python bytes/blocks",
+    "arrival": "One event immediately after a primed frame; no workers/backlog.",
+    "window": "VirtualBackend injection through editing/layout/scheduler/renderer to acknowledged flush. Real monotonic time/sleep includes the unchanged 30 Hz frame ceiling; no busy wait.",
+    "data": {
+      "ascii": {
+        "canonical_codepoints": 51,
+        "event": "KeyEvent"
+      },
+      "unicode": {
+        "canonical_codepoints": 72,
+        "event": "KeyEvent"
+      },
+      "long_input": {
+        "canonical_codepoints": 3584,
+        "event": "PasteEvent"
+      }
+    },
+    "limits": "In-memory output acknowledgements; no OS terminal, human input, visual presentation, emulator/SSH/ConPTY, clipboard, domain/application, RSS or universal latency claim. Long input is stress, not representative Ledger usage.",
+    "memory": "Separate untimed tracemalloc sample; includes fixture/session creation and instrumentation."
+  },
+  "results": [
+    {
+      "size": [
+        120,
+        40
+      ],
+      "workload": "ascii",
+      "raw": [
+        {
+          "input_to_frame_ms": 42.359699960798025,
+          "input_to_handler_ms": 0.03219995414838195,
+          "handler_to_request_ms": 0.8182000019587576,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.9438999760896,
+          "input_to_handler_ms": 0.031000003218650818,
+          "handler_to_request_ms": 0.8060000254772604,
+          "scheduler_sleep_ms": 2.303333312738687,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.49719998752698,
+          "input_to_handler_ms": 0.01899997005239129,
+          "handler_to_request_ms": 0.7955000037327409,
+          "scheduler_sleep_ms": 3.702533373143524,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.782800008542836,
+          "input_to_handler_ms": 0.03339996328577399,
+          "handler_to_request_ms": 0.8039000094868243,
+          "scheduler_sleep_ms": 3.0145333148539066,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 49.825499998405576,
+          "input_to_handler_ms": 0.014299992471933365,
+          "handler_to_request_ms": 0.756199995521456,
+          "scheduler_sleep_ms": 3.2100332900881767,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.00320000946522,
+          "input_to_handler_ms": 0.019499973859637976,
+          "handler_to_request_ms": 0.7714999956078827,
+          "scheduler_sleep_ms": 3.4903333289548755,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 37.792099989019334,
+          "input_to_handler_ms": 0.024399952962994576,
+          "handler_to_request_ms": 0.8001000387594104,
+          "scheduler_sleep_ms": 1.3645333237946033,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.074799972586334,
+          "input_to_handler_ms": 0.03160000778734684,
+          "handler_to_request_ms": 0.9890999644994736,
+          "scheduler_sleep_ms": 1.5190333360806108,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 51.744399999734014,
+          "input_to_handler_ms": 0.017900019884109497,
+          "handler_to_request_ms": 0.7986999698914587,
+          "scheduler_sleep_ms": 3.1617333297617733,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.42920005181804,
+          "input_to_handler_ms": 0.03200001083314419,
+          "handler_to_request_ms": 0.950200017541647,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.641800004057586,
+          "input_to_handler_ms": 0.023200002033263445,
+          "handler_to_request_ms": 0.8011999889276922,
+          "scheduler_sleep_ms": 2.215233340393752,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.069499964360148,
+          "input_to_handler_ms": 0.032299954909831285,
+          "handler_to_request_ms": 1.0068000410683453,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.56030001305044,
+          "input_to_handler_ms": 0.01379998866468668,
+          "handler_to_request_ms": 0.7742000161670148,
+          "scheduler_sleep_ms": 3.384233277756721,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 38.410000037401915,
+          "input_to_handler_ms": 0.026800029445439577,
+          "handler_to_request_ms": 0.8262000046670437,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.948900003451854,
+          "input_to_handler_ms": 0.03559998003765941,
+          "handler_to_request_ms": 1.0551000013947487,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.7423999812454,
+          "input_to_handler_ms": 0.017499958630651236,
+          "handler_to_request_ms": 0.7801000028848648,
+          "scheduler_sleep_ms": 3.549633314833045,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.526800049003214,
+          "input_to_handler_ms": 0.02010003663599491,
+          "handler_to_request_ms": 0.7964000105857849,
+          "scheduler_sleep_ms": 2.9128332971595228,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.09170002769679,
+          "input_to_handler_ms": 0.030700000934302807,
+          "handler_to_request_ms": 0.8517000242136419,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.886400003917515,
+          "input_to_handler_ms": 0.02619996666908264,
+          "handler_to_request_ms": 0.826900009997189,
+          "scheduler_sleep_ms": 0.03733334597200155,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.86449997499585,
+          "input_to_handler_ms": 0.029099988751113415,
+          "handler_to_request_ms": 0.8273000130429864,
+          "scheduler_sleep_ms": 0.2577333361841738,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.790999997407198,
+          "input_to_handler_ms": 0.022099993657320738,
+          "handler_to_request_ms": 0.8031000033952296,
+          "scheduler_sleep_ms": 0.46203332021832466,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.228599953465164,
+          "input_to_handler_ms": 0.019499973859637976,
+          "handler_to_request_ms": 0.8363000233657658,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.891300019808114,
+          "input_to_handler_ms": 0.03220001235604286,
+          "handler_to_request_ms": 0.8245999924838543,
+          "scheduler_sleep_ms": 0.961933343205601,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.57199998572469,
+          "input_to_handler_ms": 0.017799960914999247,
+          "handler_to_request_ms": 0.7814000127837062,
+          "scheduler_sleep_ms": 3.3380332752130926,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.24709999328479,
+          "input_to_handler_ms": 0.017499958630651236,
+          "handler_to_request_ms": 0.7652000058442354,
+          "scheduler_sleep_ms": 2.9367333045229316,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 50.357500032987446,
+          "input_to_handler_ms": 0.029199989512562752,
+          "handler_to_request_ms": 0.8241000468842685,
+          "scheduler_sleep_ms": 0.3111333353444934,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.61949998745695,
+          "input_to_handler_ms": 0.016199948731809855,
+          "handler_to_request_ms": 0.7774000405333936,
+          "scheduler_sleep_ms": 3.56973335146904,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.302499981597066,
+          "input_to_handler_ms": 0.015499943401664495,
+          "handler_to_request_ms": 0.7782000466249883,
+          "scheduler_sleep_ms": 1.244633342139423,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.85879997909069,
+          "input_to_handler_ms": 0.02340000355616212,
+          "handler_to_request_ms": 1.090699981432408,
+          "scheduler_sleep_ms": 0.8994333329610527,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 52.60389996692538,
+          "input_to_handler_ms": 0.03509997623041272,
+          "handler_to_request_ms": 0.8779999916441739,
+          "scheduler_sleep_ms": 2.021233376581222,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.10019998066127,
+          "input_to_handler_ms": 0.020799983758479357,
+          "handler_to_request_ms": 0.7931000436656177,
+          "scheduler_sleep_ms": 3.071433340664953,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 34.074799972586334,
+          "p95": 51.744399999734014,
+          "mad": 1.4329999685287476,
+          "min": 30.09170002769679,
+          "max": 52.60389996692538
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.02340000355616212,
+          "p95": 0.03509997623041272,
+          "mad": 0.005900044925510883,
+          "min": 0.01379998866468668,
+          "max": 0.03559998003765941
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 0.8039000094868243,
+          "p95": 1.0551000013947487,
+          "mad": 0.02340000355616212,
+          "min": 0.756199995521456,
+          "max": 1.090699981432408
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 1.5190333360806108,
+          "p95": 3.56973335146904,
+          "mad": 1.5190333360806108,
+          "min": 0.0,
+          "max": 3.702533373143524
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 1569349,
+          "peak_bytes": 3550400,
+          "live_traced_blocks": 24367
+        },
+        {
+          "retained_bytes": 1569509,
+          "peak_bytes": 3550560,
+          "live_traced_blocks": 24368
+        },
+        {
+          "retained_bytes": 1569349,
+          "peak_bytes": 3550400,
+          "live_traced_blocks": 24367
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 1569349,
+          "p95": 1569509,
+          "mad": 0,
+          "min": 1569349,
+          "max": 1569509
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 3550400,
+          "p95": 3550560,
+          "mad": 0,
+          "min": 3550400,
+          "max": 3550560
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 24367,
+          "p95": 24368,
+          "mad": 0,
+          "min": 24367,
+          "max": 24368
+        }
+      }
+    },
+    {
+      "size": [
+        120,
+        40
+      ],
+      "workload": "unicode",
+      "raw": [
+        {
+          "input_to_frame_ms": 32.76430000551045,
+          "input_to_handler_ms": 0.041300023440271616,
+          "handler_to_request_ms": 0.7754999678581953,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.26850002910942,
+          "input_to_handler_ms": 0.036400044336915016,
+          "handler_to_request_ms": 0.8014999912120402,
+          "scheduler_sleep_ms": 1.93843332817778,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.1375000057742,
+          "input_to_handler_ms": 0.03400002606213093,
+          "handler_to_request_ms": 0.7867999956943095,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.503899954259396,
+          "input_to_handler_ms": 0.03739999374374747,
+          "handler_to_request_ms": 0.7983999676071107,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.21139998640865,
+          "input_to_handler_ms": 0.035999983083456755,
+          "handler_to_request_ms": 0.8228000369854271,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.75099996244535,
+          "input_to_handler_ms": 0.03579998156055808,
+          "handler_to_request_ms": 0.777499983087182,
+          "scheduler_sleep_ms": 1.8561332835815847,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.631500009913,
+          "input_to_handler_ms": 0.03619998460635543,
+          "handler_to_request_ms": 0.8017999934963882,
+          "scheduler_sleep_ms": 3.309533291030675,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.85639997618273,
+          "input_to_handler_ms": 0.031400006264448166,
+          "handler_to_request_ms": 0.7995999767445028,
+          "scheduler_sleep_ms": 2.4564333143644035,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.83679999690503,
+          "input_to_handler_ms": 0.0342000275850296,
+          "handler_to_request_ms": 0.8223999757319689,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.53869995428249,
+          "input_to_handler_ms": 0.035299977753311396,
+          "handler_to_request_ms": 0.8033000049181283,
+          "scheduler_sleep_ms": 0.6439333083108068,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.54779998678714,
+          "input_to_handler_ms": 0.0295999925583601,
+          "handler_to_request_ms": 0.7793999975547194,
+          "scheduler_sleep_ms": 1.4571333304047585,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.767699973192066,
+          "input_to_handler_ms": 0.032100011594593525,
+          "handler_to_request_ms": 0.7927999831736088,
+          "scheduler_sleep_ms": 2.2823333274573088,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 53.8003999972716,
+          "input_to_handler_ms": 0.03789999755099416,
+          "handler_to_request_ms": 0.8023999980650842,
+          "scheduler_sleep_ms": 1.8047332996502519,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.27979995124042,
+          "input_to_handler_ms": 0.02989999484270811,
+          "handler_to_request_ms": 0.783999974373728,
+          "scheduler_sleep_ms": 2.1096333512105048,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.419899991713464,
+          "input_to_handler_ms": 0.041599967516958714,
+          "handler_to_request_ms": 0.8259000023826957,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.74240000266582,
+          "input_to_handler_ms": 0.03840000135824084,
+          "handler_to_request_ms": 0.8159999852068722,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 59.67490002512932,
+          "input_to_handler_ms": 0.06740004755556583,
+          "handler_to_request_ms": 0.8586999610997736,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.54990003956482,
+          "input_to_handler_ms": 0.03530003596097231,
+          "handler_to_request_ms": 0.7949999999254942,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.39550000661984,
+          "input_to_handler_ms": 0.04110002191737294,
+          "handler_to_request_ms": 0.8385999826714396,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.36030000355095,
+          "input_to_handler_ms": 0.035699980799108744,
+          "handler_to_request_ms": 0.7917999755591154,
+          "scheduler_sleep_ms": 0.8401332888752222,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 58.94000001717359,
+          "input_to_handler_ms": 0.03520003519952297,
+          "handler_to_request_ms": 0.8068999741226435,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 50.42029998730868,
+          "input_to_handler_ms": 0.036999990697950125,
+          "handler_to_request_ms": 0.8655000128783286,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.97620001528412,
+          "input_to_handler_ms": 0.0391000066883862,
+          "handler_to_request_ms": 0.8116000099107623,
+          "scheduler_sleep_ms": 1.4878333313390613,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 37.545999977737665,
+          "input_to_handler_ms": 0.03679998917505145,
+          "handler_to_request_ms": 0.8014999912120402,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.98789997259155,
+          "input_to_handler_ms": 0.030499999411404133,
+          "handler_to_request_ms": 0.7919999770820141,
+          "scheduler_sleep_ms": 1.3791333767585456,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.44990001944825,
+          "input_to_handler_ms": 0.03190001007169485,
+          "handler_to_request_ms": 0.7735000108368695,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.56830000504851,
+          "input_to_handler_ms": 0.030700000934302807,
+          "handler_to_request_ms": 0.7838999736122787,
+          "scheduler_sleep_ms": 1.7292333068326116,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.60260001197457,
+          "input_to_handler_ms": 0.03220001235604286,
+          "handler_to_request_ms": 0.7734000100754201,
+          "scheduler_sleep_ms": 2.374633331783116,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.98070002347231,
+          "input_to_handler_ms": 0.031400006264448166,
+          "handler_to_request_ms": 0.8105000015348196,
+          "scheduler_sleep_ms": 0.572133285459131,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.19090001564473,
+          "input_to_handler_ms": 0.030399998649954796,
+          "handler_to_request_ms": 0.7648000027984381,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 40.501799958292395,
+          "input_to_handler_ms": 0.017099955584853888,
+          "handler_to_request_ms": 0.7311000372283161,
+          "scheduler_sleep_ms": 3.7712333141826093,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 34.53869995428249,
+          "p95": 58.94000001717359,
+          "mad": 1.8568000523373485,
+          "min": 30.44990001944825,
+          "max": 59.67490002512932
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.03530003596097231,
+          "p95": 0.041599967516958714,
+          "mad": 0.003100023604929447,
+          "min": 0.017099955584853888,
+          "max": 0.06740004755556583
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 0.7995999767445028,
+          "p95": 0.8586999610997736,
+          "mad": 0.015600002370774746,
+          "min": 0.7311000372283161,
+          "max": 0.8655000128783286
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 0.572133285459131,
+          "p95": 3.309533291030675,
+          "mad": 0.572133285459131,
+          "min": 0.0,
+          "max": 3.7712333141826093
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 1583836,
+          "peak_bytes": 3566343,
+          "live_traced_blocks": 24356
+        },
+        {
+          "retained_bytes": 1583836,
+          "peak_bytes": 3566343,
+          "live_traced_blocks": 24356
+        },
+        {
+          "retained_bytes": 1583836,
+          "peak_bytes": 3566343,
+          "live_traced_blocks": 24356
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 1583836,
+          "p95": 1583836,
+          "mad": 0,
+          "min": 1583836,
+          "max": 1583836
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 3566343,
+          "p95": 3566343,
+          "mad": 0,
+          "min": 3566343,
+          "max": 3566343
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 24356,
+          "p95": 24356,
+          "mad": 0,
+          "min": 24356,
+          "max": 24356
+        }
+      }
+    },
+    {
+      "size": [
+        120,
+        40
+      ],
+      "workload": "long_input",
+      "raw": [
+        {
+          "input_to_frame_ms": 40.39769998053089,
+          "input_to_handler_ms": 0.034999975468963385,
+          "handler_to_request_ms": 6.487300037406385,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 41.29179997835308,
+          "input_to_handler_ms": 0.04349998198449612,
+          "handler_to_request_ms": 7.037500035949051,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 41.05549998348579,
+          "input_to_handler_ms": 0.03609998384490609,
+          "handler_to_request_ms": 6.501200026832521,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 66.2494000280276,
+          "input_to_handler_ms": 0.037999998312443495,
+          "handler_to_request_ms": 6.949200003873557,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 40.69819999858737,
+          "input_to_handler_ms": 0.0342000275850296,
+          "handler_to_request_ms": 6.549499987158924,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 41.64380003931001,
+          "input_to_handler_ms": 0.03460003063082695,
+          "handler_to_request_ms": 7.031799992546439,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 42.17810003319755,
+          "input_to_handler_ms": 0.03450002986937761,
+          "handler_to_request_ms": 8.23019997915253,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 60.474099998828024,
+          "input_to_handler_ms": 0.03689998993650079,
+          "handler_to_request_ms": 7.179300009738654,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 45.76259996974841,
+          "input_to_handler_ms": 0.0971999834291637,
+          "handler_to_request_ms": 8.091899973805994,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 37.84290002658963,
+          "input_to_handler_ms": 0.04239997360855341,
+          "handler_to_request_ms": 6.7613000283017755,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 46.22909997124225,
+          "input_to_handler_ms": 0.04199997056275606,
+          "handler_to_request_ms": 6.910800002515316,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 62.59639997733757,
+          "input_to_handler_ms": 0.0371999922208488,
+          "handler_to_request_ms": 7.077499991282821,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 39.00650003924966,
+          "input_to_handler_ms": 0.052799994591623545,
+          "handler_to_request_ms": 8.189100015442818,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 48.05609997129068,
+          "input_to_handler_ms": 0.033100019209086895,
+          "handler_to_request_ms": 6.472799985203892,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 41.282600024715066,
+          "input_to_handler_ms": 0.04120002267882228,
+          "handler_to_request_ms": 7.851300004404038,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 45.33819999778643,
+          "input_to_handler_ms": 0.03530003596097231,
+          "handler_to_request_ms": 7.552199997007847,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 43.313800008036196,
+          "input_to_handler_ms": 0.03659998765215278,
+          "handler_to_request_ms": 8.051400014664978,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 46.49460001382977,
+          "input_to_handler_ms": 0.036699988413602114,
+          "handler_to_request_ms": 7.570300018414855,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 43.387999990954995,
+          "input_to_handler_ms": 0.039000005926936865,
+          "handler_to_request_ms": 7.216099998913705,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 41.953800013288856,
+          "input_to_handler_ms": 0.04680000711232424,
+          "handler_to_request_ms": 6.807799974922091,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 45.97569996258244,
+          "input_to_handler_ms": 0.044199987314641476,
+          "handler_to_request_ms": 7.370500010438263,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 38.48220000509173,
+          "input_to_handler_ms": 0.15089998487383127,
+          "handler_to_request_ms": 6.76499999826774,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 38.38089999044314,
+          "input_to_handler_ms": 0.039300008211284876,
+          "handler_to_request_ms": 7.0312999887391925,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 45.22560001350939,
+          "input_to_handler_ms": 0.043700041715055704,
+          "handler_to_request_ms": 8.418999961577356,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 39.26499997032806,
+          "input_to_handler_ms": 0.03409996861591935,
+          "handler_to_request_ms": 6.462200020905584,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 52.58640000829473,
+          "input_to_handler_ms": 0.042899977415800095,
+          "handler_to_request_ms": 7.278200006112456,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 44.33270002482459,
+          "input_to_handler_ms": 0.03980001201853156,
+          "handler_to_request_ms": 7.005999970715493,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 42.418900004122406,
+          "input_to_handler_ms": 0.03430002834647894,
+          "handler_to_request_ms": 7.294300012290478,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 42.034100042656064,
+          "input_to_handler_ms": 0.03840000135824084,
+          "handler_to_request_ms": 6.8518000189214945,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 42.5872000050731,
+          "input_to_handler_ms": 0.04020001506432891,
+          "handler_to_request_ms": 7.542199979070574,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 57.122400030493736,
+          "input_to_handler_ms": 0.042300031054764986,
+          "handler_to_request_ms": 7.43910000892356,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 42.5872000050731,
+          "p95": 62.59639997733757,
+          "mad": 2.750999992713332,
+          "min": 37.84290002658963,
+          "max": 66.2494000280276
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.039000005926936865,
+          "p95": 0.0971999834291637,
+          "mad": 0.0036999699659645557,
+          "min": 0.033100019209086895,
+          "max": 0.15089998487383127
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 7.077499991282821,
+          "p95": 8.23019997915253,
+          "mad": 0.31619996298104525,
+          "min": 6.462200020905584,
+          "max": 8.418999961577356
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 0.0,
+          "p95": 0.0,
+          "mad": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 2084704,
+          "peak_bytes": 4067963,
+          "live_traced_blocks": 31924
+        },
+        {
+          "retained_bytes": 2084704,
+          "peak_bytes": 4067963,
+          "live_traced_blocks": 31924
+        },
+        {
+          "retained_bytes": 2084864,
+          "peak_bytes": 4068123,
+          "live_traced_blocks": 31925
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 2084704,
+          "p95": 2084864,
+          "mad": 0,
+          "min": 2084704,
+          "max": 2084864
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 4067963,
+          "p95": 4068123,
+          "mad": 0,
+          "min": 4067963,
+          "max": 4068123
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 31924,
+          "p95": 31925,
+          "mad": 0,
+          "min": 31924,
+          "max": 31925
+        }
+      }
+    },
+    {
+      "size": [
+        80,
+        24
+      ],
+      "workload": "ascii",
+      "raw": [
+        {
+          "input_to_frame_ms": 32.8383999876678,
+          "input_to_handler_ms": 0.03130000550299883,
+          "handler_to_request_ms": 0.7975000189617276,
+          "scheduler_sleep_ms": 18.47173331771046,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.36030000355095,
+          "input_to_handler_ms": 0.032400013878941536,
+          "handler_to_request_ms": 0.8095999946817756,
+          "scheduler_sleep_ms": 18.964333285111934,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.83560001384467,
+          "input_to_handler_ms": 0.014300050679594278,
+          "handler_to_request_ms": 0.7435999577865005,
+          "scheduler_sleep_ms": 20.59023332549259,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.70299999369308,
+          "input_to_handler_ms": 0.011699972674250603,
+          "handler_to_request_ms": 0.7153000333346426,
+          "scheduler_sleep_ms": 21.12843334907666,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.26250001555309,
+          "input_to_handler_ms": 0.010699965059757233,
+          "handler_to_request_ms": 0.7198000093922019,
+          "scheduler_sleep_ms": 20.46423335559666,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.56720000738278,
+          "input_to_handler_ms": 0.01179997343569994,
+          "handler_to_request_ms": 0.7259999983943999,
+          "scheduler_sleep_ms": 20.702533307485282,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 45.84859998431057,
+          "input_to_handler_ms": 0.04029995761811733,
+          "handler_to_request_ms": 0.9839000413194299,
+          "scheduler_sleep_ms": 16.002433316316456,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.78160001011565,
+          "input_to_handler_ms": 0.021899992134422064,
+          "handler_to_request_ms": 0.838699983432889,
+          "scheduler_sleep_ms": 20.436933380551636,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.31529997801408,
+          "input_to_handler_ms": 0.013199984095990658,
+          "handler_to_request_ms": 0.7322999881580472,
+          "scheduler_sleep_ms": 20.955833315383643,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.715099995490164,
+          "input_to_handler_ms": 0.011999974958598614,
+          "handler_to_request_ms": 0.7042000070214272,
+          "scheduler_sleep_ms": 20.843233331106603,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.15590001875535,
+          "input_to_handler_ms": 0.014999997802078724,
+          "handler_to_request_ms": 0.7353000110015273,
+          "scheduler_sleep_ms": 19.365433312486857,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.46180001972243,
+          "input_to_handler_ms": 0.0247000134550035,
+          "handler_to_request_ms": 0.7689000340178609,
+          "scheduler_sleep_ms": 20.002433331683278,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.98660002090037,
+          "input_to_handler_ms": 0.02440001117065549,
+          "handler_to_request_ms": 0.756800000090152,
+          "scheduler_sleep_ms": 18.74743332155049,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.806900006718934,
+          "input_to_handler_ms": 0.011400028597563505,
+          "handler_to_request_ms": 0.7168999873101711,
+          "scheduler_sleep_ms": 21.18313329992816,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.19410001859069,
+          "input_to_handler_ms": 0.01409999094903469,
+          "handler_to_request_ms": 0.7205000147223473,
+          "scheduler_sleep_ms": 19.67913331463933,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.405999965500087,
+          "input_to_handler_ms": 0.014999997802078724,
+          "handler_to_request_ms": 0.7225999725051224,
+          "scheduler_sleep_ms": 18.20503332419321,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.781300007831305,
+          "input_to_handler_ms": 0.016200006939470768,
+          "handler_to_request_ms": 0.7442000205628574,
+          "scheduler_sleep_ms": 20.60783328488469,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.73179999087006,
+          "input_to_handler_ms": 0.011999974958598614,
+          "handler_to_request_ms": 0.7489999989047647,
+          "scheduler_sleep_ms": 19.87753331195563,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.63089998997748,
+          "input_to_handler_ms": 0.025100016500800848,
+          "handler_to_request_ms": 0.7869999972172081,
+          "scheduler_sleep_ms": 17.245733353774995,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 51.06159998103976,
+          "input_to_handler_ms": 0.0315000070258975,
+          "handler_to_request_ms": 0.8059999672695994,
+          "scheduler_sleep_ms": 19.93113337084651,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.16269999090582,
+          "input_to_handler_ms": 0.013100041542202234,
+          "handler_to_request_ms": 0.7363999611698091,
+          "scheduler_sleep_ms": 21.062033309135586,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.77629995904863,
+          "input_to_handler_ms": 0.012899981811642647,
+          "handler_to_request_ms": 0.7397999870590866,
+          "scheduler_sleep_ms": 20.865433325525373,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.451799975708127,
+          "input_to_handler_ms": 0.02859998494386673,
+          "handler_to_request_ms": 0.7990999729372561,
+          "scheduler_sleep_ms": 17.008333292324096,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.579200003761798,
+          "input_to_handler_ms": 0.03539997851476073,
+          "handler_to_request_ms": 0.7923999801278114,
+          "scheduler_sleep_ms": 17.740133276674896,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.75990000879392,
+          "input_to_handler_ms": 0.012399978004395962,
+          "handler_to_request_ms": 0.7224000291898847,
+          "scheduler_sleep_ms": 20.592133281752467,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.25199998309836,
+          "input_to_handler_ms": 0.011299969628453255,
+          "handler_to_request_ms": 0.71570003638044,
+          "scheduler_sleep_ms": 21.05113334255293,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.800800029188395,
+          "input_to_handler_ms": 0.011700030881911516,
+          "handler_to_request_ms": 0.7228999747894704,
+          "scheduler_sleep_ms": 21.18433330906555,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.36420003324747,
+          "input_to_handler_ms": 0.014399993233382702,
+          "handler_to_request_ms": 0.74380001751706,
+          "scheduler_sleep_ms": 19.595533318351954,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.895200002007186,
+          "input_to_handler_ms": 0.010600022505968809,
+          "handler_to_request_ms": 0.7919999770820141,
+          "scheduler_sleep_ms": 20.97123331623152,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.732400053646415,
+          "input_to_handler_ms": 0.013000040780752897,
+          "handler_to_request_ms": 0.7240999839268625,
+          "scheduler_sleep_ms": 20.280033291783184,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.80830003879964,
+          "input_to_handler_ms": 0.011700030881911516,
+          "handler_to_request_ms": 0.7198000093922019,
+          "scheduler_sleep_ms": 20.67213336704299,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 33.70299999369308,
+          "p95": 45.84859998431057,
+          "mad": 0.970599940046668,
+          "min": 30.451799975708127,
+          "max": 51.06159998103976
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.01409999094903469,
+          "p95": 0.03539997851476073,
+          "mad": 0.0023999600671231747,
+          "min": 0.010600022505968809,
+          "max": 0.04029995761811733
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 0.7397999870590866,
+          "p95": 0.838699983432889,
+          "mad": 0.01999997766688466,
+          "min": 0.7042000070214272,
+          "max": 0.9839000413194299
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 20.436933380551636,
+          "p95": 21.18313329992816,
+          "mad": 0.6141999620012939,
+          "min": 16.002433316316456,
+          "max": 21.18433330906555
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 643781,
+          "peak_bytes": 1479048,
+          "live_traced_blocks": 9952
+        },
+        {
+          "retained_bytes": 643653,
+          "peak_bytes": 1478920,
+          "live_traced_blocks": 9952
+        },
+        {
+          "retained_bytes": 643653,
+          "peak_bytes": 1478920,
+          "live_traced_blocks": 9952
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 643653,
+          "p95": 643781,
+          "mad": 0,
+          "min": 643653,
+          "max": 643781
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 1478920,
+          "p95": 1479048,
+          "mad": 0,
+          "min": 1478920,
+          "max": 1479048
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 9952,
+          "p95": 9952,
+          "mad": 0,
+          "min": 9952,
+          "max": 9952
+        }
+      }
+    },
+    {
+      "size": [
+        80,
+        24
+      ],
+      "workload": "unicode",
+      "raw": [
+        {
+          "input_to_frame_ms": 35.24150000885129,
+          "input_to_handler_ms": 0.019599974621087313,
+          "handler_to_request_ms": 1.138899999205023,
+          "scheduler_sleep_ms": 20.530133333522826,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.87870004028082,
+          "input_to_handler_ms": 0.019900035113096237,
+          "handler_to_request_ms": 0.7026999955996871,
+          "scheduler_sleep_ms": 21.09263330930844,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.32590001123026,
+          "input_to_handler_ms": 0.017300015315413475,
+          "handler_to_request_ms": 1.3267999747768044,
+          "scheduler_sleep_ms": 20.527633314486593,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.56020000157878,
+          "input_to_handler_ms": 0.02050003968179226,
+          "handler_to_request_ms": 0.7161999819800258,
+          "scheduler_sleep_ms": 21.14143327344209,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.69770002225414,
+          "input_to_handler_ms": 0.027300033252686262,
+          "handler_to_request_ms": 0.7207999587990344,
+          "scheduler_sleep_ms": 18.752433301415294,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.86080005252734,
+          "input_to_handler_ms": 0.029300048481673002,
+          "handler_to_request_ms": 0.7254999945871532,
+          "scheduler_sleep_ms": 18.68483331054449,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.990399996284395,
+          "input_to_handler_ms": 0.01810002140700817,
+          "handler_to_request_ms": 0.7095999899320304,
+          "scheduler_sleep_ms": 21.11463330220431,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.37640000972897,
+          "input_to_handler_ms": 0.027500034775584936,
+          "handler_to_request_ms": 0.7329999934881926,
+          "scheduler_sleep_ms": 18.787833338137716,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 38.16789999837056,
+          "input_to_handler_ms": 0.022099993657320738,
+          "handler_to_request_ms": 0.7147000287659466,
+          "scheduler_sleep_ms": 20.730133343022317,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 17.55240000784397,
+          "input_to_handler_ms": 0.03300001844763756,
+          "handler_to_request_ms": 0.7725000032223761,
+          "scheduler_sleep_ms": 0.6302333204075694,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 40.081099956296384,
+          "input_to_handler_ms": 0.02759997732937336,
+          "handler_to_request_ms": 0.7119000074453652,
+          "scheduler_sleep_ms": 20.27923334389925,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.742800005711615,
+          "input_to_handler_ms": 0.02099998528137803,
+          "handler_to_request_ms": 0.8928000461310148,
+          "scheduler_sleep_ms": 19.936333352234215,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.07360000023618,
+          "input_to_handler_ms": 0.018099963199347258,
+          "handler_to_request_ms": 0.8430000161752105,
+          "scheduler_sleep_ms": 20.729133335407823,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.31879996787757,
+          "input_to_handler_ms": 0.022899999748915434,
+          "handler_to_request_ms": 0.7106999983079731,
+          "scheduler_sleep_ms": 20.223233324941248,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 38.0820999853313,
+          "input_to_handler_ms": 0.020199979189783335,
+          "handler_to_request_ms": 0.7024999940767884,
+          "scheduler_sleep_ms": 21.10283332876861,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 38.48019998986274,
+          "input_to_handler_ms": 0.01850002445280552,
+          "handler_to_request_ms": 0.7112000021152198,
+          "scheduler_sleep_ms": 20.835233328398317,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.84260003035888,
+          "input_to_handler_ms": 0.03679998917505145,
+          "handler_to_request_ms": 0.7758000283502042,
+          "scheduler_sleep_ms": 18.134433310478926,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.55879999091849,
+          "input_to_handler_ms": 0.019799976143985987,
+          "handler_to_request_ms": 0.6950999959371984,
+          "scheduler_sleep_ms": 20.424133341293782,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.78709997236729,
+          "input_to_handler_ms": 0.024799956008791924,
+          "handler_to_request_ms": 0.7298000273294747,
+          "scheduler_sleep_ms": 19.731533364392817,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.18840000126511,
+          "input_to_handler_ms": 0.020199979189783335,
+          "handler_to_request_ms": 0.7155000348575413,
+          "scheduler_sleep_ms": 20.83773334743455,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.094699981622398,
+          "input_to_handler_ms": 0.03260001540184021,
+          "handler_to_request_ms": 0.7464999798685312,
+          "scheduler_sleep_ms": 16.742233303375542,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.481999962124974,
+          "input_to_handler_ms": 0.031400006264448166,
+          "handler_to_request_ms": 0.7527999696321785,
+          "scheduler_sleep_ms": 17.81383337220177,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 13.856400037184358,
+          "input_to_handler_ms": 0.027900037821382284,
+          "handler_to_request_ms": 0.7361999596469104,
+          "scheduler_sleep_ms": 0.5068333121016622,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.17489997809753,
+          "input_to_handler_ms": 0.021599989850074053,
+          "handler_to_request_ms": 0.7085999823175371,
+          "scheduler_sleep_ms": 20.416333281900734,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.36610002629459,
+          "input_to_handler_ms": 0.018400023691356182,
+          "handler_to_request_ms": 0.698799965903163,
+          "scheduler_sleep_ms": 20.920333336107433,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.03239998826757,
+          "input_to_handler_ms": 0.029199989512562752,
+          "handler_to_request_ms": 0.7304999744519591,
+          "scheduler_sleep_ms": 20.65523329656571,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.02220001630485,
+          "input_to_handler_ms": 0.02340000355616212,
+          "handler_to_request_ms": 0.7239999831654131,
+          "scheduler_sleep_ms": 20.809433364775032,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 28.886299987789243,
+          "input_to_handler_ms": 0.03200001083314419,
+          "handler_to_request_ms": 1.0088999988511205,
+          "scheduler_sleep_ms": 14.990933355875313,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.91949999099597,
+          "input_to_handler_ms": 0.039000005926936865,
+          "handler_to_request_ms": 0.7909000269137323,
+          "scheduler_sleep_ms": 13.448733312543482,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.72330002114177,
+          "input_to_handler_ms": 0.05329999839887023,
+          "handler_to_request_ms": 1.2423000298440456,
+          "scheduler_sleep_ms": 11.567533307243139,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.374799971468747,
+          "input_to_handler_ms": 0.06669998401775956,
+          "handler_to_request_ms": 1.963399990927428,
+          "scheduler_sleep_ms": 1.134333317168057,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 34.72330002114177,
+          "p95": 38.48019998986274,
+          "mad": 1.350299979094416,
+          "min": 13.856400037184358,
+          "max": 40.081099956296384
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.02340000355616212,
+          "p95": 0.05329999839887023,
+          "mad": 0.004500034265220165,
+          "min": 0.017300015315413475,
+          "max": 0.06669998401775956
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 0.7298000273294747,
+          "p95": 1.3267999747768044,
+          "mad": 0.021200045011937618,
+          "min": 0.6950999959371984,
+          "max": 1.963399990927428
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 20.27923334389925,
+          "p95": 21.11463330220431,
+          "mad": 0.8133999654091895,
+          "min": 0.5068333121016622,
+          "max": 21.14143327344209
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 649180,
+          "peak_bytes": 1485903,
+          "live_traced_blocks": 9940
+        },
+        {
+          "retained_bytes": 649212,
+          "peak_bytes": 1485935,
+          "live_traced_blocks": 9941
+        },
+        {
+          "retained_bytes": 649212,
+          "peak_bytes": 1485935,
+          "live_traced_blocks": 9941
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 649212,
+          "p95": 649212,
+          "mad": 0,
+          "min": 649180,
+          "max": 649212
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 1485935,
+          "p95": 1485935,
+          "mad": 0,
+          "min": 1485903,
+          "max": 1485935
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 9941,
+          "p95": 9941,
+          "mad": 0,
+          "min": 9940,
+          "max": 9941
+        }
+      }
+    },
+    {
+      "size": [
+        80,
+        24
+      ],
+      "workload": "long_input",
+      "raw": [
+        {
+          "input_to_frame_ms": 35.16829997533932,
+          "input_to_handler_ms": 0.012999982573091984,
+          "handler_to_request_ms": 6.196800037287176,
+          "scheduler_sleep_ms": 15.479033347219229,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.88740004831925,
+          "input_to_handler_ms": 0.012300035450607538,
+          "handler_to_request_ms": 6.5799999865703285,
+          "scheduler_sleep_ms": 15.234033286105841,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.06020000996068,
+          "input_to_handler_ms": 0.014499993994832039,
+          "handler_to_request_ms": 6.210400024428964,
+          "scheduler_sleep_ms": 12.49633333645761,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.70360003504902,
+          "input_to_handler_ms": 0.014599994756281376,
+          "handler_to_request_ms": 6.750900007318705,
+          "scheduler_sleep_ms": 13.640433317050338,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.18159999232739,
+          "input_to_handler_ms": 0.024300010409206152,
+          "handler_to_request_ms": 6.36350002605468,
+          "scheduler_sleep_ms": 13.110733299981803,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.09479997167364,
+          "input_to_handler_ms": 0.01839996548369527,
+          "handler_to_request_ms": 7.870600034948438,
+          "scheduler_sleep_ms": 12.200433353427798,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 17.776699969545007,
+          "input_to_handler_ms": 0.027099973522126675,
+          "handler_to_request_ms": 6.3263000338338315,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.630300054326653,
+          "input_to_handler_ms": 0.02540001878514886,
+          "handler_to_request_ms": 7.516900019254535,
+          "scheduler_sleep_ms": 10.279133333824575,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.64099998725578,
+          "input_to_handler_ms": 0.026499968953430653,
+          "handler_to_request_ms": 6.778900045901537,
+          "scheduler_sleep_ms": 13.187133357860148,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.231999994721264,
+          "input_to_handler_ms": 0.02670002868399024,
+          "handler_to_request_ms": 6.896100006997585,
+          "scheduler_sleep_ms": 13.173733314033598,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 37.53059997688979,
+          "input_to_handler_ms": 0.012499978765845299,
+          "handler_to_request_ms": 6.253400002606213,
+          "scheduler_sleep_ms": 15.228733362164348,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.611099981702864,
+          "input_to_handler_ms": 0.011500029359012842,
+          "handler_to_request_ms": 6.156399962492287,
+          "scheduler_sleep_ms": 15.656033298000693,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.17629998875782,
+          "input_to_handler_ms": 0.02640002639964223,
+          "handler_to_request_ms": 6.32789998780936,
+          "scheduler_sleep_ms": 14.24613333074376,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.369600005447865,
+          "input_to_handler_ms": 0.01829996472224593,
+          "handler_to_request_ms": 7.315700000617653,
+          "scheduler_sleep_ms": 14.123933331575245,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.12420002091676,
+          "input_to_handler_ms": 0.030199997127056122,
+          "handler_to_request_ms": 7.281300029717386,
+          "scheduler_sleep_ms": 11.650833359453827,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.284999990835786,
+          "input_to_handler_ms": 0.01810002140700817,
+          "handler_to_request_ms": 6.281399982981384,
+          "scheduler_sleep_ms": 14.586333301849663,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 21.590199961792678,
+          "input_to_handler_ms": 0.027099973522126675,
+          "handler_to_request_ms": 8.025199989788234,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.91070002503693,
+          "input_to_handler_ms": 0.030499999411404133,
+          "handler_to_request_ms": 7.212899974547327,
+          "scheduler_sleep_ms": 9.762233356013894,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.94059998774901,
+          "input_to_handler_ms": 0.021199986804276705,
+          "handler_to_request_ms": 6.5058000036515296,
+          "scheduler_sleep_ms": 13.833833334501833,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.69599999859929,
+          "input_to_handler_ms": 0.028699985705316067,
+          "handler_to_request_ms": 9.003100043628365,
+          "scheduler_sleep_ms": 8.853333361912519,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 39.25060003530234,
+          "input_to_handler_ms": 0.0274000340141356,
+          "handler_to_request_ms": 7.3494999669492245,
+          "scheduler_sleep_ms": 13.635933340992779,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 37.548299995251,
+          "input_to_handler_ms": 0.024900014977902174,
+          "handler_to_request_ms": 6.381499988492578,
+          "scheduler_sleep_ms": 14.832933316938579,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 38.55439997278154,
+          "input_to_handler_ms": 0.026600027922540903,
+          "handler_to_request_ms": 6.457399984356016,
+          "scheduler_sleep_ms": 14.661533292382956,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.71280001010746,
+          "input_to_handler_ms": 0.011300027836114168,
+          "handler_to_request_ms": 6.225299963261932,
+          "scheduler_sleep_ms": 15.34243335481733,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.29899999173358,
+          "input_to_handler_ms": 0.019499973859637976,
+          "handler_to_request_ms": 6.294100021477789,
+          "scheduler_sleep_ms": 15.321433311328292,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.69150003325194,
+          "input_to_handler_ms": 0.03659998765215278,
+          "handler_to_request_ms": 7.506800000555813,
+          "scheduler_sleep_ms": 13.612733338959515,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.15250002965331,
+          "input_to_handler_ms": 0.016300007700920105,
+          "handler_to_request_ms": 23.603999987244606,
+          "scheduler_sleep_ms": 0.0,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.294100023340434,
+          "input_to_handler_ms": 0.011100026313215494,
+          "handler_to_request_ms": 7.4068999965675175,
+          "scheduler_sleep_ms": 14.015233376994729,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.93029998894781,
+          "input_to_handler_ms": 0.017599959392100573,
+          "handler_to_request_ms": 7.505600049626082,
+          "scheduler_sleep_ms": 12.363733316306025,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.35520001221448,
+          "input_to_handler_ms": 0.016700010746717453,
+          "handler_to_request_ms": 6.366299989167601,
+          "scheduler_sleep_ms": 14.351033314596862,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.130799991544336,
+          "input_to_handler_ms": 0.020200037397444248,
+          "handler_to_request_ms": 6.61679997574538,
+          "scheduler_sleep_ms": 14.217633346561342,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 34.17629998875782,
+          "p95": 38.55439997278154,
+          "mad": 1.108700002077967,
+          "min": 17.776699969545007,
+          "max": 39.25060003530234
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.020200037397444248,
+          "p95": 0.030499999411404133,
+          "mad": 0.006299931555986404,
+          "min": 0.011100026313215494,
+          "max": 0.03659998765215278
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 6.61679997574538,
+          "p95": 9.003100043628365,
+          "mad": 0.3915000124834478,
+          "min": 6.156399962492287,
+          "max": 23.603999987244606
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 13.640433317050338,
+          "p95": 15.479033347219229,
+          "mad": 1.1924999998882413,
+          "min": 0.0,
+          "max": 15.656033298000693
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 1149872,
+          "peak_bytes": 1984659,
+          "live_traced_blocks": 17508
+        },
+        {
+          "retained_bytes": 1150032,
+          "peak_bytes": 1984819,
+          "live_traced_blocks": 17509
+        },
+        {
+          "retained_bytes": 1149872,
+          "peak_bytes": 1984659,
+          "live_traced_blocks": 17508
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 1149872,
+          "p95": 1150032,
+          "mad": 0,
+          "min": 1149872,
+          "max": 1150032
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 1984659,
+          "p95": 1984819,
+          "mad": 0,
+          "min": 1984659,
+          "max": 1984819
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 17508,
+          "p95": 17509,
+          "mad": 0,
+          "min": 17508,
+          "max": 17509
+        }
+      }
+    },
+    {
+      "size": [
+        40,
+        12
+      ],
+      "workload": "ascii",
+      "raw": [
+        {
+          "input_to_frame_ms": 35.57179996278137,
+          "input_to_handler_ms": 0.007800001185387373,
+          "handler_to_request_ms": 0.527600001078099,
+          "scheduler_sleep_ms": 29.82053329469636,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.7009000252001,
+          "input_to_handler_ms": 0.008700008038431406,
+          "handler_to_request_ms": 0.5378000205382705,
+          "scheduler_sleep_ms": 28.93763332394883,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.03259997908026,
+          "input_to_handler_ms": 0.007700000423938036,
+          "handler_to_request_ms": 0.5283000064082444,
+          "scheduler_sleep_ms": 29.8471333226189,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.50550000322983,
+          "input_to_handler_ms": 0.007499998901039362,
+          "handler_to_request_ms": 0.5395999760366976,
+          "scheduler_sleep_ms": 29.872333339881152,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.172700019553304,
+          "input_to_handler_ms": 0.007700000423938036,
+          "handler_to_request_ms": 0.5284000071696937,
+          "scheduler_sleep_ms": 29.865733347833157,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.806299965362996,
+          "input_to_handler_ms": 0.007399998139590025,
+          "handler_to_request_ms": 0.533199985511601,
+          "scheduler_sleep_ms": 29.820033349096775,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.542799985501915,
+          "input_to_handler_ms": 0.008200004231184721,
+          "handler_to_request_ms": 0.6085999775677919,
+          "scheduler_sleep_ms": 29.747233318630606,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.89189998758957,
+          "input_to_handler_ms": 0.008899951353669167,
+          "handler_to_request_ms": 0.5271999980323017,
+          "scheduler_sleep_ms": 28.83973333518952,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.90689997468144,
+          "input_to_handler_ms": 0.007399998139590025,
+          "handler_to_request_ms": 0.5403999821282923,
+          "scheduler_sleep_ms": 29.827533347997814,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.93899998627603,
+          "input_to_handler_ms": 0.009100011084228754,
+          "handler_to_request_ms": 0.539699976798147,
+          "scheduler_sleep_ms": 29.70233332598582,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.21750001143664,
+          "input_to_handler_ms": 0.010300020221620798,
+          "handler_to_request_ms": 0.5494999932125211,
+          "scheduler_sleep_ms": 29.79113336186856,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.295800004154444,
+          "input_to_handler_ms": 0.02220005262643099,
+          "handler_to_request_ms": 0.5896999500691891,
+          "scheduler_sleep_ms": 29.212233319412917,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.10839998489246,
+          "input_to_handler_ms": 0.031100003980100155,
+          "handler_to_request_ms": 1.165799971204251,
+          "scheduler_sleep_ms": 28.666133293882012,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.6224000309594,
+          "input_to_handler_ms": 0.01750001683831215,
+          "handler_to_request_ms": 0.6739000091329217,
+          "scheduler_sleep_ms": 28.087933373171836,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.011100011412054,
+          "input_to_handler_ms": 0.011199968867003918,
+          "handler_to_request_ms": 0.5552000366151333,
+          "scheduler_sleep_ms": 29.689833289012313,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.28880005190149,
+          "input_to_handler_ms": 0.02370000584051013,
+          "handler_to_request_ms": 0.5865000421181321,
+          "scheduler_sleep_ms": 27.971333300229162,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.8247000365518,
+          "input_to_handler_ms": 0.008700008038431406,
+          "handler_to_request_ms": 0.5361000075936317,
+          "scheduler_sleep_ms": 29.79693334782496,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.645200019236654,
+          "input_to_handler_ms": 0.019000028260052204,
+          "handler_to_request_ms": 0.8320999913848937,
+          "scheduler_sleep_ms": 29.147333290893584,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.64089997578412,
+          "input_to_handler_ms": 0.009199953638017178,
+          "handler_to_request_ms": 0.5499000544659793,
+          "scheduler_sleep_ms": 29.79563333792612,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.366300012450665,
+          "input_to_handler_ms": 0.027600035537034273,
+          "handler_to_request_ms": 0.5908999592065811,
+          "scheduler_sleep_ms": 26.739233289845288,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.059999976307154,
+          "input_to_handler_ms": 0.009800016414374113,
+          "handler_to_request_ms": 0.5500999977812171,
+          "scheduler_sleep_ms": 29.740133322775364,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.47859996231273,
+          "input_to_handler_ms": 0.03559998003765941,
+          "handler_to_request_ms": 1.4792000292800367,
+          "scheduler_sleep_ms": 28.5819333512336,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.76550000393763,
+          "input_to_handler_ms": 0.012999982573091984,
+          "handler_to_request_ms": 0.5444000125862658,
+          "scheduler_sleep_ms": 29.729533300269395,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.5767000108026,
+          "input_to_handler_ms": 0.010800024028867483,
+          "handler_to_request_ms": 0.5502999993041158,
+          "scheduler_sleep_ms": 29.750233283266425,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.079000004567206,
+          "input_to_handler_ms": 0.009100011084228754,
+          "handler_to_request_ms": 0.5440000095404685,
+          "scheduler_sleep_ms": 29.793033318128437,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.04419998312369,
+          "input_to_handler_ms": 0.01209997572004795,
+          "handler_to_request_ms": 0.5469000316224992,
+          "scheduler_sleep_ms": 28.429133351892233,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.526499977800995,
+          "input_to_handler_ms": 0.00890000956133008,
+          "handler_to_request_ms": 0.5475999787449837,
+          "scheduler_sleep_ms": 29.795133334118873,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.01609999127686,
+          "input_to_handler_ms": 0.009000010322779417,
+          "handler_to_request_ms": 0.5363000091165304,
+          "scheduler_sleep_ms": 29.757333279121667,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.58230000594631,
+          "input_to_handler_ms": 0.01769996015354991,
+          "handler_to_request_ms": 0.5710000405088067,
+          "scheduler_sleep_ms": 29.374133329838514,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.82919996511191,
+          "input_to_handler_ms": 0.00890000956133008,
+          "handler_to_request_ms": 0.5430999444797635,
+          "scheduler_sleep_ms": 29.756733332760632,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.086400002706796,
+          "input_to_handler_ms": 0.008700008038431406,
+          "handler_to_request_ms": 0.6387999746948481,
+          "scheduler_sleep_ms": 29.64153332868591,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 34.059999976307154,
+          "p95": 36.03259997908026,
+          "mad": 0.4776999703608453,
+          "min": 31.366300012450665,
+          "max": 36.295800004154444
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.009100011084228754,
+          "p95": 0.031100003980100155,
+          "mad": 0.001400010660290718,
+          "min": 0.007399998139590025,
+          "max": 0.03559998003765941
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 0.5475999787449837,
+          "p95": 1.165799971204251,
+          "mad": 0.011499971151351929,
+          "min": 0.5271999980323017,
+          "max": 1.4792000292800367
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 29.740133322775364,
+          "p95": 29.865733347833157,
+          "mad": 0.0874000252224505,
+          "min": 26.739233289845288,
+          "max": 29.872333339881152
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 180892,
+          "peak_bytes": 400607,
+          "live_traced_blocks": 2745
+        },
+        {
+          "retained_bytes": 180892,
+          "peak_bytes": 400607,
+          "live_traced_blocks": 2745
+        },
+        {
+          "retained_bytes": 180892,
+          "peak_bytes": 400607,
+          "live_traced_blocks": 2745
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 180892,
+          "p95": 180892,
+          "mad": 0,
+          "min": 180892,
+          "max": 180892
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 400607,
+          "p95": 400607,
+          "mad": 0,
+          "min": 400607,
+          "max": 400607
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 2745,
+          "p95": 2745,
+          "mad": 0,
+          "min": 2745,
+          "max": 2745
+        }
+      }
+    },
+    {
+      "size": [
+        40,
+        12
+      ],
+      "workload": "unicode",
+      "raw": [
+        {
+          "input_to_frame_ms": 33.46320003038272,
+          "input_to_handler_ms": 0.0198000343516469,
+          "handler_to_request_ms": 0.5124000017531216,
+          "scheduler_sleep_ms": 29.484733298886567,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.073199971113354,
+          "input_to_handler_ms": 0.010599964298307896,
+          "handler_to_request_ms": 0.4915000172331929,
+          "scheduler_sleep_ms": 28.773233294487,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.133599965367466,
+          "input_to_handler_ms": 0.024200009647756815,
+          "handler_to_request_ms": 0.5200999439693987,
+          "scheduler_sleep_ms": 28.58783333795145,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.630300011485815,
+          "input_to_handler_ms": 0.009300012607127428,
+          "handler_to_request_ms": 0.4838999593630433,
+          "scheduler_sleep_ms": 29.811033338773996,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.113400012254715,
+          "input_to_handler_ms": 0.01090002479031682,
+          "handler_to_request_ms": 0.4791999817825854,
+          "scheduler_sleep_ms": 29.85023334622383,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.112999961711466,
+          "input_to_handler_ms": 0.009999959729611874,
+          "handler_to_request_ms": 0.5614000256173313,
+          "scheduler_sleep_ms": 29.367633280344307,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 30.311900016386062,
+          "input_to_handler_ms": 0.01650000922381878,
+          "handler_to_request_ms": 0.5837000207975507,
+          "scheduler_sleep_ms": 26.05733333621174,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.17419998347759,
+          "input_to_handler_ms": 0.01179997343569994,
+          "handler_to_request_ms": 0.46790001215413213,
+          "scheduler_sleep_ms": 28.732933336868882,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.15289996378124,
+          "input_to_handler_ms": 0.01669995253905654,
+          "handler_to_request_ms": 0.5190000520087779,
+          "scheduler_sleep_ms": 29.462833306752145,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.81290001561865,
+          "input_to_handler_ms": 0.010200019460171461,
+          "handler_to_request_ms": 0.4776000278070569,
+          "scheduler_sleep_ms": 29.80303333606571,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.678999996278435,
+          "input_to_handler_ms": 0.013000040780752897,
+          "handler_to_request_ms": 0.4841999616473913,
+          "scheduler_sleep_ms": 28.718733345158398,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.63510000053793,
+          "input_to_handler_ms": 0.015099998563528061,
+          "handler_to_request_ms": 0.4925000248476863,
+          "scheduler_sleep_ms": 29.68763333046809,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.226099997293204,
+          "input_to_handler_ms": 0.008300004992634058,
+          "handler_to_request_ms": 0.46469998778775334,
+          "scheduler_sleep_ms": 29.872233339119703,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.637399970553815,
+          "input_to_handler_ms": 0.008699949830770493,
+          "handler_to_request_ms": 0.4713000380434096,
+          "scheduler_sleep_ms": 28.876233322080225,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.90090003469959,
+          "input_to_handler_ms": 0.008300004992634058,
+          "handler_to_request_ms": 0.47640001866966486,
+          "scheduler_sleep_ms": 29.90193327423185,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.7631999864243,
+          "input_to_handler_ms": 0.007700000423938036,
+          "handler_to_request_ms": 0.5034999921917915,
+          "scheduler_sleep_ms": 29.751633352134377,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.70549998059869,
+          "input_to_handler_ms": 0.008500006515532732,
+          "handler_to_request_ms": 0.4637999809347093,
+          "scheduler_sleep_ms": 29.892133316025138,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.86649995809421,
+          "input_to_handler_ms": 0.007599999662488699,
+          "handler_to_request_ms": 0.4721999866887927,
+          "scheduler_sleep_ms": 29.84443330205977,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.25030002836138,
+          "input_to_handler_ms": 0.010400020983070135,
+          "handler_to_request_ms": 0.4683000151999295,
+          "scheduler_sleep_ms": 29.82983330730349,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.87779999664053,
+          "input_to_handler_ms": 0.01009996049106121,
+          "handler_to_request_ms": 0.4795000422745943,
+          "scheduler_sleep_ms": 28.602133330423385,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.173300024122,
+          "input_to_handler_ms": 0.008800008799880743,
+          "handler_to_request_ms": 0.4634000360965729,
+          "scheduler_sleep_ms": 29.897233296651393,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.11329999612644,
+          "input_to_handler_ms": 0.015199999324977398,
+          "handler_to_request_ms": 0.5145000177435577,
+          "scheduler_sleep_ms": 27.311133278999478,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.090799978002906,
+          "input_to_handler_ms": 0.014499993994832039,
+          "handler_to_request_ms": 0.5043999990448356,
+          "scheduler_sleep_ms": 29.431833361741155,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.647999971639365,
+          "input_to_handler_ms": 0.009600014891475439,
+          "handler_to_request_ms": 0.4909999552182853,
+          "scheduler_sleep_ms": 29.684233362786472,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 32.42659999523312,
+          "input_to_handler_ms": 0.04299997817724943,
+          "handler_to_request_ms": 0.5357000045478344,
+          "scheduler_sleep_ms": 27.53583330195397,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 31.29449998959899,
+          "input_to_handler_ms": 0.0385999446734786,
+          "handler_to_request_ms": 0.6367000169120729,
+          "scheduler_sleep_ms": 26.912033325061202,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.424500016029924,
+          "input_to_handler_ms": 0.009400013368576765,
+          "handler_to_request_ms": 0.47420000191777945,
+          "scheduler_sleep_ms": 29.888633347582072,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.5657000541687,
+          "input_to_handler_ms": 0.016300007700920105,
+          "handler_to_request_ms": 0.5167000344954431,
+          "scheduler_sleep_ms": 29.14383332245052,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.9065000298433,
+          "input_to_handler_ms": 0.022199994418770075,
+          "handler_to_request_ms": 0.5513000069186091,
+          "scheduler_sleep_ms": 29.428933281451464,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.6774000315927,
+          "input_to_handler_ms": 0.013800046872347593,
+          "handler_to_request_ms": 0.5291999550536275,
+          "scheduler_sleep_ms": 29.5498333289288,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.11959996446967,
+          "input_to_handler_ms": 0.009199953638017178,
+          "handler_to_request_ms": 0.5248000379651785,
+          "scheduler_sleep_ms": 29.7600332996808,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 33.81290001561865,
+          "p95": 36.226099997293204,
+          "mad": 0.7397000445052981,
+          "min": 30.311900016386062,
+          "max": 36.70549998059869
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.010599964298307896,
+          "p95": 0.0385999446734786,
+          "mad": 0.0022999593056738377,
+          "min": 0.007599999662488699,
+          "max": 0.04299997817724943
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 0.4915000172331929,
+          "p95": 0.5837000207975507,
+          "mad": 0.02300000051036477,
+          "min": 0.4634000360965729,
+          "max": 0.6367000169120729
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 29.484733298886567,
+          "p95": 29.897233296651393,
+          "mad": 0.3655000473372638,
+          "min": 26.05733333621174,
+          "max": 29.90193327423185
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 182170,
+          "peak_bytes": 401885,
+          "live_traced_blocks": 2734
+        },
+        {
+          "retained_bytes": 182170,
+          "peak_bytes": 401885,
+          "live_traced_blocks": 2734
+        },
+        {
+          "retained_bytes": 182330,
+          "peak_bytes": 402045,
+          "live_traced_blocks": 2735
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 182170,
+          "p95": 182330,
+          "mad": 0,
+          "min": 182170,
+          "max": 182330
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 401885,
+          "p95": 402045,
+          "mad": 0,
+          "min": 401885,
+          "max": 402045
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 2734,
+          "p95": 2735,
+          "mad": 0,
+          "min": 2734,
+          "max": 2735
+        }
+      }
+    },
+    {
+      "size": [
+        40,
+        12
+      ],
+      "workload": "long_input",
+      "raw": [
+        {
+          "input_to_frame_ms": 33.953100035432726,
+          "input_to_handler_ms": 0.009400013368576765,
+          "handler_to_request_ms": 6.542899995110929,
+          "scheduler_sleep_ms": 23.774933302775025,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.5110999555327,
+          "input_to_handler_ms": 0.009699957445263863,
+          "handler_to_request_ms": 6.328800052870065,
+          "scheduler_sleep_ms": 23.92553334357217,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.02770002139732,
+          "input_to_handler_ms": 0.008800008799880743,
+          "handler_to_request_ms": 6.088899972382933,
+          "scheduler_sleep_ms": 24.26463336450979,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.0853999950923,
+          "input_to_handler_ms": 0.008700008038431406,
+          "handler_to_request_ms": 6.129799992777407,
+          "scheduler_sleep_ms": 24.22153332736343,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 38.31969999009743,
+          "input_to_handler_ms": 0.009200011845678091,
+          "handler_to_request_ms": 6.221599993295968,
+          "scheduler_sleep_ms": 24.12843337515369,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.031799994409084,
+          "input_to_handler_ms": 0.0097999582067132,
+          "handler_to_request_ms": 6.207700003869832,
+          "scheduler_sleep_ms": 24.052033317275345,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.07250001328066,
+          "input_to_handler_ms": 0.008800008799880743,
+          "handler_to_request_ms": 6.186399958096445,
+          "scheduler_sleep_ms": 24.144133320078254,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.931099973618984,
+          "input_to_handler_ms": 0.009200011845678091,
+          "handler_to_request_ms": 6.154799950309098,
+          "scheduler_sleep_ms": 24.21593334292993,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.981399959884584,
+          "input_to_handler_ms": 0.008399947546422482,
+          "handler_to_request_ms": 6.124600011389703,
+          "scheduler_sleep_ms": 24.231133342254907,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.07959999842569,
+          "input_to_handler_ms": 0.00890000956133008,
+          "handler_to_request_ms": 6.194100016728044,
+          "scheduler_sleep_ms": 24.137833330314606,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.30519997002557,
+          "input_to_handler_ms": 0.010999967344105244,
+          "handler_to_request_ms": 6.189099978655577,
+          "scheduler_sleep_ms": 24.0766333299689,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.54009997565299,
+          "input_to_handler_ms": 0.009499955922365189,
+          "handler_to_request_ms": 6.190900050569326,
+          "scheduler_sleep_ms": 24.168033327441663,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.929599972907454,
+          "input_to_handler_ms": 0.010300020221620798,
+          "handler_to_request_ms": 6.715699972119182,
+          "scheduler_sleep_ms": 23.61583331367001,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.31090001342818,
+          "input_to_handler_ms": 0.008200004231184721,
+          "handler_to_request_ms": 6.114299991168082,
+          "scheduler_sleep_ms": 24.247333290986717,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.16029998334125,
+          "input_to_handler_ms": 0.009100011084228754,
+          "handler_to_request_ms": 6.150799978058785,
+          "scheduler_sleep_ms": 24.0766333299689,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.040699993260205,
+          "input_to_handler_ms": 0.009599956683814526,
+          "handler_to_request_ms": 6.122599996160716,
+          "scheduler_sleep_ms": 24.194533354602754,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.30179999163374,
+          "input_to_handler_ms": 0.01309998333454132,
+          "handler_to_request_ms": 6.697200005874038,
+          "scheduler_sleep_ms": 23.45293335383758,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.76850002678111,
+          "input_to_handler_ms": 0.00990001717582345,
+          "handler_to_request_ms": 6.4430999918840826,
+          "scheduler_sleep_ms": 23.80823332350701,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.59939996153116,
+          "input_to_handler_ms": 0.009300012607127428,
+          "handler_to_request_ms": 6.159499986097217,
+          "scheduler_sleep_ms": 24.15033330908045,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.96930001024157,
+          "input_to_handler_ms": 0.009000010322779417,
+          "handler_to_request_ms": 6.226000026799738,
+          "scheduler_sleep_ms": 24.00683332234621,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.643500006292015,
+          "input_to_handler_ms": 0.009200011845678091,
+          "handler_to_request_ms": 6.240700022317469,
+          "scheduler_sleep_ms": 23.961433325894177,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.87980000115931,
+          "input_to_handler_ms": 0.017900019884109497,
+          "handler_to_request_ms": 6.199600000400096,
+          "scheduler_sleep_ms": 23.902033281046897,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.14239995274693,
+          "input_to_handler_ms": 0.01079996582120657,
+          "handler_to_request_ms": 7.463300018571317,
+          "scheduler_sleep_ms": 22.809033340308815,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.955999999307096,
+          "input_to_handler_ms": 0.00909995287656784,
+          "handler_to_request_ms": 6.1443000449799,
+          "scheduler_sleep_ms": 24.10623332252726,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.619699988979846,
+          "input_to_handler_ms": 0.008200004231184721,
+          "handler_to_request_ms": 6.165899976622313,
+          "scheduler_sleep_ms": 24.133633298333734,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 36.688500025775284,
+          "input_to_handler_ms": 0.00890000956133008,
+          "handler_to_request_ms": 6.101600010879338,
+          "scheduler_sleep_ms": 24.238233279902488,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 33.97180000320077,
+          "input_to_handler_ms": 0.008600007276982069,
+          "handler_to_request_ms": 6.174899986945093,
+          "scheduler_sleep_ms": 24.07783333910629,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.39059999072924,
+          "input_to_handler_ms": 0.0097999582067132,
+          "handler_to_request_ms": 8.736499992664903,
+          "scheduler_sleep_ms": 21.49123331764713,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.252299974672496,
+          "input_to_handler_ms": 0.011599971912801266,
+          "handler_to_request_ms": 6.395499978680164,
+          "scheduler_sleep_ms": 23.85263331234455,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 34.043299965560436,
+          "input_to_handler_ms": 0.00879995059221983,
+          "handler_to_request_ms": 6.135100033134222,
+          "scheduler_sleep_ms": 24.23223329242319,
+          "renders": 1,
+          "flushes": 1
+        },
+        {
+          "input_to_frame_ms": 35.055399988777936,
+          "input_to_handler_ms": 0.009199953638017178,
+          "handler_to_request_ms": 6.232300016563386,
+          "scheduler_sleep_ms": 23.59513333067298,
+          "renders": 1,
+          "flushes": 1
+        }
+      ],
+      "summary": {
+        "input_to_frame_ms": {
+          "n": 31,
+          "median": 34.16029998334125,
+          "p95": 36.96930001024157,
+          "mad": 0.5167999770492315,
+          "min": 33.54009997565299,
+          "max": 38.31969999009743
+        },
+        "input_to_handler_ms": {
+          "n": 31,
+          "median": 0.009200011845678091,
+          "p95": 0.01309998333454132,
+          "mad": 0.0004000612534582615,
+          "min": 0.008200004231184721,
+          "max": 0.017900019884109497
+        },
+        "handler_to_request_ms": {
+          "n": 31,
+          "median": 6.190900050569326,
+          "p95": 7.463300018571317,
+          "mad": 0.049799971748143435,
+          "min": 6.088899972382933,
+          "max": 8.736499992664903
+        },
+        "scheduler_sleep_ms": {
+          "n": 31,
+          "median": 24.07783333910629,
+          "p95": 24.247333290986717,
+          "mad": 0.14369998825713992,
+          "min": 21.49123331764713,
+          "max": 24.26463336450979
+        },
+        "renders": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        },
+        "flushes": {
+          "n": 31,
+          "median": 1,
+          "p95": 1,
+          "mad": 0,
+          "min": 1,
+          "max": 1
+        }
+      },
+      "memory_raw": [
+        {
+          "retained_bytes": 682359,
+          "peak_bytes": 1035309,
+          "live_traced_blocks": 10298
+        },
+        {
+          "retained_bytes": 682199,
+          "peak_bytes": 1035149,
+          "live_traced_blocks": 10297
+        },
+        {
+          "retained_bytes": 682199,
+          "peak_bytes": 1035149,
+          "live_traced_blocks": 10297
+        }
+      ],
+      "memory_summary": {
+        "retained_bytes": {
+          "n": 3,
+          "median": 682199,
+          "p95": 682359,
+          "mad": 0,
+          "min": 682199,
+          "max": 682359
+        },
+        "peak_bytes": {
+          "n": 3,
+          "median": 1035149,
+          "p95": 1035309,
+          "mad": 0,
+          "min": 1035149,
+          "max": 1035309
+        },
+        "live_traced_blocks": {
+          "n": 3,
+          "median": 10297,
+          "p95": 10298,
+          "mad": 0,
+          "min": 10297,
+          "max": 10298
+        }
+      }
+    }
+  ]
+}

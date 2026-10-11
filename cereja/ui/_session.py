@@ -56,6 +56,9 @@ class TerminalSession:
         self._owned = False
         self._journal = []
         self._snapshot = None
+        self._output_generation = 0
+        self.write_count = 0
+        self.flush_count = 0
 
     @property
     def animations_enabled(self):
@@ -178,7 +181,11 @@ class TerminalSession:
 
     def write_text(self, text):
         """Write ordinary text with visible control escapes, including in plain mode."""
-        return self._write_frame(_safe_text(text))
+        safe = _safe_text(text)
+        result = self._write_frame(safe)
+        if safe:
+            self.needs_redraw = True
+        return result
 
     def _write_frame(self, text, *, cells=None):
         """Internal encoder transport, not an arbitrary ANSI drawing API.
@@ -193,16 +200,22 @@ class TerminalSession:
             text = _safe_text(text)
         if not text:
             return True
+        self._output_generation += 1
+        self.needs_redraw = True
         try:
             offset = 0
             while offset < len(text):
+                self.write_count += 1
                 count = self.backend.write(text[offset:])
                 if type(count) is not int or not 0 < count <= len(text) - offset:
                     raise OSError('terminal write did not acknowledge valid progress')
                 offset += count
+            self.flush_count += 1
             self.backend.flush()
             if cells is not None:
-                self.backend.commit_cells(cells)
+                commit = getattr(self.backend, 'commit_cells', None)
+                if commit is not None:
+                    commit(cells)
             self.needs_redraw = False
             return True
         except BrokenPipeError:

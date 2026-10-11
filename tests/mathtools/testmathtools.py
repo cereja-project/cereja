@@ -45,6 +45,29 @@ class MathToolsTests(unittest.TestCase):
         
     def test_least_common_multiple(self):
         self.assertEqual(least_common_multiple([10, 15]), 30)
+
+    def test_least_common_multiple_preserves_large_integer_precision(self):
+        value = 2 ** 53 + 1
+        self.assertEqual(least_common_multiple([value, 2]), value * 2)
+        self.assertEqual(least_common_multiple([value, value]), value)
+
+    def test_least_common_multiple_beyond_float_range(self):
+        value = 10 ** 400
+        self.assertEqual(least_common_multiple([value, 3]), value * 3)
+
+    def test_least_common_multiple_accepts_iterators(self):
+        values = (value for value in [2 ** 53 + 1, 2, 5])
+        self.assertEqual(least_common_multiple(values), (2 ** 53 + 1) * 10)
+
+    def test_least_common_multiple_preserves_signed_and_zero_behavior(self):
+        for values, expected in [([-10, 15], -30), ([-10, -15], 30),
+                                 ([0, 15], 0), ([15, 0], 0), ([-10], -10)]:
+            with self.subTest(values=values):
+                self.assertEqual(least_common_multiple(values), expected)
+        with self.assertRaises(ZeroDivisionError):
+            least_common_multiple([0, 0])
+        with self.assertRaises(TypeError):
+            least_common_multiple([])
     
     def test_greatest_common_multiple(self):
         self.assertEqual(greatest_common_multiple([10, 15]), 5)

@@ -1,4 +1,4 @@
-# Cereja UI exploratory experience evidence
+# Cereja UI Ledger UX specification and review boundaries
 
 Status: the user selected five initial capability areas for concrete flow and wireframe elaboration: System Information, Repository/Directory Tree, Context Search, Compress/Decompress, and Download. The user selected Ledger as the visual language. The specification below enables concrete planning including files and directories with dedicated archive safety stages; implementation and observed usability are not established. No integration is implemented by these artifacts.
 
@@ -36,8 +36,7 @@ Historical grouping supplied before the shell selection: Home/Dashboard, Tools/C
 
 | Open alternative | Justification | Impact if selected |
 | --- | --- | --- |
-| Help | Discoverability and key explanations | Dedicated screen versus contextual hints; return-focus behavior and maintained content. |
-| Settings | Session accessibility and capability overrides | Inputs, state lifetime and precedence; may instead be launch options or About/Diagnostics controls. |
+| Settings | Additional session controls beyond existing capability options | Requires a scope decision; no new persistent settings surface is selected. |
 | Further Tools integrations | Discover, inspect and execute another existing capability | Require a separate inclusion decision and evidence; no arbitrary command shell is implied. |
 
 Tree accepts a user-provided path and exposes its hierarchy; it is not a full filesystem browser. Search requires explicit roots and is bounded context retrieval, not a generic search product. Download accepts a user URL and destination; it is not a full HTTP client. HTTP, encrypt, decrypt, protect, privacy, security, module and registry entries remain discovery/documentation links to their actual CLI or Python API, not runnable TUI actions.
@@ -51,7 +50,7 @@ This shared flow is proposed for the selected initial areas; it is not final des
 3. **Configure:** edit typed parameters with visible defaults and required markers. Validation explains the specific field error, retains other entries and performs no execution. Selecting a capability or moving focus never runs it.
 4. **Review and run:** show effective nonsecret parameters and targets. An explicit Run action initiates parameter validation and effects review. Execution begins only after any required confirmation bound to the exact target and effect. Read-only operations without additional effects execute after validation without a blanket second confirmation. Default behavior refuses an existing target. Explicit overwrite is a proposal only where safe output publication supports it, not blanket consent. A changed target invalidates any previous effect review.
 5. **Observe:** retain the operation identity and parameters while reporting Working and bounded output. Use a percentage only when the service supplies a reliable denominator. Keep input/navigation responsive. A Cancel action exists only with verified safe cooperative interruption. Leaving the view or stopping observation is navigation, never a cancellation substitute. Do not label unacknowledged work Canceled.
-6. **Inspect result:** distinguish successful domain completion, partial completion, cancellation and failure. Show useful structured results or bounded safe text. Preserve source/target provenance and indicate truncated output. Export, clipboard and file writes are not implied by the presence of a result panel.
+6. **Inspect result:** distinguish successful domain completion, partial completion, cancellation and failure. Show useful structured results or bounded safe text. Preserve source/target provenance and indicate truncated output. Explicit clean text copy follows the contract below; export/file writes are not implied by a result panel.
 7. **Recover or return:** restore the composer command or parameter overlay; Edit preserves safe values; retry is explicit and never automatic for non-idempotent work. Surface partial side effects before offering retry. Back restores the invoking composer caret/selection or result focus and scroll. Secrets are excluded from history/diagnostics and are not silently persisted.
 
 The application must call existing domain services or an explicit presentation-independent adapter, not construct a shell command from form values. An operation that lacks a suitable result, progress or cancellation contract creates adapter work; it does not justify fabricated progress, thread termination or claims of rollback. Escape during active work needs an operation-specific decision about cancellation versus leaving the result view.
@@ -88,7 +87,7 @@ Tools labels have literal meanings: **Available** only for an actually runnable 
 
 Modal proposal: an overwrite confirmation states source, exact target, effect and any known partial-output behavior. Default focus is Keep existing/Back, not overwrite. Enter activates only the focused action. Escape closes without running and restores the invoking control. Changed targets invalidate a prior confirmation. Run first validates parameters and the exact target, then obtains any required confirmation, and only then launches execution. Bind consent to that target and intended effect. Recheck destination state immediately before execution to handle races; confirmation does not provide an atomic overwrite guarantee.
 
-Activity proposal: track operation ID, state, start time, safe parameters and bounded messages. The single current operation has states running, cancel requested only if supported, succeeded, failed, canceled only with acknowledgment, and outcome unknown. There is no implicit queue or persistent history; completed inline blocks follow the bounded ephemeral Ledger policy. Leaving a view does not cancel work. Closing the app with active work invokes an explicit job-aware exit decision; the UI never claims forced thread termination or rollback. If safe cooperative interruption is unavailable, omit Cancel and explain that work continues when leaving the view. Stop observing is not a cancellation action. Ctrl+C routes through the same lifecycle and restores terminal modes.
+Activity proposal: track operation ID, state, start time, safe parameters and bounded messages. The single current operation has states running, cancel requested only if supported, succeeded, failed, canceled only with acknowledgment, and outcome unknown. There is no implicit queue or persistent history; completed inline blocks follow the bounded ephemeral Ledger policy. Leaving a view does not cancel work. Closing the app with active work invokes an explicit job-aware exit decision; the UI never claims forced thread termination or rollback. If safe cooperative interruption is unavailable, omit Cancel and explain that work continues when leaving the view. Stop observing is not a cancellation action. Ctrl+C not consumed by active-text copy routes through the same exit lifecycle and restores terminal modes.
 
 ## Reference wireframes and review scope
 
@@ -96,9 +95,13 @@ The [reference sheet](cereja-ui-wireframes.html) contains all five areas, naviga
 
 Examples retain synthetic Text/layout, Input/selection and Progress/feedback scenarios. They exercise toolkit behavior independently of service limitations. A deterministic synthetic job may show 6/20 steps, but that does not establish progress support in compression, tree, search or System services.
 
-## Questions for later interaction validation
+## Historical interaction hypotheses
 
-Candidate keys to evaluate: Tab/Shift+Tab for focus, Enter/Space for buttons, arrows for focused lists or preview scroll, PageUp/PageDown for a page minus one overlap row, Escape for cancellation/back, and q to quit outside text inputs. Literal q and pasted text must remain text in inputs. Ctrl+C must restore terminal state on exit. Visible actions remain available when a host intercepts function keys.
+Earlier key and responsive hypotheses are superseded by the final Ledger review
+contract below. In particular, Escape closes/returns and never cancels work; q is
+ordinary text with no global exit binding. Visible Help and Exit actions supplement
+optional host key bindings. The old split catalogue/dashboard hypothesis is not
+the current layout.
 
 Focus is different from selection: a focused control has a textual marker; a selected row persists while focus moves. Returning to an example catalogue should restore its selected identity and scroll anchor. Loading should not steal focus. A removed control needs deterministic fallback to the next enabled visible control. These are testable interaction hypotheses to finalize after scope selection.
 
@@ -173,3 +176,271 @@ Ledger retains ordered ephemeral result blocks, newest active nearest the compos
 Composer draft/caret stays independent. PageUp/PageDown scroll the selected result block. New output follows latest only if that mode was already active; otherwise preserve the selected block/anchor with a New result notice and Latest action. Completion never steals focus. The selected visual specification defines the detailed retention/eviction contract, L1-L6 and flow-to-toolkit traceability.
 
 Files and directories are accepted archive v1 scope, with dedicated source collection, extraction confinement, links/traversal, resource limits, publication and partial-failure stages. Existing API safety gaps require implementation work and tests, not an assumption that directory support is already safe. Generic widgets stay domain-independent; application adapters own Cereja effects and schemas.
+
+## Final Ledger review contract (#303)
+
+Disposition: completed specification for review under the accepted Ledger scope,
+not final human acceptance. This section resolves earlier interaction proposals for
+the current planning handoff. The [visual language](cereja-ui-visual-language.md)
+owns tokens, hierarchy and bounded retention; the
+[operation contracts](cereja-ui-operation-contracts.md) own source-grounded domain
+gaps. [The cell viewer](cereja-ui-ledger.html) is an authored review artifact with
+synthetic fixtures, except labelled captured Download events. It has no live
+service execution, application shell, production widgets or persistent history.
+
+### Exact cells and recovery
+
+The maintainer approved the current design for incremental implementation on
+2026-10-09 and explicitly authorized starting #306. This includes the subtle
+snippet surface and accepted clean-copy contract. It is a design decision,
+not a participant walkthrough, assistive-technology trial or terminal result.
+The first #307 implementation is documented in [ui-layout](../guides/ui-layout.md).
+
+Coordinates are one-based, inclusive. H is height and W is width. One cell scale,
+no pixel-based font hierarchy. Column W is unused in interactive frames. Normal
+content starts at column 3, ends by W-2 and reserves outer clearance. Prose uses
+45-75 cells when available; at 40 columns it wraps to 36. Long values and paths
+have paged full-value inspection, not an ambiguous permanently clipped identity.
+
+| Region | 120x40 | 80x24 | 40x12 |
+| --- | --- | --- | --- |
+| Identity, rule, clearance | Rows 1-3 | Rows 1-3 | Rows 1-3 |
+| Result body | Rows 4-35 (32) | Rows 4-19 (16) | Rows 4-7 (4) |
+| Result/overlay pager | Row 36 | Row 20 | Row 8 |
+| Composer rule | Row 37 | Row 21 | Row 9 |
+| Input, persistent | Row 38 | Row 22 | Row 10 |
+| Contextual keys/action access | Row 39 | Row 23 | Row 11 |
+| Job/session status | Row 40 | Row 24 | Row 12 |
+| Total | 3+32+1+4=40 | 3+16+1+4=24 | 3+4+1+4=12 |
+
+The four-row dock is always reserved. The pager never overwrites a value. Result
+blocks remain chronological, with stable command/outcome headers; compact views
+page the selected block and adjacent headers rather than discarding earlier blocks.
+Block position and Latest remain reachable by keyboard even while payload is paged.
+There is no permanent sidebar or dashboard split.
+
+Parameter/help/review overlays occupy only the result body. They reserve one
+title row, H-10 scrolling body rows and one fixed action row, plus the separate
+pager: 30/14/2 body rows at the three sizes. At 40x12 a two-row field/error page
+is valid; Tab reveals the focused field or action before input reaches it. The
+overlay action row contains short labels whose full meanings appear in Help.
+No essential action is cut from the viewport. Slash discovery uses at most seven
+body rows at 120/80 and three at 40 (title, one selected suggestion, insert hint);
+the selected item and position stay visible. No-match offers Edit/Help, no Run.
+
+Below either W=40 or H=12, enter Size recovery. Suspend interaction with hidden
+controls and preserve draft/caret/selection, form values/focus, block/item identity,
+anchors and follow-latest. Display required/current size and Resize/Exit guidance
+within available cells. Use recovery pages if all guidance cannot fit (very small
+hosts can show one short line). Active work continues, with bounded events and
+truthful status. Ctrl+C/visible Exit uses the same job-aware exit decision; hiding
+the composer is not cancellation. Return to the prior surface on resize, clamp
+anchors to valid bounds and reveal the focused item. No commands auto-submit.
+
+### Keyboard, editing, focus, selection and scroll
+
+| Surface/action | Contract |
+| --- | --- |
+| Initial | Focus composer. No filesystem, hardware or network collection before explicit submission. |
+| Composer editing | Printable characters including q stay text. Left/Right move by grapheme, Home/End to draft ends; Shift extends selection. Backspace/Delete remove a grapheme/selection. Paste is bounded sanitized text and never executes, including embedded newline/slash. Single-line viewport scrolls to caret; selection survives help/resize. Rejected input leaves existing draft intact with a reason. |
+| Slash shelf | Prefix filter, stable registry order, Up/Down selects. Enter or Tab inserts the selected command and closes discovery. It sets caret to inserted end and starts zero operations. A later explicit Enter with discovery closed validates/submits. No match retains draft. |
+| Tab order | Composer -> selected block header -> enabled controls of that block -> Latest (when present) -> Help -> Exit -> composer. Shift+Tab reverses. Inside an overlay: fields in labelled order -> primary action -> Back -> Help; then wrap within the top overlay. Disabled actions explain why and are skipped. |
+| Lists/Tree | Up/Down selects a stable item. Tree Right expands, Left collapses or selects parent. Enter opens full details/snippet; Back/Escape restores item and anchor. Focus `>` and selection `*` are distinct text markers. Selection stays when focus moves. |
+| Block header | Left/Right selects previous/next retained block, without changing draft or running work. Home/End selects oldest/latest retained block only when header focused. Latest explicitly enables follow-latest. |
+| Result/detail scroll | PageUp/PageDown moves a page minus one overlap row (minimum one). Home/End in a detail scroll surface means content start/end. Other arrow bindings remain local to their control. Resize clamps bounds and reveals selection. |
+| Help | F1 or visible Help saves invoking state and opens context help. `/help` is explicit general help. Close restores exact draft selection/caret, form values/focus, block/item/anchor. Typing a help command itself naturally edits the draft; F1 does not. |
+| Escape | Close top help/review/form/detail, then discovery, otherwise return focus to composer. It never implicitly clears draft or stops an operation. Form Back retains values for reopening during this session. |
+| Edit/Retry | Edit restores safe parameters into a form. A nonempty unrelated draft requires Keep draft/Replace review before replacement. Retry revalidates effects/targets and partial-output state; no automatic retry. |
+| Copy / Exit | Ctrl+C with an active textual selection in the key-owning surface requests clean copy, never exit/cancel (including copy failure). A selected row/node alone is not a textual selection. Without active text selection, Ctrl+C or visible Exit follows the job-aware exit flow. If idle, restore terminal and exit. If working without proven cooperative stop, default Stay; offer Wait then exit. Waiting keeps UI responsive and allows Stay. No forced worker kill or rollback claim. |
+
+Focus and selection are separate. Worker completion updates its own block only,
+never moves focus, closes an overlay or changes draft/inspection. New-result notice
+stays until Latest; no timed dismissal. Item removal selects next surviving item,
+then previous, then the empty-state action. A removed control falls to the next
+enabled control in the same surface, then its header, then composer. Selected-block
+eviction follows the existing nearest-survivor rule with an explicit notice.
+These are application acceptance requirements; authored snapshot continuity is
+not a runtime test of focus management or Unicode input.
+
+### Accepted clean-copy contract (2026-10-09)
+
+The maintainer explicitly accepted copy priority for active text selection and
+clean content copying in this #303 continuation. This is a scoped UX decision;
+clipboard transport and real-host behavior remain unimplemented and unverified.
+
+Copy uses the canonical safe textual content before terminal layout, bound to
+content identity/revision and logical selection offsets. Never reconstruct it from
+screen cells, screenshots, ANSI output, wrapped rows or padded table columns.
+Markdown is copied as its original Markdown source; a code snippet is copied as
+its source text. Copy content and Copy snippet name the exact bounded payload.
+A selection copies only its logical range, including original line breaks.
+Structured results need an explicit stable plain-text representation from their
+typed data; cell-aligned rendering is not that representation.
+
+Exclude renderer-added margins, stems, borders, focus markers, line-number gutters,
+column alignment spaces, soft wraps, ellipses, spinner frames, terminal color/style
+sequences and clipboard rich formatting. Preserve source indentation, tabs, blank
+lines, intentional leading/trailing spaces, Markdown hard-break spaces and code
+fences that belong to Markdown. Do not use blanket strip/dedent or collapse runs
+of whitespace. Clean means free of presentation artifacts, not removal of syntax.
+Use the existing safe-text/redaction boundary before retention/copy; this contract
+does not authorize exporting raw hidden control sequences or secret diagnostic data.
+
+Active text selection belongs to the current key-owning surface. A preserved but
+inactive selection in another input does not intercept its Ctrl+C. A selected
+result row/tree node is navigation: use explicit Copy content/snippet to copy it,
+or create a textual range first. During textual selection, pin the inspected
+content revision and selection anchor within the existing bounded retention budget.
+New domain output/completion can continue; it must not replace the selected text
+or shift its offsets. Keep animation/redraw from modifying the selected region.
+If that snapshot can no longer be retained, explain the limit and invalidate the
+selection explicitly instead of silently copying different content.
+
+| Copy condition | Observable behavior |
+| --- | --- |
+| Active text selection + Ctrl+C | Copy selected canonical text as plain text; preserve draft/caret/range, result identity/focus/scroll and active operation. Never fall through to exit. |
+| Explicit Copy content/snippet | Copy the named retained payload without visual decorations; no hidden source fetch, implicit whole-file access or file export. |
+| Clipboard unavailable/denied/failure | Explain Copy unavailable/failed, retain selection/state and operation; do not report Copied or invoke exit. Keep text inspectable for the host's native copy fallback. |
+| Copy succeeds | Copied appears only after the supported backend acknowledges the actual write. No focus steal or automatic deselection; plaintext only, no ANSI/HTML/RTF styling. |
+| Payload truncated/not fully retained | Name the copy scope as retained snippet/content and show the omission outside the copied payload. Do not insert warning text into code/Markdown or claim full-file copying. |
+
+The clean guarantee applies to the application's explicit canonical-text copy on
+supported, tested clipboard backends. Copying terminal cells with the emulator's
+mouse selection remains host behavior and can include margins/soft-wrap artifacts.
+The [Win32 selection API](https://learn.microsoft.com/en-us/windows/console/getconsoleselectioninfo)
+has no VT equivalent; it does not establish Windows Terminal/ConPTY/SSH support.
+[Windows Terminal copy](https://learn.microsoft.com/en-us/windows/terminal/customize-settings/actions#copy)
+operates on its selected terminal content. Host integrations must be
+capability-specific. No clipboard reading/polling, silent remote-to-local clipboard
+write, automatic copy or OSC 52/native backend is selected by this UX decision.
+
+Acceptance requires comparing real plain clipboard text with independently defined
+expected Markdown/code/range fixtures at all three sizes, no-color/ASCII/Motion off,
+including tabs, nested indentation, blank lines, Markdown trailing spaces, long
+wrapped lines and redacted content. Check focus/selection/scroll preservation,
+completion during selection, denied/failed writes and unavailable local/SSH hosts.
+The review viewer shows expected payloads and authored outcomes without writing
+the real clipboard. These examples do not prove a future clipboard backend.
+
+Existing #308/#310/#313 contracts and #321 acceptance receive this traceability
+input through #303; no implementation, backlog execution or #306 modification
+is authorized by recording it here.
+
+### Forms and exact-target review
+
+Required fields are labelled `*`; defaults and bounds are visible. Failed validation
+retains other values, puts focus on the first invalid field, reveals its error and
+starts no job. URL/userinfo/query diagnostics are redacted. Full exact local target
+remains inspectable across pages before consent. UI checks give early feedback;
+authoritative domain validation and publication safety remain separate.
+
+| Form | Field order and primary action |
+| --- | --- |
+| System | Basic non-sensitive scope, optional section, Load/Refresh. Full detail is explicit; identifiers off. |
+| Tree | Path*, Depth (candidate 3), visible traversal/retention bounds, Load. No implied cwd/root or link descent. |
+| Context | Roots* (explicit list), Query*, Extensions, max results 10, max file 1 MiB, snippets 2, snippet chars 240, Search. Cache off; result cap is not a scan bound. |
+| Archives | Compress/Decompress, File/Directory, Source*, Destination*, supported format/policy and limits, Review. Encryption/password options are not selected. |
+| Download | HTTP(S) URL*, Destination*, visible service/budget policy, Review. No general HTTP editor or assumed resume. |
+
+Read-only System/Tree/Context submit after valid explicit input. Archives/Download
+review exact source/action/output kind/destination/effects before a separate Run.
+Existing output is refused by default. Replacement confirmation is available only
+for a supported tested policy; otherwise offer Edit destination/Back. A review
+screen is not permission to use the unsafe existing directory extractor.
+
+Consent is bound to a validated tuple: operation kind, source identity, canonical
+destination identity, output kind, intended effect, relevant policy and observed
+target state/version. Any changed field/source/target state invalidates consent.
+Default focus is Back/Keep existing. Enter activates only the focused action.
+Recheck race-sensitive state immediately before effects/publication; change returns
+to review/refusal. A modal cannot establish atomic no-clobber or replacement safety.
+Exact-target review pages keep fixed actions and target identity available, with
+the effect/source/details reachable via pager; do not enable destructive consent
+while required target details remain unavailable to inspect.
+
+Archive stages remain distinct: (1) validate explicit inputs/kind/target,
+(2) collect source using the directory/link/ignore policy, (3) validate format and
+member names/containment/collisions/types, (4) enforce member/depth/per-member and
+aggregate expansion budgets during decoding into owned staging, (5) validate full
+outcome, (6) publish under the supported no-clobber/replacement policy, (7) report
+omissions, partial effects and owned cleanup failures. File stages use their own
+limits/publication checks. #323 owns directory domain safety; #324 owns UI
+integration after #318's file flow. No automatic merge or source deletion.
+
+### L1-L6 outcomes and review specimens
+
+| Flow | Specimens and recovery to review |
+| --- | --- |
+| L1 System | Explicit load, known-section Working, Success with Unavailable fields, refresh failure retaining prior timestamp/snapshot, Retry. No invented hardware values in live UI. |
+| L2 Tree | Explicit path/depth form, bounded hierarchy, collapsed/expanded/selected node, full sanitized path, Back restores selection, missing/permission/incomplete state. No file mutation. |
+| L3 Context | Roots/query form, field error, results and bounded literal `[match]` snippet, Back, Empty within limits and skipped reasons, incomplete/error with Edit. No global absence claim. |
+| L4 Archives | Both modes and both output kinds, effects review, existing-target refusal, supported-policy-only confirmation, rejected traversal/link/budget, indeterminate Working, success and cleanup/partial warning. Real safety work remains pending. |
+| L5 Download | URL/destination review, captured known/unknown-total byte snapshot, network failure with target/partial state, Edit/explicit Retry. Progress never means committed. No speed/ETA or Cancel in this baseline. |
+| L6 Reference/discovery | Synthetic table/input/feedback examples, help roundtrip preserving an edited draft and inspected older block, catalogue with accurate CLI/API and Planned UI labels, diagnostics without secret retention. |
+| Shared lifecycle | Ordered completed + active blocks, completion during help/editing, refused second start with Return to current, Latest notice, selected-block eviction, compact paged form, below-minimum resize restoration and active-job exit. |
+
+Loading/Empty/Error/Success/Warning remain inline outcomes attached to command
+identity and parameters. Success requires domain completion/publication, not 100%
+bytes. Partial/cleanup failure and Outcome unknown are explicit, never relabelled
+as success or canceled. Unknown total uses actual bytes plus Working; absence of
+byte callbacks uses Working only. One operation, no queued Run, no disk history.
+Twenty completed summaries and 2 MiB sanitized payload remain calibration candidates,
+with bounded active detail and independent domain/event limits.
+
+### Hierarchy, capabilities and motion disposition
+
+Identity -> command/state -> useful result -> detail -> pager -> composer/action
+-> job status. Use one-cell clearance, sparse headings, whitespace between blocks
+when space permits, optional bold and textual `>`, `*`, Error/Warning/Done markers.
+Borders are for overlays/rules, not every result. Compact density removes gaps,
+not required labels/actions. Terminal-default palette is conservative; Ledger dark
+tokens remain specified in the visual language. Optional light tokens use the
+existing foreground #202020/background #FAFAFA/focus #004B87 candidates. Truecolor,
+256/16 mappings, no-color and ASCII retain the same semantic words and focus
+markers. Host palette contrast and assistive technology require actual trials.
+
+The existing motion effect table above remains the complete disposition: spinner
+or dots for known activity (one indicator), determinate only from real totals,
+indeterminate bar as synthetic optional demonstration, pulse deferred, shimmer off
+pending benefit, skeleton only known labelled slots, optional 800 ms highlight,
+host cursor rather than a second blink, immediate transitions, persistent textual
+success/warning/error. Share scheduler/invalidation/rendering, ceilings 30/4 Hz
+overall and 8/2 Hz indicators. Reduced-motion/Motion off has zero timer-driven
+visual changes; meaningful domain updates remain. Hidden/disposed/completed
+indicators release deadlines; idle has no periodic rendering. No fake percentages,
+speed, ETA or cooperative Cancel. ASCII/no-color are independent from motion.
+
+Noninteractive launch remains a future app requirement: short static guide to
+existing CLI/API, no raw mode, alternate screen, prompt loop or animation. Exact
+CLI launch/exit implementation belongs to #313. Do not claim screen-reader
+accessibility from this fallback or browser screenshots.
+
+### Verification and #306 preparation boundary
+
+The viewer and generator verify authored cell budgets, paged content/action access
+and selected snapshot continuity. The [review record](cereja-ui-visual-review.md#ledger-ux-303-review-2026-10-09)
+records commands, actual inspection and gaps. Production key traces, Unicode
+editing/width, focus manager, real retention/memory, responsiveness and domain
+safety are unimplemented application acceptance, not passes from these specimens.
+Real emulator/SSH/ConPTY trials and human task/accessibility review remain pending.
+
+The original traceability is retained for the authorized incremental #306 delivery:
+
+| Contract | Existing slice |
+| --- | --- |
+| Cell layout/clip/scroll/hierarchy | #307 |
+| Editing/focus/selection/discovery | #308 |
+| Help/forms/exact-target overlays | #309 |
+| Tree/list/table/result collections | #310 |
+| Inline feedback/shared motion | #311 |
+| One active operation, truthful lifecycle | #312 |
+| Ledger shell/catalogue/official command | #313 |
+| L1 / L2 / L3 | #314 / #315+#316 / #317 |
+| L4 file / directory safety / directory integration | #318 / #323 / #324 |
+| L5 / optional instrumentation / real acceptance | #319 / #320 / #321 |
+
+The #303 specimen checkpoint did not include backlog execution. The maintainer's
+2026-10-09 approval now authorizes #306 by increments, with #307 geometry first
+and #308 input/focus/selection next. #304 optimization, #305 alteration, File I/O
+2.0 and legacy migration remain outside this delivery. Real task and terminal
+acceptance are still pending; design approval does not replace them.

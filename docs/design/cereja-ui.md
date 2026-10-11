@@ -332,6 +332,13 @@ implementation baseline; #321 must freeze end-to-end budgets from a representati
 application baseline before any optimization candidate is evaluated. Until
 then no total latency or cross-platform performance gate is considered passed.
 
+The implemented core's #304 collection protocol, local comparison budgets and
+disposition are maintained in [core performance](cereja-ui-core-performance.md).
+This calibration does not establish the application's #321 latency gate.
+
+The [core platform report](cereja-ui-core-platform.md) records #305's automated
+coverage, clean-install checks and remaining real-terminal walkthroughs.
+
 Release coverage: unit/contracts on Python 3.11-3.14 x Windows/Linux/macOS;
 POSIX PTY integration on Linux/macOS; real Windows console integration;
 manual Windows Terminal, Linux terminal, macOS Terminal and SSH checks with

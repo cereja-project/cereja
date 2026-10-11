@@ -89,6 +89,7 @@ class Win32API:
             "CloseHandle": ([HANDLE], BOOL),
             "WaitForMultipleObjects": ([DWORD, C.POINTER(HANDLE), BOOL, DWORD], DWORD),
             "ReadConsoleInputW": ([HANDLE, C.POINTER(INPUT_RECORD), DWORD, C.POINTER(DWORD)], BOOL),
+            "GetNumberOfConsoleInputEvents": ([HANDLE, C.POINTER(DWORD)], BOOL),
             "WriteConsoleW": ([HANDLE, C.c_void_p, DWORD, C.POINTER(DWORD), C.c_void_p], BOOL),
         }
         for name, (arguments, result) in signatures.items():
@@ -169,6 +170,12 @@ class Win32API:
         if not self._dll.ReadConsoleInputW(handle, records, limit, C.byref(read)):
             raise self._error()
         return tuple(records[index] for index in range(read.value))
+
+    def input_pending(self, handle):
+        count = DWORD()
+        if not self._dll.GetNumberOfConsoleInputEvents(handle, C.byref(count)):
+            raise self._error()
+        return count.value
 
     def write_console(self, handle, data):
         units = len(data) // 2

@@ -163,8 +163,9 @@
         "Evaluate every requested loading/motion/feedback effect with shared timers/dirty rendering, rate ceilings, low-bandwidth and static fallbacks.",
         "Validate selected task walkthroughs and derive required components from those screens; record user review and limitations before high-level implementation tasks are accepted."
       ],
-      "evidence": "Final scope-traceable UX and design/motion system, wireframes and actual walkthrough evidence, distinguishing structural and user validation.",
-      "docs": "Final UX artifacts to be created only after SCOPE; current visuals exploratory"
+      "evidence": "Final selected-Ledger specification and authored exact-cell walkthroughs; structural and browser evidence are separate from pending terminal and human task review.",
+      "docs": "docs/design/cereja-ui-ux.md; docs/design/cereja-ui-visual-language.md; docs/design/cereja-ui-ledger.html; docs/design/cereja-ui-visual-review.md; benchmarks/ui_ux/specimens.py",
+      "review_state": "Current design approved for incremental implementation on 2026-10-09; clean canonical-text copy and active-selection priority accepted. #306 explicitly authorized; #307 is the first increment. Participant walkthroughs, clipboard transport, terminal and accessibility/usability acceptance remain pending."
     },
     {
       "key": "CORE-PERF",
@@ -218,7 +219,7 @@
         "Associate authorized follow-up issues with the Cereja UI milestone and explicit dependencies; do not execute production implementation merely because tasks exist."
       ],
       "evidence": "Reviewed dependency DAG, small verified GitHub tasks with milestone associations and screen-to-component traceability, including explicit later legacy stage.",
-      "docs": "Future implementation decomposition after accepted scope and UX"
+      "docs": "Existing implementation decomposition retained; incremental execution explicitly authorized on 2026-10-09. First increment #307; no legacy migration authorized."
     },
     {
       "key": "UI-08",
@@ -236,8 +237,8 @@
         "Keep composer allocation fixed at 120x40, 80x24 and 40x12; reserve a separate pager row; test nested clipping, zero/undersized dimensions and resize with a selected item.",
         "Expose dirty regions and bounded layout invalidation; benchmark resize and long content with frozen workloads; document geometry and overflow policy."
       ],
-      "evidence": "Deterministic cell snapshots, resize/clipping tests and measured layout baseline.",
-      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+      "evidence": "tests/test_ui_layout.py: exact Ledger allocations, nested/wide clipping, zero/undersized state restoration, lazy visible rows and bounded geometry damage; benchmarks/ui_layout_samples/baseline-windows-py314.json: frozen geometry-only workloads.",
+      "docs": "docs/guides/ui-layout.md; runnable bounded ASCII/no-color example in benchmarks/ui_layout.py. First production increment, independent from application/domain/legacy display."
     },
     {
       "key": "UI-09",
@@ -255,8 +256,8 @@
         "Provide explicit focus scopes, forward/backward traversal, selection markers and focus restoration; test long input, combining/ZWJ text, narrow resize and overlay return.",
         "Keep input bindings separate from application command parsing; publish examples and measured input-to-frame baseline."
       ],
-      "evidence": "Virtual-backend keyboard scenarios and Unicode regression cases with documented unsupported cases.",
-      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+      "evidence": "tests/test_ui_editing.py: canonical revision/range, grapheme edits, bounded paste/repeats, focus scopes/restoration and virtual scheduled frames; benchmarks/ui_editing_samples/baseline-windows-py314.json: frozen virtual input-to-flushed-frame baseline. Real terminal/editor/clipboard and human acceptance remain separate.",
+      "docs": "docs/guides/ui-editing.md; runnable bounded example in benchmarks/ui_editing.py. Pure copy/submit/exit intents; no clipboard transport, application, domain or legacy display integration."
     },
     {
       "key": "UI-10",
@@ -272,8 +273,8 @@
         "Implement generic forms with visible labels/errors and anchored overlays that fit compact terminals; help restores underlying view, draft, caret and selection.",
         "Confirmation binds the exact normalized action/source/destination and invalidates after edits; destructive/default overwrite must never be the default selection. Document overlay focus and restoration."
       ],
-      "evidence": "Keyboard replay tests including first-Enter/second-Enter regression, compact snapshots and stale-confirmation tests.",
-      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+      "evidence": "tests/test_ui_overlays.py: prefix insertion, field validation/state retention, help/focus return, compact frames, exact tuple/revision consent invalidation and virtual keyboard replay; benchmarks/ui_overlays_samples/baseline-windows-py314.json: frozen toolkit filtering/validation/paging baseline. Real terminal, clipboard and human acceptance remain separate.",
+      "docs": "docs/guides/ui-overlays.md; runnable bounded synthetic views in benchmarks/ui_overlays.py. No parser, domain operations, clipboard, application or legacy display integration."
     },
     {
       "key": "UI-11",
@@ -290,8 +291,8 @@
         "TreeView consumes generic hierarchical nodes with expansion/loading/incomplete/error states; arrows expand/collapse/select without a full filesystem browser.",
         "Test empty/error/disappeared nodes, broad/deep fixtures and resize preservation; benchmark visible-region work and retained node limits. Document complete versus truncated results."
       ],
-      "evidence": "Collection widget snapshots, stable-selection tests and bounded large-fixture measurements.",
-      "docs": "Selected Ledger UX and operation contracts; public API documentation and runnable bounded examples required."
+      "evidence": "tests/test_ui_collections.py: bounded collections, stable row/node selection, generic hierarchy, source states, canonical-copy priority and resize; benchmarks/ui_collections_samples/baseline-windows-py314.json: visible paint versus admission/projection work and retained limits. Real terminal and human acceptance remain separate.",
+      "docs": "docs/guides/ui-collections.md; bounded runnable synthetic examples in benchmarks/ui_collections.py. No filesystem/browser, domain, clipboard transport, Ledger application or legacy integration."
     },
     {
       "key": "UI-12",

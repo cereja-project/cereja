@@ -5,15 +5,41 @@ on:
     branches: [master, develop]
     paths:
       - 'cereja/ui/**'
+      - 'cereja/ledger/**'
+      - 'cereja/commands/ui.py'
+      - 'cereja/commands/registry.py'
+      - 'benchmarks/*ui*.py'
+      - 'benchmarks/imports.py'
       - 'tests/test_ui_*.py'
       - 'tests/ui_windows_console_probe.py'
+      - 'tests/ui_windows_conpty_probe.py'
+      - 'tests/ui_scheduling_probe.py'
+      - 'tools/generate_ui_unicode.py'
+      - 'tools/check_ui_distribution.py'
+      - 'tools/unicode/**'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - '.gitattributes'
       - '.github/workflows/ui-terminal.yml'
   pull_request:
     branches: [master, develop]
     paths:
       - 'cereja/ui/**'
+      - 'cereja/ledger/**'
+      - 'cereja/commands/ui.py'
+      - 'cereja/commands/registry.py'
+      - 'benchmarks/*ui*.py'
+      - 'benchmarks/imports.py'
       - 'tests/test_ui_*.py'
       - 'tests/ui_windows_console_probe.py'
+      - 'tests/ui_windows_conpty_probe.py'
+      - 'tests/ui_scheduling_probe.py'
+      - 'tools/generate_ui_unicode.py'
+      - 'tools/check_ui_distribution.py'
+      - 'tools/unicode/**'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - '.gitattributes'
       - '.github/workflows/ui-terminal.yml'
   workflow_dispatch:
 
@@ -27,6 +53,7 @@ jobs:
     timeout-minutes: 5
     env:
       PYTHONIOENCODING: utf-8
+      CEREJA_UI_EVIDENCE_DIR: ui-platform-evidence
     strategy:
       fail-fast: false
       matrix:
@@ -37,5 +64,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Check native and virtual transports using only the standard library
+      - name: Check frozen Unicode data offline
+        run: python -B -S tools/generate_ui_unicode.py --check
+      - name: Check native transports and text metrics using only the standard library
         run: python -B -S -m unittest discover -s tests -p 'test_ui_*.py' -v
+      - name: Prepare build-only tools
+        run: python -m pip install 'setuptools>=61' wheel
+      - name: Install wheel and sdist offline in empty environments
+        run: python -B tools/check_ui_distribution.py --output ui-platform-evidence/distribution.json
+      - name: Smoke reproducible core measurement paths (no timing gate)
+        run: |
+          python -B -S benchmarks/ui_rendering.py --samples 1 --warmup 1 --memory-samples 1 --width 80 --height 24 --output rendering-smoke.json
+          python -B -S benchmarks/ui_operations.py --samples 1 --warmup 1 --duration .05 --output operations-smoke.json
+          python -B -S benchmarks/ui_ledger.py --samples 1 --warmup 0 --memory-samples 1 --smoke --output ledger-smoke.json
+          python -B -S benchmarks/ui_feedback.py --samples 1 --warmup 1 --output feedback-smoke.json
+          python -B -S benchmarks/ui_collections.py --samples 1 --warmup 1 --memory-samples 1 --output collections-smoke.json
+          python -B -S benchmarks/ui_overlays.py --samples 1 --warmup 1 --memory-samples 1 --output overlays-smoke.json
+          python -B -S benchmarks/ui_editing.py --samples 1 --warmup 1 --memory-samples 1 --output editing-smoke.json
+          python -B -S benchmarks/ui_buffers.py --samples 1 --warmup 1 --memory-samples 1 --output buffers-smoke.json
+          python -B -S benchmarks/ui_scheduling.py --samples 1 --warmup 1 --memory-samples 1 --output scheduling-smoke.json
+          python -B -S benchmarks/imports.py --samples 1 --case root --case ui --case ui_rendering --case ui_scheduling --output imports-smoke.jsonl
+      - name: Smoke isolated native Windows output measurements
+        if: runner.os == 'Windows'
+        run: python -B -S benchmarks/ui_rendering.py --transport windows --samples 1 --warmup 1 --output console-smoke.json
+      - name: Preserve core platform evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-platform-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: ui-platform-evidence/
+          if-no-files-found: error
