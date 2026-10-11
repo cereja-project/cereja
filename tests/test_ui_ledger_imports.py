@@ -88,15 +88,17 @@ for entry in COMMANDS + REFERENCES:
     def test_unknown_paste_transport_uses_plain_without_terminal_acquisition(self):
         output = self.process('''
 import io, sys
+from types import SimpleNamespace
 from unittest.mock import patch
 from cereja.commands.ui import main
 class TTY(io.StringIO):
     def isatty(self): return True
     def read(self, *a): raise AssertionError('read')
 with patch.object(sys, 'stdin', TTY()), patch.object(sys.stdout, 'isatty', return_value=True):
-    with patch('cereja.commands.ui.os.name', 'nt'):
+    # Replace this module's platform view, not the shared stdlib os module.
+    with patch('cereja.commands.ui.os', SimpleNamespace(name='nt')):
         assert main([]) == 0
-    with patch('cereja.commands.ui.os.name', 'posix'):
+    with patch('cereja.commands.ui.os', SimpleNamespace(name='posix')):
         assert main([]) == 0
 assert not any(n.startswith('cereja.ui') for n in sys.modules)
 ''')

@@ -46,7 +46,13 @@ class LedgerPtyTest(unittest.TestCase):
             os.write(master, b'\x7f\x03')
             process.wait(timeout=5)
             self.assertEqual(process.returncode, 0)
-            self.assertEqual(termios.tcgetattr(slave), before)
+            restored = termios.tcgetattr(slave)
+            if sys.platform == 'darwin' and before[3] & termios.ICANON:
+                # Darwin adds exactly PENDIN when canonical input is restored.
+                # The independent OS reference lives in test_ui_posix.py.
+                self.assertIn(restored[3], (before[3], before[3] | termios.PENDIN))
+                restored[3] = before[3]
+            self.assertEqual(restored, before)
         finally:
             if process is not None and process.poll() is None:
                 process.kill()  # Test-owned failed child only, never application cancellation.
