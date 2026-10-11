@@ -56,13 +56,10 @@ class TestRegexSearch(unittest.TestCase):
 
     def test_list_presets(self):
 
-        # list_of_presets = list_presets()
-        # self.assertEqual(["cpf","date"], list_of_presets)
-
         list_of_presets = list_presets()
         list_of_presets.clear()
         list_of_presets = list_presets()
-        self.assertEqual(["cpf", "date", "number"], list_of_presets)
+        self.assertEqual(["cep", "cpf", "date", "number"], list_of_presets)
 
     def test_inspect_presets(self):
         result = inspect_preset("cpf")
@@ -103,8 +100,8 @@ class TestRegexSearch(unittest.TestCase):
 
         self.assertEqual(result[0].group(), "2026-10-03")
         self.assertEqual(result[1].group(), "2026-10-04")
-        self.assertEqual(result[0].span(), (0,10))
-        self.assertEqual(result[1].span(), (13,23))
+        self.assertEqual(result[0].span(), (0,  10))
+        self.assertEqual(result[1].span(), (13, 23))
 
     def test_extract_no_match(self):
         result = extract(text="No date informed", pattern=preset("date"))
@@ -119,8 +116,8 @@ class TestRegexSearch(unittest.TestCase):
         self.assertEqual(result[0].group(), "Hello")
         self.assertEqual(result[1].group(), "Hello")
 
-        self.assertEqual(result[0].span(), (0,5))
-        self.assertEqual(result[1].span(), (8,13))
+        self.assertEqual(result[0].span(), (0, 5))
+        self.assertEqual(result[1].span(), (8, 13))
 
     def test_regex_replace(self):
         result = regex_replace("Hello e Hello", pattern=re.compile("Hello"), replacement="oi")
@@ -148,7 +145,7 @@ class TestRegexSearch(unittest.TestCase):
         self.assertEqual(result, "Entrega: <date>.")
 
     def test_regex_replace_backreference(self):
-        result = regex_replace(text="hello", pattern=re.compile(r"(?P<word>hello)"),replacement=r"<\g<word>>")
+        result = regex_replace(text="hello", pattern=re.compile(r"(?P<word>hello)"), replacement=r"<\g<word>>")
 
         self.assertEqual(result, "<hello>")
 
@@ -282,6 +279,114 @@ class TestRegexSearch(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].group(), "2025-02-31")
         self.assertEqual(result[0].span(), (26, 36))
+
+    def test_cep_modes_select_complete_formats(self):
+        """Select the documented CEP format without accepting the other mode."""
+        cases = (
+            ("formatted", "12345-678", True),
+            ("formatted", "12345678", False),
+            ("unformatted", "12345-678", False),
+            ("unformatted", "12345678", True),
+            ("both", "12345-678", True),
+            ("both", "12345678", True),
+        )
+
+        for mode, identifier, accepted in cases:
+            with self.subTest(mode=mode, identifier=identifier):
+                text = f"CEP: ({identifier})"
+
+                result = search(text, preset("cep", mode=mode))
+                if accepted:
+                    self.assertIsInstance(result, re.Match)
+                    assert result is not None
+                    self.assertEqual(result.group(), identifier)
+                    self.assertEqual(result.span(), (6,6 + len(identifier)))
+                else:
+                    self.assertIsNone(result)
+
+    def test_cep_defaults_to_formatted_mode(self):
+        """Require the hyphen when no mode is supplied."""
+        pattern = preset("cep")
+        result = search("CEP: 23822-230.", pattern)
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result.group(), "23822-230")
+        self.assertEqual(result.span(), (5, 14))
+        self.assertIsNone(search("CEP: 23822230.", pattern))
+
+    def test_cep_modes_reject_malformed_identifiers(self):
+        """Reject extra or missing digits, wrong separators, and Unicode digits."""
+        for mode in ("formatted", "unformatted", "both"):
+            pattern = preset("cep", mode=mode)
+            for text in (
+                "123822-230", "23822-2301",
+                "123822230", "238222301",
+                "2382-230", "23822-23", "2382230",
+                "23822.230", "23822 230", "2382-2230",
+                "\uff12\uff13\uff18\uff12\uff12-\uff12\uff13\uff10",
+                "\uff12\uff13\uff18\uff12\uff12\uff12\uff13\uff10",
+            ):
+                with self.subTest(mode=mode, text=text):
+                    self.assertIsNone(search(text, pattern))
+
+    def test_cep_allows_other_surrounding_characters(self):
+        """Letters and punctuation around a CEP do not prevent a match."""
+        for mode, identifier in (
+            ("formatted", "23822-230"),
+            ("unformatted", "23822230"),
+            ("both", "23822-230"),
+            ("both", "23822230"),
+        ):
+            for text in (f"a{identifier}b", f"({identifier})."):
+                with self.subTest(mode=mode, text=text):
+                    result = search(text, preset("cep", mode=mode))
+                    self.assertIsNotNone(result)
+                    assert result is not None
+                    self.assertEqual(result.group(), identifier)
+                    self.assertEqual(result.span(), (1, 1 + len(identifier)))
+
+    def test_cep_rejects_invalid_modes(self):
+        """Reject unsupported mode values with ValueError."""
+        for mode in ("invalid", "", None, 1, ["formatted"]):
+            with self.subTest(mode=mode):
+                with self.assertRaises(ValueError):
+                    preset("cep", mode=mode)
+
+    def test_cep_rejects_unknown_options(self):
+        """Do not silently ignore options unsupported by CEP."""
+        for options in ({"unknown_option": True}, {"mode": "both", "unknown_option": True}):
+            with self.subTest(options=options):
+                with self.assertRaises(ValueError):
+                    preset("cep", **options)
+
+    def test_inspect_cep_preset(self):
+        """Describe CEP formats, modes, examples, and validation limits."""
+        result = inspect_preset("cep")
+        self.assertEqual(result["name"], "cep")
+        self.assertEqual(result["format"], "DDDDD-DDD or DDDDDDDD, depending on mode")
+        self.assertEqual(result["options"], ("mode",))
+        self.assertEqual(
+            result["option_values"],
+            (("mode", ("formatted", "unformatted", "both")),),
+        )
+        self.assertEqual(result["option_defaults"], (("mode", "formatted"),))
+        self.assertEqual(result["examples"], ("12345-678", "12345678"))
+        self.assertIn("Does not validate whether the CEP exists.", result["limitations"])
+        self.assertNotIn("pattern", result)
+
+    def test_extract_cep_rejects_partial_matches(self):
+        """Skip CEPs beside extra digits and retain complete matches in order."""
+        text = "123822-230; 23822-2301; 123822230; 238222301; 23822-230; 23822230."
+        result = extract(text, preset("cep", mode="both"))
+        self.assertEqual([match.group() for match in result], ["23822-230", "23822230"])
+        self.assertEqual([match.span() for match in result], [(46, 55), (57, 65)])
+
+
+
+
+
+
+
 
 
 class TestNumberPreset(unittest.TestCase):
@@ -447,7 +552,6 @@ class TestNumberPreset(unittest.TestCase):
             regex_replace("12 e 3", preset("number"), lambda m: str(int(m.group()) * 2)),
             "24 e 6",
         )
-
 
 class TestDataStringIteratorReplaceCompatibility(unittest.TestCase):
     def test_replace_is_literal_and_returns_a_new_iterator(self):

@@ -39,8 +39,8 @@ print(cj.utils.import_string("cereja.file._io.FileIO"))
 ## Regex Presets
 
 Use `cj.regex` or `from cereja.utils import regex` for configurable numbers,
-CPF formats, and `YYYY-MM-DD` dates. See [Regex Presets](regex.md) for searching,
-extracting, replacements, options, and format-only limitations.
+CPF and CEP formats, and `YYYY-MM-DD` dates. See [Regex Presets](regex.md) for
+searching, extracting, replacements, options, and format-only limitations.
 
 ## Time Formatting
 
