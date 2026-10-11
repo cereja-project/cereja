@@ -137,8 +137,16 @@ unwind the journal. This follows Microsoft's
 Waiting uses console records and an application event, without a socket selector.
 UTF-16 surrogate pairs survive split reads; malformed pairs become U+FFFD.
 Dimensions and resize notifications use the visible viewport. Ordinary legacy
-console records cannot reliably identify paste; no paste-detection guarantee is
-made and requesting that unsupported protocol fails before acquisition.
+console records cannot reliably identify paste. With `CapabilityOptions(paste=True)`,
+the caller explicitly asserts a host preserving bracketed-paste delimiters;
+acquisition enables `ENABLE_VIRTUAL_TERMINAL_INPUT` and the paste protocol.
+The same bounded parser used on POSIX consumes VT key records and Unicode packets,
+including split UTF-16 pairs, while retaining native resize and wake events.
+Paste is one literal event; rejected/unfinished paste never replays shortcuts.
+No detection guarantee is made for unmarked paste or a host that drops delimiters.
+The legacy record path remains the default when paste support is not asserted.
+The Windows Terminal maintainers describe this
+[VT record contract](https://github.com/microsoft/terminal/issues/18094#issuecomment-2428349974).
 
 Plain streams acquire no raw input, alternate screen or signal handlers. The
 Windows output probe is also suppressed for redirected/unavailable streams.

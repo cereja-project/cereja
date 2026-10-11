@@ -102,7 +102,7 @@ with patch.object(sys, 'stdin', TTY()), patch.object(sys.stdout, 'isatty', retur
         assert main([]) == 0
 assert not any(n.startswith('cereja.ui') for n in sys.modules)
 ''')
-        self.assertIn('cannot distinguish paste', output)
+        self.assertIn('needs delimited paste', output)
         self.assertIn('--bracketed-paste', output)
 
 

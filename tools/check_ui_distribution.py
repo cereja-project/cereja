@@ -215,7 +215,8 @@ def main():
                            'docs/guides/ui-operations.md', 'benchmarks/ui_operations.py',
                            'benchmarks/ui_operations_samples/baseline-windows-py314.json',
                            'docs/guides/ui-ledger.md', 'benchmarks/ui_ledger.py',
-                           'benchmarks/ui_ledger_samples/baseline-windows-py314.json'):
+                           'benchmarks/ui_ledger_samples/baseline-windows-py314.json',
+                           'benchmarks/ui_ledger_samples/windows-input-windows-py314.json'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))

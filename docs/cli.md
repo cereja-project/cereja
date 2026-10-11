@@ -40,9 +40,10 @@ The CLI loads only the selected command implementation. Asking for root help or 
 
 ## Ledger
 
-`cereja ui --plain` prints a finite catalogue reference. On POSIX terminals with
+`cereja ui --plain` prints a finite catalogue reference. On POSIX or Windows terminals with
 bracketed paste support, `cereja ui --bracketed-paste` opens the interactive Ledger.
-Windows record input uses the plain reference because it cannot distinguish paste
+Windows enables VT input to preserve paste delimiters. Without the explicit
+support assertion, the command uses the plain reference. Unmarked paste cannot be distinguished
 from Enter. See [Ledger](guides/ui-ledger.md) for keyboard controls, independent
 color/ASCII/motion options, retention, synthetic examples and availability limits.
 

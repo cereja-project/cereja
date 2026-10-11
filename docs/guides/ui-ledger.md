@@ -12,15 +12,17 @@ cereja ui --low-bandwidth
 cereja ui --plain
 ```
 
-The three presentation options are independent. Interactive POSIX use requires
+The three presentation options are independent. Interactive POSIX and Windows use require
 an explicit `--bracketed-paste` assertion for a terminal supporting that protocol.
-Unmarked paste cannot be distinguished from keyboard Enter by the existing native
-transports. Windows console record input explicitly lacks paste identification;
-`cereja ui` therefore returns the plain reference on Windows. It does not enter
-raw mode or present an executable composer there. This is a concrete outstanding
-native-input limitation, not verified Windows interactive acceptance. Adding a
-paste-aware Windows transport or changing the approved submission grammar requires
-a separately scoped decision; this increment does neither.
+On Windows, this selects `ENABLE_VIRTUAL_TERMINAL_INPUT` and the shared bounded
+escape parser. Bracketed paste produces one literal `PasteEvent`, including its
+newlines and Unicode, rather than submission or shortcut events. Console modes
+and the paste protocol are restored through the existing session journal.
+Without the assertion, the command prints the plain reference and reads no input.
+The host must preserve the protocol delimiters. Unmarked paste cannot be
+distinguished from keyboard Enter; output VT support or a terminal environment
+variable alone does not prove paste support. Use a supporting Windows Terminal
+host rather than asserting support for a legacy console that omits delimiters.
 
 Noninteractive input/output,
 unsupported cursor transport and explicit `--plain` print a finite reference and
@@ -157,7 +159,19 @@ No terminal presentation, human input/acceptance, clipboard, RSS or global memor
 bound follows from those measurements. Exact publication/CI disposition belongs to
 #313 and coordination #306. Real terminal and participant acceptance remain separate.
 
-## Measured Windows baseline (2026-10-11)
+The automatic Windows ConPTY test runs the official entry with native input and
+output. It checks literal multiline/Unicode paste, no operation start, copy priority,
+idle exit and console-mode restoration. The test host sends complete protocol
+delimiters; backend tests separately split delimiters and UTF-16 pairs across record
+reads and check rejected/unfinished paste, wake fairness, deadlines and acquisition
+failures. Neither establishes a human clipboard roundtrip or support in every host.
+On this Windows build, a ConPTY host write ending inside the opening delimiter can
+be consumed by the console before the application receives it. Such host-side
+fragmentation is outside the verified input contract; the application cannot
+reconstruct an absent delimiter. The explicit assertion includes preservation of
+complete delimiters, as emitted by a supporting terminal's paste action.
+
+## Initial Windows baseline (2026-10-11)
 
 [Raw samples and virtual keyboard snapshots](../../benchmarks/ui_ledger_samples/baseline-windows-py314.json)
 retain environment, source fingerprints, 31 samples after three warmups per timing
@@ -165,6 +179,8 @@ case, and three separate fresh-process traces per retention fixture. CPython 3.1
 on Windows. Fingerprints normalize CRLF to LF for comparison with published Git
 blobs. The recorded base HEAD/dirty state describes precommit collection, not a
 claim that the base commit contains the measured application.
+These measurements describe the initial `ff539bb` delivery before the Windows
+VT-input continuation. Its source fingerprints remain historical evidence.
 
 | Fresh process window | Median ms | p95 ms | MAD ms |
 | --- | ---: | ---: | ---: |
@@ -204,7 +220,20 @@ limits and worker ownership remain separate and unchanged.
 Direct review covered grammar/discovery truth, compact field revelation, pager
 residue, pinned revisions, active-result eviction, delivery loss, Cancel phase
 visibility and disposal. Requirement tests retain regressions for the observed
-corrections. Windows interactive Ledger, clipboard roundtrips and human
-accessibility/usability acceptance remain unperformed. The new automated POSIX
+corrections. Automated Windows ConPTY and POSIX PTY checks are available;
+clipboard roundtrips and human accessibility/usability acceptance remain unperformed. The automated POSIX
 PTY smoke exercises the official entry and native restoration when run on POSIX;
 it is not a participant walkthrough.
+
+## Windows input continuation measurements
+
+[Raw continuation samples](../../benchmarks/ui_ledger_samples/windows-input-windows-py314.json)
+record 31 timing samples after three warmups on CPython 3.14.5/Windows, with
+45 source fingerprints. Catalogue import/discovery median/p95 was 10.672/13.539 ms;
+application import 41.439/50.775 ms; import/construction/first virtual CellBuffer
+49.438/55.237 ms. All startup cases observed zero new threads and no domain/legacy
+imports. These remain virtual startup/frame measurements, without native input or
+presentation latency. Process-wall samples and dispersion are retained; OS caches
+and unrelated host load are uncontrolled. No speedup is inferred from the initial
+baseline. This `--smoke` collection omits the large retention stress fixtures;
+their earlier calibration is preserved above.

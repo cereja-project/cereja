@@ -12,7 +12,7 @@ def create_parser():
     parser.add_argument('--reduced-motion', action='store_true', help='Disable decorative timers.')
     parser.add_argument('--low-bandwidth', action='store_true', help='Use the existing reduced frame/indicator ceilings.')
     parser.add_argument('--bracketed-paste', action='store_true',
-                        help='Assert a POSIX terminal supporting bracketed paste (required for interactive Ledger).')
+                        help='Assert a terminal supporting bracketed paste (required for interactive Ledger).')
     return parser
 
 
@@ -30,15 +30,16 @@ def main(argv=None):
     args = create_parser().parse_args(argv)
     if args.plain or not (sys.stdin.isatty() and sys.stdout.isatty()):
         return _plain()
-    if os.name == 'nt':
-        return _plain('Windows record input cannot distinguish paste from Enter. Interactive Ledger unavailable.')
-    if os.name != 'posix' or not args.bracketed_paste:
-        return _plain('Interactive Ledger needs POSIX bracketed paste. Use --bracketed-paste on a supporting terminal.')
+    if os.name not in ('nt', 'posix') or not args.bracketed_paste:
+        return _plain('Interactive Ledger needs delimited paste. Use --bracketed-paste on a supporting terminal.')
     from cereja.ui.terminal import CapabilityOptions, TerminalSession
     options = CapabilityOptions(color=0 if args.no_color else None,
                                 unicode=False if args.ascii else None,
                                 reduced_motion=True if args.reduced_motion else None, paste=True)
-    from cereja.ui.posix import PosixBackend as Backend
+    if os.name == 'nt':
+        from cereja.ui.windows import WindowsBackend as Backend
+    else:
+        from cereja.ui.posix import PosixBackend as Backend
     with TerminalSession(Backend(options=options)) as session:
         if session.capabilities.plain:
             return _plain()

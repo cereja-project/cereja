@@ -4,9 +4,11 @@ import math
 import os
 import sys
 import threading
+import time
 
 from ._capabilities import Capabilities, CapabilityOptions, _stream_identity, _unicode_output
 from ._session import TerminalCleanupError, _safe_text
+from ._input import EscapeParser
 from ._win32 import INFINITE, WAIT_TIMEOUT, Win32API
 from .events import EOFEvent, InputErrorEvent, KeyEvent, ResizeEvent, WakeEvent
 
@@ -21,23 +23,25 @@ class WindowsBackend:
     """Borrow console handles and own only the session's application wake event.
 
     Constructing the backend queries handles without changing modes. VT remains
-    unconfirmed until the session's journaled output probe succeeds. Legacy key
-    records cannot identify paste, so an asserted paste protocol is rejected.
+    unconfirmed until the session's journaled output probe succeeds. An explicit
+    paste assertion selects VT input and the bounded shared escape parser.
+    Without that assertion, legacy key records retain their existing behavior.
     One caller consumes input; worker threads may call wake() or close().
     """
 
     supports_acquisition = True
 
     def __init__(self, input_stream=None, output_stream=None, *, options=None,
-                 environ=None, input_handle=None, output_handle=None, _api=None):
+                 environ=None, input_handle=None, output_handle=None, _api=None, _clock=None):
         options = CapabilityOptions() if options is None else options
         if not isinstance(options, CapabilityOptions):
             raise TypeError("options must be CapabilityOptions or None")
-        if options.paste:
-            raise ValueError("legacy Windows console records cannot assert paste support")
         self.input_stream = sys.stdin if input_stream is None else input_stream
         self.output_stream = sys.stdout if output_stream is None else output_stream
         self._options = options
+        self._clock = time.monotonic if _clock is None else _clock
+        self._parser = EscapeParser() if options.paste else None
+        self._vt_last_down = None
         self._environ = dict(os.environ if environ is None else environ)
         self._api = Win32API() if _api is None else _api
         self._input = self._api.stream_handle(self.input_stream) if input_handle is None else input_handle
@@ -81,7 +85,8 @@ class WindowsBackend:
             "output_interactive": "win32:GetConsoleMode", "color_depth": color_source,
             "unicode": unicode_source, "cursor": "option" if options.cursor is not None else reason,
             "alternate_screen": "option" if options.alternate_screen is not None else "win32:vt",
-            "paste": "win32:legacy-records", "reduced_motion": "option" if
+            "paste": "option:VT-input-bracketed-paste" if options.paste else "win32:legacy-records",
+            "reduced_motion": "option" if
             options.reduced_motion is not None else "safe-default",
             "plain": reason if plain else "win32:vt-confirmed",
         }
@@ -91,7 +96,7 @@ class WindowsBackend:
             for name in ("color_depth", "cursor", "alternate_screen"):
                 sources[name] = f"plain:{reason}"
         return Capabilities(self._input_console, self._output_console, color, unicode,
-                            cursor, alternate, False, options.reduced_motion or False,
+                            cursor, alternate, bool(options.paste and not plain), options.reduced_motion or False,
                             plain, sources)
 
     def dimensions(self):
@@ -138,7 +143,15 @@ class WindowsBackend:
                 if self._wake_handle is None:
                     self._wake_handle = self._api.create_event()
             mode = (snapshot["input_mode"] | 0x08 | 0x80) & ~(0x01 | 0x02 | 0x04 | 0x10 | 0x40 | 0x200)
+            if self._parser is not None:
+                mode |= 0x200  # ENABLE_VIRTUAL_TERMINAL_INPUT preserves paste delimiters.
             self._api.set_mode(self._input, mode)
+            if self._input_ended and self._parser is not None:
+                self._parser = EscapeParser(escape_timeout=self._parser.escape_timeout,
+                                           max_paste_bytes=self._parser.max_paste_bytes,
+                                           max_sequence_bytes=self._parser.max_sequence_bytes)
+                self._pending_surrogate = None
+                self._vt_last_down = None
             self._input_ended = False
         elif resource == "alternate_screen":
             self._alternate_screen = True
@@ -146,7 +159,9 @@ class WindowsBackend:
         elif resource == "cursor":
             self._api.set_cursor(self._output, snapshot["cursor"][0], False)
         elif resource == "paste":
-            raise ValueError("Windows record input has no paste protocol")
+            if self._parser is None:
+                raise ValueError("Windows legacy record input has no paste protocol")
+            self._write_control("\x1b[?2004h")
         elif resource != "signal_handlers":
             raise ValueError(f"unknown terminal resource {resource!r}")
 
@@ -182,7 +197,10 @@ class WindowsBackend:
             if self._alternate_screen != target:
                 self._write_control("\x1b[?1049h" if target else "\x1b[?1049l")
                 self._alternate_screen = target
-        elif resource not in ("paste", "signal_handlers"):
+        elif resource == "paste":
+            if self._parser is not None:
+                self._write_control("\x1b[?2004l")
+        elif resource != "signal_handlers":
             raise ValueError(f"unknown terminal resource {resource!r}")
 
     @staticmethod
@@ -253,11 +271,19 @@ class WindowsBackend:
 
     def _finish_input(self, error=None):
         self._input_ended = True
-        events = self._flush_surrogate()
+        if self._parser is None:
+            events = self._flush_surrogate()
+        else:
+            tail = ''.join(event.text * event.repeat for event in self._flush_surrogate()).encode('utf-8')
+            events = list(self._parser.feed(tail, self._clock()))
         if error is not None:
             events.append(InputErrorEvent(str(error)))
-        events.append(EOFEvent())
+        events.extend(self._parser.eof() if self._parser is not None else (EOFEvent(),))
         return tuple(events)
+
+    @property
+    def input_deadline(self):
+        return self._parser.deadline if self._parser is not None else None
 
     def wait(self, timeout, *, read_input=True):
         milliseconds = self._timeout(timeout)
@@ -268,6 +294,14 @@ class WindowsBackend:
                 return ()
             if self._waiters:
                 raise RuntimeError("Windows input has one wait consumer")
+            if read_input and self._parser is not None:
+                now = self._clock()
+                expired = self._parser.expire(now)
+                if expired:
+                    return expired
+                if self._parser.deadline is not None:
+                    remaining = max(0.0, self._parser.deadline - now)
+                    milliseconds = min(milliseconds, self._timeout(remaining))
             self._waiters += 1
             handles = (self._wake_handle, self._input) if read_input else (self._wake_handle,)
         try:
@@ -277,7 +311,8 @@ class WindowsBackend:
                     if self._closed or self._closing:
                         return self._finish_input()
                 if result == WAIT_TIMEOUT:
-                    return ()
+                    return (self._parser.expire(self._clock())
+                            if read_input and self._parser is not None else ())
                 if result == 0:
                     # A continuously signaled application event wins the first
                     # handle. Inspect console readiness in that same turn so
@@ -308,6 +343,8 @@ class WindowsBackend:
         return [KeyEvent("\ufffd", "\ufffd", pending[1], pending[2])]
 
     def _decode(self, records):
+        if self._parser is not None:
+            return self._decode_vt(records)
         events = []
         for record in records:
             if record.EventType == 4:
@@ -343,6 +380,47 @@ class WindowsBackend:
                 elif unit:
                     char = chr(unit)
                     events.append(KeyEvent(char.lower(), char, modifiers, repeat))
+        return tuple(events)
+
+    def _decode_vt(self, records):
+        events = []
+        now = self._clock()
+        units = 0
+        for record in records:
+            if record.EventType == 4:
+                events.append(ResizeEvent(*self.dimensions()))
+            elif record.EventType == 1:
+                event = record.Event.KeyEvent
+                # ConPTY's VT text uses synthetic key-down records. Unicode
+                unit = event.uChar.UnicodeChar
+                # packets can also arrive on synthetic/VK_MENU/VK_PACKET key-up
+                # records. A matching down/up pair must not duplicate text.
+                if event.bKeyDown:
+                    self._vt_last_down = unit
+                else:
+                    paired = unit == self._vt_last_down
+                    self._vt_last_down = None
+                    if paired or not unit or event.wVirtualKeyCode not in (0, 18, 231):
+                        continue
+                if not unit and event.wVirtualKeyCode != 0:
+                    continue
+                repeat = max(1, event.wRepeatCount)
+                units += repeat
+                if units > 4096:
+                    # Losing bytes inside a paste must never replay its suffix
+                    # as keys. End admission rather than truncate the stream.
+                    return tuple(events) + self._finish_input(OSError('VT input batch exceeds code-unit limit'))
+                pending = self._pending_surrogate
+                if pending and 0xDC00 <= unit <= 0xDFFF and repeat == pending[2]:
+                    self._pending_surrogate = None
+                    text = chr(0x10000 + ((pending[0] - 0xD800) << 10) + unit - 0xDC00) * repeat
+                else:
+                    text = ''.join(e.text * e.repeat for e in self._flush_surrogate())
+                    if 0xD800 <= unit <= 0xDBFF:
+                        self._pending_surrogate = unit, frozenset(), repeat
+                    else:
+                        text += ('\ufffd' if 0xDC00 <= unit <= 0xDFFF else chr(unit)) * repeat
+                events.extend(self._parser.feed(text.encode('utf-8'), now))
         return tuple(events)
 
     def _write_console(self, text):
