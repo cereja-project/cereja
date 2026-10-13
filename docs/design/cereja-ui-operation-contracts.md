@@ -37,8 +37,10 @@ work. The Windows collector can invoke external system commands, so hiding the
 screen does not imply collection stopped. No network service is required by the
 inspected facade; do not persist machine identity in application history by default.
 
-Proposed UI: section selector, read-only values, Refresh, loading with elapsed
-time, and warning details. No Cancel action until cooperative stop is supported
+APP-02 implements the section form, read-only key-value result sections, explicit
+Run/Refresh and monotonic elapsed/duration through the existing OperationBridge.
+The facade supplies no warning channel or per-field causes: unavailable values
+are labelled without invented diagnostics. [Runtime contract](../guides/ui-ledger.md#system-integration-314). No Cancel action until cooperative stop is supported
 and verified. Waiting for collection to finish is not cancellation.
 
 ### Tree

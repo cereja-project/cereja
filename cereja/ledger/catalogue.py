@@ -1,5 +1,6 @@
 """Curated discovery data. No service imports, reflection or invocation registry."""
 from dataclasses import dataclass
+import sys
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,12 +15,20 @@ class Capability:
     guide: str = ''
 
     @property
+    def availability(self):
+        if self.name == 'system' and sys.platform != 'win32' and not sys.platform.startswith('linux') and sys.platform != 'darwin':
+            return 'Unavailable UI'
+        return self.ui
+
+    @property
     def badges(self):
-        return (self.ui,) + (('CLI',) if self.cli else ()) + (('Python API',) if self.api else ())
+        return (self.availability,) + (('CLI',) if self.cli else ()) + (('Python API',) if self.api else ())
 
     def description(self):
         parts = [self.name + ' [' + ' | '.join(self.badges) + ']', self.purpose]
-        if self.ui != 'Available UI':
+        if self.availability == 'Unavailable UI':
+            parts.append('Collector supports Windows, Linux and macOS only.')
+        if self.availability != 'Available UI':
             parts.append('Reference only. This Ledger does not execute this capability.')
         parts.extend('CLI: ' + entry for entry in self.cli)
         parts.extend('Python API: ' + entry for entry in self.api)
@@ -34,9 +43,9 @@ class Capability:
 
 COMMANDS = (
     Capability('home', 'Ledger: discover Cereja capabilities and inspect ephemeral results.', 'Available UI'),
-    Capability('system', 'Inspect system information after explicit collection.', 'Planned UI',
+    Capability('system', 'Inspect system information after explicit Run/Refresh (Windows/Linux/macOS).', 'Available UI',
                ('cereja system info',), ('cereja.system.hardware.info',),
-               'Basic detail, optional sections; sensitive identifiers off.',
+               'Basic only; explicit comma-separated sections in the form. Identifiers excluded. No Cancel or periodic refresh.',
                'cereja system info --help', 'docs/guides/system-info.md'),
     Capability('tree', 'Inspect an explicit directory tree. No filesystem browser.', 'Planned UI',
                ('cereja tree',), ('cereja.system.render_repository_tree',),

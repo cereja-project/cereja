@@ -35,7 +35,8 @@ uses the existing terminal session's capability detection and restoration.
 | Registered command | Current behavior |
 | --- | --- |
 | `/home` | Append a Ledger introduction. No hardware collection. |
-| `/system`, `/tree`, `/context`, `/compress`, `/download` | Open Planned UI reference help with verified CLI/API entries and expected parameters. No domain execution or misleading Run action. |
+| `/system` | Open the section form. Only explicit Run/Refresh starts basic, non-sensitive collection. |
+| `/tree`, `/context`, `/compress`, `/download` | Open Planned UI reference help with verified CLI/API entries and expected parameters. No domain execution or misleading Run action. |
 | `/examples` | Open a form for synthetic text, input or progress. |
 | `/examples text`, `/examples input`, `/examples progress` | Explicitly select the corresponding bounded synthetic example. |
 | `/tools` | Append the informational capability catalogue, including broader references. |
@@ -46,7 +47,7 @@ Grammar is a finite case-sensitive registry. It accepts no shell/Python evaluati
 pipelines, arbitrary function invocation, newline commands or domain argument
 passthrough. Invalid input remains in the composer, with a non-echoing error.
 `Available UI` identifies executable local application behavior; `Planned UI`
-identifies the five unimplemented integrations. `CLI` and `Python API` independently
+identifies the four remaining unimplemented integrations. System is executable on Windows/Linux/macOS; other hosts show a reason in its form/help. `CLI` and `Python API` independently
 identify existing entrypoints. `Reference` entries never promise a future UI.
 Static catalogue discovery imports no service, starts no worker and does no I/O.
 
@@ -123,6 +124,76 @@ and final consumption. Ctrl+C then Stay withdraws that wait. Cancel appears only
 while the bridge's tested synthetic capability is usable. Terminal loss closes the
 consumer without claiming worker exit. ActivityIndicator, ProgressBar and InlineStatus
 share the core policies; final/hidden/static feedback releases periodic timers.
+
+## System integration (#314)
+
+Submit `/system`, edit the comma-separated section names, then select Run/Refresh.
+Opening the form, Home, catalogue, help or importing the application never collects.
+The default explicitly selects `system,os,cpu,memory,gpu,motherboard,bios`. Unknown,
+empty or duplicate names are rejected. Only `basic` detail and
+`include_sensitive=False` are used; full/sensitive switches are not offered.
+Values are read-only section headings and key-value rows in the existing selectable,
+scrollable result surface. Names are the typed API field names; `_bytes` means bytes,
+`_mhz` MHz and `_mts` MT/s. Missing values/empty sections say Unavailable, never zero.
+An actual numeric zero remains zero. The facade has no per-field error/warning
+channel; the UI neither infers a cause nor manufactures collector warnings.
+
+The synchronous `cereja.system.hardware.info` call runs on the existing bridge's
+worker. Navigation, editing, help, selection, scrolling and resize remain available.
+A second Run/Refresh is explicitly rejected; no invocation is queued. Prior snapshots
+remain separate selectable blocks during refresh and after a failure, subject to the
+existing oldest-completed eviction policy. Each successful snapshot includes UTC
+observation time and actual monotonic facade duration. Focus, draft and anchors are
+preserved; only an existing follow-latest state follows the new result.
+
+The loading indicator activates only on observed Running. Request elapsed time uses
+the real monotonic clock from explicit admission (including scheduling/publication),
+so it differs from final facade duration. Decorative indicator ticks update the
+visible elapsed label, without changing canonical result identity/revision. With
+reduced motion or hidden feedback it updates on actual input/state/render events;
+there is no timer merely to update time. Conclusion/hiding/disposal releases the
+existing shared indicator timer. System clears previous synthetic numeric progress.
+There is no percentage, speed, ETA, internal phase, Committing or Cancel claim.
+Exit offers Stay or Wait, and Wait can be withdrawn. Consumer/terminal loss detaches
+observation; it does not interrupt synchronous I/O. No UI join or global shutdown
+deadline is promised. Platform subprocess timeouts do not bound the whole call;
+section selection can still perform other collector work.
+
+The adapter consumes `HardwareInfo` and exact section models, without parsing CLI
+text or calling `to_dict()`. An explicit field allowlist excludes hostname, machine,
+serial numbers, UUID, CPU identifier, memory part/bank/device labels, boot/install
+times and locale. It is not arbitrary secret detection in vendor/model strings.
+Only a sanitized string crosses the unchanged operation-event accounting. The
+worker-owned domain graph is released after projection; there is no result mailbox.
+Projection caps: 32 entries per array section, 512 UTF-8 bytes per scalar and 12 KiB
+section text, with visible truncation. Unexpected models/scalars fail explicitly.
+Duration/time headers fit the independent 16 KiB result block cap. The bridge's
+64 KiB event cap, core 1,024 envelopes/1 MiB aggregate, and Ledger 20 completed/
+256 KiB retention are unchanged. These are logical payload caps, not heap/RSS caps.
+Results stay in ephemeral memory. Diagnostics exports no inventory. Collector errors
+publish a fixed class/duration message, excluding exception arguments; start/cleanup
+and observation failures have distinct non-success outcomes.
+
+The domain API remains unchanged:
+
+```python
+from cereja.system.hardware import info
+snapshot = info(detail="basic", include_sensitive=False, sections=("os", "cpu"))
+assert snapshot.cpu is None or snapshot.cpu.cores is None or isinstance(snapshot.cpu.cores, int)
+```
+
+This performs one synchronous local call with no whole-call deadline. For a bounded,
+terminable synthetic integration, independent of native collector availability:
+
+```text
+python -B -S -m unittest tests.test_ui_ledger_system
+python -B -S benchmarks/ui_system.py --samples 3 --warmup 1 --output report.json
+```
+
+Add `--native-samples 3` only to measure the owned host. The harness has a 30-second
+observation watchdog, which cannot stop a blocked collector. The report stores no
+raw inventory, identity or secrets. See [native API/platform limits](system-info.md).
+Fixtures for other platforms do not prove native collection on those platforms.
 
 ## Embedding and reproducible verification
 
@@ -237,3 +308,38 @@ presentation latency. Process-wall samples and dispersion are retained; OS cache
 and unrelated host load are uncontrolled. No speedup is inferred from the initial
 baseline. This `--smoke` collection omits the large retention stress fixtures;
 their earlier calibration is preserved above.
+
+## APP-02 Windows measurements (2026-10-13)
+
+[Raw timings and source fingerprints](../../benchmarks/ui_system_samples/windows-py314.json)
+were collected with `python -B -S benchmarks/ui_system.py --samples 31 --warmup 3
+--native-samples 11 --output benchmarks/ui_system_samples/windows-py314.json`.
+Each scenario used three warmups, CPython 3.14.5, real monotonic clocks, sequential
+runs and an 80x24 virtual terminal. Sections: os/cpu; basic, non-sensitive. No raw
+inventory or machine identifiers are retained. The report's base HEAD is the
+precommit base; Git/LF source fingerprints bind the measured implementation.
+
+| Window | Fixture median/p95 ms | Windows native median/p95 ms |
+| --- | ---: | ---: |
+| Facade (fixture blocks 60 ms) | 60.440/69.800 | 2055.509/2336.825 |
+| Explicit admission through final consumption | 65.658/101.323 | 2108.708/2384.498 |
+| Synthetic input handle including CellBuffer | 0.727/1.616 | 1.036/2.194 |
+| Final CellBuffer | 1.075/2.513 | 2.311/3.502 |
+| Fresh renderer and memory sink | 16.087/31.502 | 28.674/99.917 |
+
+The fixture has 31 samples; native collection has 11. Native runs each handled
+five synthetic inputs while Running. Fixture input counts can be smaller when
+collection finishes first. Input samples/counts, scheduler-turn samples, MAD,
+min/max and logical retention size are recorded separately in the JSON.
+Integration includes projection, scheduler/render work, publication and the
+harness's 1 ms observation waits. The native facade window does not include
+projection. Scheduler-turn timing can include rendering; the isolated fresh
+renderer measurement uses a memory sink and is not additive to integration.
+
+External load, power, affinity and OS caches were uncontrolled. Native Windows
+collection is measured; Linux/macOS native collection is not. No real transport
+latency/presentation, participant input experience, global call/shutdown deadline,
+clipboard roundtrip or heap/RSS bound follows. Existing ConPTY regression checks
+cover native paste/copy priority/exit/mode restoration, not a measured System
+collection-to-screen or human task trial. Human terminal/accessibility/usability
+acceptance remains pending. Publication and exact-revision CI are tracked in #314.

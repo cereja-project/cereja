@@ -161,7 +161,7 @@ class LedgerTest(unittest.TestCase):
 
     def test_unknown_and_planned_commands_do_not_echo_secrets_or_start_work(self):
         app, _ = self.app()
-        for value in ('q', 'print(1)', '/download https://user:secret@example.test?q=secret', '/system'):
+        for value in ('q', 'print(1)', '/download https://user:secret@example.test?q=secret', '/tree'):
             self.set_draft(app, value)
             app.submit()
             self.assertFalse(app.bridge.active)

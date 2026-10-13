@@ -1,5 +1,6 @@
 """Ledger composition using public toolkit APIs; UI-thread-owned application state."""
 import sys
+import time
 
 from cereja._version import __version__
 from cereja.ui.buffer import CellBuffer, Rect, Style
@@ -17,6 +18,7 @@ from cereja.ui.text import TextPolicy, text_metrics
 
 from .catalogue import COMMANDS, REFERENCES, BY_NAME, parse_command
 from .model import Results
+from .system import DEFAULT_SECTIONS, validate_sections, parse_sections, failure_text
 
 
 HELP = ('Ledger keyboard\n\n'
@@ -33,8 +35,8 @@ HELP = ('Ledger keyboard\n\n'
         'Exit during work defaults to Stay; Wait then exit is reversible.\n'
         'Cancel is offered only for the tested synthetic example at a safe checkpoint.\n'
         'Results are ephemeral: 20 completed, 16 KiB per block, 256 KiB aggregate safe payload.\n'
-        'No disk history, automatic diagnostics export or service collection.\n'
-        'System/Tree/Context/Compress/Download are Planned UI references.\n\n' +
+        'No disk history or automatic collection/export. System requires Run/Refresh.\n'
+        'System: explicit basic non-sensitive Run/Refresh; no Cancel. Other integrations: Planned UI.\n\n' +
         '\n'.join('/' + c.name + ': ' + c.purpose for c in COMMANDS))
 
 
@@ -91,6 +93,7 @@ class Ledger:
         self.waiting = False
         self.closed = False
         self._operation_block = None
+        self._system_started = None
         self._receipt = None
         self._layout_cache = None
         self._page = 1
@@ -102,6 +105,12 @@ class Ledger:
             FormField('steps', 'Batches (1..20)', '20', required=True, validator=_steps,
                       help='Only progress uses steps. No filesystem or network effects.'),
         ), primary='Run', max_input_bytes=64)
+        self.system_form = ParameterForm('system-form', 'System: basic, identifiers excluded', (
+            FormField('sections', 'Sections (comma-separated)', DEFAULT_SECTIONS, required=True,
+                      validator=validate_sections,
+                      help='system,os,cpu,memory,gpu,motherboard,bios. Explicit Run/Refresh only. '
+                           'No Cancel, polling or global deadline. Missing fields are Unavailable.'),
+        ), primary='Run/Refresh', max_input_bytes=128)
         self.results.append('/home', self.home())
         self._sync_focus()
 
@@ -109,8 +118,8 @@ class Ledger:
         return (f'Cereja {__version__} | Ledger\n\n'
                 'Discover capabilities with /. Select a suggestion, then submit explicitly.\n'
                 'Use /examples for bounded synthetic demonstrations; /tools for the catalogue.\n'
-                'System, Tree, Context, Compress and Download: Planned UI.\n'
-                'No hardware, filesystem or network collection has run.\n'
+                'System: explicit Run/Refresh. Tree, Context, Compress and Download: Planned UI.\n'
+                'Opening Home does not collect hardware, filesystem or network data.\n'
                 'F1: help. Tab: inspect prior results. Ctrl+C: copy selection or exit.\n'
                 'Session results are ephemeral. Clipboard transport is unavailable.')
 
@@ -126,7 +135,7 @@ class Ledger:
                           'History: memory only; no export', 'Clipboard: unavailable',
                           f'Retained logical bytes: {self.results.retained_bytes}',
                           'Payload limits are not heap/RSS limits.',
-                          'Hardware inventory: not collected'))
+                          'Hardware inventory: not collected by Diagnostics; System requires Run/Refresh'))
 
     def _sync_focus(self):
         available = self.results.current is not None
@@ -152,6 +161,11 @@ class Ledger:
             self._help(capability.description(), '/' + name + ': Planned UI')
         elif name == 'help':
             self._help(BY_NAME[args[0]].description() if args else HELP)
+        elif name == 'system':
+            if sys.platform != 'win32' and not sys.platform.startswith('linux') and sys.platform != 'darwin':
+                self._help('System unavailable: collector supports Windows, Linux and macOS only.', '/system')
+            else:
+                self.overlays.open(self.system_form)
         elif name == 'examples':
             if args:
                 self._example(args[0], 20)
@@ -162,6 +176,34 @@ class Ledger:
                 'Capability catalogue (references do not execute)\n\n' +
                 '\n\n'.join(c.description() for c in COMMANDS + REFERENCES))
             self.results.append('/' + name, text)
+        self._sync_focus()
+
+    def _system(self, value):
+        try:
+            sections = parse_sections(value)
+        except ValueError as error:
+            self.notice = str(error)
+            return
+        if self.bridge.active:
+            self.notice = 'Busy: one operation is active. Nothing was queued.'
+            return
+        from .system import collect
+        self.progress.update('System: no numeric progress')
+        block = self.results.append('/system', 'System collection requested. Prior snapshots remain selectable.', active=True)
+        self._operation_block = block
+        self._system_started = time.monotonic()
+        try:
+            self.bridge.start('System information', lambda context: collect(context, sections))
+        except Exception:
+            self.results.finish(block, 'Failed', 'System worker could not start. Nothing was queued.')
+            self._operation_block = None
+            self._system_started = None
+            self.notice = 'System worker could not start. Nothing was queued.'
+            self.status.update('error', self.notice)
+            self.activity.update('error', self.notice)
+            self._sync_focus()
+            return
+        self.refresh()
         self._sync_focus()
 
     def _example(self, kind, steps):
@@ -255,12 +297,14 @@ class Ledger:
                 outcome = snapshot.outcome
                 text = (outcome.value if state == 'Succeeded' and type(outcome.value) is str else
                         'Synthetic operation cooperatively cancelled; worker exited.' if state == 'Cancelled' else
-                        'Synthetic operation failed. Diagnostic details are omitted.')
+                        (failure_text(outcome.message) if block.command == '/system' else
+                         'Synthetic operation failed. Diagnostic details are omitted.'))
                 self.results.finish(block, state, text)
             else:
                 self.results.finish(block, 'Unavailable',
                                     'Final observation unavailable: ' + snapshot.delivery + '. No success is claimed.')
             self._operation_block = None
+            self._system_started = None
         active = snapshot.active and state in ('Running', 'Committing', 'CancelRequested') and not snapshot.worker_exited
         label = 'loading' if snapshot.active else {
             'Succeeded': 'success', 'Cancelled': 'canceled', 'Failed': 'error', 'CleanupFailed': 'error',
@@ -319,7 +363,9 @@ class Ledger:
             action = self.overlays.handle(event)
             if action.kind == 'submit' and isinstance(overlay, ParameterForm):
                 self.overlays.close()
-                if overlay is self.examples_form:
+                if overlay is self.system_form:
+                    self._system(dict(action.values)['sections'])
+                elif overlay is self.examples_form:
                     values = dict(action.values)
                     self._example(values['kind'], int(values['steps']))
                 else:
@@ -463,6 +509,11 @@ class Ledger:
         frame.draw_text(2, height - 2, hints, clip=Rect(2, height - 2, width - 4, 1))
         status_rect = Rect(2, height - 1, width - 4, 1)
         if self.bridge.active:
+            if self._system_started is not None:
+                snapshot = self.bridge.snapshot
+                phase = 'Final pending' if snapshot.worker_exited else snapshot.state
+                self.activity.update('loading', f'{phase} | request elapsed {time.monotonic() - self._system_started:.1f}s',
+                                     active=snapshot.state == 'Running' and not snapshot.worker_exited)
             self.activity.set_visible(not self.progress.determinate)
             if self.progress.determinate:
                 snapshot = self.bridge.snapshot
