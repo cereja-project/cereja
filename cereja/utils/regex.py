@@ -27,8 +27,23 @@ catalog_of_patterns = {
             "Matches cannot have an ASCII digit immediately before or after them.",
             "Other surrounding characters do not restrict matches.",
         ),
-    } 
+    },
+    "cep":{
+        "pattern": re.compile(r"(?<![0-9])[0-9]{5}-[0-9]{3}(?![0-9])"),
+        "description": "Match formatted or unformatted CEP structures using ASCII digits.",
+        "format": "DDDDD-DDD or DDDDDDDD, depending on mode",
+        "options": ("mode",),
+        "option_values": (("mode", ("formatted", "unformatted", "both")),),
+        "option_defaults": (("mode", "formatted"),),
+        "examples": ("12345-678", "12345678"),
+        "limitations": (
+            "Does not validate whether the CEP exists.",
+            "Matches cannot have an ASCII digit immediately before or after them.",
+            "Other surrounding characters do not restrict matches.",
+        ), 
+    },
 }
+
 
 
 def _number_pattern(*, decimal_separator: str = ".", grouping_separator: str | None = None, sign: str = "optional" , min_fraction_digits: int = 0 , max_fraction_digits: int | None = None) -> re.Pattern[str]:
@@ -155,8 +170,8 @@ def preset(name: str, **options: object) -> re.Pattern[str]:
     """Return the compiled pattern for a named catalog preset.
 
     Args:
-        name: Catalog key: "cpf", "date", or "number".
-        **options: CPF accepts mode="formatted" (default), "unformatted",
+        name: Catalog key: "cep", "cpf", "date", or "number".
+        **options: CPF and CEP accept mode="formatted" (default), "unformatted",
             or "both". The date preset does not support options. Numbers
             accept decimal_separator, grouping_separator, sign,
             min_fraction_digits, and max_fraction_digits.
@@ -164,18 +179,20 @@ def preset(name: str, **options: object) -> re.Pattern[str]:
     Returns:
         A compiled pattern that can be passed to search(). The CPF preset
         matches DDD.DDD.DDD-DD, eleven unformatted digits, or either complete
-        structure according to mode. The date preset matches YYYY-MM-DD.
+        structure according to mode. The CEP preset matches DDDDD-DDD,
+        eight unformatted digits, or either complete structure according to
+        mode. The date preset matches YYYY-MM-DD.
         The number preset matches the configured numeric structure.
         All presets use ASCII digits.
 
     Raises:
         ValueError: If the name or an option name/value is unsupported.
 
-    These presets match formats only; they do not validate CPF check digits
-    or calendar dates. For CPF and date, an ASCII digit immediately before
-    or after a match prevents it from matching; other surrounding characters
-    do not restrict it. Number boundaries and constraints are described by
-    inspect_preset("number").
+    These presets match formats only; they do not validate CPF check digits,
+    whether a CEP exists, or calendar dates. For CPF, CEP, and date, an ASCII
+    digit immediately before or after a match prevents it from matching;
+    other surrounding characters do not restrict it. Number boundaries and
+    constraints are described by inspect_preset("number").
     """
    
     preset_search = catalog_of_patterns.get(name)
@@ -210,10 +227,27 @@ def preset(name: str, **options: object) -> re.Pattern[str]:
 
         return re.compile(r"(?<![0-9])" + body + r"(?![0-9])")
 
+    if name == "cep":
+        mode = options.get("mode", 'formatted')
+        if mode not in ('formatted', "unformatted", "both"):
+            raise ValueError(f"Unsupported CEP mode: {mode!r}")
+
+        if mode == 'formatted':
+            return preset_search["pattern"]
+
+        unformatted = r"[0-9]{8}"
+        if mode == "unformatted":
+            body = unformatted
+
+        else:
+            formatted = r"[0-9]{5}-[0-9]{3}"
+            body = f"(?:{formatted}|{unformatted})"
+
+        return re.compile(r"(?<![0-9])"+ body + r"(?![0-9])")
+
     return preset_search["pattern"]
     
-       
-    
+
 
 
 def search(text: str, pattern: re.Pattern[str]) -> re.Match[str] | None:
@@ -234,7 +268,7 @@ def search(text: str, pattern: re.Pattern[str]) -> re.Match[str] | None:
 
     search_match = re.search(pattern, text)
     return search_match
-        
+    
 def list_presets() -> list[str]:
     """Return available preset names in alphabetical order as a new list.
 

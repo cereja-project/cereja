@@ -8,7 +8,7 @@ import cereja as cj
 from cereja.utils import regex
 
 assert cj.regex is regex
-assert regex.list_presets() == ["cpf", "date", "number"]
+assert regex.list_presets() == ["cep", "cpf", "date", "number"]
 ```
 
 `preset(name, **options)` returns a compiled `re.Pattern[str]`. Unknown preset
@@ -40,9 +40,11 @@ assert regex.extract("No dates here", pattern) == []
 These helpers also accept patterns created with `re.compile`, preserving their
 flags and groups. They do not preprocess text or convert matches into numbers.
 
-## CPF and Dates
+## CPF, CEP, and Dates
 
-CPF supports `mode="formatted"` (the default), `"unformatted"`, or `"both"`.
+CPF and CEP support `mode="formatted"` (the default), `"unformatted"`, or `"both"`.
+Formatted CEP uses five ASCII digits, a hyphen, and three ASCII digits
+(`DDDDD-DDD`); unformatted CEP uses eight ASCII digits (`DDDDDDDD`).
 Dates support only `YYYY-MM-DD` and have no configurable options.
 
 ```python
@@ -53,13 +55,20 @@ assert regex.preset("cpf", mode="unformatted").fullmatch("00000000000")
 assert [m.group() for m in regex.extract(
     "000.000.000-00; 00000000000", regex.preset("cpf", mode="both"),
 )] == ["000.000.000-00", "00000000000"]
+assert regex.preset("cep").fullmatch("23822-230")
+assert regex.preset("cep", mode="unformatted").fullmatch("23822230")
+assert regex.search("23822230", regex.preset("cep")) is None
+assert [m.group() for m in regex.extract(
+    "23822-230; 23822230", regex.preset("cep", mode="both"),
+)] == ["23822-230", "23822230"]
 assert regex.preset("date").fullmatch("2025-02-31")
 ```
 
-Both presets recognize **format only**. CPF does not validate check digits;
-dates do not validate calendar dates. Both use ASCII digits. An ASCII digit
+These presets recognize **format only**. CPF does not validate check digits;
+CEP does not validate whether the postal code exists; dates do not validate
+calendar dates. All three use ASCII digits. An ASCII digit
 immediately before or after the format prevents a match; other surrounding
-characters do not restrict these two presets.
+characters do not restrict these three presets.
 
 ## Configurable Numbers
 
@@ -175,4 +184,7 @@ and exactly two fraction digits.
 | CPF, formatted | `000.000.000-00` | `00000000000`, `000.000-000.00`, `1000.000.000-00` |
 | CPF, unformatted | `00000000000` | `000.000.000-00`, `100000000000` |
 | CPF, both | `000.000.000-00`, `00000000000` | `000.000-000.00`, `100000000000` |
+| CEP, formatted | `23822-230` | `23822230`, `23822.230`, `123822-230`, `23822-2301` |
+| CEP, unformatted | `23822230` | `23822-230`, `123822230`, `238222301` |
+| CEP, both | `23822-230`, `23822230` | `23822.230`, `123822-230`, `238222301` |
 | Date | `2026-10-03`, `2025-02-31` | `2026/10/03`, `2026-1-03`, `12026-10-03` |
