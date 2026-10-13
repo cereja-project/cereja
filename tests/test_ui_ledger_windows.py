@@ -8,7 +8,12 @@ import unittest
 @unittest.skipUnless(os.name == 'nt', 'Windows ConPTY required')
 class LedgerWindowsNativeTest(unittest.TestCase):
     def test_conpty_official_entry_paste_copy_exit_and_restore(self):
-        from tests.ui_windows_conpty_probe import probe
+        if __package__:
+            from .ui_windows_conpty_probe import probe
+        else:
+            # Discovery with -s tests imports this file as a top-level module;
+            # tests/tests.py can then shadow the tests package.
+            from ui_windows_conpty_probe import probe
         report = probe()
         self.assertTrue(report['modes_restored'])
         self.assertFalse(report['human_clipboard_checked'])

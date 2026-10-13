@@ -17,6 +17,36 @@ class LedgerImportTest(unittest.TestCase):
         self.assertEqual(result.stderr, '')
         return result.stdout
 
+    def test_windows_probe_import_in_discovery_and_package_modes(self):
+        # Only exercise the import boundary here. The native test still owns
+        # real ConPTY coverage on Windows; no platform or native API is faked.
+        for pattern in ('test*.py', 'test_ui_*.py', None):
+            with self.subTest(pattern=pattern):
+                self.process('''
+import importlib, unittest
+from pathlib import Path
+from unittest.mock import patch
+pattern = ''' + repr(pattern) + '''
+if pattern is None:
+    module = importlib.import_module('tests.test_ui_ledger_windows')
+    helper = importlib.import_module('tests.ui_windows_conpty_probe')
+else:
+    loader = unittest.TestLoader()
+    loader.discover('tests', pattern=pattern)
+    assert not loader.errors, loader.errors
+    module = importlib.import_module('test_ui_ledger_windows')
+    helper = importlib.import_module('ui_windows_conpty_probe')
+assert Path(helper.__file__).resolve() == Path('tests/ui_windows_conpty_probe.py').resolve()
+class ProbeReached(Exception):
+    pass
+case = module.LedgerWindowsNativeTest('test_conpty_official_entry_paste_copy_exit_and_restore')
+# Call only up to the native boundary, even on non-Windows hosts. Raising here
+# also prevents evidence files or a simulated success report from being written.
+with patch.object(helper, 'probe', side_effect=ProbeReached):
+    with case.assertRaises(ProbeReached):
+        case.test_conpty_official_entry_paste_copy_exit_and_restore()
+''')
+
     def test_import_and_discovery_never_start_services(self):
         output = self.process('''
 import ctypes, os, selectors, signal, subprocess, sys, threading
