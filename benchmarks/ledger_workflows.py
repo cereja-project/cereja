@@ -29,7 +29,7 @@ def summary(rows):
 def measure(samples=11, warmup=3):
     result = {}
     with tempfile.TemporaryDirectory() as directory:
-        root = Path(directory)
+        root = Path(directory).resolve()
         source = root / 'source'
         source.mkdir()
         (source / 'empty').mkdir()

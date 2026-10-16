@@ -43,7 +43,7 @@ class WorkflowTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         session = TerminalSession(VirtualBackend())
         session.__enter__()
         self.addCleanup(session.close)

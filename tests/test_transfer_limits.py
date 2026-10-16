@@ -29,7 +29,7 @@ class TransferLimitsTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.target = self.root / 'result'
 
     def transfer(self, total, chunks, **kwargs):

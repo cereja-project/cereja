@@ -146,7 +146,7 @@ import tempfile
 from cereja.system.repository import RepositoryTree
 from cereja.hashtools.archive import file_archive
 with tempfile.TemporaryDirectory() as directory:
-    root = Path(directory)
+    root = Path(directory).resolve()
     source = root / 'source.txt'
     source.write_bytes(b'installed fixture')
     with RepositoryTree(root) as repository:

@@ -11,7 +11,7 @@ class RepositoryTraversalTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
 
     def test_pages_filters_empty_directory_and_stable_identity(self):
         (self.root / 'empty').mkdir()

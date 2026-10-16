@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from cereja.hashtools.archive import file_archive
 
 with TemporaryDirectory() as directory:
-    root = Path(directory)
+    root = Path(directory).resolve()
     source = root / 'message.txt'
     source.write_text('example', encoding='utf-8')
     file_archive(source, root / 'message.cjz')

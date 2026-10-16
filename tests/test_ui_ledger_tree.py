@@ -15,7 +15,7 @@ class TreeLedgerTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.session = TerminalSession(VirtualBackend())
         self.session.__enter__()
         self.addCleanup(self.session.close)

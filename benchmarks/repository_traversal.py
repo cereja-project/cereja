@@ -11,7 +11,7 @@ from cereja.system.repository import RepositoryTree
 
 def measure(samples=11):
     with tempfile.TemporaryDirectory() as directory:
-        root = Path(directory)
+        root = Path(directory).resolve()
         for index in range(300):
             (root / ('file-' + str(index))).touch()
         rows = []
