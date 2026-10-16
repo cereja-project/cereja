@@ -27,3 +27,9 @@ include benchmarks/ui_operations_samples/*.json
 include docs/guides/ui-ledger.md
 include benchmarks/ui_ledger.py
 include benchmarks/ui_ledger_samples/*.json
+
+include docs/guides/repository-traversal.md
+include docs/guides/bounded-archives.md
+include benchmarks/repository_traversal.py
+include benchmarks/ledger_workflows.py
+include benchmarks/ledger_workflow_samples/*.json

@@ -1,0 +1,670 @@
+{
+  "schema_version": 1,
+  "python": "3.14.5",
+  "platform": "win32",
+  "samples": 11,
+  "warmup": 3,
+  "scenarios": {
+    "tree": {
+      "median_ms": 126.2343,
+      "p95_ms": 146.8942,
+      "mad_ms": 1.731499999999997,
+      "min_ms": 122.4574,
+      "max_ms": 146.8942,
+      "samples": [
+        {
+          "milliseconds": 127.2936,
+          "traced_peak_bytes": 1477671,
+          "input_ms": [
+            2.772,
+            2.7336
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 126.1702,
+          "traced_peak_bytes": 1478375,
+          "input_ms": [
+            2.7093,
+            2.9425
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 125.1875,
+          "traced_peak_bytes": 1478103,
+          "input_ms": [
+            2.7021,
+            3.0891
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 123.1184,
+          "traced_peak_bytes": 1478023,
+          "input_ms": [
+            2.6633,
+            4.8052
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 146.8942,
+          "traced_peak_bytes": 1474407,
+          "input_ms": [
+            2.6791,
+            3.5851
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 142.9933,
+          "traced_peak_bytes": 1482503,
+          "input_ms": [
+            2.9222,
+            4.5764
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 122.4574,
+          "traced_peak_bytes": 1476816,
+          "input_ms": [
+            2.6246,
+            2.9599
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 126.2343,
+          "traced_peak_bytes": 1477536,
+          "input_ms": [
+            2.6451,
+            2.8875
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 127.9658,
+          "traced_peak_bytes": 1477008,
+          "input_ms": [
+            2.6905,
+            3.01
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 125.813,
+          "traced_peak_bytes": 1477112,
+          "input_ms": [
+            2.7533,
+            2.7854
+          ],
+          "retained_bytes": 653
+        },
+        {
+          "milliseconds": 135.2193,
+          "traced_peak_bytes": 1492010,
+          "input_ms": [
+            2.8193,
+            2.9406
+          ],
+          "retained_bytes": 653
+        }
+      ]
+    },
+    "context": {
+      "median_ms": 459.7711,
+      "p95_ms": 557.9878,
+      "mad_ms": 47.69229999999999,
+      "min_ms": 276.1443,
+      "max_ms": 557.9878,
+      "samples": [
+        {
+          "milliseconds": 461.7448,
+          "traced_peak_bytes": 2255083,
+          "input_ms": [
+            4.0319,
+            1.6171,
+            2.5452,
+            2.6606,
+            3.4083
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 347.5069,
+          "traced_peak_bytes": 2192664,
+          "input_ms": [
+            1.3409,
+            1.3279,
+            3.7355,
+            2.3074
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 276.1443,
+          "traced_peak_bytes": 2117780,
+          "input_ms": [
+            1.2171,
+            1.9022,
+            1.4394,
+            1.5476,
+            2.3431
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 459.7711,
+          "traced_peak_bytes": 2233842,
+          "input_ms": [
+            1.3284,
+            1.4646,
+            1.9286,
+            4.6264,
+            5.0345
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 465.8165,
+          "traced_peak_bytes": 2435373,
+          "input_ms": [
+            4.1534,
+            3.233,
+            2.361,
+            2.8065,
+            3.1604
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 412.0788,
+          "traced_peak_bytes": 1986854,
+          "input_ms": [
+            4.1163,
+            1.707,
+            1.674,
+            2.5378
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 286.4412,
+          "traced_peak_bytes": 1725736,
+          "input_ms": [
+            1.2682,
+            1.3176,
+            1.8237,
+            3.4125,
+            1.6602,
+            1.9147
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 392.8344,
+          "traced_peak_bytes": 1984382,
+          "input_ms": [
+            1.3458,
+            1.9239,
+            2.7326,
+            7.5045
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 557.9878,
+          "traced_peak_bytes": 2505368,
+          "input_ms": [
+            2.8856,
+            1.3886,
+            1.4526,
+            5.9129,
+            2.4647,
+            2.595
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 465.6858,
+          "traced_peak_bytes": 2231499,
+          "input_ms": [
+            1.5191,
+            1.3142,
+            1.4722,
+            2.0336,
+            2.7634
+          ],
+          "retained_bytes": 815
+        },
+        {
+          "milliseconds": 487.3949,
+          "traced_peak_bytes": 2234283,
+          "input_ms": [
+            4.675,
+            4.9577,
+            2.764,
+            1.6908,
+            2.4851
+          ],
+          "retained_bytes": 815
+        }
+      ]
+    },
+    "compress": {
+      "median_ms": 413.7011,
+      "p95_ms": 538.9419,
+      "mad_ms": 51.756399999999985,
+      "min_ms": 334.9791,
+      "max_ms": 538.9419,
+      "samples": [
+        {
+          "milliseconds": 538.9419,
+          "traced_peak_bytes": 18380987,
+          "input_ms": [
+            2.3388,
+            2.2703,
+            3.9233,
+            7.2817,
+            1.9926
+          ],
+          "retained_bytes": 701
+        },
+        {
+          "milliseconds": 338.8646,
+          "traced_peak_bytes": 17717291,
+          "input_ms": [
+            1.4981,
+            5.0277,
+            3.9782,
+            2.0649
+          ],
+          "retained_bytes": 701
+        },
+        {
+          "milliseconds": 433.3677,
+          "traced_peak_bytes": 17916192,
+          "input_ms": [
+            1.4851,
+            1.8231,
+            2.1481,
+            1.432,
+            5.7946
+          ],
+          "retained_bytes": 701
+        },
+        {
+          "milliseconds": 413.7011,
+          "traced_peak_bytes": 18153603,
+          "input_ms": [
+            2.0019,
+            1.9398,
+            5.2123,
+            6.1195
+          ],
+          "retained_bytes": 701
+        },
+        {
+          "milliseconds": 363.8384,
+          "traced_peak_bytes": 17879795,
+          "input_ms": [
+            1.3927,
+            2.8579,
+            1.4427,
+            1.8611
+          ],
+          "retained_bytes": 701
+        },
+        {
+          "milliseconds": 449.2494,
+          "traced_peak_bytes": 17507443,
+          "input_ms": [
+            1.8586,
+            1.7003,
+            1.3831,
+            2.1242
+          ],
+          "retained_bytes": 701
+        },
+        {
+          "milliseconds": 465.8395,
+          "traced_peak_bytes": 18425599,
+          "input_ms": [
+            4.7791,
+            1.7481,
+            4.6763,
+            1.5379,
+            2.2101,
+            1.8253
+          ],
+          "retained_bytes": 701
+        },
+        {
+          "milliseconds": 480.4001,
+          "traced_peak_bytes": 18256320,
+          "input_ms": [
+            5.1073,
+            2.0388,
+            1.7028,
+            1.5315,
+            2.3528
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 361.9447,
+          "traced_peak_bytes": 17870384,
+          "input_ms": [
+            1.4656,
+            1.4756,
+            1.5254,
+            3.6387
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 395.7881,
+          "traced_peak_bytes": 17939240,
+          "input_ms": [
+            1.4774,
+            1.4611,
+            2.1641,
+            2.372
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 334.9791,
+          "traced_peak_bytes": 18256216,
+          "input_ms": [
+            1.5156,
+            1.488,
+            2.2148,
+            2.1041
+          ],
+          "retained_bytes": 702
+        }
+      ]
+    },
+    "decompress": {
+      "median_ms": 400.2802,
+      "p95_ms": 470.746,
+      "mad_ms": 24.102599999999995,
+      "min_ms": 366.7784,
+      "max_ms": 470.746,
+      "samples": [
+        {
+          "milliseconds": 430.9565,
+          "traced_peak_bytes": 18380141,
+          "input_ms": [
+            3.1651,
+            1.9048,
+            1.555,
+            1.7958,
+            2.0412
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 366.7784,
+          "traced_peak_bytes": 17553733,
+          "input_ms": [
+            2.4442,
+            4.89,
+            1.4515,
+            1.9115
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 413.7354,
+          "traced_peak_bytes": 17700333,
+          "input_ms": [
+            1.5202,
+            1.4323,
+            1.9651,
+            5.0296
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 389.1048,
+          "traced_peak_bytes": 18201741,
+          "input_ms": [
+            5.3682,
+            1.8812,
+            2.2782,
+            1.8728
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 458.108,
+          "traced_peak_bytes": 17746037,
+          "input_ms": [
+            1.4244,
+            2.4645,
+            1.4461,
+            2.9755
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 387.4607,
+          "traced_peak_bytes": 17870069,
+          "input_ms": [
+            3.0588,
+            1.9989,
+            3.6036,
+            1.8488
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 376.1776,
+          "traced_peak_bytes": 17911637,
+          "input_ms": [
+            5.1239,
+            1.5966,
+            1.5,
+            1.8041
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 400.2802,
+          "traced_peak_bytes": 18504868,
+          "input_ms": [
+            1.5235,
+            1.5467,
+            1.5081,
+            1.5998,
+            2.2991
+          ],
+          "retained_bytes": 704
+        },
+        {
+          "milliseconds": 470.746,
+          "traced_peak_bytes": 17619520,
+          "input_ms": [
+            1.5306,
+            2.3045,
+            1.9417,
+            2.8275
+          ],
+          "retained_bytes": 704
+        },
+        {
+          "milliseconds": 415.4171,
+          "traced_peak_bytes": 18259120,
+          "input_ms": [
+            1.5066,
+            1.598,
+            1.6038,
+            1.5565,
+            2.5076
+          ],
+          "retained_bytes": 704
+        },
+        {
+          "milliseconds": 371.6099,
+          "traced_peak_bytes": 18154024,
+          "input_ms": [
+            2.5039,
+            1.493,
+            1.7134,
+            2.3012
+          ],
+          "retained_bytes": 704
+        }
+      ]
+    },
+    "directory": {
+      "median_ms": 402.723,
+      "p95_ms": 494.5536,
+      "mad_ms": 38.59469999999999,
+      "min_ms": 340.9742,
+      "max_ms": 494.5536,
+      "samples": [
+        {
+          "milliseconds": 494.5536,
+          "traced_peak_bytes": 2252302,
+          "input_ms": [
+            6.1297,
+            1.6398,
+            1.6217,
+            4.2475,
+            2.691
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 389.4778,
+          "traced_peak_bytes": 2173597,
+          "input_ms": [
+            2.0562,
+            2.0617,
+            1.7669,
+            1.8604
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 469.539,
+          "traced_peak_bytes": 2247094,
+          "input_ms": [
+            4.8593,
+            1.7473,
+            1.6567,
+            1.9257,
+            2.4427
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 371.5658,
+          "traced_peak_bytes": 2247637,
+          "input_ms": [
+            1.5252,
+            1.4111,
+            2.5564,
+            1.5111,
+            1.8613
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 474.3311,
+          "traced_peak_bytes": 2247438,
+          "input_ms": [
+            1.6765,
+            2.0225,
+            5.0798,
+            2.3165,
+            1.9343
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 472.4163,
+          "traced_peak_bytes": 2250542,
+          "input_ms": [
+            1.8331,
+            1.7113,
+            2.2412,
+            1.687,
+            2.2188
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 402.723,
+          "traced_peak_bytes": 2400158,
+          "input_ms": [
+            3.4005,
+            1.4457,
+            1.5052,
+            3.3914,
+            2.5867
+          ],
+          "retained_bytes": 702
+        },
+        {
+          "milliseconds": 374.3974,
+          "traced_peak_bytes": 1993824,
+          "input_ms": [
+            1.8819,
+            1.582,
+            2.2323,
+            2.8419
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 402.372,
+          "traced_peak_bytes": 2240599,
+          "input_ms": [
+            1.8957,
+            1.9911,
+            1.5427,
+            1.5119,
+            4.8573
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 340.9742,
+          "traced_peak_bytes": 2002880,
+          "input_ms": [
+            1.628,
+            1.3992,
+            1.6318,
+            1.9203
+          ],
+          "retained_bytes": 703
+        },
+        {
+          "milliseconds": 441.3177,
+          "traced_peak_bytes": 2149760,
+          "input_ms": [
+            1.3684,
+            5.779,
+            1.8732,
+            2.5633
+          ],
+          "retained_bytes": 703
+        }
+      ]
+    }
+  },
+  "fingerprints": {
+    "cereja/system/repository.py": "0dbf39ef6066509aff701e8008b7e6899a5d0c0b3d527a7c49f6762fde9a7bd0",
+    "cereja/hashtools/archive.py": "e04fab487998e45ecc86c325c7b643653a2c624fe85848a3b7d52eeb1cfb2c9b",
+    "cereja/ledger/app.py": "6c69d35cad92590ea732ab215b8935e8bb4cabb9c7b6d5ad372842480095158a",
+    "cereja/ledger/tree.py": "0daba332992b88e91d26634990ace3c1e24ff72e58aad22f52bb86e27c2e5fe1",
+    "cereja/ledger/workflows.py": "00de30a7e1f0442b7e663461c95c1c351177a550efea264f364422fac991dc8d"
+  },
+  "limitations": "Owned stable fixtures; scheduler/CellBuffer plus memory sink; 1ms harness waits. Traced allocation is not RSS. No real terminal presentation/human latency. OS cache/load uncontrolled. Context has no hard scan bound under concurrent source mutation. No performance improvement claim."
+}

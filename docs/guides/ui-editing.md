@@ -37,8 +37,7 @@ cannot be portably detected and can include presentation artifacts.
 An immutable selection can pin bounded inspected content independently of newer
 output. The caller owns retention/eviction: explicitly invalidate an unavailable
 snapshot with a reason instead of rebinding offsets or copying newer content.
-The [accepted copy contract](../design/cereja-ui-ux.md#accepted-clean-copy-contract-2026-10-09)
-owns the eventual application behavior and clipboard acceptance.
+The [Ledger guide](ui-ledger.md) describes application copy behavior and the remaining clipboard acceptance.
 
 ## TextInput
 

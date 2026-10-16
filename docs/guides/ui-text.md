@@ -13,7 +13,7 @@ assert measured.line_widths() == (3,)
 assert clip_text("e\u0301界", 2) == "e\u0301 "
 ```
 
-The [approved policy](../design/cereja-ui.md#4-text-security-and-cells) is frozen
+The text policy is frozen
 at Unicode 17.0.0, [default extended grapheme boundaries (UAX #29 revision 47)](https://www.unicode.org/reports/tr29/tr29-47.html),
 and Emoji 17.0. Runtime behavior does not use Python's `unicodedata` version,
 third-party libraries or network downloads. `import cereja`, `import cereja.ui`

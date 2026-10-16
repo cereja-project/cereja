@@ -265,7 +265,7 @@ class SystemLedgerTest(unittest.TestCase):
         with patch('cereja.ledger.catalogue.sys', SimpleNamespace(platform='unsupported')):
             self.assertIn('Unavailable UI', BY_NAME['system'].badges)
             self.assertIn('Windows, Linux and macOS', BY_NAME['system'].description())
-            self.assertEqual(BY_NAME['tree'].availability, 'Planned UI')
+            self.assertEqual(BY_NAME['tree'].availability, 'Available UI')
 
     def test_complete_typed_fixture_all_sections_and_identity_exclusion(self):
         from cereja.system.hardware.models import SystemInfo, MemoryInfo, MotherboardInfo, BIOSInfo

@@ -11,7 +11,7 @@ from cereja.ui.feedback import InlineStatus, ProgressBar, ActivityIndicator
 from cereja.ui.focus import FocusManager, FocusScope, FocusTarget
 from cereja.ui.operations import OperationBridge, CooperativeCancellation, OperationBusy
 from cereja.ui.overlays import (Suggestion, Suggestions, FormField, ParameterForm,
-                               HelpOverlay, OverlayStack)
+                               HelpOverlay, OverlayStack, Confirmation)
 from cereja.ui.rendering import Cursor
 from cereja.ui.scheduling import EventLoop
 from cereja.ui.text import TextPolicy, text_metrics
@@ -36,7 +36,7 @@ HELP = ('Ledger keyboard\n\n'
         'Cancel is offered only for the tested synthetic example at a safe checkpoint.\n'
         'Results are ephemeral: 20 completed, 16 KiB per block, 256 KiB aggregate safe payload.\n'
         'No disk history or automatic collection/export. System requires Run/Refresh.\n'
-        'System: explicit basic non-sensitive Run/Refresh; no Cancel. Other integrations: Planned UI.\n\n' +
+        'System: explicit basic non-sensitive Run/Refresh; no Cancel. Tree, Context, Archives and Download require explicit forms.\n\n' +
         '\n'.join('/' + c.name + ': ' + c.purpose for c in COMMANDS))
 
 
@@ -94,6 +94,14 @@ class Ledger:
         self.closed = False
         self._operation_block = None
         self._system_started = None
+        self._tree_result = None
+        self._tree_block = None
+        self._context_block = None
+        self._context_terms = ()
+        self._review = None
+        self._workflow_values = None
+        from .workflows import forms
+        self.workflow_forms = forms()
         self._receipt = None
         self._layout_cache = None
         self._page = 1
@@ -111,6 +119,11 @@ class Ledger:
                       help='system,os,cpu,memory,gpu,motherboard,bios. Explicit Run/Refresh only. '
                            'No Cancel, polling or global deadline. Missing fields are Unavailable.'),
         ), primary='Run/Refresh', max_input_bytes=128)
+        self.tree_form = ParameterForm('tree-form', 'Tree: explicit root, read only', (
+            FormField('root', 'Root directory', '', required=True),
+            FormField('depth', 'Depth (0..8)', '3', required=True,
+                      validator=lambda value: None if value.isascii() and value.isdecimal() and 0 <= int(value) <= 8 else 'Use 0..8'),
+        ), primary='Run', max_input_bytes=1024)
         self.results.append('/home', self.home())
         self._sync_focus()
 
@@ -118,7 +131,7 @@ class Ledger:
         return (f'Cereja {__version__} | Ledger\n\n'
                 'Discover capabilities with /. Select a suggestion, then submit explicitly.\n'
                 'Use /examples for bounded synthetic demonstrations; /tools for the catalogue.\n'
-                'System: explicit Run/Refresh. Tree, Context, Compress and Download: Planned UI.\n'
+                'System, Tree, Context, Archives and Download: explicit forms and bounded operations.\n'
                 'Opening Home does not collect hardware, filesystem or network data.\n'
                 'F1: help. Tab: inspect prior results. Ctrl+C: copy selection or exit.\n'
                 'Session results are ephemeral. Clipboard transport is unavailable.')
@@ -166,6 +179,10 @@ class Ledger:
                 self._help('System unavailable: collector supports Windows, Linux and macOS only.', '/system')
             else:
                 self.overlays.open(self.system_form)
+        elif name in self.workflow_forms:
+            self.overlays.open(self.workflow_forms[name])
+        elif name == 'tree':
+            self.overlays.open(self.tree_form)
         elif name == 'examples':
             if args:
                 self._example(args[0], 20)
@@ -203,6 +220,77 @@ class Ledger:
             self.activity.update('error', self.notice)
             self._sync_focus()
             return
+        self.refresh()
+        self._sync_focus()
+
+    def _workflow_review(self, name, values):
+        from .workflows import prepare
+        try:
+            values, target = prepare(name, values)
+        except (ValueError, OSError):
+            self.notice = 'Invalid parameters. Review the workflow help and explicit paths.'
+            return
+        if target is None:
+            self._workflow(name, values)
+            return
+        self._workflow_values = (name, values)
+        self._review = Confirmation('workflow-review', target, form=self.workflow_forms[name])
+        self.overlays.open(self._review)
+
+    def _workflow_target(self):
+        if self._review is None or self._workflow_values is None:
+            return None
+        from .workflows import prepare
+        name, _ = self._workflow_values
+        try:
+            _, target = prepare(name, dict(self.workflow_forms[name].values))
+            return target
+        except (ValueError, OSError):
+            return None
+
+    def _workflow(self, name, values):
+        if self.bridge.active:
+            self.notice = 'Busy: one operation is active. Nothing was queued.'
+            return
+        from .workflows import execute
+        block = self.results.append('/' + name, 'Explicit operation requested.', active=True)
+        if name == 'context':
+            self._context_block = block
+            self._context_terms = tuple(values['query'].split())
+        self._operation_block = block
+        self._system_started = time.monotonic()
+        self.progress.update(name + ': indeterminate')
+        try:
+            self.bridge.start(name, lambda context: execute(name, values, context))
+        except Exception:
+            self.results.finish(block, 'Failed', 'Worker could not start. Nothing was queued.')
+            self._operation_block = None
+            self._system_started = None
+        self.refresh()
+        self._sync_focus()
+
+    def _tree(self, root, depth, identity=None):
+        if self.bridge.active:
+            self.notice = 'Busy: one operation is active. Nothing was queued.'
+            return
+        from .tree import TreeResult, load
+        if identity is None:
+            self._tree_result = TreeResult(root, depth)
+            self._tree_block = self.results.append('/tree', 'Tree root requested.', active=True)
+            relative = ''
+        else:
+            relative = self._tree_result.records[identity]['relative']
+            self._tree_block.active = True
+        block = self._tree_block
+        self._operation_block = block
+        self._system_started = time.monotonic()
+        self.progress.update('Tree: no numeric progress')
+        try:
+            self.bridge.start('Repository tree', lambda context: load(root, relative, depth, context))
+        except Exception:
+            self.results.finish(block, 'Failed', 'Tree worker could not start.')
+            self._operation_block = None
+            self._system_started = None
         self.refresh()
         self._sync_focus()
 
@@ -299,6 +387,16 @@ class Ledger:
                         'Synthetic operation cooperatively cancelled; worker exited.' if state == 'Cancelled' else
                         (failure_text(outcome.message) if block.command == '/system' else
                          'Synthetic operation failed. Diagnostic details are omitted.'))
+                if block.command == '/tree' and state == 'Succeeded':
+                    try:
+                        text = self._tree_result.receive(text)
+                    except (ValueError, KeyError, TypeError):
+                        state, text = 'Failed', 'Tree publication could not be interpreted.'
+                elif block.command in ('/context', '/compress', '/download') and state != 'Succeeded':
+                    from .workflows import failure_text as workflow_failure
+                    text = workflow_failure(outcome.message)
+                elif block.command == '/tree':
+                    text = 'Tree load failed. The directory may be unavailable or outside the limits.'
                 self.results.finish(block, state, text)
             else:
                 self.results.finish(block, 'Unavailable',
@@ -332,7 +430,7 @@ class Ledger:
             return
         if self.bridge.handle(event):
             if isinstance(event, ProgressEvent):
-                self.progress.update('Synthetic batches', completed=event.completed,
+                self.progress.update('Downloaded bytes' if self._operation_block and self._operation_block.command == '/download' else 'Synthetic batches', completed=event.completed,
                                      total=event.total, reliable_total=event.total is not None)
             self.refresh()
             self.render()
@@ -360,16 +458,31 @@ class Ledger:
                     self._action(copy_action(selection))
         elif self.overlays.top is not None:
             overlay = self.overlays.top
-            action = self.overlays.handle(event)
+            action = self.overlays.handle(event, current_target=self._workflow_target())
             if action.kind == 'submit' and isinstance(overlay, ParameterForm):
                 self.overlays.close()
                 if overlay is self.system_form:
                     self._system(dict(action.values)['sections'])
+                elif overlay is self.tree_form:
+                    values = dict(action.values)
+                    self._tree(values['root'], int(values['depth']))
+                elif overlay in self.workflow_forms.values():
+                    name = next(name for name, form in self.workflow_forms.items() if form is overlay)
+                    self._workflow_review(name, dict(action.values))
                 elif overlay is self.examples_form:
                     values = dict(action.values)
                     self._example(values['kind'], int(values['steps']))
                 else:
                     self.notice = 'Synthetic input example finished. Edited text is not a result or history.'
+            elif action.kind == 'confirmed' and overlay is self._review:
+                current = self._workflow_target()
+                if self._review.authorization(current) == action.target and current is not None:
+                    name, values = self._workflow_values
+                    self._workflow(name, values)
+                else:
+                    self.notice = 'Target changed; review again.'
+                self._review = None
+                self._workflow_values = None
             else:
                 self._action(action)
         elif isinstance(event, KeyEvent) and event.key == 'f1' and not event.modifiers:
@@ -400,6 +513,15 @@ class Ledger:
         if not isinstance(event, KeyEvent):
             return
         focused, block = self.focus.focused, self.results.current
+        if (focused == 'content' and block is self._tree_block and self._tree_result is not None
+                and not event.modifiers):
+            action = self._tree_result.view.handle(event)
+            if action.kind == 'load':
+                self._tree(self._tree_result.root, self._tree_result.depth, action.identity)
+            elif action.kind == 'inspect' and action.content is not None:
+                self._help(action.content.text, 'Tree path')
+            if action.kind != 'unhandled':
+                return
         if event.key == 'c' and event.modifiers == {'ctrl'}:
             self._action(copy_action(block.selection if block and focused == 'content' else None))
         elif event.key == 'a' and event.modifiers == {'ctrl'} and focused == 'content':
@@ -449,6 +571,10 @@ class Ledger:
         frame.draw_text(body.x, y, f'{marker}* {block.identity} {block.command} [{block.state}]',
                         clip=body, style=Style(bold=True))
         y += 1
+        if block is self._tree_block and self._tree_result is not None:
+            self._tree_result.view.paint(frame, Rect(body.x, y, body.width, max(0, body.height - (y - body.y))),
+                                         focused=self.focus.focused == 'content')
+            return 'Tree | Right expand/load | Left collapse | Enter inspect'
         # A pinned revision stays readable when its active operation completes.
         content = block.selection.content if block.selection else block.content
         key = (content.identity, content.revision, body.width, frame.policy)
@@ -460,8 +586,17 @@ class Ledger:
         row = min(row, max(0, len(rows) - page))
         self._page, self._scroll_rows = page, rows
         for _, text in rows[row:row + page]:
-            frame.draw_text(body.x, y, text, clip=body,
-                            style=Style(reverse=block.selection is not None))
+            selected = block.selection is not None
+            frame.draw_text(body.x, y, text, clip=body, style=Style(reverse=selected))
+            if block is self._context_block and block.state == 'Succeeded':
+                from .workflows import highlight_spans
+                spans = highlight_spans(text, self._context_terms)
+                x = body.x
+                for unit in text_metrics(text, frame.policy).units:
+                    if any(start < unit.end and end > unit.start for start, end in spans):
+                        frame.draw_text(x, y, unit.text, clip=body,
+                                        style=Style(bold=True, reverse=selected))
+                    x += unit.width
             y += 1
         pinned = ' pinned' if content is not block.content else ''
         return f'{index + 1}/{len(self.results.blocks)} | lines {row + 1}-{min(len(rows), row + page)}/{len(rows)}{pinned}'
@@ -532,7 +667,7 @@ class Ledger:
                 self.status.paint(frame, status_rect)
         if self.overlays.top is not None:
             shelf = isinstance(self.overlays.top, Suggestions)
-            view = self.overlays.paint(frame, body, dock,
+            view = self.overlays.paint(frame, body, dock, current_target=self._workflow_target(),
                                        height=min(3 if width < 60 else 7, body.height) if shelf else body.height)
             if not shelf:
                 cursor = view.cursor

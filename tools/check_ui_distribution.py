@@ -141,7 +141,20 @@ with terminal.TerminalSession(testing.VirtualBackend(size=(40, 12))) as session:
 import contextlib, io
 with contextlib.redirect_stdout(io.StringIO()) as plain_output:
     assert ui_command.main(['--plain']) == 0
-assert 'Planned UI' in plain_output.getvalue() and '\x1b' not in plain_output.getvalue()
+assert '/tree [Available UI' in plain_output.getvalue() and '\x1b' not in plain_output.getvalue()
+import tempfile
+from cereja.system.repository import RepositoryTree
+from cereja.hashtools.archive import file_archive
+with tempfile.TemporaryDirectory() as directory:
+    root = Path(directory)
+    source = root / 'source.txt'
+    source.write_bytes(b'installed fixture')
+    with RepositoryTree(root) as repository:
+        page = repository.children()
+        assert page.complete and page.nodes[0].name == 'source.txt'
+    file_archive(source, root / 'source.cjz')
+    file_archive(root / 'source.cjz', root / 'restored.txt', extract=True)
+    assert (root / 'restored.txt').read_bytes() == b'installed fixture'
 print(json.dumps({'installed_only': ['cereja'], 'requires_dist': [],
     'unicode_version': text.UNICODE_VERSION, 'imports_silent_and_guarded': True,
     'legacy_isolated': True, 'examples_passed': True,
@@ -196,7 +209,10 @@ def main():
                     for name in ('_unicode17.py', 'UNICODE-LICENSE.txt', 'collections.py', 'feedback.py', 'scheduling.py', 'operations.py', 'events.py', '_posting.py')}
         expected.update({str(path.relative_to(source / 'cereja')).replace('\\', '/'):
                          sha256(path.read_bytes()).hexdigest()
-                         for path in [*(source / 'cereja/ledger').glob('*.py'), source / 'cereja/commands/ui.py']})
+                         for path in [*(source / 'cereja/ledger').glob('*.py'), source / 'cereja/commands/ui.py',
+                                      source / 'cereja/system/repository.py', source / 'cereja/system/_safe_paths.py',
+                                      source / 'cereja/hashtools/archive.py', source / 'cereja/transfers/download.py',
+                                      source / 'cereja/transfers/sinks.py']})
         run([sys.executable, '-B', '-c', 'from setuptools import build_meta as b; '
              'b.build_sdist("dist"); b.build_wheel("dist")'], cwd=source)
         wheel = next((source / 'dist').glob('*.whl'))
@@ -216,7 +232,10 @@ def main():
                            'benchmarks/ui_operations_samples/baseline-windows-py314.json',
                            'docs/guides/ui-ledger.md', 'benchmarks/ui_ledger.py',
                            'benchmarks/ui_ledger_samples/baseline-windows-py314.json',
-                           'benchmarks/ui_ledger_samples/windows-input-windows-py314.json'):
+                           'benchmarks/ui_ledger_samples/windows-input-windows-py314.json',
+                           'docs/guides/repository-traversal.md', 'docs/guides/bounded-archives.md',
+                           'benchmarks/ledger_workflows.py',
+                           'benchmarks/ledger_workflow_samples/windows-py314-final.json'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))

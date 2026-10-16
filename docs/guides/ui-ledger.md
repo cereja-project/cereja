@@ -36,7 +36,10 @@ uses the existing terminal session's capability detection and restoration.
 | --- | --- |
 | `/home` | Append a Ledger introduction. No hardware collection. |
 | `/system` | Open the section form. Only explicit Run/Refresh starts basic, non-sensitive collection. |
-| `/tree`, `/context`, `/compress`, `/download` | Open Planned UI reference help with verified CLI/API entries and expected parameters. No domain execution or misleading Run action. |
+| `/tree` | Explicit root/depth form, bounded child loads, keyboard expand/collapse and path inspection. |
+| `/context` | Explicit root/query form, admission checks and cache-off text search. |
+| `/compress` | Compress/decompress files or directories, then review the exact new destination. |
+| `/download` | HTTP(S) URL/new destination form, exact-target review and byte-limited transfer. |
 | `/examples` | Open a form for synthetic text, input or progress. |
 | `/examples text`, `/examples input`, `/examples progress` | Explicitly select the corresponding bounded synthetic example. |
 | `/tools` | Append the informational capability catalogue, including broader references. |
@@ -46,8 +49,7 @@ uses the existing terminal session's capability detection and restoration.
 Grammar is a finite case-sensitive registry. It accepts no shell/Python evaluation,
 pipelines, arbitrary function invocation, newline commands or domain argument
 passthrough. Invalid input remains in the composer, with a non-echoing error.
-`Available UI` identifies executable local application behavior; `Planned UI`
-identifies the four remaining unimplemented integrations. System is executable on Windows/Linux/macOS; other hosts show a reason in its form/help. `CLI` and `Python API` independently
+`Available UI` identifies executable application behavior within the supported limits below. System is executable on Windows/Linux/macOS; other hosts show a reason in its form/help. `CLI` and `Python API` independently
 identify existing entrypoints. `Reference` entries never promise a future UI.
 Static catalogue discovery imports no service, starts no worker and does no I/O.
 
@@ -124,6 +126,8 @@ and final consumption. Ctrl+C then Stay withdraws that wait. Cancel appears only
 while the bridge's tested synthetic capability is usable. Terminal loss closes the
 consumer without claiming worker exit. ActivityIndicator, ProgressBar and InlineStatus
 share the core policies; final/hidden/static feedback releases periodic timers.
+
+(system-integration-314)=
 
 ## System integration (#314)
 
@@ -343,3 +347,72 @@ clipboard roundtrip or heap/RSS bound follows. Existing ConPTY regression checks
 cover native paste/copy priority/exit/mode restoration, not a measured System
 collection-to-screen or human task trial. Human terminal/accessibility/usability
 acceptance remains pending. Publication and exact-revision CI are tracked in #314.
+
+
+## Tree, Context, Archives and Download
+
+Tree uses the [structured repository API](repository-traversal.md), independent
+of terminal widgets. Root and depth (0..8) are explicit. Discovery does not scan.
+The worker returns at most 48,000 JSON bytes; one UI-owned TreeView retains at
+most 64 nodes and 48,000 logical payload bytes. Each load examines at most 2,048
+entries with a 256-entry per-directory cap. Loading a nested node revalidates
+its ancestor chain within those budgets, so repeated loads can repeat work.
+These are per-load and retained-widget bounds, not aggregate session work or RSS.
+Right expands/loads, Left collapses/selects parent, and Enter inspects the full
+safe path. Names and paths remain data; controls are escaped for presentation.
+Incomplete enumeration and omitted counts remain explicit. A new Tree command
+replaces the interactive tree; older result summaries remain within Ledger
+retention. This is read-only traversal, without file opening or mutation.
+
+Context uses the existing typed API with cache off, eight results, two snippets
+per result, 240 characters per snippet and 256 KiB per file. Admission requires
+an owned, stable root with at most 64 files, 16 MiB inventoried source bytes,
+257 tree nodes, depth 8 and 2,048 examined entries. An incomplete admission scan
+is refused. The subsequent existing search enumerates again; concurrent source
+mutation can invalidate admission. There is no hard whole-scan/deadline guarantee.
+Use only stable owned workloads within those limits. Literal snippets and paths
+are safely rendered; skipped reasons, no matches and truncation remain visible.
+Result text is capped at 12 KiB and uses existing canonical selection/scrolling.
+No automatic opening, persistent cache or file writes occur.
+
+Archives follow the [bounded domain contract](bounded-archives.md). The form
+selects compress/decompress, file/directory, source and new destination. The
+exact-target review defaults to Back; Run becomes available after the details
+are inspectable. Changes to the form or target invalidate consent. Existing
+targets are refused both before work and during exclusive publication. There
+is no overwrite, merge, source deletion, password storage or generic extraction.
+
+Download accepts HTTP(S) without credentials or fragments, verifies TLS, follows
+at most five redirects and uses 10-second connection/read timeouts with no retries.
+It writes at most 16 MiB to owned staging and publishes a new destination only.
+The source URL remains explicit in review; redirected URLs do not select or
+rename the destination. Known and unknown totals display actual received bytes
+with indeterminate activity; no percentage, speed or ETA is inferred from remote
+metadata. Length mismatches, limits and transport errors abort partial output.
+The transfer layer adds optional `max_bytes`, `overwrite=False` and
+`before_commit` arguments to the synchronous API. Existing defaults remain.
+
+All four workflows reuse one active operation and the existing scheduler/bridge.
+There is no automatic queue or domain Cancel. Actual Running/Committing phases,
+elapsed time and final outcome are distinguished. Busy requests are explicitly
+rejected. A failure during publication/cleanup can leave an output; inspect the
+exact destination when the result warns about uncertain publication. Consumer
+loss does not interrupt blocking I/O or prove cancellation. No global deadline
+is claimed. Real clipboard transport remains unavailable.
+
+### Candidate measurements and acceptance
+
+`python -m benchmarks.ledger_workflows --output NEW.json` measures only owned
+fixtures. Raw Windows/Python 3.14 samples are in
+`benchmarks/ledger_workflow_samples/windows-py314-final.json` with source fingerprints,
+11 measured samples after three warmups, median/p95/MAD and traced allocation.
+The windows include admission, worker publication, scheduler, CellBuffer/memory
+sink and harness observation waits. They are not terminal presentation latency,
+human response time, RSS limits or performance-improvement evidence.
+
+Automated integration and native transport checks do not establish a human
+keyboard/clipboard/accessibility walkthrough. Linux/macOS directory extraction
+is explicitly unsupported by this bounded API. Native collection, presentation
+and human acceptance still require the observations tracked in
+[#321](https://github.com/cereja-project/cereja/issues/321). Legacy migration remains
+separate and must not proceed before a recorded stable-contract decision.

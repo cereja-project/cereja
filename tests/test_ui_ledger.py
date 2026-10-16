@@ -159,15 +159,15 @@ class LedgerTest(unittest.TestCase):
         self.assertIn('Copy unavailable', app.notice)
         self.assertFalse(app.loop.stopped)
 
-    def test_unknown_and_planned_commands_do_not_echo_secrets_or_start_work(self):
+    def test_unknown_and_form_commands_do_not_echo_secrets_or_start_work(self):
         app, _ = self.app()
         for value in ('q', 'print(1)', '/download https://user:secret@example.test?q=secret', '/tree'):
             self.set_draft(app, value)
             app.submit()
             self.assertFalse(app.bridge.active)
             self.assertFalse(any('secret' in b.content.text for b in app.results.blocks))
-        self.assertIn('Planned UI', app.overlays.top.title)
-        self.assertNotIn('secret', app.overlays.top.content.text)
+        self.assertIs(app.overlays.top, app.tree_form)
+        self.assertNotIn('secret', str(app.tree_form.values))
 
     def test_paste_bound_and_no_match_never_execute(self):
         app, _ = self.app()

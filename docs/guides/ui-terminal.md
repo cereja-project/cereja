@@ -172,6 +172,4 @@ the bounded inbox or timers itself. Virtual lifecycle tests prove
 the session journal and failure behavior, not OS mode restoration or emulator
 compatibility. Native/PTY/real-terminal evidence remains with #296/#297/#305.
 
-The recovered [UI-00 contract](../design/cereja-ui.md) remains the normative
-product reference for these boundaries. [Recovery provenance](../design/cereja-ui-recovery.md)
-keeps historical evidence separate from the current implementation.
+This guide documents the public transport boundaries. Historical design and recovery artifacts remain available in Git history; current executable checks and platform evidence remain in the tests and benchmarks.

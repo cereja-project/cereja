@@ -1,7 +1,7 @@
 # UI events, bounded posting and timers
 
 `cereja.ui.scheduling` implements [UI-07 / #301](https://github.com/cereja-project/cereja/issues/301)
-under [design section 5](../design/cereja-ui.md#5-events-timers-cancellation-and-pressure).
+with the bounded event, timer and posting contracts documented below.
 Import it explicitly. Python 3.11+, stdlib-only, no workers at import time.
 Ledger remains the selected direction. Widgets, domain operations and legacy
 display integration belong to their own deliveries.
