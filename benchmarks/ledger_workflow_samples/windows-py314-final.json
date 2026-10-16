@@ -666,5 +666,13 @@
     "cereja/ledger/tree.py": "0daba332992b88e91d26634990ace3c1e24ff72e58aad22f52bb86e27c2e5fe1",
     "cereja/ledger/workflows.py": "d5268f2231ff87a81f31d35b52012a42a2cb63e13f968da6b70e65513378383d"
   },
-  "limitations": "Owned stable fixtures; scheduler/CellBuffer plus memory sink; 1ms harness waits. Traced allocation is not RSS. No real terminal presentation/human latency. OS cache/load uncontrolled. Context has no hard scan bound under concurrent source mutation. No performance improvement claim."
+  "limitations": "Owned stable fixtures; scheduler/CellBuffer plus memory sink; 1ms harness waits. Traced allocation is not RSS. No real terminal presentation/human latency. OS cache/load uncontrolled. Context has no hard scan bound under concurrent source mutation. No performance improvement claim.",
+  "git_lf_fingerprints": {
+    "cereja/system/repository.py": "d60588eeabc8c30f74fdf44075b3e484963dc04e43451c7d5b42a2d66ab9ad2a",
+    "cereja/hashtools/archive.py": "6c444f36cfa5f7982c884e40f93fb61dd7ac97babf000fae33ebcc424163e563",
+    "cereja/ledger/app.py": "42fd24c009b68c0900a8b3266eb68a7f24f060e96f993e73bcd34506e04e39da",
+    "cereja/ledger/tree.py": "c4e4bd5721aa5027b06f303772ab6c6162bad13d135915b78847d6ed78ce5c01",
+    "cereja/ledger/workflows.py": "b7985dad2cd5f146b47f291fdd1abd2bfbe3dc719e0c2c0615f7ba26eab22b54"
+  },
+  "fingerprint_note": "Raw runtime byte fingerprints retained. Git/LF fingerprints differ only by CRLF normalization; source contents verified equivalent."
 }

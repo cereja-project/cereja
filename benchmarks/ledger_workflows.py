@@ -86,6 +86,7 @@ def measure(samples=11, warmup=3):
     return dict(schema_version=1, python=platform.python_version(), platform=sys.platform,
                 samples=samples, warmup=warmup, scenarios=result,
                 fingerprints={p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in files},
+                git_lf_fingerprints={p: hashlib.sha256(Path(p).read_bytes().replace(b'\r\n', b'\n')).hexdigest() for p in files},
                 limitations='Owned stable fixtures; scheduler/CellBuffer plus memory sink; 1ms harness waits. '
                 'Traced allocation is not RSS. No real terminal presentation/human latency. OS cache/load uncontrolled. '
                 'Context has no hard scan bound under concurrent source mutation. No performance improvement claim.')
