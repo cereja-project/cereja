@@ -4,8 +4,8 @@
 on the existing [cell buffers](ui-buffer.md), [Unicode 17.0 policy](ui-text.md)
 and [terminal sessions](ui-terminal.md). Import it explicitly. Runtime remains
 stdlib-only on Python 3.11+; the UI namespace and terminal imports defer it.
-Ledger remains the selected direction. [UI-07 scheduling](ui-scheduling.md) owns
-event-driven frame requests and initial frame ceilings. Widgets, the Ledger
+Cereja TUI remains the selected direction. [UI-07 scheduling](ui-scheduling.md) owns
+event-driven frame requests and initial frame ceilings. Widgets, the Cereja TUI
 application and legacy display adapter belong to subsequent stages.
 
 ```python

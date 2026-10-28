@@ -50,7 +50,13 @@ with ExitStack() as stack:
     assert not any(n.startswith('cereja.ui.') for n in sys.modules)
     from cereja.ui import terminal, text, buffer, rendering, scheduling, testing, events
     from cereja.ui import posix, windows, editing, focus, layout, overlays, collections, feedback, operations
-    from cereja.ledger import catalogue, app as ledger
+    from cereja.tui import catalogue, app as tui
+    from cereja.tui import TUI
+    from cereja.ledger.app import Ledger
+    assert TUI is Ledger is tui.TUI
+    import importlib
+    for name in ('app', 'catalogue', 'examples', 'large_files', 'model', 'system', 'tree', 'workflows'):
+        assert importlib.import_module('cereja.ledger.' + name) is importlib.import_module('cereja.tui.' + name)
     from cereja.commands import ui as ui_command
 assert set(threading.enumerate()) == before
 assert 'cereja.display' not in sys.modules and 'cereja.system' not in sys.modules
@@ -128,7 +134,7 @@ with terminal.TerminalSession(backend) as session:
         bridge.close()
         loop.close()
 with terminal.TerminalSession(testing.VirtualBackend(size=(40, 12))) as session:
-    application = ledger.Ledger(session)
+    application = tui.TUI(session)
     try:
         application.handle(events.PasteEvent('/ex'))
         application.handle(events.KeyEvent('enter'))
@@ -149,6 +155,29 @@ with tempfile.TemporaryDirectory() as directory:
     root = Path(directory).resolve()
     source = root / 'source.txt'
     source.write_bytes(b'installed fixture')
+    with terminal.TerminalSession(testing.VirtualBackend(size=(40, 12))) as session:
+        application = tui.TUI(session)
+        try:
+            application.composer.insert('/large-files')
+            application.submit()
+            form = application.overlays.top
+            assert form.identity == 'large-files-form'
+            assert not application.bridge.active
+            form.input('root').insert(str(root))
+            application.focus.focus('@primary')
+            application.handle(events.KeyEvent('enter'))
+            deadline = __import__('time').monotonic() + 5
+            while application.bridge.active and __import__('time').monotonic() < deadline:
+                application.loop.turn()
+                application.refresh()
+                __import__('time').sleep(.001)
+            assert not application.bridge.active
+            result = application.results.blocks[-1]
+            assert result.command == '/large-files' and result.state == 'Succeeded'
+            assert 'Scan: Complete' in result.content.text
+            assert '17 B | "source.txt"' in result.content.text
+        finally:
+            application.close()
     with RepositoryTree(root) as repository:
         page = repository.children()
         assert page.complete and page.nodes[0].name == 'source.txt'
@@ -157,7 +186,8 @@ with tempfile.TemporaryDirectory() as directory:
     assert (root / 'restored.txt').read_bytes() == b'installed fixture'
 print(json.dumps({'installed_only': ['cereja'], 'requires_dist': [],
     'unicode_version': text.UNICODE_VERSION, 'imports_silent_and_guarded': True,
-    'legacy_isolated': True, 'examples_passed': True,
+    'legacy_isolated': True, 'examples_passed': True, 'large_files_ui_passed': True,
+    'tui_legacy_imports_preserve_identity': True,
     'unicode_hashes': expected}, sort_keys=True))
 '''
 
@@ -209,7 +239,8 @@ def main():
                     for name in ('_unicode17.py', 'UNICODE-LICENSE.txt', 'collections.py', 'feedback.py', 'scheduling.py', 'operations.py', 'events.py', '_posting.py')}
         expected.update({str(path.relative_to(source / 'cereja')).replace('\\', '/'):
                          sha256(path.read_bytes()).hexdigest()
-                         for path in [*(source / 'cereja/ledger').glob('*.py'), source / 'cereja/commands/ui.py',
+                         for path in [*(source / 'cereja/tui').glob('*.py*'), *(source / 'cereja/ledger').glob('*.py*'),
+                                      source / 'cereja/commands/ui.py',
                                       source / 'cereja/system/repository.py', source / 'cereja/system/_safe_paths.py',
                                       source / 'cereja/hashtools/archive.py', source / 'cereja/transfers/download.py',
                                       source / 'cereja/transfers/sinks.py']})

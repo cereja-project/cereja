@@ -5,7 +5,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from cereja.ledger.app import Ledger
+from cereja.tui.app import TUI
 from cereja.ui.events import KeyEvent
 from cereja.ui.testing import VirtualBackend
 from cereja.ui.terminal import TerminalSession
@@ -19,7 +19,7 @@ class TreeLedgerTests(unittest.TestCase):
         self.session = TerminalSession(VirtualBackend())
         self.session.__enter__()
         self.addCleanup(self.session.close)
-        self.app = Ledger(self.session)
+        self.app = TUI(self.session)
         self.addCleanup(self.app.close)
 
     def finish(self):

@@ -99,7 +99,7 @@ repeat counts remain explicit. Raw Ctrl+C is a key with `key='c'`, `ctrl` and
 empty text. The future application must handle it explicitly; receiving a key
 does not execute commands. Paste is one text value, never shortcut replay.
 Input errors must be surfaced by that application. These values supply input,
-not a widget event loop, composer or Ledger application.
+not a widget event loop, composer or Cereja TUI application.
 
 POSIX uses captured termios attributes, file blocking state, a selector and a
 nonblocking self-pipe. It preserves and restores installed signal handlers;

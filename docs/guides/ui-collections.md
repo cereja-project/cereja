@@ -113,7 +113,7 @@ headings have their own bounded overhead outside the item payload cap.
 Caller input graphs, prebuilt canonical metrics, iterator generation time,
 shared Unicode caches, frames and transient replacement snapshots are not
 bounded by this byte count. No generator/callback is preempted. Total application
-retention remains the consumer's responsibility; Ledger's 20-results/2-MiB
+retention remains the consumer's responsibility; Cereja TUI's 20-results/2-MiB
 candidate is unchanged and is not a global memory guarantee.
 
 Snapshot indexing and expansion changes can visit all admitted nodes, with
@@ -174,7 +174,7 @@ python -B -S benchmarks/ui_collections.py --demo --kind list --state empty --siz
 ```
 
 The example keeps a separate composer, static states and explicit canonical copy.
-It is a cell-buffer demonstration, not the Ledger app or official `cereja ui`.
+It is a cell-buffer demonstration, not the Cereja TUI app or official `cereja ui`.
 
 ## Verification and measurements
 

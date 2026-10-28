@@ -4,7 +4,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from cereja.ledger.app import Ledger
+from cereja.tui.app import TUI
 from cereja.ui.events import KeyEvent, ResizeEvent
 from cereja.ui.terminal import TerminalSession
 from cereja.ui.testing import VirtualBackend
@@ -13,7 +13,7 @@ from cereja.system.hardware.models import HardwareInfo, CPUInfo, OperatingSystem
 
 class SystemProjectionTest(unittest.TestCase):
     def test_typed_partial_missing_and_privacy(self):
-        from cereja.ledger.system import project
+        from cereja.tui.system import project
         result = project(HardwareInfo(cpu=CPUInfo(name='fixture', cores=0, identifier='SECRET'),
                                      os=OperatingSystemInfo(name='Test OS', hostname='SECRET')),
                          ('os', 'cpu', 'gpu'))
@@ -25,7 +25,7 @@ class SystemProjectionTest(unittest.TestCase):
         self.assertNotIn('[bios]', result)
 
     def test_bounded_safe_unicode_and_wrong_types(self):
-        from cereja.ledger.system import project
+        from cereja.tui.system import project
         result = project(HardwareInfo(gpus=(GPUInfo(name='界e\u0301\x1b' * 20000),) * 100), ('gpu',))
         self.assertLessEqual(len(result.encode('utf-8')), 12288)
         self.assertIn('truncated', result.lower())
@@ -34,7 +34,7 @@ class SystemProjectionTest(unittest.TestCase):
             project({'cpu': {}}, ('cpu',))
 
     def test_section_validation(self):
-        from cereja.ledger.system import parse_sections
+        from cereja.tui.system import parse_sections
         self.assertEqual(parse_sections('cpu,os'), ('os', 'cpu'))
         for text in ('', 'all', 'cpu,cpu', 'cpu,', 'cpu SECRET', 'full'):
             with self.subTest(text=text), self.assertRaises(ValueError):
@@ -46,7 +46,7 @@ class SystemLedgerTest(unittest.TestCase):
         session = TerminalSession(VirtualBackend())
         session.__enter__()
         self.addCleanup(session.close)
-        app = Ledger(session)
+        app = TUI(session)
         self.addCleanup(app.close)
         return app
 
@@ -151,7 +151,7 @@ class SystemLedgerTest(unittest.TestCase):
 
     def test_publication_failure_and_cleanup_failure_remain_distinct(self):
         from cereja.ui.events import OperationResultEvent
-        from cereja.ledger.system import collect
+        from cereja.tui.system import collect
         app = self.app()
         original = app.loop.wait_post
         def broken(event, **kwargs):
@@ -237,7 +237,7 @@ class SystemLedgerTest(unittest.TestCase):
             with self.subTest(options=options):
                 session = TerminalSession(VirtualBackend(size=(40, 12), options=options))
                 with session:
-                    app = Ledger(session)
+                    app = TUI(session)
                     try:
                         with patch('cereja.system.hardware.info', return_value=HardwareInfo(cpu=CPUInfo(name='界e\u0301'))):
                             app._system('cpu')
@@ -261,15 +261,15 @@ class SystemLedgerTest(unittest.TestCase):
 
     def test_catalogue_unsupported_platform_reason_without_collection(self):
         from types import SimpleNamespace
-        from cereja.ledger.catalogue import BY_NAME
-        with patch('cereja.ledger.catalogue.sys', SimpleNamespace(platform='unsupported')):
+        from cereja.tui.catalogue import BY_NAME
+        with patch('cereja.tui.catalogue.sys', SimpleNamespace(platform='unsupported')):
             self.assertIn('Unavailable UI', BY_NAME['system'].badges)
             self.assertIn('Windows, Linux and macOS', BY_NAME['system'].description())
             self.assertEqual(BY_NAME['tree'].availability, 'Available UI')
 
     def test_complete_typed_fixture_all_sections_and_identity_exclusion(self):
         from cereja.system.hardware.models import SystemInfo, MemoryInfo, MotherboardInfo, BIOSInfo
-        from cereja.ledger.system import project, SECTIONS
+        from cereja.tui.system import project, SECTIONS
         result = project(HardwareInfo(
             system=SystemInfo(manufacturer='Vendor', model='Model', total_memory_bytes=1024,
                               serial_number='SECRET', hardware_uuid='SECRET', machine='SECRET'),

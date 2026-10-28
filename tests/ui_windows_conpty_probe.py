@@ -29,7 +29,7 @@ CHILD = r'''
 import os, sys
 from unittest.mock import patch
 from cereja.commands.ui import main
-from cereja.ledger.app import Ledger
+from cereja.tui.app import TUI
 from cereja.ui._win32 import Win32API
 from cereja.ui.events import KeyEvent, PasteEvent
 # The test runner can have redirected standard handles. Bind this child's own
@@ -43,7 +43,7 @@ before = tuple(api.get_mode(h) for h in handles)
 assert sys.stdin.isatty() and sys.stdout.isatty(), (before, sys.stdin, sys.stdout)
 seen = []
 copies = []
-original_run, original_handle = Ledger.run, Ledger.handle
+original_run, original_handle = TUI.run, TUI.handle
 def run(app):
     assert app.session.capabilities.paste
     assert api.get_mode(handles[0]) & 0x200
@@ -61,7 +61,7 @@ def handle(app, event):
             copies.append(True)
             assert not app.loop.stopped
     return answer
-with patch.object(Ledger, 'run', run), patch.object(Ledger, 'handle', handle):
+with patch.object(TUI, 'run', run), patch.object(TUI, 'handle', handle):
     assert main(['--bracketed-paste', '--ascii', '--no-color', '--reduced-motion']) == 0
 after = tuple(api.get_mode(h) for h in handles)
 assert before == after, (before, after)
@@ -145,7 +145,7 @@ def probe():
             checked(dll.WriteFile(writer, data, len(data), C.byref(count), None))
             if count.value != len(data):
                 raise AssertionError('incomplete fixture input')
-        until(b'Cereja / Ledger')
+        until(b'Cereja TUI')
         if b'\x1b[?2004h' not in received:
             raise AssertionError('bracketed paste was not enabled')
         text = '/examples progress\n/home e\u0301界😀'

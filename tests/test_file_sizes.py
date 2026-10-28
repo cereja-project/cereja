@@ -306,8 +306,9 @@ class FileSizesCliTest(unittest.TestCase):
 
     def test_partial_results_have_distinct_exit_code_and_json(self):
         with tempfile.TemporaryDirectory() as directory:
-            (Path(directory) / 'one').touch()
-            code, output, error = self.run_cli(directory, '--max-entries', 1, '--format', 'json')
+            root = Path(directory).resolve()
+            (root / 'one').touch()
+            code, output, error = self.run_cli(root, '--max-entries', 1, '--format', 'json')
         self.assertEqual(code, 3)
         self.assertEqual(error, '')
         self.assertFalse(json.loads(output)['complete'])
@@ -315,7 +316,7 @@ class FileSizesCliTest(unittest.TestCase):
 
     def test_invalid_root_prints_only_stderr_and_fails(self):
         with tempfile.TemporaryDirectory() as directory:
-            code, output, error = self.run_cli(Path(directory) / 'missing')
+            code, output, error = self.run_cli(Path(directory).resolve() / 'missing')
         self.assertEqual(code, 1)
         self.assertEqual(output, '')
         self.assertIn('Error:', error)
@@ -346,7 +347,7 @@ with patch('os.scandir', side_effect=AssertionError('scan during help')):
             main(['large-files', '--help'])
         except SystemExit as error:
             assert error.code == 0
-assert not any(name.startswith(('cereja.ledger', 'cereja.ui', 'cereja.system._context',
+assert not any(name.startswith(('cereja.tui', 'cereja.ledger', 'cereja.ui', 'cereja.system._context',
                                 'cereja.system._repository')) for name in sys.modules)
 '''
         result = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True, timeout=30)
@@ -355,8 +356,9 @@ assert not any(name.startswith(('cereja.ledger', 'cereja.ui', 'cereja.system._co
     @unittest.skipIf(os.name == 'nt', 'POSIX literal control characters in names')
     def test_terminal_controls_in_paths_are_escaped(self):
         with tempfile.TemporaryDirectory() as directory:
-            (Path(directory) / 'bad\x1b[31m\nname').touch()
-            code, output, error = self.run_cli(directory)
+            root = Path(directory).resolve()
+            (root / 'bad\x1b[31m\nname').touch()
+            code, output, error = self.run_cli(root)
         self.assertEqual(code, 0, error)
         self.assertNotIn('\x1b', output)
         self.assertIn('\\u001b', output)

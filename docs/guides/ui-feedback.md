@@ -2,7 +2,7 @@
 
 UI-12 / [#311](https://github.com/cereja-project/cereja/issues/311) adds opt-in
 `cereja.ui.feedback`. Python 3.11+, standard library only. Importing it starts
-no timer, worker, terminal session or operation. The effect and scheduling contracts are described below. The [Ledger guide](ui-ledger.md) describes application behavior.
+no timer, worker, terminal session or operation. The effect and scheduling contracts are described below. The [Cereja TUI guide](ui-ledger.md) describes application behavior.
 
 ## Public API and truthful data
 

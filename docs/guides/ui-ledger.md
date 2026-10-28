@@ -1,4 +1,11 @@
-# Ledger terminal application
+# Cereja TUI
+
+Cereja TUI is the application formerly named Ledger. The canonical Python API
+is `from cereja.tui import TUI` (also `cereja.tui.app.TUI`). Legacy
+`from cereja.ledger.app import Ledger` remains an alias of that exact class.
+The old submodules alias their `cereja.tui.*` counterparts, preserving class,
+module and mutable-state identity, patches and old pickle globals. Importing
+either package is silent and does not load the toolkit or construct a session.
 
 APP-01 / [#313](https://github.com/cereja-project/cereja/issues/313) composes the
 public `cereja.ui` toolkit into `cereja ui`. Python 3.11+, standard library only.
@@ -34,9 +41,10 @@ uses the existing terminal session's capability detection and restoration.
 
 | Registered command | Current behavior |
 | --- | --- |
-| `/home` | Append a Ledger introduction. No hardware collection. |
+| `/home` | Append a Cereja TUI introduction. No hardware collection. |
 | `/system` | Open the section form. Only explicit Run/Refresh starts basic, non-sensitive collection. |
 | `/tree` | Explicit root/depth form, bounded child loads, keyboard expand/collapse and path inspection. |
+| `/large-files` | Explicit root and all API limits; metadata-only size ranking in a worker, with incomplete/truncated results identified. |
 | `/context` | Explicit root/query form, admission checks and cache-off text search. |
 | `/compress` | Compress/decompress files or directories, then review the exact new destination. |
 | `/download` | HTTP(S) URL/new destination form, exact-target review and byte-limited transfer. |
@@ -172,7 +180,7 @@ worker-owned domain graph is released after projection; there is no result mailb
 Projection caps: 32 entries per array section, 512 UTF-8 bytes per scalar and 12 KiB
 section text, with visible truncation. Unexpected models/scalars fail explicitly.
 Duration/time headers fit the independent 16 KiB result block cap. The bridge's
-64 KiB event cap, core 1,024 envelopes/1 MiB aggregate, and Ledger 20 completed/
+64 KiB event cap, core 1,024 envelopes/1 MiB aggregate, and Cereja TUI 20 completed/
 256 KiB retention are unchanged. These are logical payload caps, not heap/RSS caps.
 Results stay in ephemeral memory. Diagnostics exports no inventory. Collector errors
 publish a fixed class/duration message, excluding exception arguments; start/cleanup
@@ -199,16 +207,42 @@ observation watchdog, which cannot stop a blocked collector. The report stores n
 raw inventory, identity or secrets. See [native API/platform limits](system-info.md).
 Fixtures for other platforms do not prove native collection on those platforms.
 
+## Large-file search
+
+`/large-files` opens a six-field form (root, minimum bytes, retained files,
+examined entries, descent depth, retained error details). Defaults are respectively
+explicit input, 0, 20, 1000000, 64 and 32, matching `find_large_files`.
+Only Run starts filesystem work. Hidden/binary files and ignored repository paths
+are included; links/reparse points and special files are skipped without reading
+content. Sizes are logical bytes, not allocated disk space.
+
+The existing operation bridge runs validation, scan and formatting off the UI
+thread. Navigation, help, draft editing and resize remain usable. There is no
+second queue or UI-thread join. The form scrolls to each focused field at 40x12.
+The worker publishes at most 12 KiB of JSON-escaped text into the existing result
+pager and retention budget. Counters and scan completeness precede file rows;
+omitted display rows, retained-result truncation and incomplete traversal are
+separate facts. Root display uses a labelled prefix after 320 characters.
+API root and entry/depth/retention limits are passed through unchanged.
+
+The scan has no cancellation or deadline contract, so exit offers Stay or Wait
+then exit. Pending OS calls can block worker completion after terminal loss.
+See [large-file semantics and filesystem limitations](file-sizes.md).
+
+```text
+python -B -S -m unittest tests.test_file_sizes tests.test_ui_ledger_large_files
+```
+
 ## Embedding and reproducible verification
 
 ```python
-from cereja.ledger.app import Ledger
+from cereja.tui import TUI
 from cereja.ui.events import KeyEvent, PasteEvent
 from cereja.ui.terminal import TerminalSession
 from cereja.ui.testing import VirtualBackend
 
 with TerminalSession(VirtualBackend(size=(40, 12))) as session:
-    app = Ledger(session)
+    app = TUI(session)
     try:
         app.handle(PasteEvent('/ex'))
         app.handle(KeyEvent('enter'))  # insertion, no work
@@ -361,7 +395,7 @@ These are per-load and retained-widget bounds, not aggregate session work or RSS
 Right expands/loads, Left collapses/selects parent, and Enter inspects the full
 safe path. Names and paths remain data; controls are escaped for presentation.
 Incomplete enumeration and omitted counts remain explicit. A new Tree command
-replaces the interactive tree; older result summaries remain within Ledger
+replaces the interactive tree; older result summaries remain within Cereja TUI
 retention. This is read-only traversal, without file opening or mutation.
 
 Context uses the existing typed API with cache off, eight results, two snippets

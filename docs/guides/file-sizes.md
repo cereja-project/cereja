@@ -1,7 +1,8 @@
 # Find large files without reading content
 
-Use the explicit submodule API or the `large-files` command. No Ledger
-integration, persistent index, worker pool or runtime dependency is required.
+Use the explicit submodule API, the `large-files` CLI command, or `/large-files`
+in [Cereja TUI](ui-ledger.md). The synchronous API requires no persistent
+index, worker pool or runtime dependency.
 
 ```python
 from cereja.system.file_sizes import find_large_files
@@ -94,6 +95,42 @@ points are excluded, but there is no race-proof containment guarantee.
 Metadata may change during or after a scan; the result is not an atomic
 filesystem snapshot. OS calls can block, including on network filesystems.
 Entry/depth limits provide no wall-clock deadline or cancellation guarantee.
+
+## Cereja TUI
+
+Start `cereja ui --bracketed-paste` in a supporting terminal, submit `/large-files`,
+enter an explicit trusted root and choose Run. The form exposes all five API
+parameters with the same defaults and minima. Opening the form/help does not scan.
+Validation and scanning of the filesystem, sorting and bounded text projection
+run in the existing Cereja TUI operation worker. Navigation, help, draft editing and
+resize remain available while I/O is pending. One operation owns the slot until
+worker exit and final delivery; a second operation is refused without queueing.
+
+Results show logical byte sizes and JSON-escaped relative paths, counters, skipped
+links/special files, and error details. An incomplete scan explicitly ranks only
+the examined portion. `results_truncated`, `errors_truncated` and the independent
+12 KiB UI text cap are reported separately. The scan and API report are unaffected
+by omitted display rows. Roots longer than 320 characters have a labelled display
+prefix; the full root is still passed to the API. Results use the existing pager,
+selection and ephemeral retention; there is no persistent inventory or file-opening action.
+
+No Cancel, percentage, ETA or whole-operation deadline is offered. Exit during
+work offers Stay or Wait then exit. Terminal loss detaches observation and does
+not stop synchronous filesystem I/O. The API's trusted-tree and non-atomic
+snapshot limitations also apply to the UI.
+
+UI integration validation (2026-10-28), including the `cereja.tui.TUI` migration
+and legacy import compatibility: full discovery passed 1,452 cases on Windows
+CPython 3.11.15 (31 skips) and Linux CPython 3.11.16 as UID/GID 1000 (55 skips).
+The 473 UI cases passed separately on
+Windows (11 skips) and Linux (4 skips), including native transport checks.
+The integration cases cover responsive navigation while filesystem work is held,
+limits, partial reports, escaping, publication failure and consumer detachment.
+Isolated wheel/sdist installs on Python 3.11 passed the form-to-result probe and
+canonical/legacy import identity checks. Mypy accepted the legacy reexports;
+fatal Flake8, export-stub consistency and whitespace checks also passed.
+These are local automated checks; remote CI and human terminal acceptance were
+not performed for this increment. Measurement scripts and raw logs remain local.
 
 ## Reproduce tests and measurements
 

@@ -4,7 +4,7 @@ import subprocess
 import sys
 import unittest
 
-from cereja.ledger.catalogue import COMMANDS, REFERENCES
+from cereja.tui.catalogue import COMMANDS, REFERENCES
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -59,12 +59,14 @@ with ExitStack() as stack:
     for owner, name in targets:
         stack.enter_context(patch.object(owner, name, side_effect=AssertionError(name)))
     import cereja
-    import cereja.ledger
-    assert 'cereja.ledger.app' not in sys.modules
-    from cereja.ledger.catalogue import COMMANDS, REFERENCES
+    import cereja.tui
+    assert 'cereja.tui.app' not in sys.modules
+    from cereja.tui.catalogue import COMMANDS, REFERENCES
     for entry in COMMANDS + REFERENCES: entry.description()
     assert 'cereja.ui' not in sys.modules
-    from cereja.ledger.app import Ledger
+    from cereja.tui import TUI
+    from cereja.tui.workflows import forms
+    assert 'large-files' in forms()
 assert not any(n.startswith(('cereja.system', 'cereja.http', 'cereja.hashtools',
                             'cereja.transfers', 'cereja.display')) for n in sys.modules)
 ''')
@@ -84,10 +86,11 @@ with patch.object(sys, 'stdin', NeverRead()):
     try: assert main(''' + repr(arguments) + ''') == 0
     except SystemExit as e: assert e.code == 0
 assert not any(n.startswith('cereja.ui') for n in sys.modules)
-assert 'cereja.ledger.app' not in sys.modules
+assert 'cereja.tui.app' not in sys.modules
+assert 'cereja.system.file_sizes' not in sys.modules
 ''')
                 self.assertNotIn('\x1b', output)
-                self.assertIn('Ledger', output)
+                self.assertIn('Cereja TUI', output)
 
     def test_every_claimed_cli_is_registered_and_supports_help(self):
         from cereja.commands.registry import COMMANDS as CLI
@@ -105,7 +108,7 @@ assert 'cereja.ledger.app' not in sys.modules
     def test_every_claimed_api_resolves_and_every_guide_exists(self):
         self.assertEqual(self.process('''
 import importlib
-from cereja.ledger.catalogue import COMMANDS, REFERENCES
+from cereja.tui.catalogue import COMMANDS, REFERENCES
 for entry in COMMANDS + REFERENCES:
     for name in entry.api:
         module, attribute = name.rsplit('.', 1)

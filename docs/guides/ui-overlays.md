@@ -44,7 +44,7 @@ Required labels show `*`; canonical UTF-8 byte bounds remain visible. Disabled
 fields are displayed but skipped in traversal, validation and submitted values.
 The form admits 32 fields and 64 KiB initial aggregate metadata. Each editor has
 the configurable TextInput bound (64 KiB by default); this bounds growth by
-field count, not Python heap usage or Ledger result retention.
+field count, not Python heap usage or Cereja TUI result retention.
 
 `input(identity)` exposes a field's editor; `values` returns immutable enabled
 identity/value pairs. `snapshot` includes every field's content revision/text.
@@ -140,7 +140,7 @@ composer, reserve the final terminal column and schedule frames/cursor normally.
 For a suggestion shelf the composer owns its visible caret; form painting returns
 the field caret. No-color, ASCII and reduced motion keep their existing contracts.
 
-Ledger supplies the available result-body height explicitly. A two-row compact
+Cereja TUI supplies the available result-body height explicitly. A two-row compact
 field viewport reveals the focused label/input and places any validation error
 on the label row, keeping actions in the separate footer.
 
@@ -183,8 +183,8 @@ a cell buffer. Filtering 256 items and three-field validation are toolkit worklo
 a 512-CJK target is wrapping/paging stress. Source fingerprints, median/p95/MAD
 and memory boundaries are explicit. This excludes scheduler pacing, renderer
 acknowledgement, terminal presentation, human input, clipboard, domain/application
-and RSS. No #304 budget or Ledger retention candidate is changed.
+and RSS. No #304 budget or Cereja TUI retention candidate is changed.
 
 Real participant, terminal/emulator/SSH/ConPTY, clipboard, accessibility/usability
-and full application acceptance remain pending. Actual Ledger catalogue/parser,
+and full application acceptance remain pending. Actual Cereja TUI catalogue/parser,
 domain forms/operations and official `cereja ui` remain later increments.

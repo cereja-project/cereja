@@ -1,1 +1,1 @@
-"""Opt-in Ledger application; import app explicitly to construct a session."""
+"""Compatibility namespace for cereja.tui; legacy submodules retain object identity."""
