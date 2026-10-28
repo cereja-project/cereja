@@ -131,7 +131,7 @@ python -S -m unittest tests.test_ui_layout tests.test_ui_imports tests.test_ui_b
 python -B -S benchmarks/ui_layout.py --samples 31 --memory-samples 7 --output layout-report.json
 ```
 
-The [retained baseline](../../benchmarks/ui_layout_samples/baseline-windows-py314.json)
+The retained baseline (`benchmarks/ui_layout_samples/baseline-windows-py314.json`, local only)
 freezes 100 iterations/sample, the three accepted sizes, 256 logical columns,
 one million synthetic logical rows and target row 800071. It measures geometry
 resize and target/visible/damage calculations; it constructs no million-row list.

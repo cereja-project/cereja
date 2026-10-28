@@ -132,7 +132,7 @@ Failures identify the seed/step or geometry through unittest subtests. These
 establish composition under the frozen policy, not emulator/font agreement.
 
 Measured on 2026-10-09 with CPython 3.14.5, Windows 11 build 26200, 64-bit pointers.
-The [benchmark](../../benchmarks/ui_buffers.py) reports median retained / peak
+The benchmark (`benchmarks/ui_buffers.py`, local only) reports median retained / peak
 Python bytes from five separate `tracemalloc` windows. Imports and metrics/style
 caches are warm before tracing; each sample collects garbage first. Blank frames
 share immutable blank cells; dense ASCII paints every cell with `x` using one

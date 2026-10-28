@@ -89,7 +89,7 @@ remain platform-validation work.
 
 ## Results and disposition
 
-The runtime remains unchanged. Raw [baseline/control](../../benchmarks/ui_core_samples/)
+The runtime remains unchanged. Raw baseline/control (`benchmarks/ui_core_samples/`, local only)
 reports contain source fingerprints, conditions, all observations and median/p95/MAD/range.
 Baseline: 48 render scenarios, 18 buffer scenarios, four cold/warm text cases,
 nine timer/dimension cases, seven fresh-import cases, 31 native input samples
@@ -128,11 +128,11 @@ These independent windows must not be added into an alleged application latency.
 
 ## Budget disposition and profiles
 
-All 1,050 per-metric thresholds are in [budgets.json](../../benchmarks/ui_core_samples/budgets.json).
+All 1,050 per-metric thresholds are in budgets.json (`benchmarks/ui_core_samples/budgets.json`, local only).
 They were frozen before the unchanged-code control. Time thresholds include
 compute, memory-sink and explicitly separate instrument/native observations;
 tracked-byte/live-block thresholds follow the stated memory formula.
-The [comparison](../../benchmarks/ui_core_samples/budget-control.json) preserves
+The comparison (`benchmarks/ui_core_samples/budget-control.json`, local only) preserves
 156 compute/memory-sink exceedances, 67 instrumentation exceedances and five
 native observational exceedances. No tracked-memory threshold was exceeded.
 All ten independent report checks passed, including zero unchanged output,
@@ -144,7 +144,7 @@ acceptance gates.** The control failed them despite identical source fingerprint
 and declared host/interpreter/inputs. Background load/power/affinity were not
 controlled; the root cause of timing variation is unresolved.
 
-A single [targeted 80x24 repeat](../../benchmarks/ui_core_samples/rendering-targeted-repeat.json)
+A single targeted 80x24 repeat (`benchmarks/ui_core_samples/rendering-targeted-repeat.json`, local only)
 kept 31 samples/three warmups/seven tracing windows and the same source/data.
 Nine of 48 primary paint/prepare/dirty-total comparisons still exceeded their
 original limits; two of 16 dirty totals exceeded. Unicode unchanged p95 was
@@ -153,14 +153,14 @@ was 2.030 ms versus 13.949 ms (limit 2.499 ms). This supports instability of
 the large failures, without attributing a cause or passing every timing budget.
 Budget values were not raised to fit the control/repeat.
 
-[Bounded representative profiles](../../benchmarks/ui_core_samples/profile-representative.json)
+Bounded representative profiles (`benchmarks/ui_core_samples/profile-representative.json`, local only)
 cover three 240x80 full paints and preparations after one warmup. Paint cost
 is attributed to draw_text, normalization/clipping and cell painting; preparation
 has per-cell traversal, Style hashing and observed Cell construction. Patched
 counts establish 1,920/4,800/19,200 preparation Cell constructions at the three
 base sizes, including unchanged renders. These counts exclude unrelated objects;
 traced live blocks are separate from cumulative allocation churn.
-[Long-input profiles](../../benchmarks/ui_core_samples/preliminary-long-input/profile-long-input.json)
+Long-input profiles (`benchmarks/ui_core_samples/preliminary-long-input/profile-long-input.json`, local only)
 locate the preliminary paint cost in repeated uncached _measure/grapheme work
 inside the generator. Profiler times include overhead and are not latency samples.
 
@@ -236,7 +236,7 @@ it to the requested row. That processes a much longer source and bypasses the
 metrics cache in several cases. It is valid long-input stress but unsuitable as
 the representative row baseline. The complete first baseline, unchanged-code
 control, budgets and comparison remain in
-[preliminary-long-input](../../benchmarks/ui_core_samples/preliminary-long-input/).
+preliminary-long-input (`benchmarks/ui_core_samples/preliminary-long-input/`, local only).
 Its control exceeded 116 compute/memory-sink thresholds, 38 instrumentation
 thresholds and four native observational thresholds; all ten recorded hard
 checks passed. These negative results are retained, never fitted away.

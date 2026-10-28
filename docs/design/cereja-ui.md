@@ -36,7 +36,7 @@ Public class signatures and internal data structures remain implementation choic
 | Safe Unicode and consistent cells | Section 4; pinned segmentation plus separate width policy; spike proves only a subset | #298: generated data, license/hashes, conformance and fallback fixtures; #299: composition |
 | Transactional rendering | Section 4; full-diff oracle, whole-wide-cell invalidation, write/flush commit | #299/#300: compositor, resize, cursor, partial-write and flush failures |
 | Bounded input, producers and timers | Section 5; count and payload bounds, explicit rejection, shutdown independent of queue | #301: sustained overload, fairness and worker teardown |
-| Repeatable model evidence | [Evidence](cereja-ui-evidence.md) and [replay instructions](../../benchmarks/ui_spikes/README.md); original samples preserved | #304: representative implementation baseline before optimization |
+| Repeatable model evidence | [Evidence](cereja-ui-evidence.md) and replay instructions (`benchmarks/ui_spikes/README.md`, local only); original samples preserved | #304: representative implementation baseline before optimization |
 | Platform coverage | Section 7 matrix is required, not passed | #305: core; #321: real application, terminals and packages |
 | Product and legacy boundary | Selected Ledger and five areas preserved; no new product decisions here | Existing product tasks; #322: compatibility after stabilization |
 

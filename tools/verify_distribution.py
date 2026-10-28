@@ -40,16 +40,20 @@ def main(argv=None):
     required.update({'cereja/ui/rendering.py', 'cereja/ui/buffer.py', 'cereja/ui/text.py', 'cereja/ui/_unicode17.py',
                      'cereja/ui/UNICODE-LICENSE.txt'})
     with zipfile.ZipFile(wheels[0]) as archive:
+        if any(name.startswith('benchmarks/') for name in archive.namelist()):
+            raise AssertionError('Local benchmarks must not be included in wheels')
         missing = required - set(archive.namelist())
         if missing:
             raise AssertionError(f'Missing wheel typing files: {sorted(missing)}')
         wheel_notice = archive.read('cereja/ui/UNICODE-LICENSE.txt')
     with tarfile.open(sdists[0], 'r:gz') as archive:
         members = {member.name.partition('/')[2]: member for member in archive.getmembers()}
+        if any(name.startswith('benchmarks/') for name in members):
+            raise AssertionError('Local benchmarks must not be included in sdists')
         sources_root = 'tools/unicode/17.0.0/'
         source_files = {'tools/generate_ui_unicode.py', sources_root + 'manifest.json',
-                        'docs/guides/ui-text.md', 'docs/guides/ui-buffer.md', 'benchmarks/ui_buffers.py',
-                        'docs/guides/ui-rendering.md', 'benchmarks/ui_rendering.py'}
+                        'docs/guides/ui-text.md', 'docs/guides/ui-buffer.md',
+                        'docs/guides/ui-rendering.md'}
         missing = (required | source_files) - members.keys()
         if missing:
             raise AssertionError(f'Missing sdist artifacts: {sorted(missing)}')

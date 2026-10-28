@@ -1,3 +1,0 @@
-# Raw observations must retain their recorded bytes on every checkout.
-*.json -text
-*.py text eol=lf

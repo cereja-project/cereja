@@ -25,6 +25,7 @@ COMMANDS = (
         "cereja.commands.protect",
     ),
     CommandSpec("tree", "Draw a repository tree.", "cereja.commands.tree"),
+    CommandSpec("large-files", "Find large files using metadata only.", "cereja.commands.large_files"),
     CommandSpec("context", "Search or list bounded textual context.", "cereja.commands.context"),
     CommandSpec("security", "Inspect untrusted files without executing them.", "cereja.commands.security"),
     CommandSpec("http", "Send HTTP requests.", "cereja.commands.http"),

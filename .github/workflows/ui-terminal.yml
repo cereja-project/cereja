@@ -13,11 +13,8 @@ on:
       - 'tests/test_repository_traversal.py'
       - 'tests/test_bounded_archives.py'
       - 'tests/test_transfer_limits.py'
-      - 'benchmarks/ledger_workflows.py'
       - 'cereja/commands/ui.py'
       - 'cereja/commands/registry.py'
-      - 'benchmarks/*ui*.py'
-      - 'benchmarks/imports.py'
       - 'tests/test_ui_*.py'
       - 'tests/ui_windows_console_probe.py'
       - 'tests/ui_windows_conpty_probe.py'
@@ -41,11 +38,8 @@ on:
       - 'tests/test_repository_traversal.py'
       - 'tests/test_bounded_archives.py'
       - 'tests/test_transfer_limits.py'
-      - 'benchmarks/ledger_workflows.py'
       - 'cereja/commands/ui.py'
       - 'cereja/commands/registry.py'
-      - 'benchmarks/*ui*.py'
-      - 'benchmarks/imports.py'
       - 'tests/test_ui_*.py'
       - 'tests/ui_windows_console_probe.py'
       - 'tests/ui_windows_conpty_probe.py'
@@ -90,23 +84,6 @@ jobs:
         run: python -m pip install 'setuptools>=61' wheel
       - name: Install wheel and sdist offline in empty environments
         run: python -B tools/check_ui_distribution.py --output ui-platform-evidence/distribution.json
-      - name: Smoke reproducible core measurement paths (no timing gate)
-        run: |
-          python -B -S benchmarks/ui_rendering.py --samples 1 --warmup 1 --memory-samples 1 --width 80 --height 24 --output rendering-smoke.json
-          python -B -S benchmarks/ui_operations.py --samples 1 --warmup 1 --duration .05 --output operations-smoke.json
-          python -B -S benchmarks/ui_ledger.py --samples 1 --warmup 0 --memory-samples 1 --smoke --output ledger-smoke.json
-          python -B -S benchmarks/ui_feedback.py --samples 1 --warmup 1 --output feedback-smoke.json
-          python -B -S benchmarks/ui_collections.py --samples 1 --warmup 1 --memory-samples 1 --output collections-smoke.json
-          python -B -S benchmarks/ui_overlays.py --samples 1 --warmup 1 --memory-samples 1 --output overlays-smoke.json
-          python -B -S benchmarks/ui_editing.py --samples 1 --warmup 1 --memory-samples 1 --output editing-smoke.json
-          python -B -S benchmarks/ui_buffers.py --samples 1 --warmup 1 --memory-samples 1 --output buffers-smoke.json
-          python -B -S benchmarks/ui_scheduling.py --samples 1 --warmup 1 --memory-samples 1 --output scheduling-smoke.json
-          python -B -S benchmarks/imports.py --samples 1 --case root --case ui --case ui_rendering --case ui_scheduling --output imports-smoke.jsonl
-      - name: Smoke owned Ledger workflow fixtures
-        run: python -B -S -m benchmarks.ledger_workflows --samples 1 --warmup 0 --output workflow-smoke.json
-      - name: Smoke isolated native Windows output measurements
-        if: runner.os == 'Windows'
-        run: python -B -S benchmarks/ui_rendering.py --transport windows --samples 1 --warmup 1 --output console-smoke.json
       - name: Preserve core platform evidence
         if: always()
         uses: actions/upload-artifact@v4

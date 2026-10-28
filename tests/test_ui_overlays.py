@@ -514,37 +514,6 @@ class VirtualOverlayReplayTest(unittest.TestCase):
                 loop.close()
 
 
-class OverlayExamplesTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        root = Path(__file__).resolve().parents[1]
-        cls.old_path = sys.path[:]
-        sys.path.insert(0, str(root / 'benchmarks'))
-        cls.example = runpy.run_path(str(root / 'benchmarks/ui_overlays.py'))
-
-    @classmethod
-    def tearDownClass(cls):
-        sys.path[:] = cls.old_path
-
-    def test_selected_sizes_all_authored_states_are_bounded_and_preserve_draft(self):
-        for size in ((120, 40), (80, 24), (40, 12)):
-            for state in ('suggestions', 'form', 'help', 'review', 'stale'):
-                result = self.example['example'](state, size, ascii_only=True)
-                self.assertEqual(result['composer'], '/s' if state == 'suggestions' else '/system ')
-                self.assertTrue(all(len(row) == size[0] and row[-1] == ' ' for row in result['rows']))
-                self.assertTrue(all(ord(char) < 128 for row in result['rows'] for char in row))
-                if state != 'suggestions':
-                    self.assertEqual(result['trace'][:2], ['inserted', 'submit'])
-                if state in ('review', 'stale'):
-                    self.assertEqual(result['focus'], '@back')
-                    self.assertTrue(any('[Help]' in row and '[PgUp/PgDn]' in row for row in result['rows']))
-
-    def test_measurement_contract_has_bounded_visible_rows_and_no_output_sink(self):
-        for workload in ('filter_256', 'form_error', 'long_review_page'):
-            result = self.example['sample'](workload, (40, 12))
-            self.assertGreater(result['event_to_buffer_us'], 0)
-            self.assertLessEqual(result['visible_rows'], 6)
-            self.assertEqual(result['cells'], 480)
 
 
 if __name__ == '__main__':

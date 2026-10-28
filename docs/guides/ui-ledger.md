@@ -248,7 +248,7 @@ complete delimiters, as emitted by a supporting terminal's paste action.
 
 ## Initial Windows baseline (2026-10-11)
 
-[Raw samples and virtual keyboard snapshots](../../benchmarks/ui_ledger_samples/baseline-windows-py314.json)
+Raw samples and virtual keyboard snapshots (`benchmarks/ui_ledger_samples/baseline-windows-py314.json`, local only)
 retain environment, source fingerprints, 31 samples after three warmups per timing
 case, and three separate fresh-process traces per retention fixture. CPython 3.14.5
 on Windows. Fingerprints normalize CRLF to LF for comparison with published Git
@@ -302,7 +302,7 @@ it is not a participant walkthrough.
 
 ## Windows input continuation measurements
 
-[Raw continuation samples](../../benchmarks/ui_ledger_samples/windows-input-windows-py314.json)
+Raw continuation samples (`benchmarks/ui_ledger_samples/windows-input-windows-py314.json`, local only)
 record 31 timing samples after three warmups on CPython 3.14.5/Windows, with
 45 source fingerprints. Catalogue import/discovery median/p95 was 10.672/13.539 ms;
 application import 41.439/50.775 ms; import/construction/first virtual CellBuffer
@@ -315,7 +315,7 @@ their earlier calibration is preserved above.
 
 ## APP-02 Windows measurements (2026-10-13)
 
-[Raw timings and source fingerprints](../../benchmarks/ui_system_samples/windows-py314.json)
+Raw timings and source fingerprints (`benchmarks/ui_system_samples/windows-py314.json`, local only)
 were collected with `python -B -S benchmarks/ui_system.py --samples 31 --warmup 3
 --native-samples 11 --output benchmarks/ui_system_samples/windows-py314.json`.
 Each scenario used three warmups, CPython 3.14.5, real monotonic clocks, sequential

@@ -155,7 +155,7 @@ overlap, text/style changes, movement, removal, z changes and resize. Another
 360 incremental states use seeds `300, 1700, 104729` for clipped painting,
 clearing, style/occupancy changes and resize. Failures name seed and step.
 
-The [benchmark](../../benchmarks/ui_rendering.py) measures warm ASCII/default-style
+The benchmark (`benchmarks/ui_rendering.py`, local only) measures warm ASCII/default-style
 80x24 frames, 1,896 drawable cells, contiguous row-major changes, caller damage,
 and a hidden cursor at (0,0). Each workload warms once before 31 samples. Its
 synchronous memory sink acknowledges a whole string, counts UTF-8 bytes and
