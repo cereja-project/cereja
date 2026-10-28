@@ -27,6 +27,7 @@ _CONTEXT = {
 }
 
 EXPORTS = {
+    "cereja.tui": _objects("cereja.tui.app", "TUI"),
     "cereja.utils": {
         **_objects("cereja.utils._traceback", "format_safe_traceback"),
         **_objects("cereja.utils._utils", """
@@ -45,7 +46,7 @@ EXPORTS = {
         **_objects("cereja.utils.version", "get_version get_version_pep440_compliant latest_git"),
         **_objects("cereja.utils.time", "Timer set_interval time_format"),
         **_objects("cereja.utils.git.repository", "GitRepository"),
-        **_modules("cereja.utils", "colab colors decorators git time typography version"),
+        **_modules("cereja.utils", "colab colors decorators git regex time typography version"),
         "stride_values": ("cereja.utils._utils", "get_batch_strides"),
     },
     "cereja.system": {
@@ -112,7 +113,7 @@ EXPORTS = {
         **_objects("cereja.geolinear.utils", "Rotation find_best_locations"),
         **_modules("cereja.geolinear", "point utils"),
     },
-    "cereja.scraping": _modules("cereja.scraping", "b3"),
+    "cereja.scraping": _modules("cereja.scraping", "b3 crypto"),
     "cereja.system._context": {
         **_CONTEXT,
         **_modules("cereja.system._context", "cache cache_db models query search"),

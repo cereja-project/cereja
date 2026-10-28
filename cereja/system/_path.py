@@ -51,24 +51,14 @@ __all__ = [
 
 
 def mkdir(path_dir: str):
-    """
-    Creates directory regardless of whether full cereja exists.
-    If a nonexistent cereja is entered the function will create the full cereja until it creates the requested directory.
-    e.g:
-    original structure
-    content/
+    """Create the requested directory and missing parent directories recursively.
 
-    after create_dir(/content/cereja/to/my/dir)
-    content/
-        --cereja/
-            --to/
-                --my/
-                    --dir/
+    Example::
 
-    It's a recursive function
+        mkdir('/content/cereja/to/my/dir')
 
-    :param path_dir: directory cereja
-    :return: None
+    :param path_dir: Directory path to create.
+    :return: None.
     """
 
     dir_name_path = os.path.dirname(path_dir)

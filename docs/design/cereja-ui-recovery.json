@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "archive": "cereja-ui-withdrawn.zip",
+  "archive_size": 264447,
+  "archive_sha256": "80227b6344345f5a22f00bc1434a98720cf7ae8af56f66a3c6c28b048b9c6369",
+  "manifest_sha256": "47c317bf6d1720c7b4f58d62b57352a1249fac2a4385920c02a4de806702da39",
+  "payload_hashes": {
+    "original_checkout/benchmarks/ui_spikes/__pycache__/model.cpython-314.pyc": "ad82fa8081a300a0af1df47faefd8f4de69f512f152e6d06fbeb0c312aa8028b",
+    "original_checkout/benchmarks/ui_spikes/__pycache__/test_model.cpython-314.pyc": "0bf2b10fb781080eb5cbd8626212336fbeda6d091c8686467b2ac14d9f49fe7e",
+    "original_checkout/benchmarks/ui_spikes/baseline-windows-py314.json": "941a1ff35d0c7ff0ad09fbdb5e61fb6e05e469252b2d613f45e5f3407d42d5ec",
+    "original_checkout/benchmarks/ui_spikes/download-loopback.json": "a929edcd5605ddec563490ce64887ab79ec7aae6d5bab593bd744ca3ef1177fa",
+    "original_checkout/benchmarks/ui_spikes/download_probe.py": "b406fe3ed5679e6847ea9b5fcc436f29cd2124bfc59d1fa81736e33f9b74eae3",
+    "original_checkout/benchmarks/ui_spikes/model.py": "ac32f2c94f4ff3866791f847a70166ba1ac3dcee6f465dbb0b1175f3bda5c0ca",
+    "original_checkout/benchmarks/ui_spikes/platform-windows.json": "8d140810bc8eb2020c4752ce08b2b4a74f6b8225bebb35349ccea845b0c9a6a9",
+    "original_checkout/benchmarks/ui_spikes/platform_probe.py": "b12cc5ac5b62d73e78a2ad7ead4e4e7786c248fd39e87126f359b359e09a4899",
+    "original_checkout/benchmarks/ui_spikes/README.md": "36c4c58e1361e77df3ff8fff1330a213702bca7f66bbd50929120c8b225df2d9",
+    "original_checkout/benchmarks/ui_spikes/run.py": "09e515f7f85408a8c4cabaef71e26ef1236902cf377eb55d3807d7d810c8bb8c",
+    "original_checkout/benchmarks/ui_spikes/test_model.py": "7d2cf05661081d209c52b278a1eb8f4c00e86f2ef9767f33e92fa4bc2a11f67f",
+    "original_checkout/benchmarks/ui_spikes/ui00-verification.json": "8acce9951b50b8739be254341299d485f5426b87b447fcb7c131b71604385656",
+    "original_checkout/benchmarks/ui_spikes/verify.py": "510360491b1100615596970d939a70dd8d35fe5d9a8029fb526b9170212b4831",
+    "original_checkout/docs/design/cereja-ui-capabilities.md": "8e4047d4f6ad8d74ebda4384c7d1ec0d564ee5beb5664f6bac35c226607dd1b7",
+    "original_checkout/docs/design/cereja-ui-evidence.md": "990cc73ad486ac5271aaf2d9e57c65619ba72eb6f4a205e8ed5a7db861b1d437",
+    "original_checkout/docs/design/cereja-ui-github.json": "bd2a4b3ca1a9cc86cb055cb28d1ab9596e680f4620bcd29b011c2978eb51201a",
+    "original_checkout/docs/design/cereja-ui-operation-contracts.md": "f3fb547dd5e150bdf5c8842ad4b408a17bf5a64de9ca4912a7db456a818753ce",
+    "original_checkout/docs/design/cereja-ui-plan.md": "5e8d55bdcacddf3eb973d9fc3d10373aabeb6fd9d08897c65b9b77a309627f53",
+    "original_checkout/docs/design/cereja-ui-product-scope.md": "a788b0a5887cfe88223211c0af3188a00f2e7f1a3c7548c86bded1b580690488",
+    "original_checkout/docs/design/cereja-ui-tasks.json": "fb27d64869f7b72e3a31cae57e2bbc420b836e347133f8c4788cd2cfc4c2d8de",
+    "original_checkout/docs/design/cereja-ui-ux.md": "e80fc230636f498ea8672db077e57a6806d833ca482e5816c57fef0f49cf8c70",
+    "original_checkout/docs/design/cereja-ui-visual-artifacts.json": "aea22766c0238d15d0ee43dfe2a5e29331744677f6ce93ae964dbc6807e41c46",
+    "original_checkout/docs/design/cereja-ui-visual-comparison.html": "60cf3f40813a85c5a151d0a069dc3947e22ea4e736cac3c3b456d00e41fd7a25",
+    "original_checkout/docs/design/cereja-ui-visual-language.md": "d502e1bfd9c0c12fa32e402a6166545bb7b09add38732f7be2fd877092843406",
+    "original_checkout/docs/design/cereja-ui-visual-review.md": "3e604e339f43e475dadd2054dc3c6363259d29cb6026886ed5f49ee081688627",
+    "original_checkout/docs/design/cereja-ui-wireframes.html": "6cd61267a466c3bdbf3b14b6c33e48905f755a6e60a230e309280d9977cb2991",
+    "original_checkout/docs/design/cereja-ui.md": "4580bae3b35e80486a2015a5fba9dce1a7ff7efbec62b5f3600a25d57f04c911",
+    "withdrawn_publication/benchmarks/ui_spikes/.gitattributes": "1717d0beff06a4b09ce0d477f57246b149800f7fc9baf5f9c170a9cb0bf9da33",
+    "withdrawn_publication/benchmarks/ui_spikes/baseline-windows-py314.json": "941a1ff35d0c7ff0ad09fbdb5e61fb6e05e469252b2d613f45e5f3407d42d5ec",
+    "withdrawn_publication/benchmarks/ui_spikes/download-loopback.json": "a929edcd5605ddec563490ce64887ab79ec7aae6d5bab593bd744ca3ef1177fa",
+    "withdrawn_publication/benchmarks/ui_spikes/download_probe.py": "b406fe3ed5679e6847ea9b5fcc436f29cd2124bfc59d1fa81736e33f9b74eae3",
+    "withdrawn_publication/benchmarks/ui_spikes/model.py": "ac32f2c94f4ff3866791f847a70166ba1ac3dcee6f465dbb0b1175f3bda5c0ca",
+    "withdrawn_publication/benchmarks/ui_spikes/platform-windows.json": "8d140810bc8eb2020c4752ce08b2b4a74f6b8225bebb35349ccea845b0c9a6a9",
+    "withdrawn_publication/benchmarks/ui_spikes/platform_probe.py": "b12cc5ac5b62d73e78a2ad7ead4e4e7786c248fd39e87126f359b359e09a4899",
+    "withdrawn_publication/benchmarks/ui_spikes/README.md": "7bf330578dc3673d9d83627ab0c0af64ea888b3ac469127aa4d9d68ef8191d89",
+    "withdrawn_publication/benchmarks/ui_spikes/run.py": "09e515f7f85408a8c4cabaef71e26ef1236902cf377eb55d3807d7d810c8bb8c",
+    "withdrawn_publication/benchmarks/ui_spikes/test_model.py": "7d2cf05661081d209c52b278a1eb8f4c00e86f2ef9767f33e92fa4bc2a11f67f",
+    "withdrawn_publication/benchmarks/ui_spikes/test_verify.py": "9a3bb34bc19e3009738760ade6a7cc037aac9a4dc3357a98e281addac98eedf8",
+    "withdrawn_publication/benchmarks/ui_spikes/ui00-verification.json": "8acce9951b50b8739be254341299d485f5426b87b447fcb7c131b71604385656",
+    "withdrawn_publication/benchmarks/ui_spikes/verify.py": "2528d3888258913eed1a500d78a19d62211a014bdca87f8d9bb69e7acd1fb8d7",
+    "withdrawn_publication/docs/design/cereja-ui-capabilities.md": "8e4047d4f6ad8d74ebda4384c7d1ec0d564ee5beb5664f6bac35c226607dd1b7",
+    "withdrawn_publication/docs/design/cereja-ui-evidence.md": "93e83f17d6637f51beca76cd2acea001f46d91ec03877070767c5fd6c26e6926",
+    "withdrawn_publication/docs/design/cereja-ui-github.json": "7939025964756322473d3de0576f43823d4d056841e611cb2886986ce4190c9b",
+    "withdrawn_publication/docs/design/cereja-ui-operation-contracts.md": "f3fb547dd5e150bdf5c8842ad4b408a17bf5a64de9ca4912a7db456a818753ce",
+    "withdrawn_publication/docs/design/cereja-ui-plan.md": "72be4e78822c4e130d2ed576318d6b2f993a942a49da91953af100c95d21b2a9",
+    "withdrawn_publication/docs/design/cereja-ui-product-scope.md": "a788b0a5887cfe88223211c0af3188a00f2e7f1a3c7548c86bded1b580690488",
+    "withdrawn_publication/docs/design/cereja-ui-tasks.json": "fb27d64869f7b72e3a31cae57e2bbc420b836e347133f8c4788cd2cfc4c2d8de",
+    "withdrawn_publication/docs/design/cereja-ui-ux.md": "e80fc230636f498ea8672db077e57a6806d833ca482e5816c57fef0f49cf8c70",
+    "withdrawn_publication/docs/design/cereja-ui-visual-artifacts.json": "e3ee4fac96c9d6c5b2c0d27f2efa6e5483150b8da0f6dddc9af03db2e2a8fd2f",
+    "withdrawn_publication/docs/design/cereja-ui-visual-comparison.html": "60cf3f40813a85c5a151d0a069dc3947e22ea4e736cac3c3b456d00e41fd7a25",
+    "withdrawn_publication/docs/design/cereja-ui-visual-language.md": "d502e1bfd9c0c12fa32e402a6166545bb7b09add38732f7be2fd877092843406",
+    "withdrawn_publication/docs/design/cereja-ui-visual-review.md": "3e604e339f43e475dadd2054dc3c6363259d29cb6026886ed5f49ee081688627",
+    "withdrawn_publication/docs/design/cereja-ui-wireframes.html": "6cd61267a466c3bdbf3b14b6c33e48905f755a6e60a230e309280d9977cb2991",
+    "withdrawn_publication/docs/design/cereja-ui.md": "e3314b2687474657a88fecb46e00a3991dbddf1a93e7f19792f526dbf7ed4057"
+  },
+  "selected": {
+    "benchmarks/ui_spikes/.gitattributes": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/.gitattributes",
+      "sha256": "1717d0beff06a4b09ce0d477f57246b149800f7fc9baf5f9c170a9cb0bf9da33"
+    },
+    "benchmarks/ui_spikes/baseline-windows-py314.json": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/baseline-windows-py314.json",
+      "sha256": "941a1ff35d0c7ff0ad09fbdb5e61fb6e05e469252b2d613f45e5f3407d42d5ec"
+    },
+    "benchmarks/ui_spikes/download-loopback.json": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/download-loopback.json",
+      "sha256": "a929edcd5605ddec563490ce64887ab79ec7aae6d5bab593bd744ca3ef1177fa"
+    },
+    "benchmarks/ui_spikes/download_probe.py": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/download_probe.py",
+      "sha256": "b406fe3ed5679e6847ea9b5fcc436f29cd2124bfc59d1fa81736e33f9b74eae3"
+    },
+    "benchmarks/ui_spikes/model.py": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/model.py",
+      "sha256": "ac32f2c94f4ff3866791f847a70166ba1ac3dcee6f465dbb0b1175f3bda5c0ca"
+    },
+    "benchmarks/ui_spikes/platform-windows.json": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/platform-windows.json",
+      "sha256": "8d140810bc8eb2020c4752ce08b2b4a74f6b8225bebb35349ccea845b0c9a6a9"
+    },
+    "benchmarks/ui_spikes/platform_probe.py": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/platform_probe.py",
+      "sha256": "b12cc5ac5b62d73e78a2ad7ead4e4e7786c248fd39e87126f359b359e09a4899"
+    },
+    "benchmarks/ui_spikes/README.md": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/README.md",
+      "sha256": "7bf330578dc3673d9d83627ab0c0af64ea888b3ac469127aa4d9d68ef8191d89"
+    },
+    "benchmarks/ui_spikes/run.py": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/run.py",
+      "sha256": "09e515f7f85408a8c4cabaef71e26ef1236902cf377eb55d3807d7d810c8bb8c"
+    },
+    "benchmarks/ui_spikes/test_model.py": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/test_model.py",
+      "sha256": "7d2cf05661081d209c52b278a1eb8f4c00e86f2ef9767f33e92fa4bc2a11f67f"
+    },
+    "benchmarks/ui_spikes/test_verify.py": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/test_verify.py",
+      "sha256": "9a3bb34bc19e3009738760ade6a7cc037aac9a4dc3357a98e281addac98eedf8"
+    },
+    "benchmarks/ui_spikes/ui00-verification.json": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/ui00-verification.json",
+      "sha256": "8acce9951b50b8739be254341299d485f5426b87b447fcb7c131b71604385656"
+    },
+    "benchmarks/ui_spikes/verify.py": {
+      "source": "withdrawn_publication/benchmarks/ui_spikes/verify.py",
+      "sha256": "2528d3888258913eed1a500d78a19d62211a014bdca87f8d9bb69e7acd1fb8d7"
+    },
+    "docs/design/cereja-ui-capabilities.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-capabilities.md",
+      "sha256": "8e4047d4f6ad8d74ebda4384c7d1ec0d564ee5beb5664f6bac35c226607dd1b7"
+    },
+    "docs/design/cereja-ui-evidence.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-evidence.md",
+      "sha256": "93e83f17d6637f51beca76cd2acea001f46d91ec03877070767c5fd6c26e6926"
+    },
+    "docs/design/cereja-ui-github.json": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-github.json",
+      "sha256": "7939025964756322473d3de0576f43823d4d056841e611cb2886986ce4190c9b"
+    },
+    "docs/design/cereja-ui-operation-contracts.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-operation-contracts.md",
+      "sha256": "f3fb547dd5e150bdf5c8842ad4b408a17bf5a64de9ca4912a7db456a818753ce"
+    },
+    "docs/design/cereja-ui-plan.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-plan.md",
+      "sha256": "72be4e78822c4e130d2ed576318d6b2f993a942a49da91953af100c95d21b2a9"
+    },
+    "docs/design/cereja-ui-product-scope.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-product-scope.md",
+      "sha256": "a788b0a5887cfe88223211c0af3188a00f2e7f1a3c7548c86bded1b580690488"
+    },
+    "docs/design/cereja-ui-tasks.json": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-tasks.json",
+      "sha256": "fb27d64869f7b72e3a31cae57e2bbc420b836e347133f8c4788cd2cfc4c2d8de"
+    },
+    "docs/design/cereja-ui-ux.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-ux.md",
+      "sha256": "e80fc230636f498ea8672db077e57a6806d833ca482e5816c57fef0f49cf8c70"
+    },
+    "docs/design/cereja-ui-visual-artifacts.json": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-visual-artifacts.json",
+      "sha256": "e3ee4fac96c9d6c5b2c0d27f2efa6e5483150b8da0f6dddc9af03db2e2a8fd2f"
+    },
+    "docs/design/cereja-ui-visual-comparison.html": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-visual-comparison.html",
+      "sha256": "60cf3f40813a85c5a151d0a069dc3947e22ea4e736cac3c3b456d00e41fd7a25"
+    },
+    "docs/design/cereja-ui-visual-language.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-visual-language.md",
+      "sha256": "d502e1bfd9c0c12fa32e402a6166545bb7b09add38732f7be2fd877092843406"
+    },
+    "docs/design/cereja-ui-visual-review.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-visual-review.md",
+      "sha256": "3e604e339f43e475dadd2054dc3c6363259d29cb6026886ed5f49ee081688627"
+    },
+    "docs/design/cereja-ui-wireframes.html": {
+      "source": "withdrawn_publication/docs/design/cereja-ui-wireframes.html",
+      "sha256": "6cd61267a466c3bdbf3b14b6c33e48905f755a6e60a230e309280d9977cb2991"
+    },
+    "docs/design/cereja-ui.md": {
+      "source": "withdrawn_publication/docs/design/cereja-ui.md",
+      "sha256": "e3314b2687474657a88fecb46e00a3991dbddf1a93e7f19792f526dbf7ed4057"
+    }
+  },
+  "original_differences": [
+    "benchmarks/ui_spikes/README.md",
+    "benchmarks/ui_spikes/verify.py",
+    "docs/design/cereja-ui-evidence.md",
+    "docs/design/cereja-ui-github.json",
+    "docs/design/cereja-ui-plan.md",
+    "docs/design/cereja-ui-visual-artifacts.json",
+    "docs/design/cereja-ui.md"
+  ],
+  "excluded": [
+    "original_checkout/benchmarks/ui_spikes/__pycache__/model.cpython-314.pyc",
+    "original_checkout/benchmarks/ui_spikes/__pycache__/test_model.cpython-314.pyc"
+  ],
+  "excluded_reason": "Generated interpreter cache; original hashes retained, never executed or promoted to source evidence.",
+  "derived_corrections": [
+    {
+      "path": "docs/design/cereja-ui-visual-artifacts.json",
+      "original_receipt": "docs/design/recovery/withdrawn_publication/docs/design/cereja-ui-visual-artifacts.json",
+      "reason": "Old normalization claim contradicted by exact CRLF hashes. Human decisions and historical raw HTML remain unchanged.",
+      "sha256": "52765746584cb8190460c0731b67da525813c72d9eed9641773912ed385e38bf"
+    }
+  ]
+}

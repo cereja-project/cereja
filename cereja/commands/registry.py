@@ -25,6 +25,7 @@ COMMANDS = (
         "cereja.commands.protect",
     ),
     CommandSpec("tree", "Draw a repository tree.", "cereja.commands.tree"),
+    CommandSpec("large-files", "Find large files using metadata only.", "cereja.commands.large_files"),
     CommandSpec("context", "Search or list bounded textual context.", "cereja.commands.context"),
     CommandSpec("security", "Inspect untrusted files without executing them.", "cereja.commands.security"),
     CommandSpec("http", "Send HTTP requests.", "cereja.commands.http"),
@@ -32,6 +33,7 @@ COMMANDS = (
     CommandSpec("system", "Inspect local system information.", "cereja.commands.system"),
     CommandSpec("privacy", "Run tools with process-scoped privacy policies.", "cereja.commands.privacy"),
     CommandSpec("module", "Manage Cereja module scaffolding.", "cereja.commands.module"),
+    CommandSpec("ui", "Open Cereja TUI.", "cereja.commands.ui"),
 )
 
 _BY_NAME = {command.name: command for command in COMMANDS}

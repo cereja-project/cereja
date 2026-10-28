@@ -24,20 +24,21 @@ def contrast_checker(first_color, other_color, font_size: str, is_bold=False) ->
 
     Returns:
         dict: A dictionary showing if the contrast passes or fails for Small Text and Large Text at AA and AAA levels.
-        The return is structured as follows:
-        {
-            'Element Type': {
-                'Small Text': {
-                    'AA': 'Pass' or 'Fail',
-                    'AAA': 'Pass' or 'Fail',
+        The return is structured as follows::
+
+            {
+                'Element Type': {
+                    'Small Text': {
+                        'AA': 'Pass' or 'Fail',
+                        'AAA': 'Pass' or 'Fail',
+                    },
+                    'Large Text': {
+                        'AA': 'Pass' or 'Fail',
+                        'AAA': 'Pass' or 'Fail',
+                    }
                 },
-                'Large Text': {
-                    'AA': 'Pass' or 'Fail',
-                    'AAA': 'Pass' or 'Fail',
-                }
-            },
-            'contrast_ratio': 'X.XX:1'  # The calculated contrast ratio
-        }
+                'contrast_ratio': 'X.XX:1'  # The calculated contrast ratio
+            }
     """
     first_color = Color.parse(first_color)
     other_color = Color.parse(other_color)

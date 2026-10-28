@@ -6,7 +6,10 @@ import tempfile
 
 
 class AtomicFileSink:
-    def __init__(self, destination):
+    def __init__(self, destination, *, overwrite=True):
+        if type(overwrite) is not bool:
+            raise TypeError('overwrite must be bool')
+        self.overwrite = overwrite
         self.destination = Path(destination)
         self._path = None
         self._file = None
@@ -26,7 +29,11 @@ class AtomicFileSink:
             self._file.flush()
             os.fsync(self._file.fileno())
             self._file.close()
-        os.replace(self._path, self.destination)
+        if self.overwrite:
+            os.replace(self._path, self.destination)
+        else:
+            os.link(self._path, self.destination)
+            self._path.unlink()
         self._path = None
 
     def abort(self):

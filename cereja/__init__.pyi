@@ -28,6 +28,7 @@ import cereja.mltools as mltools
 import cereja.mltools.pln as pln
 import cereja.mltools.preprocess as preprocess
 import cereja.concurrently.process as process
+import cereja.utils.regex as regex
 import cereja._requests.request as request
 import cereja.scraping as scraping
 import cereja.mltools.split_data as split_data

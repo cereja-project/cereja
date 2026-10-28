@@ -1,0 +1,99 @@
+name: UI terminal transports
+
+on:
+  push:
+    branches: [master, develop]
+    paths:
+      - 'cereja/ui/**'
+      - 'cereja/ledger/**'
+      - 'cereja/tui/**'
+      - 'cereja/system/repository.py'
+      - 'cereja/system/file_sizes.py'
+      - 'cereja/system/_safe_paths.py'
+      - 'cereja/hashtools/archive.py'
+      - 'cereja/transfers/**'
+      - 'tests/test_repository_traversal.py'
+      - 'tests/test_file_sizes.py'
+      - 'tests/test_bounded_archives.py'
+      - 'tests/test_transfer_limits.py'
+      - 'cereja/commands/ui.py'
+      - 'cereja/commands/registry.py'
+      - 'tests/test_ui_*.py'
+      - 'tests/ui_windows_console_probe.py'
+      - 'tests/ui_windows_conpty_probe.py'
+      - 'tests/ui_scheduling_probe.py'
+      - 'tools/generate_ui_unicode.py'
+      - 'tools/check_ui_distribution.py'
+      - 'tools/unicode/**'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - '.gitattributes'
+      - '.github/workflows/ui-terminal.yml'
+  pull_request:
+    branches: [master, develop]
+    paths:
+      - 'cereja/ui/**'
+      - 'cereja/ledger/**'
+      - 'cereja/tui/**'
+      - 'cereja/system/repository.py'
+      - 'cereja/system/file_sizes.py'
+      - 'cereja/system/_safe_paths.py'
+      - 'cereja/hashtools/archive.py'
+      - 'cereja/transfers/**'
+      - 'tests/test_repository_traversal.py'
+      - 'tests/test_file_sizes.py'
+      - 'tests/test_bounded_archives.py'
+      - 'tests/test_transfer_limits.py'
+      - 'cereja/commands/ui.py'
+      - 'cereja/commands/registry.py'
+      - 'tests/test_ui_*.py'
+      - 'tests/ui_windows_console_probe.py'
+      - 'tests/ui_windows_conpty_probe.py'
+      - 'tests/ui_scheduling_probe.py'
+      - 'tools/generate_ui_unicode.py'
+      - 'tools/check_ui_distribution.py'
+      - 'tools/unicode/**'
+      - 'pyproject.toml'
+      - 'MANIFEST.in'
+      - '.gitattributes'
+      - '.github/workflows/ui-terminal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transports:
+    name: Native UI (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    env:
+      PYTHONIOENCODING: utf-8
+      CEREJA_UI_EVIDENCE_DIR: ui-platform-evidence
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Check frozen Unicode data offline
+        run: python -B -S tools/generate_ui_unicode.py --check
+      - name: Check native transports and text metrics using only the standard library
+        run: python -B -S -m unittest discover -s tests -p 'test_ui_*.py' -v
+      - name: Check bounded workflow domain contracts
+        run: python -B -S -m unittest tests.test_repository_traversal tests.test_file_sizes tests.test_bounded_archives tests.test_transfer_limits -v
+      - name: Prepare build-only tools
+        run: python -m pip install 'setuptools>=61' wheel
+      - name: Install wheel and sdist offline in empty environments
+        run: python -B tools/check_ui_distribution.py --output ui-platform-evidence/distribution.json
+      - name: Preserve core platform evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-platform-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: ui-platform-evidence/
+          if-no-files-found: error

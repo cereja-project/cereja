@@ -14,6 +14,7 @@ EXPECTED_COMMANDS = (
     "decrypt",
     "protect",
     "tree",
+    "large-files",
     "context",
     "security",
     "http",
@@ -21,6 +22,7 @@ EXPECTED_COMMANDS = (
     "system",
     "privacy",
     "module",
+    "ui",
 )
 
 
@@ -79,6 +81,8 @@ blocked = [
         "cereja.system.hardware",
         "cereja.hashtools._compress",
         "cereja.system._context.cache_db",
+        "cereja.system.file_sizes",
+        "cereja.commands.large_files",
         "cereja.privacy.huggingface",
     ))
 ]

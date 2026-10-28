@@ -6,6 +6,7 @@ import cereja.utils.colab as colab
 import cereja.utils.colors as colors
 import cereja.utils.decorators as decorators
 import cereja.utils.git as git
+import cereja.utils.regex as regex
 import cereja.utils.time as time
 import cereja.utils.typography as typography
 import cereja.utils.version as version

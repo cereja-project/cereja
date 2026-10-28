@@ -1,0 +1,3 @@
+# Historical source/data fingerprints require byte-preserving checkouts.
+* -text
+recovery/** -text

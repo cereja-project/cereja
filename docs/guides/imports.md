@@ -19,6 +19,13 @@ as `stride_values`, `async_to_sync`, and `sync_to_async`. The facade returns and
 caches the original objects, not proxy classes or wrapper functions. Existing
 platform-specific exports remain platform-specific.
 
+The terminal application uses `from cereja.tui import TUI`. The former
+`from cereja.ledger.app import Ledger` resolves to the same class, and legacy
+`cereja.ledger.*` submodules alias their canonical `cereja.tui.*` modules.
+There is no second implementation or session state. Importing either package
+does not initialize the application; accessing `TUI` loads its implementation
+without constructing it. No root-level `cereja.TUI` export is added.
+
 ## What is deferred
 
 Importing a package such as `cereja.concurrently` does not load its worker
@@ -83,7 +90,7 @@ change, not merely to make a failing compatibility test pass. Keep ordinary
 implementation dependencies explicit; do not introduce root-facade imports to
 initialize unrelated domains as a side effect.
 
-Measure isolated imports from a checkout with:
+If the local-only `benchmarks/` tools are available, measure isolated imports with:
 
 ```bash
 python benchmarks/imports.py --samples 7
@@ -92,3 +99,5 @@ python benchmarks/imports.py --samples 7
 The benchmark reports module counts, captured output, started threads, and
 per-process timings. Compare timings on equivalent systems, and treat the
 loaded-module contracts as the deterministic regression checks.
+Benchmark scripts and samples are not tracked by Git or shipped in distributions.
+The import contract and lazy-loading tests remain part of CI.

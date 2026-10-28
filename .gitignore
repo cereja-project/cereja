@@ -114,3 +114,6 @@ MANIFEST.in
 /local
 AGENTS.md
 .worktrees/
+
+# Local measurement tools, samples and their harness checks.
+/benchmarks/

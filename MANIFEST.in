@@ -1,0 +1,20 @@
+include tools/generate_ui_unicode.py
+recursive-include tools/unicode/17.0.0 *.txt *.json
+include docs/guides/ui-text.md
+include docs/guides/ui-buffer.md
+include docs/guides/ui-rendering.md
+include docs/guides/ui-editing.md
+include docs/guides/ui-overlays.md
+
+include docs/guides/ui-collections.md
+
+include docs/guides/ui-feedback.md
+
+include docs/guides/ui-operations.md
+
+include docs/guides/ui-ledger.md
+
+include docs/guides/repository-traversal.md
+include docs/guides/bounded-archives.md
+include docs/guides/file-sizes.md
+prune benchmarks

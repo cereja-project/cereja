@@ -111,27 +111,20 @@ class Corpus(object):
         return {"source": self.source.config.get(), "target": self.source.config.get()}
 
     def set_config(self, **kwargs):
-        """
-        you can use `Corpus.config` which returns a dictionary with the current configuration.
-        And then just use the this method `Corpus.set_config` by sending the changed dictionary.
+        """Update source and target configuration from keyword mappings.
 
-        :param kwargs: dictionary like this:
-                    {
-                     'source': {'name': 'SOURCE_NAME',
-                                'punctuation': '',
-                                'remove_punctuation': False,
-                                'remove_stop_words': False,
-                                'stop_words': (),
-                                'to_lower': False
-                                },
-                     'target': {'name':'TARGET_NAME',
-                                'punctuation': '',
-                                'remove_punctuation': False,
-                                'remove_stop_words': False,
-                                'stop_words': (),
-                                'to_lower': False
-                                }
-                    }
+        :param kwargs: Source and/or target configuration dictionaries.
+
+        Example::
+
+            corpus.set_config(
+                source={'name': 'SOURCE_NAME', 'punctuation': '',
+                        'remove_punctuation': False, 'remove_stop_words': False,
+                        'stop_words': (), 'to_lower': False},
+                target={'name': 'TARGET_NAME', 'punctuation': '',
+                        'remove_punctuation': False, 'remove_stop_words': False,
+                        'stop_words': (), 'to_lower': False},
+            )
         """
         source_config = kwargs.get("source")
         target_config = kwargs.get("target")

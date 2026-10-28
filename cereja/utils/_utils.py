@@ -1216,8 +1216,10 @@ def rescale_values(
         filling="inner",
 ) -> List[Any]:
     """
-    Resizes a list of values
-    eg.
+    Resizes a list of values.
+
+    Example::
+
         >>> import cereja as cj
         >>> cj.rescale_values(values=list(range(100)),granularity=12)
         [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88]
@@ -1606,7 +1608,7 @@ def get_batch_strides(data,
     @param kernel_size: window size
     @param strides: default is 1
     @param take_index: add number of index on items
-    @param fill_: padding last batch if it needs
+    @param ``fill_``: padding last batch if it needs
     """
     batches = []
     for index, item in enumerate(data):

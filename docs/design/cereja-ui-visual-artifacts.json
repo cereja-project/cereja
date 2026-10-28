@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-09-24",
+  "scope": "HTML bytes included in the UI-00 publication package, not a new visual validation.",
+  "historical_review_limit": "Earlier hashes differ from current LF bytes but match exactly after LF-to-CRLF conversion. This reconciles newline provenance; it does not establish a new visual inspection or current terminal acceptance.",
+  "artifacts": [
+    {
+      "path": "docs/design/cereja-ui-visual-comparison.html",
+      "sha256": "60cf3f40813a85c5a151d0a069dc3947e22ea4e736cac3c3b456d00e41fd7a25",
+      "previously_recorded_sha256": "fe74c7ed161e107a80f25194e9158afae5c628d077a5da17bc4dfaaf6b2efd04",
+      "crlf_sha256": "fe74c7ed161e107a80f25194e9158afae5c628d077a5da17bc4dfaaf6b2efd04"
+    },
+    {
+      "path": "docs/design/cereja-ui-wireframes.html",
+      "sha256": "6cd61267a466c3bdbf3b14b6c33e48905f755a6e60a230e309280d9977cb2991",
+      "previously_recorded_sha256": "907d1bfc992237bd36948c665ca08c3a33a1f7393fbc157ffcab0c1cdf5315ca",
+      "crlf_sha256": "907d1bfc992237bd36948c665ca08c3a33a1f7393fbc157ffcab0c1cdf5315ca"
+    }
+  ],
+  "reconciled_on": "2026-10-05",
+  "ledger_ux_review": {
+    "recorded_on": "2026-10-09",
+    "scope": "Selected Ledger and clean-copy artifacts with requested subtle snippet surface. Latest refinement structurally checked; current browser inspection blocked; previous browser evidence retained separately.",
+    "artifacts": [
+      {
+        "path": "docs/design/cereja-ui-ledger.html",
+        "sha256": "fc5a2d1deb69a9e3fdb672208d27d2f85b005a56724722863e9fb0ff439ac741"
+      },
+      {
+        "path": "benchmarks/ui_ux/specimens.py",
+        "sha256": "7c83a1cfd310fc037a2b7306457d3ba1661e271747d339bea5d54d10154a44bb"
+      }
+    ],
+    "hash_basis": "Git blob bytes / canonical LF; Windows checkout CRLF conversion is not a new artifact revision.",
+    "initial_published_artifacts": {
+      "revision": "7b94acef438f6935cda61dab37fb7b8e0d802277",
+      "artifacts": [
+        {
+          "path": "docs/design/cereja-ui-ledger.html",
+          "sha256": "802cb8a01acc8bad23c427570b4f2553168b31bd5c6ba1237edfa841a20534bd"
+        },
+        {
+          "path": "benchmarks/ui_ux/specimens.py",
+          "sha256": "ccea9b9466a37d7bb6978d538492248c17c8babb91ce47ea233ebbd9c570d2eb"
+        }
+      ]
+    },
+    "prior_published_versions": [
+      {
+        "revision": "b1a8bd72c2b0a9067577505912d038d57eb83d43",
+        "artifacts": [
+          {
+            "path": "docs/design/cereja-ui-ledger.html",
+            "sha256": "46725960f79ef6419b10f90bcd31049bb3fbbf72268a43b6113903c88175b943"
+          },
+          {
+            "path": "benchmarks/ui_ux/specimens.py",
+            "sha256": "556c50feebb12855ce3c57e2e1700669712e778cd16d6116ab4324cb64c1164d"
+          }
+        ]
+      }
+    ]
+  }
+}
