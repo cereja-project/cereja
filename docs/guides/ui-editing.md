@@ -136,7 +136,7 @@ python -B -S benchmarks/ui_editing.py --samples 31 --warmup 3 --memory-samples 3
 python -B -S -m unittest tests.test_ui_editing tests.test_ui_imports
 ```
 
-[Raw frozen Windows/Python 3.14 baseline](../../benchmarks/ui_editing_samples/baseline-windows-py314.json)
+Raw frozen Windows/Python 3.14 baseline (`benchmarks/ui_editing_samples/baseline-windows-py314.json`, local only)
 contains 31 samples per workload/size, three warmups and three separate untimed
 tracemalloc samples. One event arrives immediately after a primed frame.
 The window measures VirtualBackend injection, editing, layout, scheduling and

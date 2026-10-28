@@ -158,7 +158,7 @@ sink. Each sample has four virtual intervals and an idle check after completion.
 Creation, active computation, disposal, timers, paints, turns, renders, writes,
 flushes and UTF-8 bytes are separate. The 256-row canvas is synthetic stress.
 Median, nearest-rank p95, MAD, range and raw samples are retained in
-[the frozen baseline](../../benchmarks/ui_feedback_samples/baseline-windows-py314.json).
+the frozen baseline (`benchmarks/ui_feedback_samples/baseline-windows-py314.json`, local only).
 
 Virtual deadlines make workload and counts deterministic. Elapsed compute uses
 perf_counter_ns; it excludes real waiting. This is not a measured real-time 4 ms

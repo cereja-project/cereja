@@ -181,9 +181,9 @@ It is a cell-buffer demonstration, not the Ledger app or official `cereja ui`.
 [Tests](../../tests/test_ui_collections.py) cover empty/error states, invalid
 updates, stable next/previous fallback, Unicode/ASCII, clipping, resize, broad/deep
 bounds, textual copy and existing scheduler/focus integration.
-[Benchmark](../../benchmarks/ui_collections.py) separates admission, projection
+Benchmark (`benchmarks/ui_collections.py`, local only) separates admission, projection
 setup and End-event-to-buffer time at 120x40, 80x24 and 40x12.
-[Windows/Python 3.14 baseline](../../benchmarks/ui_collections_samples/baseline-windows-py314.json)
+Windows/Python 3.14 baseline (`benchmarks/ui_collections_samples/baseline-windows-py314.json`, local only)
 retains raw samples, conditions, environment and Git/LF source fingerprints.
 
 Workloads cover 64/4096 lists, 4096 three-column rows, a broad 4096-node tree,

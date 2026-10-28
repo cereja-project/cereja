@@ -15,6 +15,7 @@ encrypt      Encrypt a file.
 decrypt      Decrypt a file.
 protect      Encrypt Python code while preserving imports.
 tree         Draw a repository tree.
+large-files  Find large files using metadata only.
 context      Search or list bounded textual context.
 security     Inspect untrusted files without executing them.
 http         Send HTTP requests.
@@ -60,6 +61,22 @@ The command includes non-ignored hidden files, shows directories before files,
 and respects common `.gitignore` rules, including nested files and negated
 patterns. `.git`, Python/tool caches, and compiled Python files are always
 hidden. Symbolic links are shown but are not traversed.
+
+## Large files
+
+Find the largest regular files under an explicit root without reading content:
+
+```bash
+cereja large-files path/to/data --min-size-bytes 1048576 --max-results 20
+cereja large-files path/to/data --format json
+```
+
+Hidden and binary files are included. Repository ignore rules are not applied
+or read. Links, Windows reparse points and special files are excluded. Sizes
+are logical bytes. `--max-entries` and `--max-depth` limit traversal; a partial
+scan returns its observed ranking with exit code 3. A complete scan returns 0,
+including when `--max-results` truncates the output. See the
+[API, resource limits and reproducible benchmark](guides/file-sizes.md).
 
 ## Compress
 

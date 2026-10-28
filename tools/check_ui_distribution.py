@@ -219,23 +219,14 @@ def main():
         sdist = next((source / 'dist').glob('*.tar.gz'))
         with tarfile.open(sdist) as archive:
             names = archive.getnames()
+            if any('/benchmarks/' in name for name in names):
+                raise AssertionError('Local benchmarks must not be included in sdists')
             for suffix in ('tools/generate_ui_unicode.py', 'tools/unicode/17.0.0/manifest.json',
                            'tools/unicode/17.0.0/LICENSE.txt', 'docs/guides/ui-editing.md',
-                           'benchmarks/ui_editing.py', 'benchmarks/_ui_bench.py',
-                           'docs/guides/ui-overlays.md', 'benchmarks/ui_overlays.py',
-                           'benchmarks/ui_overlays_samples/baseline-windows-py314.json',
-                           'docs/guides/ui-collections.md', 'benchmarks/ui_collections.py',
-                           'benchmarks/ui_collections_samples/baseline-windows-py314.json',
-                           'docs/guides/ui-feedback.md', 'benchmarks/ui_feedback.py',
-                           'benchmarks/ui_feedback_samples/baseline-windows-py314.json',
-                           'docs/guides/ui-operations.md', 'benchmarks/ui_operations.py',
-                           'benchmarks/ui_operations_samples/baseline-windows-py314.json',
-                           'docs/guides/ui-ledger.md', 'benchmarks/ui_ledger.py',
-                           'benchmarks/ui_ledger_samples/baseline-windows-py314.json',
-                           'benchmarks/ui_ledger_samples/windows-input-windows-py314.json',
-                           'docs/guides/repository-traversal.md', 'docs/guides/bounded-archives.md',
-                           'benchmarks/ledger_workflows.py',
-                           'benchmarks/ledger_workflow_samples/windows-py314-final.json'):
+                           'docs/guides/ui-overlays.md', 'docs/guides/ui-collections.md',
+                           'docs/guides/ui-feedback.md', 'docs/guides/ui-operations.md',
+                           'docs/guides/ui-ledger.md', 'docs/guides/repository-traversal.md',
+                           'docs/guides/bounded-archives.md'):
                 if not any(name.endswith('/' + suffix) for name in names):
                     raise AssertionError(f'sdist missing {suffix}')
             manifest = json.loads((source / 'tools/unicode/17.0.0/manifest.json').read_text('utf-8'))

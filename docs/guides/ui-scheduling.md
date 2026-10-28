@@ -194,7 +194,7 @@ The [shared native probe](../../tests/ui_scheduling_probe.py) performs an
 indefinite wait with a synchronized worker wake, 10,000 ordered results from a
 capacity-waiting worker, key injection at result 64, then full-queue shutdown
 with a blocked producer and pending timer. The console/PTY tests check native
-resource restoration too. The [benchmark](../../benchmarks/ui_scheduling.py)
+resource restoration too. The benchmark (`benchmarks/ui_scheduling.py`, local only)
 prints raw samples and counters; it asserts ordering/fairness, without setting
 an absolute input-latency pass threshold.
 

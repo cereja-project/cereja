@@ -28,6 +28,7 @@ guides/system-info
 guides/screen-capture
 cli
 guides/files-and-paths
+guides/file-sizes
 guides/context-cache
 guides/display-progress
 guides/ui-terminal

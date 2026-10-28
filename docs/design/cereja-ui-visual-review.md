@@ -110,7 +110,7 @@ bounded fixture generator with the UX document, not with domain/runtime contract
 
 Artifacts: [Ledger viewer](cereja-ui-ledger.html),
 [final UX contract](cereja-ui-ux.md#final-ledger-review-contract-303),
-[generator/checker](../../benchmarks/ui_ux/specimens.py).
+generator/checker (`benchmarks/ui_ux/specimens.py`, local only).
 The [fingerprint record](cereja-ui-visual-artifacts.json) identifies the generated
 HTML/source Git blob bytes (canonical LF); Windows checkout line endings are
 separate. It preserves earlier artifact provenance separately.
@@ -140,7 +140,7 @@ No dependency or credential installation was required.
 
 Fixtures: System values, all paths/outcomes/policies and examples are synthetic.
 Download 768/1536 bytes (50%) and 768 bytes with unknown total are fixed events read
-from [the retained loopback report](../../benchmarks/ui_spikes/download-loopback.json),
+from the retained loopback report (`benchmarks/ui_spikes/download-loopback.json`, local only),
 not live activity or a new transfer measurement. No speed/ETA is inferred. The
 conditional Replace specimen explicitly assumes a synthetic supported policy;
 it does not certify current file/directory publication safety. No real operation
@@ -237,7 +237,7 @@ checks skipped locally are not passes. Export-stub consistency and fatal lint
 checks passed. The first sandbox import run failed only on the interpreter's
 stderr location warning; the same unmodified tests passed outside that restriction.
 
-[Frozen geometry baseline](../../benchmarks/ui_layout_samples/baseline-windows-py314.json):
+Frozen geometry baseline (`benchmarks/ui_layout_samples/baseline-windows-py314.json`, local only):
 31 samples of 100 iterations, seven separate memory samples, three warmups.
 Resize median/p95 20.5/22.0 microseconds per iteration; long-content geometry
 6.7/10.0 microseconds. Median peak traced Python memory 14376/12888 bytes.

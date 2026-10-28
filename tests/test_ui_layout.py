@@ -196,37 +196,6 @@ class DamageTest(unittest.TestCase):
                          full_diff(front, back))
 
 
-class LayoutExampleTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        root = Path(__file__).resolve().parents[1]
-        cls.old_path = sys.path[:]
-        sys.path.insert(0, str(root / 'benchmarks'))
-        cls.example = runpy.run_path(str(root / 'benchmarks/ui_layout.py'))
-
-    @classmethod
-    def tearDownClass(cls):
-        sys.path[:] = cls.old_path
-
-    def test_ascii_frames_keep_selected_row_draft_and_reserved_column(self):
-        for width, height in ((120, 40), (80, 24), (40, 12)):
-            frame = self.example['demo'](width, height)
-            rows = text_rows(frame)
-            self.assertEqual((len(rows), set(map(len, rows))), (height, {width}))
-            self.assertTrue(all(row[-1] == ' ' for row in rows))
-            self.assertTrue(any('> [071]' in row for row in rows[3:height - 5]))
-            self.assertIn('/tree --path ./docs', rows[height - 3])
-            self.assertTrue(all(ord(char) < 128 for row in rows for char in row))
-        recovery = text_rows(self.example['demo'](32, 10))
-        self.assertIn('Size recovery', recovery[0])
-        self.assertIn('No task is running.', recovery[3])
-
-    def test_benchmark_is_geometry_only_and_uses_bounded_regions(self):
-        for workload in ('resize', 'long_content'):
-            result = self.example['sample'](workload)
-            self.assertGreater(result['elapsed_ns'], 0)
-            self.assertLessEqual(result['visible_rows'], 32)
-            self.assertLessEqual(result['damage_regions'], 8)
 
 
 if __name__ == '__main__':

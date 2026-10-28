@@ -451,44 +451,6 @@ class CollectionAdditionalContractsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Table('table', (Column(str(i)) for i in range(33)), [])
 
-class CollectionExamplesTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from pathlib import Path
-        import runpy
-        import sys
-        root = Path(__file__).resolve().parents[1]
-        cls.old_path = sys.path[:]
-        sys.path.insert(0, str(root / 'benchmarks'))
-        cls.example = runpy.run_path(str(root / 'benchmarks/ui_collections.py'))
-
-    @classmethod
-    def tearDownClass(cls):
-        import sys
-        sys.path[:] = cls.old_path
-
-    def test_all_bounded_examples_have_safe_ascii_copy_and_independent_composer(self):
-        for size in ((120, 40), (80, 24), (40, 12)):
-            for kind in ('table', 'list', 'tree'):
-                for state in ('complete', 'empty', 'error', 'loading', 'incomplete', 'truncated'):
-                    value = self.example['example'](kind, size, state)
-                    self.assertEqual(value['status'], 'complete' if state == 'empty' else state)
-                    self.assertTrue(all(len(row) == size[0] and row[-1] == ' ' for row in value['rows']))
-                    self.assertTrue(all(ord(char) < 128 for row in value['rows'] for char in row))
-                    self.assertEqual(value['composer'], '/draft remains independent')
-                    if state != 'empty':
-                        self.assertEqual(value['copy'], '  source\ttext  \n\n  final\n')
-
-    def test_measurement_checks_visible_work_and_retained_prefix(self):
-        for workload in self.example['WORKLOADS']:
-            value = self.example['sample'](workload, (40, 12))
-            self.assertGreater(value['event_to_buffer_us'], 0)
-            self.assertLessEqual(value['painted_rows'], 11)
-            self.assertLessEqual(value['retained_items'], 4096)
-            self.assertLessEqual(value['canonical_payload_bytes'], 1048576)
-            self.assertLessEqual(value['examined_items'], value['retained_items'] + 1)
-            self.assertEqual(value['result_state'], 'truncated' if workload in
-                             ('tree_cap_100000', 'tree_deep_10000', 'canonical_byte_cap') else 'complete')
 
 
 if __name__ == '__main__':

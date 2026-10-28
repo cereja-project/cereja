@@ -176,7 +176,7 @@ mutation, stale target/form consent, exact-target paging and all five synthetic
 views at 120x40, 80x24 and 40x12. Existing native transport tests are separate
 from these virtual editor/widget scenarios.
 
-[Raw baseline](../../benchmarks/ui_overlays_samples/baseline-windows-py314.json):
+Raw baseline (`benchmarks/ui_overlays_samples/baseline-windows-py314.json`, local only):
 31 samples per workload/size, three warmups and three separate untimed traced
 memory samples. It measures a keyboard event through models/layout/painting into
 a cell buffer. Filtering 256 items and three-field validation are toolkit workloads;

@@ -66,6 +66,19 @@ review and refuse replacement. See the [Ledger guide](docs/guides/ui-ledger.md)
 for supported limits, Windows-only directory extraction, terminal requirements
 and remaining human acceptance. Plain mode prints a reference and reads no input.
 
+### Large files by metadata
+
+Find the largest regular files under an explicit root without reading content:
+
+```bash
+cereja large-files path/to/data --min-size-bytes 1048576 --max-results 20 --format json
+```
+
+Hidden and binary files are included, with no repository filters or link
+traversal. The Python API is `cereja.system.file_sizes.find_large_files`.
+See [file sizes](docs/guides/file-sizes.md) for partial-scan reporting, limits
+and reproducible benchmarks.
+
 ### Bounded context search
 
 Search for all whitespace-separated terms in UTF-8 text under one or more

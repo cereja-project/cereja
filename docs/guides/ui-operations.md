@@ -236,7 +236,7 @@ feedback benchmark is not evidence for these real producer latencies.
 
 ## Measured Windows baseline (2026-10-10)
 
-[Raw evidence](../../benchmarks/ui_operations_samples/baseline-windows-py314.json):
+Raw evidence (`benchmarks/ui_operations_samples/baseline-windows-py314.json`, local only):
 Python 3.14.5, Windows 11, 16 scenarios, 31 samples after three warmups per
 scenario (496 retained samples). All samples delivered exactly one successful
 final result after worker exit; post-completion periodic work was zero.

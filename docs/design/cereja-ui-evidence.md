@@ -17,7 +17,7 @@ python -B -m unittest discover -s benchmarks/ui_spikes -p test_model.py -v
 python -B benchmarks/ui_spikes/verify.py
 ```
 
-Use the [spike replay instructions](../../benchmarks/ui_spikes/README.md) to
+Use the spike replay instructions (`benchmarks/ui_spikes/README.md`, local only) to
 collect new observations in a new directory outside the checkout. Preserve
 the original raw reports instead of passing their paths to the probe writers.
 
@@ -31,12 +31,12 @@ host name, or environment dump is required to reproduce this report.
 
 Evidence files:
 
-- [Model tests](../../benchmarks/ui_spikes/test_model.py)
-- [Disposable model](../../benchmarks/ui_spikes/model.py)
-- [Raw baseline](../../benchmarks/ui_spikes/baseline-windows-py314.json)
-- [Platform probe](../../benchmarks/ui_spikes/platform_probe.py)
-- [Raw platform results](../../benchmarks/ui_spikes/platform-windows.json)
-- [UI-00 integrity verification](../../benchmarks/ui_spikes/ui00-verification.json)
+- Model tests (`benchmarks/ui_spikes/test_model.py`, local only)
+- Disposable model (`benchmarks/ui_spikes/model.py`, local only)
+- Raw baseline (`benchmarks/ui_spikes/baseline-windows-py314.json`, local only)
+- Platform probe (`benchmarks/ui_spikes/platform_probe.py`, local only)
+- Raw platform results (`benchmarks/ui_spikes/platform-windows.json`, local only)
+- UI-00 integrity verification (`benchmarks/ui_spikes/ui00-verification.json`, local only)
 
 The UI-00 reconciliation on 2026-09-21 reran the nine model tests on Python
 3.14.5 and verified all nine recorded source fingerprints across the renderer
@@ -201,7 +201,7 @@ unchanged frames must encode zero bytes; one-row and ten-percent workloads at
 each of the three sizes must have lower dirty-diff median and p95 than full-diff
 in the same run. Preserve both raw distributions and report all workloads,
 including full repaint, where no benefit is required. These six comparisons
-are recorded in the [integrity report](../../benchmarks/ui_spikes/ui00-verification.json).
+are recorded in the integrity report (`benchmarks/ui_spikes/ui00-verification.json`, local only).
 This gate is selected from the observed baseline, not a preregistered efficacy
 experiment. It assesses this comparison stage only; it is neither a production
 budget nor a statistical significance test. Timer-resolution-sensitive one-cell

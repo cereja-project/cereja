@@ -83,7 +83,7 @@ change, not merely to make a failing compatibility test pass. Keep ordinary
 implementation dependencies explicit; do not introduce root-facade imports to
 initialize unrelated domains as a side effect.
 
-Measure isolated imports from a checkout with:
+If the local-only `benchmarks/` tools are available, measure isolated imports with:
 
 ```bash
 python benchmarks/imports.py --samples 7
@@ -92,3 +92,5 @@ python benchmarks/imports.py --samples 7
 The benchmark reports module counts, captured output, started threads, and
 per-process timings. Compare timings on equivalent systems, and treat the
 loaded-module contracts as the deterministic regression checks.
+Benchmark scripts and samples are not tracked by Git or shipped in distributions.
+The import contract and lazy-loading tests remain part of CI.

@@ -219,8 +219,8 @@ cannot be promised until blocking I/O and collector subprocess cleanup are teste
 ## Evidence required before these flows are accepted
 
 A bounded runtime download probe is recorded in
-[download-loopback.json](../../benchmarks/ui_spikes/download-loopback.json), produced
-by [download_probe.py](../../benchmarks/ui_spikes/download_probe.py):
+download-loopback.json (`benchmarks/ui_spikes/download-loopback.json`, local only), produced
+by download_probe.py (`benchmarks/ui_spikes/download_probe.py`, local only):
 
 ```text
 python benchmarks/ui_spikes/download_probe.py --output benchmarks/ui_spikes/download-loopback.json

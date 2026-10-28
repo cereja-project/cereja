@@ -394,33 +394,6 @@ class VirtualKeyboardTest(unittest.TestCase):
             self.assertEqual(loop.timer_count, 0)
 
 
-class EditingExampleTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        root = Path(__file__).resolve().parents[1]
-        cls.old_path = sys.path[:]
-        sys.path.insert(0, str(root / 'benchmarks'))
-        cls.example = runpy.run_path(str(root / 'benchmarks/ui_editing.py'))
-
-    @classmethod
-    def tearDownClass(cls):
-        sys.path[:] = cls.old_path
-
-    def test_example_is_source_faithful_and_keeps_reserved_column(self):
-        for size in ((120, 40), (80, 24), (40, 12)):
-            result = self.example['example'](size, ascii_only=True)
-            self.assertEqual(result['copy_text'], '👩\u200d💻')
-            self.assertEqual(result['draft'], 'a\u0301/synthetic\n\tvalue  ')
-            self.assertEqual(result['focus'], 'draft')
-            self.assertTrue(result['cursor_visible'])
-            self.assertTrue(all(row[-1] == ' ' for row in result['rows']))
-            self.assertTrue(all(ord(char) < 128 for row in result['rows'] for char in row))
-
-    def test_measurement_includes_exactly_one_acknowledged_frame(self):
-        result = self.example['sample']('unicode', (40, 12))
-        self.assertEqual((result['renders'], result['flushes']), (1, 1))
-        self.assertGreater(result['input_to_frame_ms'], result['handler_to_request_ms'])
-        self.assertGreaterEqual(result['scheduler_sleep_ms'], 0)
 
 
 if __name__ == '__main__':

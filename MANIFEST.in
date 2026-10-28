@@ -2,34 +2,19 @@ include tools/generate_ui_unicode.py
 recursive-include tools/unicode/17.0.0 *.txt *.json
 include docs/guides/ui-text.md
 include docs/guides/ui-buffer.md
-include benchmarks/ui_buffers.py
 include docs/guides/ui-rendering.md
-include benchmarks/ui_rendering.py
 include docs/guides/ui-editing.md
-include benchmarks/ui_editing.py
-include benchmarks/_ui_bench.py
 include docs/guides/ui-overlays.md
-include benchmarks/ui_overlays.py
-include benchmarks/ui_overlays_samples/*.json
 
 include docs/guides/ui-collections.md
-include benchmarks/ui_collections.py
-include benchmarks/ui_collections_samples/*.json
 
 include docs/guides/ui-feedback.md
-include benchmarks/ui_feedback.py
-include benchmarks/ui_feedback_samples/*.json
 
 include docs/guides/ui-operations.md
-include benchmarks/ui_operations.py
-include benchmarks/ui_operations_samples/*.json
 
 include docs/guides/ui-ledger.md
-include benchmarks/ui_ledger.py
-include benchmarks/ui_ledger_samples/*.json
 
 include docs/guides/repository-traversal.md
 include docs/guides/bounded-archives.md
-include benchmarks/repository_traversal.py
-include benchmarks/ledger_workflows.py
-include benchmarks/ledger_workflow_samples/*.json
+include docs/guides/file-sizes.md
+prune benchmarks

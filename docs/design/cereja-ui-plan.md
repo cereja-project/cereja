@@ -263,11 +263,11 @@ The existing dependency order is retained. The first increment is #307 / UI-08:
 independent cell partitions, padding, clipped lazy viewports and bounded geometry
 damage. [Public API and example](../guides/ui-layout.md),
 [tests](../../tests/test_ui_layout.py) and
-[baseline](../../benchmarks/ui_layout_samples/baseline-windows-py314.json).
+baseline (`benchmarks/ui_layout_samples/baseline-windows-py314.json`, local only).
 #308 / UI-09 adds opt-in canonical-text editing/selection and explicit focus
 scopes, reusing Unicode, layout and scheduling. [Public API/example](../guides/ui-editing.md),
 [tests](../../tests/test_ui_editing.py) and
-[baseline](../../benchmarks/ui_editing_samples/baseline-windows-py314.json).
+baseline (`benchmarks/ui_editing_samples/baseline-windows-py314.json`, local only).
 Copy and submit/exit are intents only; current key ownership and retained revision
 are explicit.
 
@@ -276,12 +276,12 @@ parameter forms, bounded help/inspection and exact-target confirmation bound to
 the full caller-normalized tuple and validated field revisions. Back is the default;
 all results are intents with zero domain execution.
 [API/example](../guides/ui-overlays.md), [tests](../../tests/test_ui_overlays.py)
-and [baseline](../../benchmarks/ui_overlays_samples/baseline-windows-py314.json).
+and baseline (`benchmarks/ui_overlays_samples/baseline-windows-py314.json`, local only).
 #310 / UI-11 adds opt-in read-only tables/lists and generic parent-linked TreeView,
 bounded admission and visible painting, stable row/node selection and explicit
 canonical-copy ranges. [API/example](../guides/ui-collections.md),
 [tests](../../tests/test_ui_collections.py) and
-[baseline](../../benchmarks/ui_collections_samples/baseline-windows-py314.json).
+baseline (`benchmarks/ui_collections_samples/baseline-windows-py314.json`, local only).
 Source completeness and local truncation remain distinct. Real clipboard, official
 `cereja ui`, application catalogue and Ledger/domain workflows remain unimplemented.
 The next generic widget stage is #311 under #306 with its own bounded mandate. Real task,
