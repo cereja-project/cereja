@@ -23,7 +23,7 @@ download     Download files with streaming transfers.
 system       Inspect local system information.
 privacy      Run tools with process-scoped privacy policies.
 module       Manage Cereja module scaffolding.
-ui           Open the Ledger terminal application.
+ui           Open Cereja TUI.
 ```
 
 Use command-specific help for the complete set of flags:
@@ -39,14 +39,16 @@ cereja privacy --help
 
 The CLI loads only the selected command implementation. Asking for root help or the Cereja version does not initialize unrelated command subsystems.
 
-## Ledger
+## Cereja TUI
 
 `cereja ui --plain` prints a finite catalogue reference. On POSIX or Windows terminals with
-bracketed paste support, `cereja ui --bracketed-paste` opens the interactive Ledger.
+bracketed paste support, `cereja ui --bracketed-paste` opens Cereja TUI.
 Windows enables VT input to preserve paste delimiters. Without the explicit
 support assertion, the command uses the plain reference. Unmarked paste cannot be distinguished
-from Enter. See [Ledger](guides/ui-ledger.md) for keyboard controls, independent
+from Enter. See [Cereja TUI](guides/ui-ledger.md) for keyboard controls, independent
 color/ASCII/motion options, retention, synthetic examples and availability limits.
+Submit `/large-files` for metadata-only file ranking with an explicit root and
+the same traversal and retention parameters as the Python API.
 
 ## Repository Tree
 

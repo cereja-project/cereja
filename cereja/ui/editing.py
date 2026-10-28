@@ -111,7 +111,7 @@ class TextInput:
     """Bounded edit state independent of focus, navigation and inspection.
 
     max_bytes bounds canonical UTF-8 text, after safe normalization. Rejection
-    is atomic. The default 64 KiB is an input bound, not a Ledger retention or
+    is atomic. The default 64 KiB is an input bound, not a Cereja TUI retention or
     performance calibration. All mutations and painting belong to the creating
     UI thread; EventLoop owns scheduling and presentation cadence.
     """

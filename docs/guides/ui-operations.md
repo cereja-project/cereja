@@ -3,7 +3,7 @@
 APP-00 / [#312](https://github.com/cereja-project/cereja/issues/312) adds opt-in
 `cereja.ui.operations`. Python 3.11+, standard library only. Importing it starts
 no threads or terminal resources. This is a toolkit bridge and bounded synthetic
-demonstration. The subsequent [Ledger application](ui-ledger.md) composes this
+demonstration. The subsequent [Cereja TUI application](ui-ledger.md) composes this
 bridge and provides the official `cereja ui` entry, with explicit native-input limits.
 
 ## Public API and ownership
@@ -160,7 +160,7 @@ released with its owner; during handoff the observer may briefly retain the prev
 event while the next explicit operation starts. The pending observation slot holds
 an already started worker, never a queued invocation. These are logical storage
 bounds, not RSS/global memory limits. Adapter working sets, Python thread overhead
-and caller-retained snapshots are outside them. Ledger's proposed 20 results/2 MiB
+and caller-retained snapshots are outside them. Cereja TUI's proposed 20 results/2 MiB
 retention is not implemented or calibrated here.
 
 All events reuse core admission, wake, generations and per-turn fairness.

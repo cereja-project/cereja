@@ -108,7 +108,7 @@ class TreeNode:
 
 @dataclass(frozen=True, slots=True)
 class CollectionLimits:
-    """Per-widget admission limits, not global memory or Ledger calibration.
+    """Per-widget admission limits, not global memory or Cereja TUI calibration.
 
     max_depth counts edges (a root is depth zero). Payload bytes include IDs,
     parent IDs, labels/cells, node messages and canonical text/identity.

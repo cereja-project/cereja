@@ -6,11 +6,14 @@ on:
     paths:
       - 'cereja/ui/**'
       - 'cereja/ledger/**'
+      - 'cereja/tui/**'
       - 'cereja/system/repository.py'
+      - 'cereja/system/file_sizes.py'
       - 'cereja/system/_safe_paths.py'
       - 'cereja/hashtools/archive.py'
       - 'cereja/transfers/**'
       - 'tests/test_repository_traversal.py'
+      - 'tests/test_file_sizes.py'
       - 'tests/test_bounded_archives.py'
       - 'tests/test_transfer_limits.py'
       - 'cereja/commands/ui.py'
@@ -31,11 +34,14 @@ on:
     paths:
       - 'cereja/ui/**'
       - 'cereja/ledger/**'
+      - 'cereja/tui/**'
       - 'cereja/system/repository.py'
+      - 'cereja/system/file_sizes.py'
       - 'cereja/system/_safe_paths.py'
       - 'cereja/hashtools/archive.py'
       - 'cereja/transfers/**'
       - 'tests/test_repository_traversal.py'
+      - 'tests/test_file_sizes.py'
       - 'tests/test_bounded_archives.py'
       - 'tests/test_transfer_limits.py'
       - 'cereja/commands/ui.py'
@@ -79,7 +85,7 @@ jobs:
       - name: Check native transports and text metrics using only the standard library
         run: python -B -S -m unittest discover -s tests -p 'test_ui_*.py' -v
       - name: Check bounded workflow domain contracts
-        run: python -B -S -m unittest tests.test_repository_traversal tests.test_bounded_archives tests.test_transfer_limits -v
+        run: python -B -S -m unittest tests.test_repository_traversal tests.test_file_sizes tests.test_bounded_archives tests.test_transfer_limits -v
       - name: Prepare build-only tools
         run: python -m pip install 'setuptools>=61' wheel
       - name: Install wheel and sdist offline in empty environments

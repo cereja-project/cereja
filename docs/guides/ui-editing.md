@@ -37,7 +37,7 @@ cannot be portably detected and can include presentation artifacts.
 An immutable selection can pin bounded inspected content independently of newer
 output. The caller owns retention/eviction: explicitly invalidate an unavailable
 snapshot with a reason instead of rebinding offsets or copying newer content.
-The [Ledger guide](ui-ledger.md) describes application copy behavior and the remaining clipboard acceptance.
+The [Cereja TUI guide](ui-ledger.md) describes application copy behavior and the remaining clipboard acceptance.
 
 ## TextInput
 
@@ -50,7 +50,7 @@ snapshot. Rejected edits preserve all state and return a reason.
 The configurable default 64 KiB bounds canonical UTF-8 input after sanitization,
 including expanded visible controls. Raw-length and repeat checks bound
 preprocessing. It is independent of the transport's paste bound, scheduling
-payload limits and Ledger retention candidates. It is not a Python-heap bound.
+payload limits and Cereja TUI retention candidates. It is not a Python-heap bound.
 
 | API / key | Behavior |
 | --- | --- |
@@ -109,7 +109,7 @@ The manager retains identity only. Composer content, form values, selected
 row/node, result scroll and inspected revision belong to their separate owners.
 Opening/closing help therefore does not copy or overwrite edit state.
 [UI-10 overlays](ui-overlays.md) provide suggestions/forms/confirmation;
-collections remain #310 and Ledger/application key routing #313.
+collections remain #310 and Cereja TUI/application key routing #313.
 
 ## Runnable example and measurement
 
@@ -150,7 +150,7 @@ Requirement tests cover Unicode edits, joining clusters, bounded repeats/paste,
 canonical range copying, version pinning, ownership, narrow/ancestor clipping,
 focus restoration/removal, no-color/ASCII/reduced-motion and zero idle redraw.
 The harness is not a human keyboard, terminal presentation, clipboard, emulator,
-SSH/ConPTY or Ledger measurement. Existing real native transport checks do not
+SSH/ConPTY or Cereja TUI measurement. Existing real native transport checks do not
 establish editor usability. Real clipboard/participant/accessibility acceptance
 remains under #321.
 

@@ -53,18 +53,21 @@ cereja decompress archive.cjz
 
 Progress is enabled by default for CLI compression and decompression. Use `--quiet` for script-friendly output.
 
-### Ledger terminal application
+### Cereja TUI
 
 ```bash
 cereja ui --bracketed-paste
 cereja ui --plain
 ```
 
-On a terminal supporting bracketed paste, Ledger provides explicit forms for
-System, Tree, Context, Archives and Download. Writes require exact-destination
-review and refuse replacement. See the [Ledger guide](docs/guides/ui-ledger.md)
+On a terminal supporting bracketed paste, Cereja TUI provides explicit forms for
+System, Tree, Large files, Context, Archives and Download. Writes require exact-destination
+review and refuse replacement. See the [Cereja TUI guide](docs/guides/ui-ledger.md)
 for supported limits, Windows-only directory extraction, terminal requirements
 and remaining human acceptance. Plain mode prints a reference and reads no input.
+
+Embed with `from cereja.tui import TUI`. The former
+`from cereja.ledger.app import Ledger` remains an alias of the same class.
 
 ### Large files by metadata
 

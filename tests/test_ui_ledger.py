@@ -8,15 +8,15 @@ from cereja.ui.events import KeyEvent, PasteEvent, ResizeEvent
 from cereja.ui.overlays import ParameterForm
 from cereja.ui.terminal import TerminalSession
 from cereja.ui.testing import VirtualBackend
-from cereja.ledger.app import Ledger
-from cereja.ledger.catalogue import COMMANDS, parse_command
-from cereja.ledger.model import Results
+from cereja.tui.app import TUI
+from cereja.tui.catalogue import COMMANDS, parse_command
+from cereja.tui.model import Results
 
 
 class GrammarTest(unittest.TestCase):
     def test_explicit_registry_and_rejection(self):
         self.assertEqual(tuple(c.name for c in COMMANDS), (
-            'home', 'system', 'tree', 'context', 'compress', 'download',
+            'home', 'system', 'tree', 'large-files', 'context', 'compress', 'download',
             'examples', 'tools', 'diagnostics', 'help'))
         for text in ('print(1)', '/unknown', '/system; whoami', '/home\n/help',
                      '/download https://user:secret@example.test', '/examples bogus'):
@@ -87,7 +87,7 @@ class LedgerTest(unittest.TestCase):
         session = TerminalSession(backend)
         session.__enter__()
         self.addCleanup(session.close)
-        app = Ledger(session, **kwargs)
+        app = TUI(session, **kwargs)
         self.addCleanup(app.close)
         return app, backend
 
@@ -332,7 +332,7 @@ class LedgerTest(unittest.TestCase):
                 app._example('text', 1)
                 frame = app.render()
                 lines = self.lines(frame)
-                self.assertIn('Cereja / Ledger', lines[0])
+                self.assertIn('Cereja TUI', lines[0])
                 self.assertEqual(lines[size[1] - 4][2:6], '----')
                 self.assertTrue(all(row[-1] == ' ' for row in lines))
                 self.assertNotIn('\x1b', '\n'.join(lines))
@@ -349,7 +349,7 @@ class LedgerTest(unittest.TestCase):
         from cereja.ui.terminal import CapabilityOptions
         with TerminalSession(VirtualBackend(options=CapabilityOptions(paste=False))) as session:
             with self.assertRaisesRegex(ValueError, 'delimited paste'):
-                Ledger(session)
+                TUI(session)
 
     def test_wait_exits_only_after_completion_is_consumed(self):
         app, _ = self.app()

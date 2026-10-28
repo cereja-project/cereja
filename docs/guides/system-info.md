@@ -113,12 +113,12 @@ unnecessary timestamps. Prefer a minimal synthetic reproduction instead of attac
 References: [Microsoft Win32_VideoController documentation](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-videocontroller)
 and [NVIDIA System Management Interface documentation](https://docs.nvidia.com/deploy/nvidia-smi/index.html).
 
-## Ledger integration
+## Cereja TUI integration
 
 `cereja ui --bracketed-paste` offers `/system` on Windows/Linux/macOS. Its explicit
 Run/Refresh form uses this typed facade with basic/non-sensitive defaults and
 validated sections; no automatic scan, numeric progress or Cancel is available.
-[Ledger flow, bounded projection, privacy and verification](ui-ledger.md)
+[Cereja TUI flow, bounded projection, privacy and verification](ui-ledger.md)
 describe the UI contract. Missing model fields have no per-field diagnostic reason
 or warning channel. Section selection does not establish a whole-call deadline or
 eliminate all unrelated backend work. Platform timeouts are local to subprocesses.

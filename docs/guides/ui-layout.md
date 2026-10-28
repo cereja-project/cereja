@@ -32,7 +32,7 @@ tree, persistent cache or content scan is required.
 result has an origin within the original bounds. Rectangles use zero-based,
 half-open coordinates, including negative origins and zero dimensions.
 
-## Selected Ledger allocations
+## Selected Cereja TUI allocations
 
 Application policy reserves the final terminal column and switches to recovery
 below 40x12. The generic partitioner does not enforce a product minimum.

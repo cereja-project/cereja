@@ -27,6 +27,7 @@ _CONTEXT = {
 }
 
 EXPORTS = {
+    "cereja.tui": _objects("cereja.tui.app", "TUI"),
     "cereja.utils": {
         **_objects("cereja.utils._traceback", "format_safe_traceback"),
         **_objects("cereja.utils._utils", """

@@ -19,6 +19,13 @@ as `stride_values`, `async_to_sync`, and `sync_to_async`. The facade returns and
 caches the original objects, not proxy classes or wrapper functions. Existing
 platform-specific exports remain platform-specific.
 
+The terminal application uses `from cereja.tui import TUI`. The former
+`from cereja.ledger.app import Ledger` resolves to the same class, and legacy
+`cereja.ledger.*` submodules alias their canonical `cereja.tui.*` modules.
+There is no second implementation or session state. Importing either package
+does not initialize the application; accessing `TUI` loads its implementation
+without constructing it. No root-level `cereja.TUI` export is added.
+
 ## What is deferred
 
 Importing a package such as `cereja.concurrently` does not load its worker

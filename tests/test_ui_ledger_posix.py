@@ -34,7 +34,7 @@ class LedgerPtyTest(unittest.TestCase):
                     if len(received) > 1024 * 1024:
                         self.fail('bounded terminal output exceeded')
                 self.assertIn(marker, received)
-            read_until(b'Cereja / Ledger')
+            read_until(b'Cereja TUI')
             self.assertIn(b'\x1b[?2004h', received)
             # One bracketed paste contains a runnable command and a newline.
             # Ctrl+A selects it; Ctrl+C must request copy instead of exiting.

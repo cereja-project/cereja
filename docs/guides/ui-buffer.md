@@ -105,7 +105,7 @@ text, effective styles and occupancy required for subsequent full-frame diffing.
 
 This stage does not write a terminal, track dirty regions, encode cursor state,
 commit a front buffer or prevent emulator autowrap. The [renderer](ui-rendering.md)
-owns those concerns. Ledger
+owns those concerns. Cereja TUI
 and the independent core remain the approved direction; legacy display and
 application features are unchanged.
 

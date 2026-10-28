@@ -346,7 +346,7 @@ with patch('os.scandir', side_effect=AssertionError('scan during help')):
             main(['large-files', '--help'])
         except SystemExit as error:
             assert error.code == 0
-assert not any(name.startswith(('cereja.ledger', 'cereja.ui', 'cereja.system._context',
+assert not any(name.startswith(('cereja.tui', 'cereja.ledger', 'cereja.ui', 'cereja.system._context',
                                 'cereja.system._repository')) for name in sys.modules)
 '''
         result = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True, timeout=30)

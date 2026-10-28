@@ -9,8 +9,8 @@ import time
 import unittest
 from unittest.mock import patch
 
-from cereja.ledger.app import Ledger
-from cereja.ledger.workflows import prepare
+from cereja.tui.app import TUI
+from cereja.tui.workflows import prepare
 from cereja.transfers import download
 from cereja.ui.events import KeyEvent
 from cereja.ui.terminal import TerminalSession
@@ -47,7 +47,7 @@ class WorkflowTests(unittest.TestCase):
         session = TerminalSession(VirtualBackend())
         session.__enter__()
         self.addCleanup(session.close)
-        self.app = Ledger(session)
+        self.app = TUI(session)
         self.addCleanup(self.app.close)
 
     def finish(self):
@@ -74,7 +74,7 @@ class WorkflowTests(unittest.TestCase):
         self.finish()
 
     def test_discovery_never_invokes_services(self):
-        with patch('cereja.ledger.workflows.execute', side_effect=AssertionError('automatic execution')):
+        with patch('cereja.tui.workflows.execute', side_effect=AssertionError('automatic execution')):
             for command in ('context', 'compress', 'download'):
                 self.app.composer.set_selection(0, len(self.app.composer.text))
                 self.app.composer.insert('/' + command)
@@ -165,7 +165,7 @@ class WorkflowTests(unittest.TestCase):
             self.assertFalse(list(self.root.glob('*.part')))
 
     def test_safe_casefold_highlight_spans(self):
-        from cereja.ledger.workflows import highlight_spans
+        from cereja.tui.workflows import highlight_spans
         self.assertEqual(highlight_spans('Straße <tag>', ('STRASSE', '<tag>')), ((0, 6), (7, 12)))
         self.assertEqual(highlight_spans('abc', ('[.*]',)), ())
 
