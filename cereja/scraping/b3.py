@@ -1,9 +1,11 @@
+from math import isfinite as _isfinite
+
 from ..http import Client
 from ..hashtools import base64_encode
 from ..utils import get_zero_mask
 from ._financial import FinancialData
 
-__all__ = ["Share", "ShareNotFoundError", "ShareDataError"]
+__all__ = ["Share", "ShareNotFoundError", "ShareDataError", "MarketData", "MarketDataError"]
 STOCK_EXCHANGES_CONFIG = {
     "B3": {"base_api_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall",
            "regist_info_endpoint": "GetInitialCompanies",
@@ -18,6 +20,97 @@ class ShareNotFoundError(LookupError):
 
 class ShareDataError(ValueError):
     """The provider request failed or returned unusable registration data."""
+
+
+class MarketDataError(ValueError):
+    """The market-data provider failed or returned unusable data."""
+
+
+class MarketData:
+    """Read B3 quotation and trading-floor JSON independently of company registration.
+
+    Responses retain the provider's fields and timestamp strings. Message times
+    do not establish trade times or the effective delay of a quotation.
+    """
+
+    _BASE_URL = "https://cotacao.b3.com.br/mds/api/v1"
+
+    def __init__(self, *, client=None, timeout=30):
+        self._owns_client = client is None
+        self._client = Client(timeout=timeout) if client is None else client
+        self._timeout = timeout
+        self._closed = False
+
+    def close(self):
+        if not self._closed:
+            self._closed = True
+            if self._owns_client:
+                self._client.close()
+
+    def __enter__(self):
+        if self._closed:
+            raise RuntimeError("MarketData is closed")
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+
+    def _get(self, endpoint):
+        if self._closed:
+            raise RuntimeError("MarketData is closed")
+        try:
+            response = self._client.get(f"{self._BASE_URL}/{endpoint}", timeout=self._timeout)
+            if response.status_code != 200:
+                raise MarketDataError(f"B3 market-data request returned HTTP {response.status_code}.")
+            payload = response.json()
+        except MarketDataError:
+            raise
+        except Exception as err:
+            raise MarketDataError("B3 market-data request or JSON decoding failed.") from err
+        if not isinstance(payload, dict):
+            raise MarketDataError("Invalid B3 market-data response.")
+        status = payload.get("BizSts")
+        if not isinstance(status, dict) or status.get("cd") != "OK":
+            raise MarketDataError("B3 market-data business status is not OK.")
+        message = payload.get("Msg")
+        if not isinstance(message, dict) or not isinstance(message.get("dtTm"), str) or not message["dtTm"].strip():
+            raise MarketDataError("Missing or invalid B3 message timestamp.")
+        return payload
+
+    def quote(self, symbol: str) -> dict:
+        """Return the provider JSON for one symbol, including ``Trad`` and ``Msg``.
+
+        Unavailable quotations raise MarketDataError, not ShareNotFoundError.
+        """
+        if not isinstance(symbol, str):
+            raise TypeError("symbol must be a string")
+        symbol = symbol.strip()
+        if not symbol or not symbol.isascii() or not symbol.isalnum():
+            raise ValueError("symbol must contain only ASCII letters and digits")
+        symbol = symbol.upper()
+        payload = self._get(f"instrumentQuotation/{symbol}")
+        trades = payload.get("Trad")
+        if not isinstance(trades, list) or len(trades) != 1 or not isinstance(trades[0], dict):
+            raise MarketDataError("Expected one B3 quotation record.")
+        security = trades[0].get("scty")
+        if not isinstance(security, dict) or security.get("symb") != symbol:
+            raise MarketDataError("B3 quotation symbol does not match the requested symbol.")
+        quotation = security.get("SctyQtn")
+        price = quotation.get("curPrc") if isinstance(quotation, dict) else None
+        if (isinstance(price, bool) or not isinstance(price, (int, float))
+                or (isinstance(price, float) and not _isfinite(price))):
+            raise MarketDataError("Missing or invalid B3 quotation price.")
+        return payload
+
+    def trading_floor(self) -> dict:
+        """Return provider JSON; preserve the trading-floor status code verbatim."""
+        payload = self._get("TradingFloorInfo")
+        floor = payload.get("TradgFlr")
+        status = floor.get("TradgFlrSts") if isinstance(floor, dict) else None
+        description = status.get("desc") if isinstance(status, dict) else None
+        if not isinstance(description, str) or not description.strip():
+            raise MarketDataError("Missing or invalid B3 trading-floor status.")
+        return payload
 
 
 class StockExchangeConfig:

@@ -3,3 +3,4 @@
 __all__: tuple[str, ...]
 
 import cereja.scraping.b3 as b3
+import cereja.scraping.crypto as crypto

@@ -112,7 +112,7 @@ EXPORTS = {
         **_objects("cereja.geolinear.utils", "Rotation find_best_locations"),
         **_modules("cereja.geolinear", "point utils"),
     },
-    "cereja.scraping": _modules("cereja.scraping", "b3"),
+    "cereja.scraping": _modules("cereja.scraping", "b3 crypto"),
     "cereja.system._context": {
         **_CONTEXT,
         **_modules("cereja.system._context", "cache cache_db models query search"),

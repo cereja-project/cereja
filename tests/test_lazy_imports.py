@@ -56,6 +56,21 @@ loaded = {{n for n in sys.modules if n == "cereja" or n.startswith("cereja.")}}
 assert loaded <= {allowed!r}, sorted(loaded - {allowed!r})
 ''')
 
+    def test_scraping_crypto_is_lazy_and_preserves_module_identity(self):
+        self.run_python('''
+import importlib
+import sys
+import cereja
+import cereja.scraping
+assert "crypto" in dir(cereja.scraping)
+assert "cereja.scraping.crypto" not in sys.modules
+assert "cereja.http" not in sys.modules
+module = cereja.scraping.crypto
+assert module is importlib.import_module("cereja.scraping.crypto")
+assert cereja.scraping.crypto is module
+assert "crypto" not in vars(cereja)
+''')
+
     def test_path_does_not_load_unrelated_domains(self):
         self.run_python('''
 import sys
