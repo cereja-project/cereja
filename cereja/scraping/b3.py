@@ -3,13 +3,21 @@ from ..hashtools import base64_encode
 from ..utils import get_zero_mask
 from ._financial import FinancialData
 
-__all__ = ["Share"]
+__all__ = ["Share", "ShareNotFoundError", "ShareDataError"]
 STOCK_EXCHANGES_CONFIG = {
     "B3": {"base_api_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall",
            "regist_info_endpoint": "GetInitialCompanies",
            "head_lines_endpoint": "GetListedHeadLines",
            "financial_endpoint": "GetListedFinancial"}
 }
+
+
+class ShareNotFoundError(LookupError):
+    """The company registry has no registration for the requested symbol."""
+
+
+class ShareDataError(ValueError):
+    """The provider request failed or returned unusable registration data."""
 
 
 class StockExchangeConfig:
@@ -37,7 +45,11 @@ class Share:
         if not self.config:
             self.close()
             raise ValueError(f"Exchange {exchange} is currently not supported.")
-        self._get_share_info()
+        try:
+            self._get_share_info()
+        except Exception:
+            self.close()
+            raise
 
     def close(self):
         if self._owns_client and self._client is not None:
@@ -59,18 +71,25 @@ class Share:
             query_encoded = base64_encode(query).decode()
             url = f"{self.config['base_api_url']}/{self.config['regist_info_endpoint']}/{query_encoded}"
             response = self._get(url)
-            results = response.get("results", [])
-            if results:
-                reg_info = results[0]
-                self.code_cvm = reg_info["codeCVM"]
-                self.name = reg_info["companyName"]
-                self.cnpj = get_zero_mask(int(reg_info["cnpj"]), 14)
-                self.segment = reg_info["segment"]
-                self.market_indicator = reg_info["marketIndicator"]
-                self.bdr_type = reg_info["typeBDR"]
-                self.date_listing = reg_info["dateListing"]
+            if not isinstance(response, dict) or not isinstance(response.get("results"), list):
+                raise ShareDataError("Invalid company registry response.")
+            results = response["results"]
+            if not results:
+                raise ShareNotFoundError(f"No company registration found for {self.trading_code}.")
+            reg_info = results[0]
+            if not isinstance(reg_info, dict):
+                raise ShareDataError("Invalid company registration record.")
+            self.code_cvm = reg_info["codeCVM"]
+            self.name = reg_info["companyName"]
+            self.cnpj = get_zero_mask(int(reg_info["cnpj"]), 14)
+            self.segment = reg_info["segment"]
+            self.market_indicator = reg_info["marketIndicator"]
+            self.bdr_type = reg_info["typeBDR"]
+            self.date_listing = reg_info["dateListing"]
+        except (ShareNotFoundError, ShareDataError):
+            raise
         except Exception as err:
-            raise Exception(f"Erro ao processar dados de registro. {err}") from err
+            raise ShareDataError(f"Erro ao processar dados de registro. {err}") from err
 
     def _get_headlines(self):
         try:
