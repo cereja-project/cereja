@@ -21,7 +21,7 @@ class LedgerPtyTest(unittest.TestCase):
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 80, 0, 0))
             before = termios.tcgetattr(slave)
             process = subprocess.Popen(
-                [sys.executable, '-B', '-S', '-m', 'cereja', 'ui', '--bracketed-paste',
+                [sys.executable, '-B', '-S', '-m', 'cereja', 'ui',
                  '--ascii', '--no-color', '--reduced-motion'],
                 cwd=Path(__file__).resolve().parents[1], stdin=slave, stdout=slave, stderr=slave,
                 env={**os.environ, 'TERM': 'xterm-256color', 'PYTHONIOENCODING': 'utf-8'})

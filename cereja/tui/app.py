@@ -1,4 +1,5 @@
 """Cereja TUI composition using public toolkit APIs; UI-thread-owned application state."""
+import json
 import sys
 import time
 
@@ -11,7 +12,7 @@ from cereja.ui.feedback import InlineStatus, ProgressBar, ActivityIndicator
 from cereja.ui.focus import FocusManager, FocusScope, FocusTarget
 from cereja.ui.operations import OperationBridge, CooperativeCancellation, OperationBusy
 from cereja.ui.overlays import (Suggestion, Suggestions, FormField, ParameterForm,
-                               HelpOverlay, OverlayStack, Confirmation)
+                               HelpOverlay, OverlayStack, Confirmation, ReviewTarget)
 from cereja.ui.rendering import Cursor
 from cereja.ui.scheduling import EventLoop
 from cereja.ui.text import TextPolicy, text_metrics
@@ -102,6 +103,13 @@ class TUI:
         self._workflow_values = None
         from .workflows import forms
         self.workflow_forms = forms()
+        self.workflow_forms['large-files'].bind(self.loop)
+        self._browser_cache = None
+        self._file_form = None
+        self._file_review = None
+        self._file_request = None
+        self._file_action_active = False
+        self._file_origin = None
         self._receipt = None
         self._layout_cache = None
         self._page = 1
@@ -238,6 +246,8 @@ class TUI:
         self.overlays.open(self._review)
 
     def _workflow_target(self):
+        if self._file_review is not None:
+            return self._file_review.target
         if self._review is None or self._workflow_values is None:
             return None
         from .workflows import prepare
@@ -254,6 +264,8 @@ class TUI:
             return
         from .workflows import execute
         block = self.results.append('/' + name, 'Explicit operation requested.', active=True)
+        if name == 'large-files':
+            self.results.select(block.identity, latest=True)
         if name == 'context':
             self._context_block = block
             self._context_terms = tuple(values['query'].split())
@@ -268,6 +280,91 @@ class TUI:
             self._system_started = None
         self.refresh()
         self._sync_focus()
+
+    def _file_browser(self, block=None):
+        block = block or self.results.current
+        if block is None or not block.attachment:
+            self._browser_cache = None
+            return None
+        key = (block.identity, block.attachment)
+        if self._browser_cache is None or self._browser_cache[0] != key:
+            from .file_browser import FileBrowser
+            self._browser_cache = key, FileBrowser(block.attachment)
+        return self._browser_cache[1]
+
+    def _choose_file_action(self, action, record):
+        if action == 'details':
+            self._help(json.dumps(record['relative'], ensure_ascii=True) + '\n'
+                       + f"Exact logical size: {record['size']} bytes", 'File details')
+            return
+        if record['selection'] is None:
+            self.notice = 'File unavailable or changed. Scan again before acting.'
+            return
+        if self.bridge.active:
+            self.notice = 'Busy: one operation is active. Nothing was queued.'
+            return
+        from .file_actions import FileSelection
+        selection = FileSelection(**record['selection'])
+        self._file_request = (action, selection, None)
+        self._file_origin = self.results.current
+        if action in ('copy', 'move'):
+            from .paths import PathForm
+            if self._file_form is not None:
+                self._file_form.close()
+            self._file_form = PathForm('file-destination', action.title() + ' file: new destination', (
+                FormField('destination', 'Destination file path', '', required=True,
+                          help='Full new filename in an existing directory. Tab completes directories. '
+                               'Existing files are never replaced.'),
+            ), primary='Review', path_fields=('destination',), max_input_bytes=1024)
+            self._file_form.bind(self.loop)
+            self.overlays.open(self._file_form)
+        elif action == 'delete':
+            self._review_file_action()
+        else:
+            self._run_file_action()
+
+    def _review_file_action(self, destination=None):
+        action, selection, _ = self._file_request
+        if destination is not None:
+            from .workflows import _explicit_path
+            try:
+                destination = _explicit_path(destination)
+            except ValueError:
+                self.notice = 'Use an explicit destination file path without control characters.'
+                return
+        self._file_request = action, selection, destination
+        effects = ('Permanently delete this file; it does not go to the recycle bin.' if action == 'delete' else
+                   'Move this file within its volume, preserving its data and metadata. No cross-volume move.' if action == 'move' else
+                   'Copy the main file content to a new file; preserve the source. Extra streams and metadata are not copied.')
+        try:
+            target = ReviewTarget(action, selection.path, destination or selection.path, 'file', effects,
+                                  'Revalidate observed identity; no links or replacement; trusted directories only',
+                                  repr(selection), True)
+            self._file_review = Confirmation('file-review', target,
+                                             form=self._file_form if action != 'delete' else None)
+            self.overlays.open(self._file_review)
+        except ValueError:
+            self._file_review = None
+            self.notice = 'This path cannot be safely reviewed. No action was started.'
+
+    def _run_file_action(self):
+        if self.bridge.active:
+            self.notice = 'Busy: one operation is active. Nothing was queued.'
+            return
+        from .file_actions import execute
+        action, selection, destination = self._file_request
+        block = self.results.append('/large-files', 'Explicit file action requested.', active=True)
+        self._operation_block = block
+        self._file_action_active = True
+        self._system_started = time.monotonic()
+        self.progress.update('File action: indeterminate')
+        try:
+            self.bridge.start('File ' + action, lambda context: execute(action, selection, destination, context))
+        except Exception:
+            self.results.finish(block, 'Failed', 'File action worker could not start.')
+            self._operation_block = None
+            self._file_action_active = False
+        self.refresh()
 
     def _tree(self, root, depth, identity=None):
         if self.bridge.active:
@@ -381,6 +478,7 @@ class TUI:
         if block is not None and block.active:
             block.state = 'Final pending' if snapshot.worker_exited else state
         if block is not None and block.active and not snapshot.active:
+            attachment = ''
             if snapshot.delivery == 'delivered':
                 outcome = snapshot.outcome
                 text = (outcome.value if state == 'Succeeded' and type(outcome.value) is str else
@@ -395,18 +493,50 @@ class TUI:
                 elif block.command in ('/context', '/compress', '/download') and state != 'Succeeded':
                     from .workflows import failure_text as workflow_failure
                     text = workflow_failure(outcome.message)
+                elif block.command == '/large-files' and self._file_action_active:
+                    if state != 'Succeeded':
+                        from .workflows import failure_text as workflow_failure
+                        text = workflow_failure(outcome.message)
+                        text += '\nInspect the source and destination before retrying; publication may have completed.'
+                    elif self._file_request[0] in ('copy', 'move', 'delete') and self._file_origin in self.results.blocks:
+                        origin = self._file_origin
+                        if origin.attachment:
+                            payload = json.loads(origin.attachment)
+                            payload['changed'] = True
+                            if self._file_request[0] in ('move', 'delete'):
+                                payload['files'] = [item for item in payload['files'] if not item['selection'] or
+                                                    item['selection']['path'] != self._file_request[1].path]
+                            origin.attachment = json.dumps(payload, ensure_ascii=True)
+                        text += '\nPrior scan is a snapshot. Run /large-files again to refresh it.'
+                    if self._file_origin in self.results.blocks and self.results.current is block and self.overlays.top is None:
+                        self.results.select(self._file_origin.identity)
+                        self.focus.focus('content')
+                        self.notice = text.splitlines()[0]
+                elif block.command == '/large-files' and state == 'Succeeded':
+                    try:
+                        payload = json.loads(text)
+                        text = payload.pop('text')
+                        attachment = json.dumps(payload, ensure_ascii=True)
+                    except (ValueError, KeyError, TypeError):
+                        state, text = 'Failed', 'Large-file publication could not be interpreted.'
                 elif block.command == '/large-files' and state != 'Succeeded':
                     text = ('Large-file search failed. Review the root, permissions and limits; '
                             'root components must not be links/reparse points. '
                             'Diagnostic details omitted; no complete scan is claimed.')
                 elif block.command == '/tree':
                     text = 'Tree load failed. The directory may be unavailable or outside the limits.'
-                self.results.finish(block, state, text)
+                self.results.finish(block, state, text, attachment=attachment)
+                if attachment and self.results.current is block and self.composer.text.strip() == '/large-files':
+                    self.focus.focus('content')
             else:
                 self.results.finish(block, 'Unavailable',
                                     'Final observation unavailable: ' + snapshot.delivery + '. No success is claimed.')
             self._operation_block = None
             self._system_started = None
+            self._file_action_active = False
+            self._file_request = None
+            self._file_origin = None
+            self._file_browser()
         active = snapshot.active and state in ('Running', 'Committing', 'CancelRequested') and not snapshot.worker_exited
         label = 'loading' if snapshot.active else {
             'Succeeded': 'success', 'Cancelled': 'canceled', 'Failed': 'error', 'CleanupFailed': 'error',
@@ -427,7 +557,14 @@ class TUI:
         if isinstance(event, (EOFEvent, QuitEvent)):
             self.activity.close()
             self.bridge.close()
+            for form in (self.workflow_forms['large-files'], self._file_form):
+                if form is not None:
+                    form.close()
             return
+        for form in (self.workflow_forms['large-files'], self._file_form):
+            if form is not None and form.consume(event):
+                self.render()
+                return
         if isinstance(event, InputErrorEvent):
             self.notice = 'Input rejected: incomplete or oversized terminal input. Draft preserved.'
             self.render()
@@ -462,10 +599,18 @@ class TUI:
                     self._action(copy_action(selection))
         elif self.overlays.top is not None:
             overlay = self.overlays.top
-            action = self.overlays.handle(event, current_target=self._workflow_target())
+            from .paths import PathForm
+            action = overlay.handle_completion(event, self.focus.focused) if isinstance(overlay, PathForm) else None
+            if action is None:
+                action = self.overlays.handle(event, current_target=self._workflow_target())
+            if action.kind == 'file-action':
+                self.overlays.close()
+                self._choose_file_action(dict(action.values)['action'], overlay.record)
             if action.kind == 'submit' and isinstance(overlay, ParameterForm):
                 self.overlays.close()
-                if overlay is self.system_form:
+                if overlay is self._file_form:
+                    self._review_file_action(dict(action.values)['destination'])
+                elif overlay is self.system_form:
                     self._system(dict(action.values)['sections'])
                 elif overlay is self.tree_form:
                     values = dict(action.values)
@@ -478,6 +623,13 @@ class TUI:
                     self._example(values['kind'], int(values['steps']))
                 else:
                     self.notice = 'Synthetic input example finished. Edited text is not a result or history.'
+            elif action.kind == 'confirmed' and overlay is self._file_review:
+                if self._file_review.authorization(self._file_review.target) == action.target:
+                    self._run_file_action()
+                self._file_review = None
+            elif action.kind == 'back' and overlay is self._file_review:
+                self._file_review = None
+                self._file_request = None
             elif action.kind == 'confirmed' and overlay is self._review:
                 current = self._workflow_target()
                 if self._review.authorization(current) == action.target and current is not None:
@@ -517,6 +669,17 @@ class TUI:
         if not isinstance(event, KeyEvent):
             return
         focused, block = self.focus.focused, self.results.current
+        browser = self._file_browser(block)
+        if focused == 'content' and browser is not None and not event.modifiers:
+            if event.key == 's':
+                self._help(block.content.text, 'Scan details')
+                return
+            action = browser.view.handle(event)
+            if action.kind == 'inspect' and browser.selected is not None:
+                from .file_browser import FileMenu
+                self.overlays.open(FileMenu(browser.selected))
+            if action.kind != 'unhandled':
+                return
         if (focused == 'content' and block is self._tree_block and self._tree_result is not None
                 and not event.modifiers):
             action = self._tree_result.view.handle(event)
@@ -575,6 +738,17 @@ class TUI:
         frame.draw_text(body.x, y, f'{marker}* {block.identity} {block.command} [{block.state}]',
                         clip=body, style=Style(bold=True))
         y += 1
+        browser = self._file_browser(block)
+        if browser is not None and block.selection is None:
+            summary = block.content.text.splitlines()
+            scan = next((line for line in summary if line.startswith('Scan:')), 'Scan snapshot')
+            if browser.changed:
+                scan += ' (files changed; rescan to refresh)'
+            frame.draw_text(body.x, y, scan + ' | S: scan details', clip=body)
+            y += 1
+            browser.view.paint(frame, Rect(body.x, y, body.width, max(0, body.height - (y - body.y))),
+                               focused=self.focus.focused == 'content')
+            return 'Files | Up/Down select | Enter actions | S scan details'
         if block is self._tree_block and self._tree_result is not None:
             self._tree_result.view.paint(frame, Rect(body.x, y, body.width, max(0, body.height - (y - body.y))),
                                          focused=self.focus.focused == 'content')
@@ -621,7 +795,8 @@ class TUI:
                 frame.draw_text(0, max(0, height - 1), labels, clip=Rect(0, 0, max(0, width - 1), height))
             self.loop.request_render(frame, cursor=cursor, decorative=decorative)
             return frame
-        body = Rect(2, 3, min(75, width - 4), height - 8)
+        wide = self.results.current is not None and bool(self.results.current.attachment)
+        body = Rect(2, 3, width - 4 if wide else min(75, width - 4), height - 8)
         dock = Rect(2, height - 4, width - 4, 4)
         frame.draw_text(2, 0, 'Cereja TUI', style=Style(bold=True))
         frame.draw_text(2, 1, '|' + '-' * min(73, width - 5), style=Style(foreground=1))
@@ -675,6 +850,14 @@ class TUI:
                                        height=min(3 if width < 60 else 7, body.height) if shelf else body.height)
             if not shelf:
                 cursor = view.cursor
+            from .file_browser import FileMenu
+            if isinstance(self.overlays.top, FileMenu):
+                footer = Rect(view.rect.x, view.rect.y + view.rect.height - 1, view.rect.width, 1)
+                frame.clear(clip=footer)
+                frame.draw_text(footer.x, footer.y, 'Enter: choose | Esc: Back', clip=footer)
+            from .paths import PathForm
+            if isinstance(self.overlays.top, PathForm) and self.overlays.top.paint_completions(frame, body):
+                cursor = Cursor()
             frame.clear(clip=Rect(2, height - 5, width - 4, 1))
             frame.draw_text(2, height - 5,
                             f'Overlay {view.viewport.offset[1] + 1}/{max(1, view.viewport.content_height)}',
@@ -707,6 +890,9 @@ class TUI:
             self.closed = True
             self.activity.close()
             self.bridge.close()
+            for form in (self.workflow_forms['large-files'], self._file_form):
+                if form is not None:
+                    form.close()
             self.loop.close()
 
 

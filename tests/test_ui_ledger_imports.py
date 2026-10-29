@@ -118,7 +118,7 @@ for entry in COMMANDS + REFERENCES:
             if entry.guide:
                 self.assertTrue((ROOT / entry.guide).is_file(), entry.guide)
 
-    def test_unknown_paste_transport_uses_plain_without_terminal_acquisition(self):
+    def test_unsupported_platform_uses_plain_without_terminal_acquisition(self):
         output = self.process('''
 import io, sys
 from types import SimpleNamespace
@@ -129,14 +129,62 @@ class TTY(io.StringIO):
     def read(self, *a): raise AssertionError('read')
 with patch.object(sys, 'stdin', TTY()), patch.object(sys.stdout, 'isatty', return_value=True):
     # Replace this module's platform view, not the shared stdlib os module.
-    with patch('cereja.commands.ui.os', SimpleNamespace(name='nt')):
-        assert main([]) == 0
-    with patch('cereja.commands.ui.os', SimpleNamespace(name='posix')):
+    with patch('cereja.commands.ui.os', SimpleNamespace(name='unsupported')):
         assert main([]) == 0
 assert not any(n.startswith('cereja.ui') for n in sys.modules)
 ''')
-        self.assertIn('needs delimited paste', output)
-        self.assertIn('--bracketed-paste', output)
+        self.assertIn('requires a Windows or POSIX terminal', output)
+
+    def test_interactive_entry_requests_paste_automatically_and_keeps_old_flag(self):
+        self.process('''
+import io, sys
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+from cereja.commands.ui import main
+from cereja.ui.terminal import CapabilityOptions
+class TTY(io.StringIO):
+    def isatty(self): return True
+    def read(self, *a): raise AssertionError('read')
+for platform, backend in (('nt', 'cereja.ui.windows.WindowsBackend'),
+                          ('posix', 'cereja.ui.posix.PosixBackend')):
+    for arguments in ([], ['--bracketed-paste']):
+        session = MagicMock()
+        session.capabilities.plain = False
+        with patch.object(sys, 'stdin', TTY()), patch.object(sys.stdout, 'isatty', return_value=True), \
+                patch('cereja.commands.ui.os', SimpleNamespace(name=platform)), \
+                patch(backend) as native, \
+                patch('cereja.ui.terminal.TerminalSession') as terminal, \
+                patch('cereja.tui.TUI') as app:
+            terminal.return_value.__enter__.return_value = session
+            assert main(arguments) == 0
+            options = native.call_args.kwargs['options']
+            assert isinstance(options, CapabilityOptions)
+            assert options.paste is True
+            app.assert_called_once_with(session, low_bandwidth=False)
+            app.return_value.run.assert_called_once_with()
+            terminal.return_value.__exit__.assert_called_once()
+''')
+
+    def test_native_plain_fallback_never_constructs_application(self):
+        output = self.process('''
+import io, sys
+from unittest.mock import MagicMock, patch
+from cereja.commands.ui import main
+class TTY(io.StringIO):
+    def isatty(self): return True
+    def read(self, *a): raise AssertionError('read')
+session = MagicMock()
+session.capabilities.plain = True
+backend = 'cereja.ui.windows.WindowsBackend' if sys.platform == 'win32' else 'cereja.ui.posix.PosixBackend'
+with patch.object(sys, 'stdin', TTY()), patch.object(sys.stdout, 'isatty', return_value=True), \
+        patch(backend), patch('cereja.ui.terminal.TerminalSession') as terminal, \
+        patch('cereja.tui.TUI') as app:
+    terminal.return_value.__enter__.return_value = session
+    assert main([]) == 0
+    app.assert_not_called()
+    terminal.return_value.__exit__.assert_called_once()
+''')
+        self.assertIn('plain reference', output)
 
 
 if __name__ == '__main__':

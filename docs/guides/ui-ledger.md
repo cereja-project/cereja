@@ -13,23 +13,22 @@ No root exports, legacy display initialization or mandatory dependencies are add
 
 ```text
 cereja ui
-cereja ui --bracketed-paste
 cereja ui --no-color --ascii --reduced-motion
 cereja ui --low-bandwidth
 cereja ui --plain
 ```
 
-The three presentation options are independent. Interactive POSIX and Windows use require
-an explicit `--bracketed-paste` assertion for a terminal supporting that protocol.
+The three presentation options are independent. Interactive POSIX and Windows
+automatically enable bracketed paste. No extra startup flag is required;
+`--bracketed-paste` remains accepted for compatibility.
 On Windows, this selects `ENABLE_VIRTUAL_TERMINAL_INPUT` and the shared bounded
 escape parser. Bracketed paste produces one literal `PasteEvent`, including its
 newlines and Unicode, rather than submission or shortcut events. Console modes
 and the paste protocol are restored through the existing session journal.
-Without the assertion, the command prints the plain reference and reads no input.
 The host must preserve the protocol delimiters. Unmarked paste cannot be
 distinguished from keyboard Enter; output VT support or a terminal environment
 variable alone does not prove paste support. Use a supporting Windows Terminal
-host rather than asserting support for a legacy console that omits delimiters.
+host; use `--plain` with a legacy console that omits delimiters.
 
 Noninteractive input/output,
 unsupported cursor transport and explicit `--plain` print a finite reference and
@@ -212,18 +211,44 @@ Fixtures for other platforms do not prove native collection on those platforms.
 `/large-files` opens a six-field form (root, minimum bytes, retained files,
 examined entries, descent depth, retained error details). Defaults are respectively
 explicit input, 0, 20, 1000000, 64 and 32, matching `find_large_files`.
-Only Run starts filesystem work. Hidden/binary files and ignored repository paths
-are included; links/reparse points and special files are skipped without reading
-content. Sizes are logical bytes, not allocated disk space.
+Start with `cereja ui`; no paste flag is required on a supported terminal.
+Tab in a nonempty root field requests directory suggestions. Up/Down select,
+Enter/Tab accepts and Escape closes them; empty-field Tab and Shift+Tab preserve
+form navigation. Suggestions are worker-owned and bounded to 1,024 examined
+entries and 32 suggestions within 8 KiB, with partial listings labelled. Only Run
+starts the large-file scan. Hidden/binary files and ignored repository paths are
+included; links/reparse points and special files are skipped without reading
+content. Sizes describe logical file size, not allocated disk space.
 
-The existing operation bridge runs validation, scan and formatting off the UI
-thread. Navigation, help, draft editing and resize remain usable. There is no
-second queue or UI-thread join. The form scrolls to each focused field at 40x12.
-The worker publishes at most 12 KiB of JSON-escaped text into the existing result
-pager and retention budget. Counters and scan completeness precede file rows;
-omitted display rows, retained-result truncation and incomplete traversal are
-separate facts. Root display uses a labelled prefix after 320 characters.
-API root and entry/depth/retention limits are passed through unchanged.
+The result has a keyboard file list: Up/Down, PageUp/PageDown and Home/End select;
+Enter opens Open directory, Copy, Move, Delete and Details. The list receives
+focus on completion when its result remains selected and the command draft is
+unchanged; Tab also reaches result content. Sizes use B/KiB/MiB/GiB and larger
+binary units. Details shows exact bytes. S opens scan details with counters,
+completeness, JSON-escaped paths and error details.
+
+Scans and file actions use the existing single operation slot off the UI thread,
+without queueing a second action or joining workers on the UI thread. Navigation,
+help, draft editing and resize remain usable. Copy/Move require a complete new
+destination filename and confirmation; existing targets are preserved. Delete
+requires confirmation and permanently removes the file without the recycle bin.
+Copy creates the main content stream in a new file without extra streams or
+metadata preservation, as stated in its confirmation. Move preserves the file
+and metadata within the same volume; cross-volume moves are refused without a
+copy/delete fallback. Windows uses native rename; POSIX uses link/unlink without
+replacement and reports a partial outcome if source removal fails, leaving both
+names. Open directory requests Explorer or the platform file manager. Successful
+actions return to the list; Move/Delete remove the row and mark the snapshot as
+changed. S retains the original scan report; rescan to update rankings/counters.
+File identity and ordinary paths are revalidated, but trusted directories remain
+required because checks cannot prevent hostile path replacement races.
+
+The form scrolls to each focused field at 40x12. Interactive records are limited
+to 128 files and 28,000 serialized bytes; scan details have a separate 12 KiB text
+cap. Records count toward ephemeral result retention. Omitted UI records,
+retained-result truncation and incomplete traversal are separately labelled.
+Root display uses a labelled prefix after 320 characters. API root and
+entry/depth/retention limits pass through unchanged; UI caps do not alter the scan.
 
 The scan has no cancellation or deadline contract, so exit offers Stay or Wait
 then exit. Pending OS calls can block worker completion after terminal loss.

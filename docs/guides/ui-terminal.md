@@ -138,13 +138,16 @@ Waiting uses console records and an application event, without a socket selector
 UTF-16 surrogate pairs survive split reads; malformed pairs become U+FFFD.
 Dimensions and resize notifications use the visible viewport. Ordinary legacy
 console records cannot reliably identify paste. With `CapabilityOptions(paste=True)`,
-the caller explicitly asserts a host preserving bracketed-paste delimiters;
+the caller requests a host preserving bracketed-paste delimiters;
 acquisition enables `ENABLE_VIRTUAL_TERMINAL_INPUT` and the paste protocol.
 The same bounded parser used on POSIX consumes VT key records and Unicode packets,
 including split UTF-16 pairs, while retaining native resize and wake events.
 Paste is one literal event; rejected/unfinished paste never replays shortcuts.
 No detection guarantee is made for unmarked paste or a host that drops delimiters.
-The legacy record path remains the default when paste support is not asserted.
+The legacy record path remains the toolkit default when paste is not requested.
+The `cereja ui` application always requests this protection for interactive
+sessions, so no `--bracketed-paste` startup flag is necessary. This enables the
+protocol; it does not probe whether an emulator preserves its delimiters.
 The Windows Terminal maintainers describe this
 [VT record contract](https://github.com/microsoft/terminal/issues/18094#issuecomment-2428349974).
 

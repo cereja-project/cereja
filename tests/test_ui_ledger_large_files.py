@@ -39,6 +39,7 @@ class LargeFilesLedgerTests(unittest.TestCase):
         editor.insert(str(value))
 
     def open(self):
+        self.app.focus.focus('composer')
         self.app.composer.set_selection(0, len(self.app.composer.text))
         self.app.composer.insert('/large-files')
         self.app.handle(KeyEvent('enter'))

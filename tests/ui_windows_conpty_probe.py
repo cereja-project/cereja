@@ -62,7 +62,7 @@ def handle(app, event):
             assert not app.loop.stopped
     return answer
 with patch.object(TUI, 'run', run), patch.object(TUI, 'handle', handle):
-    assert main(['--bracketed-paste', '--ascii', '--no-color', '--reduced-motion']) == 0
+    assert main(['--ascii', '--no-color', '--reduced-motion']) == 0
 after = tuple(api.get_mode(h) for h in handles)
 assert before == after, (before, after)
 assert seen == ['/examples progress\n/home e\u0301界😀'], seen
