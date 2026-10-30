@@ -56,7 +56,7 @@ Progress is enabled by default for CLI compression and decompression. Use `--qui
 ### Cereja TUI
 
 ```bash
-cereja ui --bracketed-paste
+cereja ui
 cereja ui --plain
 ```
 
@@ -65,6 +65,11 @@ System, Tree, Large files, Context, Archives and Download. Writes require exact-
 review and refuse replacement. See the [Cereja TUI guide](docs/guides/ui-ledger.md)
 for supported limits, Windows-only directory extraction, terminal requirements
 and remaining human acceptance. Plain mode prints a reference and reads no input.
+
+In `/large-files`, Tab completes directory paths, arrows select files, and Enter
+opens file actions. Sizes use readable binary units; Details shows exact bytes.
+Copy, move and permanent deletion require confirmation. Moves stay within the
+same volume, and existing destinations are preserved.
 
 Embed with `from cereja.tui import TUI`. The former
 `from cereja.ledger.app import Ledger` remains an alias of the same class.
