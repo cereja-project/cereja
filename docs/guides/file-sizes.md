@@ -98,21 +98,60 @@ Entry/depth limits provide no wall-clock deadline or cancellation guarantee.
 
 ## Cereja TUI
 
-Start `cereja ui --bracketed-paste` in a supporting terminal, submit `/large-files`,
-enter an explicit trusted root and choose Run. The form exposes all five API
-parameters with the same defaults and minima. Opening the form/help does not scan.
-Validation and scanning of the filesystem, sorting and bounded text projection
-run in the existing Cereja TUI operation worker. Navigation, help, draft editing and
-resize remain available while I/O is pending. One operation owns the slot until
-worker exit and final delivery; a second operation is refused without queueing.
+Start `cereja ui` in a supporting terminal, submit `/large-files`, enter an explicit
+trusted root and choose Run. The form exposes all five API parameters with the
+same defaults and minima. In a nonempty root field, Tab requests directory
+suggestions; Up/Down select, Enter/Tab accepts and Escape closes the suggestions.
+An empty field and Shift+Tab retain ordinary form navigation. Directory suggestions
+run in a worker only on request, inspect at most 1,024 entries, retain at most 32
+suggestions within 8 KiB, and label partial listings. Opening the form/help does
+not scan.
 
-Results show logical byte sizes and JSON-escaped relative paths, counters, skipped
-links/special files, and error details. An incomplete scan explicitly ranks only
-the examined portion. `results_truncated`, `errors_truncated` and the independent
-12 KiB UI text cap are reported separately. The scan and API report are unaffected
-by omitted display rows. Roots longer than 320 characters have a labelled display
-prefix; the full root is still passed to the API. Results use the existing pager,
-selection and ephemeral retention; there is no persistent inventory or file-opening action.
+Validation, scanning, sorting and result projection run off the UI thread.
+Navigation, help, draft editing and resize remain available while I/O is pending.
+One scan or file action owns the operation slot until worker exit and final
+delivery; a second is refused without queueing. Directory completion has its own
+bounded worker and does not start a large-file scan.
+
+Results provide a keyboard file list with logical sizes in B, KiB, MiB, GiB or
+larger binary units. Exact bytes remain available in each file's Details menu.
+Up/Down, PageUp/PageDown and Home/End select files; Enter opens a menu with Open
+directory, Copy, Move, Delete and Details. A newly completed scan focuses this
+list when its result is selected and the command draft has not changed. Tab can
+also reach the result content. S opens scan details, including counters,
+JSON-escaped paths, skipped links/special files and error details. An incomplete
+scan explicitly ranks only the examined portion.
+
+The interactive list retains at most 128 records within a 28,000-byte serialized
+record budget. Scan details have an independent 12 KiB text cap. Omitted UI records,
+`results_truncated` and `errors_truncated` are labelled separately; display caps
+do not change the scan or API report. Roots longer than 320 characters have a
+labelled display prefix; the full root is still passed to the API. Serialized
+file records count toward the existing ephemeral result-retention budget. There
+is no persistent inventory.
+
+Open directory asks Explorer on Windows, or the system file manager on other
+supported platforms, to open the selected file's containing directory. Copy and
+Move require a complete new destination filename in an existing directory and
+an explicit confirmation; existing files are never replaced. Delete requires
+confirmation and permanently removes the file, without using the recycle bin.
+These actions run in the operation worker, not while selecting or reviewing a
+menu item. Copy creates a new file containing the main content stream; it does
+not preserve extra streams or file metadata, as stated in its confirmation.
+Move preserves the original file and its metadata within the same volume.
+Cross-volume moves are refused without a copy/delete fallback. Windows uses a
+native rename; POSIX creates a hard link then removes the source name, without
+replacing existing targets. If POSIX source removal fails, both names remain and
+the result reports the partial outcome.
+
+Successful file actions return to the file list. Move/Delete remove the affected
+row and mark the displayed snapshot as changed. S still shows the original scan
+report; run `/large-files` again to update rankings and counters.
+
+File actions reject links/reparse paths and revalidate the observed file identity
+before acting. Use trusted directories: these checks do not prevent hostile
+concurrent path replacement between OS calls. The scan is not a promise that a
+file will still exist or be unchanged when selected.
 
 No Cancel, percentage, ETA or whole-operation deadline is offered. Exit during
 work offers Stay or Wait then exit. Terminal loss detaches observation and does

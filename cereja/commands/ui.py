@@ -12,7 +12,7 @@ def create_parser():
     parser.add_argument('--reduced-motion', action='store_true', help='Disable decorative timers.')
     parser.add_argument('--low-bandwidth', action='store_true', help='Use the existing reduced frame/indicator ceilings.')
     parser.add_argument('--bracketed-paste', action='store_true',
-                        help='Assert a terminal supporting bracketed paste (required for interactive Cereja TUI).')
+                        help='Compatibility option: bracketed paste is enabled automatically in interactive mode.')
     return parser
 
 
@@ -30,8 +30,8 @@ def main(argv=None):
     args = create_parser().parse_args(argv)
     if args.plain or not (sys.stdin.isatty() and sys.stdout.isatty()):
         return _plain()
-    if os.name not in ('nt', 'posix') or not args.bracketed_paste:
-        return _plain('Interactive Cereja TUI needs delimited paste. Use --bracketed-paste on a supporting terminal.')
+    if os.name not in ('nt', 'posix'):
+        return _plain('Interactive Cereja TUI requires a Windows or POSIX terminal.')
     from cereja.ui.terminal import CapabilityOptions, TerminalSession
     options = CapabilityOptions(color=0 if args.no_color else None,
                                 unicode=False if args.ascii else None,

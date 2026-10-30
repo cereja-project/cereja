@@ -115,7 +115,7 @@ and [NVIDIA System Management Interface documentation](https://docs.nvidia.com/d
 
 ## Cereja TUI integration
 
-`cereja ui --bracketed-paste` offers `/system` on Windows/Linux/macOS. Its explicit
+`cereja ui` offers `/system` on Windows/Linux/macOS. Its explicit
 Run/Refresh form uses this typed facade with basic/non-sensitive defaults and
 validated sections; no automatic scan, numeric progress or Cancel is available.
 [Cereja TUI flow, bounded projection, privacy and verification](ui-ledger.md)

@@ -160,7 +160,7 @@ def download(values, context):
 def execute(name, values, context):
     if name == 'large-files':
         from .large_files import scan
-        return scan(values, context)
+        return scan(dict(values, _interactive=True), context)
     if name == 'context':
         return context_search(values, context)
     if name == 'compress':
@@ -171,6 +171,10 @@ def execute(name, values, context):
 
 
 _REFUSALS = frozenset((
+    'Selected file changed; scan again before acting',
+    'Explicit destination file path required',
+    'Cross-volume moves are unsupported; copy, verify the destination, then delete the source',
+    'Destination was linked, but source was not removed; inspect both paths before retrying',
     'Context root exceeds admission bounds or is unavailable',
     'Context supports up to 64 files / 16 MiB inventoried source bytes',
     'Destination exists; replacement is unsupported',

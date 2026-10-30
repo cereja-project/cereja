@@ -33,10 +33,11 @@ class ResultBlock:
     truncated: bool = False
     anchor: int = 0
     selection: TextSelection | None = None
+    attachment: str = ''
 
     @property
     def payload_bytes(self):
-        size = len((self.identity + self.command + self.state + self.content.text).encode('utf-8'))
+        size = len((self.identity + self.command + self.state + self.content.text + self.attachment).encode('utf-8'))
         if self.selection is not None and self.selection.content is not self.content:
             size += len(self.selection.content.text.encode('utf-8'))
         return size
@@ -101,10 +102,13 @@ class Results:
         self._trim()
         return block
 
-    def finish(self, block, state, text):
+    def finish(self, block, state, text, *, attachment=''):
         if block not in self.blocks or not block.active:
             raise ValueError('result is not the active block')
         safe, truncated = bounded_text(text, self.block_bytes)
+        if type(attachment) is not str or len(attachment.encode('utf-8')) > 48000:
+            raise ValueError('attachment must be bounded serialized data')
+        block.attachment = attachment
         block.content = TextContent(block.identity, block.content.revision + 1, safe)
         block.state, block.active, block.truncated = state, False, truncated
         self._trim()
