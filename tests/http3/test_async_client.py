@@ -7,6 +7,26 @@ from ._server import running_server
 
 
 class AsyncClientTest(unittest.IsolatedAsyncioTestCase):
+    async def test_response_metadata_survives_streaming_and_head(self):
+        with running_server() as (base, _):
+            async with AsyncClient() as client:
+                response = await client.get(base + "/fixed")
+                self.assertEqual(response.content_type, "text/plain")
+                self.assertEqual(response.charset, "utf-8")
+                self.assertEqual(response.content_length, 5)
+                self.assertEqual(response.content, b"hello")
+                async with client.stream("GET", base + "/fixed") as response:
+                    self.assertEqual(response.content_type, "text/plain")
+                    self.assertEqual(response.charset, "utf-8")
+                    self.assertEqual(response.content_length, 5)
+                    self.assertEqual(b"".join([chunk async for chunk in response.aiter_bytes(2)]), b"hello")
+                async with client.stream("GET", base + "/chunked") as response:
+                    self.assertIsNone(response.content_length)
+                    self.assertEqual(b"".join([chunk async for chunk in response.aiter_bytes(2)]), b"abcdefg")
+                response = await client.head(base + "/fixed")
+                self.assertEqual(response.content_length, 5)
+                self.assertEqual(response.content, b"")
+
     async def test_native_async_requests_streaming_pool_and_cleanup(self):
         with running_server() as (base, handler):
             async with AsyncClient(max_connections=2) as client:

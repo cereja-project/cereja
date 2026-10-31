@@ -1,6 +1,6 @@
 """Synchronous streaming response."""
 
-from ..models import ResponseInfo
+from ..models import ResponseInfo, _raise_for_status
 
 _UNSET = object()
 
@@ -76,8 +76,32 @@ class StreamResponse:
     def url(self):
         return self.info.url
 
+    @property
+    def filename(self) -> str | None:
+        """Advisory server filename, or None when absent or unusable."""
+        return self.info.filename
+
+    @property
+    def content_type(self) -> str | None:
+        """Lowercase media type without parameters, or None if unusable."""
+        return self.info.content_type
+
+    @property
+    def charset(self) -> str | None:
+        """Lowercase declared charset token, without inferring an encoding."""
+        return self.info.charset
+
+    @property
+    def content_length(self) -> int | None:
+        """Declared Content-Length in bytes, not the consumed body size."""
+        return self.info.content_length
+
     def read(self, size=-1):
         return self.stream.read(size)
+
+    def raise_for_status(self):
+        """Raise HTTPStatusError for status >= 400 without reading the body."""
+        return _raise_for_status(self)
 
     def iter_bytes(self, chunk_size=65536):
         return self.stream.iter_bytes(chunk_size)

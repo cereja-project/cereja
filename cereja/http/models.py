@@ -3,9 +3,22 @@
 from dataclasses import dataclass
 import json as jsonlib
 
+from ._core.disposition import response_filename
+from ._core.metadata import content_length_metadata, content_type_metadata
 from .errors import DecodeError, HTTPStatusError
 from .headers import Headers
 from .url import URL
+
+
+def _raise_for_status(response):
+    if response.status_code >= 400:
+        raise HTTPStatusError(
+            f"HTTP {response.status_code} {response.info.reason} "
+            f"for {response.request.method} {response.url}",
+            request=response.request,
+            response=response,
+        )
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +56,26 @@ class ResponseInfo:
     url: URL
     http_version: str
 
+    @property
+    def filename(self) -> str | None:
+        """Advisory basename from Content-Disposition, without consuming the body."""
+        return response_filename(self.headers)
+
+    @property
+    def content_type(self) -> str | None:
+        """Lowercase media type without parameters, or None if unusable."""
+        return content_type_metadata(self.headers)[0]
+
+    @property
+    def charset(self) -> str | None:
+        """Lowercase declared charset token, without inferring an encoding."""
+        return content_type_metadata(self.headers)[1]
+
+    @property
+    def content_length(self) -> int | None:
+        """Declared Content-Length in bytes, not the consumed body size."""
+        return content_length_metadata(self.headers)
+
 
 @dataclass(slots=True)
 class Response:
@@ -69,6 +102,26 @@ class Response:
     @property
     def url(self):
         return self.info.url
+
+    @property
+    def filename(self) -> str | None:
+        """Advisory server filename, or None when absent or unusable."""
+        return self.info.filename
+
+    @property
+    def content_type(self) -> str | None:
+        """Lowercase media type without parameters, or None if unusable."""
+        return self.info.content_type
+
+    @property
+    def charset(self) -> str | None:
+        """Lowercase declared charset token, without inferring an encoding."""
+        return self.info.charset
+
+    @property
+    def content_length(self) -> int | None:
+        """Declared Content-Length in bytes, not the consumed body size."""
+        return self.info.content_length
 
     @property
     def text(self):
