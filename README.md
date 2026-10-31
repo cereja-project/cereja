@@ -87,6 +87,25 @@ traversal. The Python API is `cereja.system.file_sizes.find_large_files`.
 See [file sizes](docs/guides/file-sizes.md) for partial-scan reporting, limits
 and reproducible benchmarks.
 
+### HTTP requests and downloads
+
+Use `cereja.http.Client` or `AsyncClient` for HTTP/1.1 requests without additional
+runtime dependencies. Large responses can be streamed, and `cereja.transfers`
+provides filesystem download helpers with atomic publication.
+
+```python
+from cereja.http import Client
+
+with Client(timeout=10) as client:
+    response = client.get("https://api.example.com/users", params={"page": 1})
+    response.raise_for_status()
+    users = response.json()
+```
+
+See the [HTTP guide](docs/guides/http.md) for authentication, request bodies,
+response handling, async requests, streaming downloads, timeouts, retries, TLS,
+and the `cereja http` and `cereja download` commands.
+
 ### Bounded context search
 
 Search for all whitespace-separated terms in UTF-8 text under one or more

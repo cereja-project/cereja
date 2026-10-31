@@ -37,6 +37,19 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, b"hello", [("Content-Type", "text/plain; charset=utf-8")])
         elif path == "/json":
             self._send(200, b'{"ok":true}', [("Content-Type", "application/json")])
+        elif path == "/protected":
+            authorized = (
+                self.headers.get("Authorization") == "Bearer fixture-token"
+                and self.headers.get_all("X-Tag") == ["one", "two"]
+            )
+            self._send(200 if authorized else 401, b"protected" if authorized else b"unauthorized",
+                       [("Connection", "close")])
+        elif path == "/named":
+            self._send(200, b"payload", [
+                ("Content-Disposition", "attachment; filename=legacy.zip; filename*=UTF-8''report%20data.zip"),
+            ])
+        elif path == "/named-redirect":
+            self._send(302, b"", [("Location", "/named")])
         elif path == "/large":
             self._send(200, b"x" * 65536)
         elif path == "/chunked":

@@ -6,6 +6,25 @@ from ._server import running_server
 
 
 class SyncClientTest(unittest.TestCase):
+    def test_response_metadata_survives_streaming_and_head(self):
+        with running_server() as (base, _), Client() as client:
+            response = client.get(base + "/fixed")
+            self.assertEqual(response.content_type, "text/plain")
+            self.assertEqual(response.charset, "utf-8")
+            self.assertEqual(response.content_length, 5)
+            self.assertEqual(response.content, b"hello")
+            with client.stream("GET", base + "/fixed") as response:
+                self.assertEqual(response.content_type, "text/plain")
+                self.assertEqual(response.charset, "utf-8")
+                self.assertEqual(response.content_length, 5)
+                self.assertEqual(b"".join(response.iter_bytes(2)), b"hello")
+            with client.stream("GET", base + "/chunked") as response:
+                self.assertIsNone(response.content_length)
+                self.assertEqual(b"".join(response.iter_bytes(2)), b"abcdefg")
+            response = client.head(base + "/fixed")
+            self.assertEqual(response.content_length, 5)
+            self.assertEqual(response.content, b"")
+
     def test_requests_reuse_stream_limits_redirects_and_errors(self):
         with running_server() as (base, handler):
             with Client(max_connections=2) as client:
