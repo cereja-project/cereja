@@ -66,6 +66,7 @@ class FileBrowserTests(unittest.TestCase):
         self.assertEqual(self.app.focus.focused, '@choose')
         self.assertIn('Enter: choose | Esc: Back', self.ui.text(self.app.render()))
         self.key('down')
+        self.key('down')
         self.assertIn('> Copy file...', self.app.overlays.top.content.text)
         self.key('escape')
         self.assertEqual(self.app.focus.focused, 'content')
@@ -166,7 +167,7 @@ class FileBrowserTests(unittest.TestCase):
         self.ui.size = (40, 12)
         self.key('enter')
         self.key('end')
-        self.assertIn('> File details', self.ui.text(self.app.render()))
+        self.assertIn('> Delete file...', self.ui.text(self.app.render()))
 
     def test_selected_file_remains_visible_across_supported_sizes(self):
         (self.ui.root / 'small.txt').write_text('a')
@@ -219,7 +220,7 @@ class FileBrowserTests(unittest.TestCase):
         self.assertIn(name, self.ui.text(self.app.render()))
         self.key('enter')
         self.assertIn(name, self.ui.text(self.app.render()))
-        self.key('end')
+        self.key('home')
         self.key('enter')
         self.assertIn(name, self.app.overlays.top.content.text)
         self.assertIn('Exact logical size: 10 bytes', self.app.overlays.top.content.text)

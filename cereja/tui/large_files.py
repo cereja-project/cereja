@@ -1,8 +1,7 @@
 """Metadata-only large-file search, projected to bounded Cereja TUI text in its worker."""
 import json
+import re
 from dataclasses import asdict
-
-from cereja.ui.overlays import FormField
 
 
 LIMITS = (
@@ -21,26 +20,45 @@ def _integer(value, minimum):
     return None
 
 
+def _size_bytes(value):
+    error = 'Use a size such as 100 MiB or a whole number of bytes'
+    if (type(value) is not str or len(value) > 1024 or not value.isascii()
+            or any(ord(c) < 32 or ord(c) == 127 for c in value)):
+        raise ValueError(error)
+    match = re.fullmatch(r'([0-9]+)(?:\.([0-9]+))? *(B|[KMGT]i?B)?', value.strip(' '), re.IGNORECASE)
+    if match is None:
+        raise ValueError(error)
+    whole, fraction, unit = match.groups()
+    unit = (unit or 'B').upper()
+    power = 'KMGT'.index(unit[0]) + 1 if len(unit) > 1 else 0
+    multiplier = (1024 if 'I' in unit else 1000) ** power
+    numerator = int(whole + (fraction or '')) * multiplier
+    denominator = 10 ** len(fraction or '')
+    if numerator % denominator:
+        raise ValueError(error)
+    return numerator // denominator
+
+
+def _size_error(value):
+    try:
+        _size_bytes(value)
+    except ValueError as error:
+        return str(error)
+    return None
+
+
 def form():
-    from .paths import PathForm
-    from .workflows import _path_error
-    return PathForm('large-files-form', 'Large files: metadata only', (
-        FormField('root', 'Root directory', '', required=True, validator=_path_error,
-                  help='Tab completes directories; arrows choose, Enter accepts. Explicit trusted directory. '
-                       'Includes hidden/binary/ignored files; no content reads or links. '
-                       'Run starts one worker. No Cancel or whole-scan deadline.'),
-        *(FormField(name, label, str(default), required=True,
-                    validator=lambda value, minimum=minimum: _integer(value, minimum),
-                    help='Same parameter and default as find_large_files. Entry/depth limits bound traversal; '
-                         'result/error limits bound retention. UI text has a separate 12 KiB cap.')
-          for name, label, default, minimum in LIMITS),
-    ), primary='Run', max_input_bytes=1024)
+    from ._large_files_form import LargeFilesForm
+    return LargeFilesForm()
 
 
 def parse_limits(values):
     result = {}
     for name, _, _, minimum in LIMITS:
         value = values[name]
+        if name == 'min_size_bytes':
+            result[name] = _size_bytes(value)
+            continue
         if _integer(value, minimum) is not None:
             raise ValueError('Invalid large-file limit')
         result[name] = int(value)

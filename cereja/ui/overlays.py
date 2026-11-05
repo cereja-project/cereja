@@ -640,6 +640,9 @@ class OverlayStack:
             action = overlay.handle(event, self.focus.focused)
         if self.focus.scope.identity != overlay.identity:
             return OverlayAction('rejected', 'Focus scope changed; review again')
+        if isinstance(overlay, ParameterForm):
+            # A form may reveal fields while validating or changing its view.
+            self.focus.update(FocusScope(overlay.identity, overlay.targets))
         if isinstance(overlay, ParameterForm) and action.kind == 'rejected' and overlay.errors:
             self.focus.focus(next(iter(overlay.errors)))
         if action.kind in ('inserted', 'back', 'confirmed'):

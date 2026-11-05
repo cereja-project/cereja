@@ -314,6 +314,9 @@ class LargeFilesLedgerTests(unittest.TestCase):
     def test_all_six_fields_remain_reachable_in_compact_layout(self):
         self.size = (40, 12)
         self.open()
+        self.app.focus.focus('@advanced')
+        self.app.handle(KeyEvent('enter'))
+        self.app.focus.focus('root')
         for spec in self.form.fields:
             self.assertEqual(self.app.focus.focused, spec.identity)
             self.assertIn(spec.label[:20], self.text(self.app.render()))

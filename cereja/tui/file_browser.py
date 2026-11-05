@@ -42,8 +42,8 @@ class FileBrowser:
 
 
 class FileMenu(HelpOverlay):
-    actions = (('open-directory', 'Open containing directory'), ('copy', 'Copy file...'),
-               ('move', 'Move file...'), ('delete', 'Delete file...'), ('details', 'File details'))
+    actions = (('details', 'File details'), ('open-directory', 'Open containing directory'),
+               ('copy', 'Copy file...'), ('move', 'Move file...'), ('delete', 'Delete file...'))
 
     def __init__(self, record):
         super().__init__('file-menu', 'Actions: ' + _path_label(record['relative']), '')

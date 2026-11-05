@@ -223,6 +223,7 @@ class LedgerTest(unittest.TestCase):
 
     def test_compact_form_reveals_second_field_and_error(self):
         app, _ = self.app((40, 12))
+        app.focus.focus('composer')
         self.set_draft(app, '/examples')
         app.handle(KeyEvent('enter'))
         app.handle(KeyEvent('tab'))
