@@ -89,6 +89,31 @@ class FileBrowserTests(unittest.TestCase):
         self.assertEqual(self.confirm().state, 'Failed')
         self.assertEqual(target.read_bytes(), b'123456')
 
+    def test_invalid_copy_destination_keeps_field_and_does_not_start_work(self):
+        self.start()
+        self.menu('copy')
+        form = self.app.overlays.top
+        form.input('destination').insert('bad\npath')
+        self.key('enter')
+        self.assertIs(self.app.overlays.top, form)
+        self.assertIn('control', form.errors['destination'])
+        self.assertEqual(self.app.focus.focused, 'destination')
+        self.assertFalse(self.app.bridge.active)
+        self.assertTrue(self.source.exists())
+
+    def test_file_review_failure_preserves_destination_form(self):
+        self.start()
+        self.menu('copy')
+        form = self.app.overlays.top
+        destination = str(self.ui.root / 'new-copy.bin')
+        form.input('destination').insert(destination)
+        with patch('cereja.tui.workflows._explicit_path', side_effect=ValueError('private-details')):
+            self.key('enter')
+        self.assertIs(self.app.overlays.top, form)
+        self.assertEqual(form.input('destination').text, destination)
+        self.assertNotIn('private-details', self.app.notice)
+        self.assertFalse(self.app.bridge.active)
+
     def test_delete_back_preserves_file_then_explicit_run_deletes(self):
         origin = self.start()
         self.menu('delete')

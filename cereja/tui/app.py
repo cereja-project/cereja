@@ -101,7 +101,7 @@ class TUI:
         self._context_terms = ()
         self._review = None
         self._workflow_values = None
-        from .workflows import forms
+        from .workflows import forms, _path_error
         self.workflow_forms = forms()
         self.workflow_forms['large-files'].bind(self.loop)
         self._browser_cache = None
@@ -128,7 +128,7 @@ class TUI:
                            'No Cancel, polling or global deadline. Missing fields are Unavailable.'),
         ), primary='Run/Refresh', max_input_bytes=128)
         self.tree_form = ParameterForm('tree-form', 'Tree: explicit root, read only', (
-            FormField('root', 'Root directory', '', required=True),
+            FormField('root', 'Root directory', '', required=True, validator=_path_error),
             FormField('depth', 'Depth (0..8)', '3', required=True,
                       validator=lambda value: None if value.isascii() and value.isdecimal() and 0 <= int(value) <= 8 else 'Use 0..8'),
         ), primary='Run', max_input_bytes=1024)
@@ -313,10 +313,11 @@ class TUI:
         self._file_origin = self.results.current
         if action in ('copy', 'move'):
             from .paths import PathForm
+            from .workflows import _path_error
             if self._file_form is not None:
                 self._file_form.close()
             self._file_form = PathForm('file-destination', action.title() + ' file: new destination', (
-                FormField('destination', 'Destination file path', '', required=True,
+                FormField('destination', 'Destination file path', '', required=True, validator=_path_error,
                           help='Full new filename in an existing directory. Tab completes directories. '
                                'Existing files are never replaced.'),
             ), primary='Review', path_fields=('destination',), max_input_bytes=1024)
@@ -333,7 +334,7 @@ class TUI:
             from .workflows import _explicit_path
             try:
                 destination = _explicit_path(destination)
-            except ValueError:
+            except (ValueError, OSError):
                 self.notice = 'Use an explicit destination file path without control characters.'
                 return
         self._file_request = action, selection, destination
@@ -346,6 +347,8 @@ class TUI:
                                   repr(selection), True)
             self._file_review = Confirmation('file-review', target,
                                              form=self._file_form if action != 'delete' else None)
+            if self._file_form is not None and self.overlays.top is self._file_form:
+                self.overlays.close()
             self.overlays.open(self._file_review)
         except ValueError:
             self._file_review = None
@@ -613,7 +616,7 @@ class TUI:
             if action.kind == 'submit' and isinstance(overlay, ParameterForm):
                 # Domain preparation may reject a lexically valid form. Keep
                 # its values and invoking field until preparation succeeds.
-                if overlay not in self.workflow_forms.values():
+                if overlay not in self.workflow_forms.values() and overlay is not self._file_form:
                     self.overlays.close()
                 if overlay is self._file_form:
                     self._review_file_action(dict(action.values)['destination'])

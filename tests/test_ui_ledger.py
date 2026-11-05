@@ -172,6 +172,21 @@ class LedgerTest(unittest.TestCase):
         app.focus.focus('copy')
         self.assertIn('Copy unavailable', self.lines(app.render())[-2])
 
+    def test_path_forms_identify_invalid_root_before_submission(self):
+        for command in ('tree', 'large-files'):
+            with self.subTest(command=command):
+                app, _ = self.app(size=(40, 12))
+                self.set_draft(app, '/' + command)
+                app.submit()
+                form = app.overlays.top
+                form.input('root').insert('bad\npath')
+                app.handle(KeyEvent('enter'))
+                self.assertIs(app.overlays.top, form)
+                self.assertIn('root', form.errors)
+                self.assertIn('control', form.errors['root'])
+                self.assertEqual(app.focus.focused, 'root')
+                self.assertFalse(app.bridge.active)
+
     def test_help_and_copy_preserve_composer(self):
         app, _ = self.app()
         app.handle(PasteEvent('q text'))

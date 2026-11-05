@@ -23,8 +23,9 @@ def _integer(value, minimum):
 
 def form():
     from .paths import PathForm
+    from .workflows import _path_error
     return PathForm('large-files-form', 'Large files: metadata only', (
-        FormField('root', 'Root directory', '', required=True,
+        FormField('root', 'Root directory', '', required=True, validator=_path_error,
                   help='Tab completes directories; arrows choose, Enter accepts. Explicit trusted directory. '
                        'Includes hidden/binary/ignored files; no content reads or links. '
                        'Run starts one worker. No Cancel or whole-scan deadline.'),
