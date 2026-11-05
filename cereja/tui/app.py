@@ -541,8 +541,6 @@ class TUI:
                 elif block.command == '/tree':
                     text = 'Tree load failed. The directory may be unavailable or outside the limits.'
                 self.results.finish(block, state, text, attachment=attachment)
-                if attachment and self.results.current is block and self.composer.text.strip() == '/large-files':
-                    self.focus.focus('content')
             else:
                 self.results.finish(block, 'Unavailable',
                                     'Final observation unavailable: ' + snapshot.delivery + '. No success is claimed.')
@@ -924,6 +922,9 @@ class TUI:
             else:
                 self.status.paint(frame, status_rect)
         if self.overlays.top is not None:
+            from .file_browser import FileMenu
+            if isinstance(self.overlays.top, FileMenu):
+                self.overlays.top.reveal(max(0, body.height - 2))
             shelf = isinstance(self.overlays.top, Suggestions)
             if self.overlays.top is self.workflow_forms['large-files']:
                 view = self.overlays.top.paint(frame, body, dock, self.focus.focused)
@@ -932,7 +933,6 @@ class TUI:
                                            height=min(3 if width < 60 else 7, body.height) if shelf else body.height)
             if not shelf:
                 cursor = view.cursor
-            from .file_browser import FileMenu
             if isinstance(self.overlays.top, FileMenu):
                 footer = Rect(view.rect.x, view.rect.y + view.rect.height - 1, view.rect.width, 1)
                 frame.clear(clip=footer)

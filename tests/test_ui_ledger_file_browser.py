@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from cereja.tui.large_files import human_size
-from cereja.ui.events import KeyEvent
+from cereja.ui.events import KeyEvent, ResizeEvent
 if __package__:
     from . import test_ui_ledger_large_files as fixtures
 else:
@@ -168,6 +168,25 @@ class FileBrowserTests(unittest.TestCase):
         self.key('enter')
         self.key('end')
         self.assertIn('> Delete file...', self.ui.text(self.app.render()))
+
+    def test_menu_resize_keeps_selected_action_visible_and_confirmed(self):
+        self.start()
+        self.key('enter')
+        self.key('end')
+        menu = self.app.overlays.top
+        self.assertEqual(menu.actions[menu.index][0], 'delete')
+        for size in ((40, 12), (80, 24), (40, 13), (40, 12)):
+            with self.subTest(size=size):
+                self.ui.size = size
+                self.app.handle(ResizeEvent(*size))
+                self.assertIn('> Delete file...', self.ui.text(self.app.render()))
+                self.assertEqual(menu.actions[menu.index][0], 'delete')
+        self.key('enter')
+        self.assertIs(self.app.overlays.top, self.app._file_review)
+        self.assertEqual(self.app.focus.focused, '@back')
+        self.assertTrue(self.source.exists())
+        self.key('escape')
+        self.assertTrue(self.source.exists())
 
     def test_selected_file_remains_visible_across_supported_sizes(self):
         (self.ui.root / 'small.txt').write_text('a')

@@ -59,6 +59,12 @@ class FileMenu(HelpOverlay):
         return TextContent(self.identity, self.index, '\n'.join(
             ('> ' if i == self.index else '  ') + label for i, (_, label) in enumerate(self.actions)))
 
+    def reveal(self, rows):
+        # Every action fits one row at the supported minimum width. Reconcile
+        # against the current viewport, not only the height at the last key.
+        self._scroll_y = max(0, self.index - max(0, rows - 1))
+        self._end = False
+
     def handle(self, event, focused):
         if isinstance(event, KeyEvent) and not event.modifiers:
             if event.key == 'enter':
