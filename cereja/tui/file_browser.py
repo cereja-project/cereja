@@ -40,7 +40,7 @@ class FileMenu(HelpOverlay):
                ('move', 'Move file...'), ('delete', 'Delete file...'), ('details', 'File details'))
 
     def __init__(self, record):
-        super().__init__('file-menu', 'File actions: arrows / Enter', '')
+        super().__init__('file-menu', 'Actions: ' + _path_label(record['relative']), '')
         self.record = record
         self.index = 0
 

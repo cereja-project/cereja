@@ -729,26 +729,33 @@ class TUI:
             frame.draw_text(body.x, body.y, 'No retained results', clip=body)
             return '0 results'
         index = self.results.blocks.index(block)
-        y = body.y
-        if index and body.height > 4:
-            previous = self.results.blocks[index - 1]
-            frame.draw_text(body.x, y, f'  {previous.identity} {previous.command} [{previous.state}]', clip=body)
-            y += 1
-        marker = '>' if self.focus.focused == 'block' else ' '
-        frame.draw_text(body.x, y, f'{marker}* {block.identity} {block.command} [{block.state}]',
-                        clip=body, style=Style(bold=True))
-        y += 1
         browser = self._file_browser(block)
-        if browser is not None and block.selection is None:
+        file_list = browser is not None and block.selection is None
+        compact_files = file_list and body.height < 6
+        if file_list:
             summary = block.content.text.splitlines()
             scan = next((line for line in summary if line.startswith('Scan:')), 'Scan snapshot')
             if browser.changed:
                 scan += ' (files changed; rescan to refresh)'
-            frame.draw_text(body.x, y, scan + ' | S: scan details', clip=body)
+        y = body.y
+        if index and body.height > 4 and not compact_files:
+            previous = self.results.blocks[index - 1]
+            frame.draw_text(body.x, y, f'  {previous.identity} {previous.command} [{previous.state}]', clip=body)
             y += 1
+        marker = '>' if self.focus.focused == 'block' else ' '
+        heading = (f'{marker}* {block.command} | {scan}' if compact_files else
+                   f'{marker}* {block.identity} {block.command} [{block.state}]')
+        frame.draw_text(body.x, y, heading,
+                        clip=body, style=Style(bold=True))
+        y += 1
+        if file_list:
+            if not compact_files:
+                frame.draw_text(body.x, y, scan + ' | S: scan details', clip=body)
+                y += 1
             browser.view.paint(frame, Rect(body.x, y, body.width, max(0, body.height - (y - body.y))),
                                focused=self.focus.focused == 'content')
-            return 'Files | Up/Down select | Enter actions | S scan details'
+            return ('Up/Down | Enter actions | S details' if body.width < 60 else
+                    'Files | Up/Down select | Enter actions | S scan details')
         if block is self._tree_block and self._tree_result is not None:
             self._tree_result.view.paint(frame, Rect(body.x, y, body.width, max(0, body.height - (y - body.y))),
                                          focused=self.focus.focused == 'content')

@@ -143,6 +143,32 @@ class FileBrowserTests(unittest.TestCase):
         self.key('end')
         self.assertIn('> File details', self.ui.text(self.app.render()))
 
+    def test_selected_file_remains_visible_across_supported_sizes(self):
+        (self.ui.root / 'small.txt').write_text('a')
+        self.start()
+        for size in ((40, 12), (40, 13), (40, 14), (80, 24), (120, 40), (40, 12)):
+            with self.subTest(size=size):
+                self.ui.size = size
+                for key, name in (('home', 'large.bin'), ('down', 'small.txt')):
+                    self.key(key)
+                    screen = self.ui.text(self.app.render())
+                    self.assertIn(name, screen)
+                    self.assertIn('Scan: Complete', screen)
+                    self.key('enter')
+                    self.assertIn(name, self.ui.text(self.app.render()))
+                    self.key('escape')
+                    self.assertEqual(self.app.focus.focused, 'content')
+
+    def test_compact_incomplete_scan_keeps_status_and_selected_file(self):
+        for i in range(5):
+            (self.ui.root / ('entry' + str(i))).write_text('x')
+        self.ui.start(max_entries=3)
+        self.ui.finish()
+        self.ui.size = (40, 12)
+        screen = self.ui.text(self.app.render())
+        self.assertIn('Scan: Incomplete', screen)
+        self.assertIn(self.app._file_browser().selected['relative'], screen)
+
     def test_attachment_counts_toward_retention_and_is_evicted_with_block(self):
         from cereja.tui.model import Results
         results = Results(max_bytes=1000, block_bytes=100)

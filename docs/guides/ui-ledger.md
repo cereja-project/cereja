@@ -227,6 +227,10 @@ unchanged; Tab also reaches result content. Sizes use B/KiB/MiB/GiB and larger
 binary units. Details shows exact bytes. S opens scan details with counters,
 completeness, JSON-escaped paths and error details.
 
+At compact supported heights, result and scan headings share one row so the
+selected file remains visible. The action menu identifies its selected file;
+Details provides the full retained name when the title is clipped.
+
 Scans and file actions use the existing single operation slot off the UI thread,
 without queueing a second action or joining workers on the UI thread. Navigation,
 help, draft editing and resize remain usable. Copy/Move require a complete new
