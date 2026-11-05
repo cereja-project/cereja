@@ -664,7 +664,8 @@ class TUI:
                 prefix = self.composer.text[:self.composer.caret]
                 if prefix.startswith('/') and not any(c.isspace() for c in prefix):
                     self.overlays.open(Suggestions('slash', self.composer, tuple(
-                        Suggestion(c.name, '/' + c.name, '/' + c.name + ' ', c.ui) for c in COMMANDS)))
+                        Suggestion(c.name, '/' + c.name, '/' + c.name + ' ',
+                                   c.purpose + ' [' + c.availability + ']') for c in COMMANDS)))
             self._action(action)
         else:
             self._result_key(event)
@@ -832,8 +833,26 @@ class TUI:
                                          isinstance(self.overlays.top, Suggestions))
         cursor = input_view.cursor
         focused = self.focus.focused
-        hints = ('Tab inspect | F1 help | ^C exit' if focused == 'composer' else
-                 f'{focused}: Enter | Tab next | F1 help')
+        overlay = self.overlays.top
+        if isinstance(overlay, ParameterForm):
+            action = {'@back': 'Back', '@help': 'Help'}.get(focused, overlay.primary)
+            hints = f'Enter {action} | Tab | F1 help'
+        elif focused == '@choose':
+            hints = 'Up/Down choose | Enter | Esc back'
+        elif isinstance(overlay, HelpOverlay):
+            hints = 'PgUp/PgDn scroll | Esc back'
+        elif isinstance(overlay, Confirmation):
+            hints = 'Tab choose | Enter | F1 help'
+        else:
+            hints = {
+                'composer': 'Tab inspect | F1 help | ^C exit',
+                'block': 'Left/Right results | Enter inspect',
+                'content': 'Tab next | F1 help | Esc command',
+                'copy': 'Copy unavailable | Tab next',
+                'latest': 'Enter latest | Tab next | F1 help',
+                'help': 'Enter help | Tab next',
+                'exit': 'Enter exit | Tab next',
+            }.get(focused, 'Tab next | F1 help')
         frame.draw_text(2, height - 2, hints, clip=Rect(2, height - 2, width - 4, 1))
         status_rect = Rect(2, height - 1, width - 4, 1)
         if self.bridge.active:

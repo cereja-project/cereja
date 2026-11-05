@@ -60,7 +60,8 @@ passthrough. Invalid input remains in the composer, with a non-echoing error.
 identify existing entrypoints. `Reference` entries never promise a future UI.
 Static catalogue discovery imports no service, starts no worker and does no I/O.
 
-Typing `/` opens prefix suggestions. Enter/Tab inserts and closes discovery.
+Typing `/` opens prefix suggestions with each command's purpose and availability.
+Enter/Tab inserts and closes discovery.
 Only a later Enter submits. Pasting is bounded literal editing, including newline
 and slash. The composer retains at most 4096 safe UTF-8 bytes; the transport and
 event admission bounds remain independent. Typing `q` is ordinary text.
