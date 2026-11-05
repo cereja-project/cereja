@@ -221,6 +221,84 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('private-target', self.app.notice)
         self.assertFalse(self.app.bridge.active)
 
+    def test_corrected_context_submission_retires_validation_notice(self):
+        (self.root / 'a.txt').write_text('needle fixture', encoding='utf-8')
+        form = self.app.workflow_forms['context']
+        form.input('root').insert(str(self.root))
+        query = form.input('query')
+        for size in ((40, 12), (80, 24)):
+            with self.subTest(size=size):
+                self.size = size
+                query.set_selection(0, len(query.text))
+                query.insert('a' * 257)
+                self.app.overlays.open(form)
+                self.app.handle(KeyEvent('enter'))
+                self.assertEqual(self.app.notice, 'Review the visible field errors')
+                self.assertIs(self.app.overlays.top, form)
+                query.set_selection(0, len(query.text))
+                query.insert('needle')
+                self.app.handle(KeyEvent('enter'))
+                self.finish()
+                self.assertEqual(self.app.results.current.state, 'Succeeded')
+                self.assertEqual(self.app.notice, '')
+                frame = self.app.render()
+                lines = [''.join(cell.text for cell in row) for row in frame.rows]
+                self.assertNotIn('Review the visible field errors', '\n'.join(lines))
+                self.assertIn('Succeeded', lines[-1])
+
+    def test_valid_form_submission_keeps_new_preparation_error(self):
+        form = self.app.workflow_forms['context']
+        form.input('root').insert(str(self.root))
+        form.input('query').insert('needle')
+        self.app.overlays.open(form)
+        self.app.notice = 'Previous validation notice'
+        with patch('cereja.tui.workflows.prepare', side_effect=ValueError('private detail')):
+            self.app.handle(KeyEvent('enter'))
+        self.assertEqual(self.app.notice, 'Invalid parameters. Review the workflow help and explicit paths.')
+        self.assertIs(self.app.overlays.top, form)
+        self.assertFalse(self.app.bridge.active)
+
+    def test_valid_form_submission_keeps_new_busy_notice_without_queuing(self):
+        entered, release = threading.Event(), threading.Event()
+        def held(context):
+            context.running()
+            entered.set()
+            release.wait(3)
+            return 'completed'
+        self.app.bridge.start('held', held)
+        try:
+            self.assertTrue(entered.wait(1))
+            form = self.app.workflow_forms['context']
+            form.input('root').insert(str(self.root))
+            form.input('query').insert('needle')
+            self.app.overlays.open(form)
+            self.app.notice = 'Previous validation notice'
+            count = len(self.app.results.blocks)
+            with patch('cereja.tui.workflows.execute', side_effect=AssertionError('must not queue')) as execute:
+                self.app.handle(KeyEvent('enter'))
+                execute.assert_not_called()
+            self.assertEqual(self.app.notice, 'Busy: one operation is active. Nothing was queued.')
+            self.assertEqual(len(self.app.results.blocks), count)
+        finally:
+            release.set()
+            self.finish()
+        self.assertEqual(self.app.notice, 'Busy: one operation is active. Nothing was queued.')
+
+    def test_valid_form_submission_exposes_worker_failure_after_old_notice(self):
+        form = self.app.workflow_forms['context']
+        form.input('root').insert(str(self.root))
+        form.input('query').insert('needle')
+        self.app.overlays.open(form)
+        self.app.notice = 'Previous validation notice'
+        with patch('cereja.tui.workflows.execute', side_effect=ValueError('private detail')):
+            self.app.handle(KeyEvent('enter'))
+            self.finish()
+        self.assertEqual(self.app.notice, '')
+        self.assertEqual(self.app.results.current.state, 'Failed')
+        lines = [''.join(cell.text for cell in row) for row in self.app.render().rows]
+        self.assertIn('Failed', lines[-1])
+        self.assertNotIn('private detail', '\n'.join(lines))
+
     def test_tilde_path_is_identical_with_and_without_completion(self):
         from cereja.tui.paths import directory_completions
         (self.root / 'Documents').mkdir()

@@ -87,6 +87,8 @@ before dismissal, retaining values and focusing the invalid field. Context help
 shows the current error in full. A preparation failure also keeps the form open
 without exposing exception diagnostics or starting work. Explicit paths expand
 the user's home marker (`~`) consistently with directory completion.
+Submitting a valid form retires the previous attempt's notice, so it cannot
+hide the new outcome. Current validation, preparation and busy errors remain visible.
 
 Ctrl+A on content selects the whole canonical result. Editing fields support
 grapheme-range selection through Shift+arrows. Clean copy uses canonical content,

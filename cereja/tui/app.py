@@ -614,6 +614,9 @@ class TUI:
                 self.overlays.close()
                 self._choose_file_action(dict(action.values)['action'], overlay.record)
             if action.kind == 'submit' and isinstance(overlay, ParameterForm):
+                # A validated form starts a new attempt, like composer submit.
+                # Preparation/admission failures below provide their own notice.
+                self.notice = ''
                 # Domain preparation may reject a lexically valid form. Keep
                 # its values and invoking field until preparation succeeds.
                 if overlay not in self.workflow_forms.values() and overlay is not self._file_form:
