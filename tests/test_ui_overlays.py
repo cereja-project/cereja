@@ -131,6 +131,40 @@ class SuggestionsTest(unittest.TestCase):
 
 
 class FormTest(unittest.TestCase):
+    def test_compact_error_prioritizes_diagnostic_and_help_preserves_field(self):
+        params = ParameterForm('limits', 'Limits', (
+            FormField('minimum', 'Minimum size in bytes (>=0)', 'abc',
+                      validator=lambda value: 'Use an integer >= 0' if value == 'abc' else None),
+        ))
+        stack = OverlayStack(owner())
+        stack.open(params)
+        stack.handle(key('enter'))
+        frame = CellBuffer(40, 12)
+        stack.paint(frame, Rect(2, 3, 36, 4), Rect(2, 8, 36, 4), height=4)
+        rendered = '\n'.join(''.join(cell.text for cell in row) for row in frame.rows)
+        self.assertIn('Use an integer >= 0', rendered)
+        editor = params.input('minimum')
+        before = editor.content, editor.caret, editor.selection
+        stack.handle(key('f1'))
+        self.assertIn('Use an integer >= 0', stack.top.content.text)
+        stack.handle(key('escape'))
+        self.assertIs(stack.top, params)
+        self.assertEqual(stack.focus.focused, 'minimum')
+        self.assertEqual((editor.content, editor.caret, editor.selection), before)
+        editor.insert('1')
+        self.assertNotIn('Use an integer >= 0', params.help_for('minimum'))
+
+    def test_long_current_error_is_available_in_contextual_help(self):
+        error = 'Use a value that satisfies the explicit boundary and retry the operation.'
+        params = ParameterForm('params', 'Parameters', (
+            FormField('value', 'Value', 'invalid', validator=lambda value: error),
+        ))
+        stack = OverlayStack(owner())
+        stack.open(params)
+        stack.handle(key('enter'))
+        stack.handle(key('f1'))
+        self.assertIn(error, stack.top.content.text)
+
     def test_validation_retains_good_values_focuses_and_reveals_first_error(self):
         params = form()
         focus = owner()

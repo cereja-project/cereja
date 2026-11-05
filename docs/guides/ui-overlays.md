@@ -62,6 +62,10 @@ Within the stack, Enter validates the focused field/primary action; Back/Escape
 keeps values; failed validation focuses/reveals the first invalid field.
 Tab/Shift+Tab wrap enabled fields -> primary -> Back -> Help. F1/Help saves that
 scope and opens bounded contextual help (default, bound and caller description).
+Current field errors take priority in compact layouts and appear in full in
+contextual help. An edit retires the previous revision's error. If combining an
+error with static metadata would exceed the help limit, help retains the complete
+error instead of the metadata.
 Return restores the same field's content, caret/range and focus. Reopening the
 same form retains its values; it does not replace the composer draft.
 

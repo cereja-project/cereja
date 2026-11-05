@@ -81,6 +81,12 @@ open overlay. F1 opens help; Escape restores its invoking state. Forms retain sa
 values on Back/reopen. Below 40x12, hidden editing is suspended while state and
 operation status survive; Ctrl+C still follows copy/exit ownership.
 
+Workflow forms validate query length, URL syntax and lexical path constraints
+before dismissal, retaining values and focusing the invalid field. Context help
+shows the current error in full. A preparation failure also keeps the form open
+without exposing exception diagnostics or starting work. Explicit paths expand
+the user's home marker (`~`) consistently with directory completion.
+
 Ctrl+A on content selects the whole canonical result. Editing fields support
 grapheme-range selection through Shift+arrows. Clean copy uses canonical content,
 revision and logical offsets, preserving tabs, blank lines and intentional spaces.

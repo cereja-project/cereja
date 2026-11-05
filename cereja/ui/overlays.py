@@ -268,9 +268,16 @@ class ParameterForm:
     def help_for(self, focused):
         for spec in self.fields:
             if spec.identity == focused:
-                return (spec.label + (' (required)' if spec.required else ' (optional)') +
+                details = (spec.label + (' (required)' if spec.required else ' (optional)') +
                         '\nDefault: ' + spec.value + f'\nCanonical UTF-8 bound: {self.max_input_bytes} bytes\n' +
                         spec.help)
+                error = self.errors.get(focused)
+                if error:
+                    message = 'Error: ' + error + '\n\n' + details
+                    # A valid maximum-size diagnostic must remain inspectable
+                    # even when its static field metadata would exceed help's cap.
+                    return message if len(message.encode('utf-8')) <= _LIMIT else error
+                return details
         return self.title + '\nReview validates values only. Back keeps them. Help restores field focus.'
 
     def validate(self):
@@ -676,7 +683,7 @@ class OverlayStack:
                     continue
                 label = spec.label + (' *' if spec.required else '') + f' [{overlay.max_input_bytes}B]'
                 if body.height == 2 and spec.identity in errors:
-                    label = spec.label + ': ' + errors[spec.identity]
+                    label = 'Error: ' + errors[spec.identity]
                 if not spec.enabled:
                     label += ' disabled'
                 frame.draw_text(ox, y, label, clip=Rect(body.x, y, body.width, 1).intersection(body))

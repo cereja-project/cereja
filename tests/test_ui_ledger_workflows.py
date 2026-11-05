@@ -44,7 +44,8 @@ class WorkflowTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
-        session = TerminalSession(VirtualBackend())
+        self.size = (80, 24)
+        session = TerminalSession(VirtualBackend(size=lambda: self.size))
         session.__enter__()
         self.addCleanup(session.close)
         self.app = TUI(session)
@@ -173,6 +174,62 @@ class WorkflowTests(unittest.TestCase):
         for url in ('file:///tmp/a', 'https://user:pass@example.com/a', 'https://example.com/a#secret'):
             with self.assertRaises(ValueError):
                 prepare('download', dict(url=url, destination=str(self.root / 'output')))
+
+    def test_invalid_workflow_field_keeps_form_values_and_focus_without_work(self):
+        cases = (
+            ('context', 'query', dict(root=str(self.root), query='a' * 257), '256'),
+            ('context', 'root', dict(root='bad\npath', query='needle'), 'control'),
+            ('download', 'url', dict(url='file:///not-http', destination=str(self.root / 'new')), 'HTTP'),
+            ('download', 'url', dict(url='https://[bad', destination=str(self.root / 'new')), 'HTTP'),
+            ('download', 'destination', dict(url='https://example.test/a', destination='bad\npath'), 'control'),
+            ('compress', 'source', dict(source='bad\npath', destination=str(self.root / 'new')), 'control'),
+        )
+        for size in ((40, 12), (80, 24)):
+            self.size = size
+            for name, invalid, values, explanation in cases:
+                with self.subTest(size=size, workflow=name, field=invalid):
+                    form = self.app.workflow_forms[name]
+                    for key, value in values.items():
+                        editor = form.input(key)
+                        editor.set_selection(0, len(editor.text))
+                        editor.insert(value)
+                    before = form.values
+                    self.app.overlays.open(form)
+                    self.app.handle(KeyEvent('enter'))
+                    try:
+                        self.assertIs(self.app.overlays.top, form)
+                        self.assertEqual(self.app.focus.focused, invalid)
+                        self.assertIn(explanation, form.errors[invalid])
+                        self.assertEqual(form.values, before)
+                        self.assertFalse(self.app.bridge.active)
+                    finally:
+                        if self.app.overlays.top is form:
+                            self.app.overlays.close()
+
+    def test_preparation_failure_does_not_dismiss_valid_form_or_echo_exception(self):
+        form = self.app.workflow_forms['context']
+        form.input('root').insert(str(self.root))
+        form.input('query').insert('needle')
+        self.app.overlays.open(form)
+        self.app.focus.focus('query')
+        before = form.values
+        with patch('cereja.tui.workflows.prepare', side_effect=OSError('private-target')):
+            self.app.handle(KeyEvent('enter'))
+        self.assertIs(self.app.overlays.top, form)
+        self.assertEqual(self.app.focus.focused, 'query')
+        self.assertEqual(form.values, before)
+        self.assertNotIn('private-target', self.app.notice)
+        self.assertFalse(self.app.bridge.active)
+
+    def test_tilde_path_is_identical_with_and_without_completion(self):
+        from cereja.tui.paths import directory_completions
+        (self.root / 'Documents').mkdir()
+        with patch.dict(os.environ, {'HOME': str(self.root), 'USERPROFILE': str(self.root)}):
+            values, target = prepare('context', dict(root='~/Documents', query='needle'))
+            matches, _ = directory_completions('~/Doc')
+        self.assertIsNone(target)
+        self.assertEqual(values['root'], str(self.root / 'Documents'))
+        self.assertEqual(values['root'], os.path.normpath(matches[0]))
 
 
 if __name__ == '__main__':

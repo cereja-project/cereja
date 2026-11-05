@@ -238,6 +238,8 @@ class TUI:
         except (ValueError, OSError):
             self.notice = 'Invalid parameters. Review the workflow help and explicit paths.'
             return
+        if self.overlays.top is self.workflow_forms[name]:
+            self.overlays.close()
         if target is None:
             self._workflow(name, values)
             return
@@ -607,7 +609,10 @@ class TUI:
                 self.overlays.close()
                 self._choose_file_action(dict(action.values)['action'], overlay.record)
             if action.kind == 'submit' and isinstance(overlay, ParameterForm):
-                self.overlays.close()
+                # Domain preparation may reject a lexically valid form. Keep
+                # its values and invoking field until preparation succeeds.
+                if overlay not in self.workflow_forms.values():
+                    self.overlays.close()
                 if overlay is self._file_form:
                     self._review_file_action(dict(action.values)['destination'])
                 elif overlay is self.system_form:
