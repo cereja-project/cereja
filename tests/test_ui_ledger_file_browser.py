@@ -186,3 +186,26 @@ class FileBrowserTests(unittest.TestCase):
         browser = FileBrowser(json.dumps(dict(files=[dict(relative=path, size=1, selection=None)], omitted=0)))
         self.assertEqual(browser.selected['relative'], path)
         self.assertIn('[display shortened]', browser.view.item('0').cells[1])
+
+    def test_unicode_file_name_is_readable_in_list_menu_and_details(self):
+        name = 'relatório 日本語.txt'
+        (self.ui.root / name).write_bytes(b'x' * 10)
+        self.start()
+        self.assertIn(name, self.ui.text(self.app.render()))
+        self.key('enter')
+        self.assertIn(name, self.ui.text(self.app.render()))
+        self.key('end')
+        self.key('enter')
+        self.assertIn(name, self.app.overlays.top.content.text)
+        self.assertIn('Exact logical size: 10 bytes', self.app.overlays.top.content.text)
+
+    def test_display_names_neutralize_controls_and_remain_byte_bounded(self):
+        from cereja.tui.file_browser import FileBrowser
+        for name in ('café\n\t\x1b[2J\x85\u202eevil.txt', '界' * 17000, '\ud800name'):
+            with self.subTest(name=name[:30]):
+                browser = FileBrowser(json.dumps(dict(files=[dict(relative=name, size=1, selection=None)], omitted=0)))
+                label = browser.view.item('0').cells[1]
+                self.assertLessEqual(len(label.encode('utf-8')), 8300)
+                self.assertFalse(any(ord(char) < 32 or 127 <= ord(char) <= 159 or char == '\u202e' for char in label))
+                self.assertEqual(browser.selected['relative'], name)
+        self.assertIn('café', FileBrowser(json.dumps(dict(files=[dict(relative='café', size=1, selection=None)], omitted=0))).view.item('0').cells[1])

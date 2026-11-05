@@ -296,8 +296,10 @@ class TUI:
 
     def _choose_file_action(self, action, record):
         if action == 'details':
-            self._help(json.dumps(record['relative'], ensure_ascii=True) + '\n'
-                       + f"Exact logical size: {record['size']} bytes", 'File details')
+            from .file_browser import _path_label
+            self._help(_path_label(record['relative'], limit=None) + '\n'
+                       + f"Exact logical size: {record['size']} bytes\n"
+                       + 'Canonical JSON: ' + json.dumps(record['relative'], ensure_ascii=True), 'File details')
             return
         if record['selection'] is None:
             self.notice = 'File unavailable or changed. Scan again before acting.'

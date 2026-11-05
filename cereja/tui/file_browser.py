@@ -7,13 +7,19 @@ from cereja.ui.events import KeyEvent
 from cereja.ui.focus import FocusTarget
 from cereja.ui.layout import Constraint
 from cereja.ui.overlays import HelpOverlay, OverlayAction
+from cereja.ui.text import normalize_text
 
 from .large_files import human_size
 
 
-def _path_label(path):
-    escaped = json.dumps(path, ensure_ascii=True)
-    return escaped if len(escaped) <= 8192 else escaped[:8192] + '... [display shortened]'
+def _path_label(path, *, limit=8192):
+    # JSON quotes distinguish literal backslashes/LF/TAB; the toolkit also
+    # exposes C1 and bidi controls while preserving ordinary Unicode names.
+    escaped = normalize_text(json.dumps(path, ensure_ascii=False))
+    encoded = escaped.encode('utf-8')
+    if limit is None or len(encoded) <= limit:
+        return escaped
+    return encoded[:limit].decode('utf-8', errors='ignore') + '... [display shortened]'
 
 
 class FileBrowser:

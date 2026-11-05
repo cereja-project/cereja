@@ -236,6 +236,9 @@ completeness, JSON-escaped paths and error details.
 At compact supported heights, result and scan headings share one row so the
 selected file remains visible. The action menu identifies its selected file;
 Details provides the full retained name when the title is clipped.
+Names preserve ordinary Unicode while exposing terminal and bidi controls.
+Details also retains an ASCII JSON representation for exact inspection; the
+presentation label never replaces the selected file's canonical identity.
 
 Scans and file actions use the existing single operation slot off the UI thread,
 without queueing a second action or joining workers on the UI thread. Navigation,
