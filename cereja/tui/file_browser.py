@@ -7,13 +7,19 @@ from cereja.ui.events import KeyEvent
 from cereja.ui.focus import FocusTarget
 from cereja.ui.layout import Constraint
 from cereja.ui.overlays import HelpOverlay, OverlayAction
+from cereja.ui.text import normalize_text
 
 from .large_files import human_size
 
 
-def _path_label(path):
-    escaped = json.dumps(path, ensure_ascii=True)
-    return escaped if len(escaped) <= 8192 else escaped[:8192] + '... [display shortened]'
+def _path_label(path, *, limit=8192):
+    # JSON quotes distinguish literal backslashes/LF/TAB; the toolkit also
+    # exposes C1 and bidi controls while preserving ordinary Unicode names.
+    escaped = normalize_text(json.dumps(path, ensure_ascii=False))
+    encoded = escaped.encode('utf-8')
+    if limit is None or len(encoded) <= limit:
+        return escaped
+    return encoded[:limit].decode('utf-8', errors='ignore') + '... [display shortened]'
 
 
 class FileBrowser:
@@ -36,11 +42,11 @@ class FileBrowser:
 
 
 class FileMenu(HelpOverlay):
-    actions = (('open-directory', 'Open containing directory'), ('copy', 'Copy file...'),
-               ('move', 'Move file...'), ('delete', 'Delete file...'), ('details', 'File details'))
+    actions = (('details', 'File details'), ('open-directory', 'Open containing directory'),
+               ('copy', 'Copy file...'), ('move', 'Move file...'), ('delete', 'Delete file...'))
 
     def __init__(self, record):
-        super().__init__('file-menu', 'File actions: arrows / Enter', '')
+        super().__init__('file-menu', 'Actions: ' + _path_label(record['relative']), '')
         self.record = record
         self.index = 0
 
@@ -52,6 +58,12 @@ class FileMenu(HelpOverlay):
     def content(self):
         return TextContent(self.identity, self.index, '\n'.join(
             ('> ' if i == self.index else '  ') + label for i, (_, label) in enumerate(self.actions)))
+
+    def reveal(self, rows):
+        # Every action fits one row at the supported minimum width. Reconcile
+        # against the current viewport, not only the height at the last key.
+        self._scroll_y = max(0, self.index - max(0, rows - 1))
+        self._end = False
 
     def handle(self, event, focused):
         if isinstance(event, KeyEvent) and not event.modifiers:

@@ -40,7 +40,7 @@ uses the existing terminal session's capability detection and restoration.
 
 | Registered command | Current behavior |
 | --- | --- |
-| `/home` | Append a Cereja TUI introduction. No hardware collection. |
+| `/home` | Show the task entry for Find large files and command discovery. No automatic collection. |
 | `/system` | Open the section form. Only explicit Run/Refresh starts basic, non-sensitive collection. |
 | `/tree` | Explicit root/depth form, bounded child loads, keyboard expand/collapse and path inspection. |
 | `/large-files` | Explicit root and all API limits; metadata-only size ranking in a worker, with incomplete/truncated results identified. |
@@ -60,7 +60,13 @@ passthrough. Invalid input remains in the composer, with a non-echoing error.
 identify existing entrypoints. `Reference` entries never promise a future UI.
 Static catalogue discovery imports no service, starts no worker and does no I/O.
 
-Typing `/` opens prefix suggestions. Enter/Tab inserts and closes discovery.
+Home initially focuses **Find large files**. Enter opens that task without scanning;
+Back returns to Home. Typing or pasting from Home moves into ordinary command
+editing, with the same literal-paste protections. `/` remains the shortcut for all
+registered commands.
+
+Typing `/` opens prefix suggestions with each command's purpose and availability.
+Enter/Tab inserts and closes discovery.
 Only a later Enter submits. Pasting is bounded literal editing, including newline
 and slash. The composer retains at most 4096 safe UTF-8 bytes; the transport and
 event admission bounds remain independent. Typing `q` is ordinary text.
@@ -80,6 +86,14 @@ resumes it. New output and operation completion do not change focus, draft or an
 open overlay. F1 opens help; Escape restores its invoking state. Forms retain safe
 values on Back/reopen. Below 40x12, hidden editing is suspended while state and
 operation status survive; Ctrl+C still follows copy/exit ownership.
+
+Workflow forms validate query length, URL syntax and lexical path constraints
+before dismissal, retaining values and focusing the invalid field. Context help
+shows the current error in full. A preparation failure also keeps the form open
+without exposing exception diagnostics or starting work. Explicit paths expand
+the user's home marker (`~`) consistently with directory completion.
+Submitting a valid form retires the previous attempt's notice, so it cannot
+hide the new outcome. Current validation, preparation and busy errors remain visible.
 
 Ctrl+A on content selects the whole canonical result. Editing fields support
 grapheme-range selection through Shift+arrows. Clean copy uses canonical content,
@@ -208,24 +222,54 @@ Fixtures for other platforms do not prove native collection on those platforms.
 
 ## Large-file search
 
-`/large-files` opens a six-field form (root, minimum bytes, retained files,
-examined entries, descent depth, retained error details). Defaults are respectively
-explicit input, 0, 20, 1000000, 64 and 32, matching `find_large_files`.
+Choose **Find large files** on Home, or submit `/large-files`. The basic view
+asks for **Folder** and **Minimum size**. Enter in a valid folder continues to
+minimum size; Enter there, or the **Search** action, starts the scan. At 40x12,
+the field viewport shows the active step; Tab reaches Search, Advanced, Back and
+Help. F1 explains the focused field and its current error.
+
+Minimum size accepts exact whole-byte integers or explicit units: B,
+KB/MB/GB/TB (1000-based), KiB/MiB/GiB/TiB (1024-based). For example `1.5 MiB`
+means exactly 1572864 bytes. Negative, non-ASCII, scientific and fractional-byte
+values are rejected before starting work. The domain API still receives an integer.
+
+**Advanced** expands retained files, examined entries, descent depth and retained
+error details. Collapse preserves edited values/caret/selection; `Advanced*`
+marks changed hidden limits. All limits still apply and are validated while hidden;
+an invalid hidden field is revealed and focused. Defaults remain explicit folder,
+0 bytes, 20 retained files, 1000000 entries, depth 64 and 32 error details, matching
+`find_large_files`. Entry/depth limits bound traversal; result/error limits bound
+retention. Collapsing does not remove limits or promise a complete scan.
+
 Start with `cereja ui`; no paste flag is required on a supported terminal.
-Tab in a nonempty root field requests directory suggestions. Up/Down select,
+Tab in a nonempty folder field requests directory suggestions. Up/Down select,
 Enter/Tab accepts and Escape closes them; empty-field Tab and Shift+Tab preserve
 form navigation. Suggestions are worker-owned and bounded to 1,024 examined
-entries and 32 suggestions within 8 KiB, with partial listings labelled. Only Run
-starts the large-file scan. Hidden/binary files and ignored repository paths are
-included; links/reparse points and special files are skipped without reading
-content. Sizes describe logical file size, not allocated disk space.
+entries and 32 suggestions within 8 KiB, with partial listings labelled. Only
+explicit Search starts the large-file scan. Hidden/binary files and ignored
+repository paths are included; links/reparse points and special files are skipped
+without reading content. Sizes describe logical file size, not allocated disk space.
 
-The result has a keyboard file list: Up/Down, PageUp/PageDown and Home/End select;
-Enter opens Open directory, Copy, Move, Delete and Details. The list receives
-focus on completion when its result remains selected and the command draft is
-unchanged; Tab also reaches result content. Sizes use B/KiB/MiB/GiB and larger
-binary units. Details shows exact bytes. S opens scan details with counters,
-completeness, JSON-escaped paths and error details.
+The result identifies the task and scan status instead of internal result IDs.
+Up/Down, PageUp/PageDown and Home/End select a file; Enter opens its named action
+menu. **File details** is the first action, followed by Open directory, Copy, Move
+and Delete. Starting a search focuses its result; subsequent worker completion
+does not steal focus after the user navigates elsewhere. Tab also reaches content.
+Sizes use binary units; Details shows exact bytes. S opens scan details with
+counters, completeness, JSON-escaped paths and error details.
+
+Escape from the unselected file-list surface opens the same search form to adjust
+folder/size; Back returns to the list with its selected file preserved. An active
+text selection is cleared first, preserving prior copy/selection behavior. Empty
+results say no matching files were observed, and suggest changing folder or size;
+display omission is distinguished from observing no matches.
+
+At compact supported heights, result and scan headings share one row so the
+selected file remains visible. The action menu identifies its selected file;
+Details provides the full retained name when the title is clipped.
+Names preserve ordinary Unicode while exposing terminal and bidi controls.
+Details also retains an ASCII JSON representation for exact inspection; the
+presentation label never replaces the selected file's canonical identity.
 
 Scans and file actions use the existing single operation slot off the UI thread,
 without queueing a second action or joining workers on the UI thread. Navigation,

@@ -13,30 +13,58 @@ def forms():
     return {
         'large-files': large_files_form(),
         'context': ParameterForm('context-form', 'Context: owned stable root, cache off', (
-            FormField('root', 'Root directory', '', required=True),
-            FormField('query', 'Query (AND terms)', '', required=True),
+            FormField('root', 'Root directory', '', required=True, validator=_path_error),
+            FormField('query', 'Query (AND terms)', '', required=True, validator=_query_error,
+                      help='Use 1..256 characters. Terms are combined with AND.'),
         ), primary='Run', max_input_bytes=1024),
         'compress': ParameterForm('archive-form', 'Archives: new destination only, no replacement', (
             FormField('action', 'Action: compress or decompress', 'compress', required=True,
                       validator=lambda v: None if v in ('compress', 'decompress') else 'Use compress or decompress'),
             FormField('mode', 'Mode: file or directory', 'file', required=True,
                       validator=lambda v: None if v in ('file', 'directory') else 'Use file or directory'),
-            FormField('source', 'Source', '', required=True),
-            FormField('destination', 'New destination', '', required=True),
+            FormField('source', 'Source', '', required=True, validator=_path_error),
+            FormField('destination', 'New destination', '', required=True, validator=_path_error),
         ), primary='Review', max_input_bytes=1024),
         'download': ParameterForm('download-form', 'Download: HTTP(S), 16 MiB maximum', (
-            FormField('url', 'URL (no credentials)', '', required=True),
-            FormField('destination', 'New destination', '', required=True),
+            FormField('url', 'URL (no credentials)', '', required=True, validator=_url_error,
+                      help='HTTP(S) only; no credentials, fragment or whitespace.'),
+            FormField('destination', 'New destination', '', required=True, validator=_path_error),
         ), primary='Review', max_input_bytes=1024),
     }
 
 
-def _explicit_path(value):
+def _path_error(value):
     if type(value) is not str or not value.strip() or len(value.encode('utf-8')) > 1024:
-        raise ValueError('Explicit path required (1024 bytes maximum)')
+        return 'Explicit path required (1024 bytes maximum)'
     if any(ord(c) < 32 or ord(c) == 127 for c in value):
-        raise ValueError('Control characters are unsupported in form paths')
-    return os.path.abspath(value)
+        return 'Use a path without control characters'
+    return None
+
+
+def _explicit_path(value):
+    error = _path_error(value)
+    if error:
+        raise ValueError(error)
+    return os.path.abspath(os.path.expanduser(value))
+
+
+def _query_error(value):
+    return 'Query must contain 1..256 characters' if not value.strip() or len(value) > 256 else None
+
+
+def _url_error(value):
+    error = 'Use HTTP(S) URL without credentials, fragment or whitespace'
+    try:
+        parts = urlsplit(value)
+        if (parts.scheme not in ('http', 'https') or not parts.hostname or parts.username is not None
+                or parts.password is not None or parts.fragment or len(value) > 2048
+                or any(ord(c) <= 32 or ord(c) == 127 for c in value)):
+            return error
+        # Access validates malformed/out-of-range ports without network work.
+        parts.port
+    except ValueError:
+        return error
+    return None
 
 
 def prepare(name, values):
@@ -47,8 +75,9 @@ def prepare(name, values):
         return dict(root=_explicit_path(values['root']), **parse_limits(values)), None
     if name == 'context':
         result['root'] = _explicit_path(values['root'])
-        if not values['query'].strip() or len(values['query']) > 256:
-            raise ValueError('Query must contain 1..256 characters')
+        error = _query_error(values['query'])
+        if error:
+            raise ValueError(error)
         return result, None
     result['destination'] = _explicit_path(values['destination'])
     if name == 'compress':
@@ -61,11 +90,9 @@ def prepare(name, values):
         policy = 'Bounded unencrypted zlib CJZ; directory output CJZD/3, input CJZD/2 or /3; no merge/replacement'
     elif name == 'download':
         url = values['url']
-        parts = urlsplit(url)
-        if (parts.scheme not in ('http', 'https') or not parts.hostname or parts.username is not None
-                or parts.password is not None or parts.fragment or len(url) > 2048
-                or any(ord(c) <= 32 or ord(c) == 127 for c in url)):
-            raise ValueError('Use HTTP(S) URL without credentials, fragment or whitespace')
+        error = _url_error(url)
+        if error:
+            raise ValueError(error)
         source, action, kind = url, 'download', 'file'
         policy = '16 MiB maximum; 10s I/O timeout; TLS verified; at most 5 redirects; no replacement'
     else:

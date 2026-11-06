@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from cereja.tui.large_files import human_size
-from cereja.ui.events import KeyEvent
+from cereja.ui.events import KeyEvent, ResizeEvent
 if __package__:
     from . import test_ui_ledger_large_files as fixtures
 else:
@@ -66,6 +66,7 @@ class FileBrowserTests(unittest.TestCase):
         self.assertEqual(self.app.focus.focused, '@choose')
         self.assertIn('Enter: choose | Esc: Back', self.ui.text(self.app.render()))
         self.key('down')
+        self.key('down')
         self.assertIn('> Copy file...', self.app.overlays.top.content.text)
         self.key('escape')
         self.assertEqual(self.app.focus.focused, 'content')
@@ -88,6 +89,31 @@ class FileBrowserTests(unittest.TestCase):
         self.destination(target)
         self.assertEqual(self.confirm().state, 'Failed')
         self.assertEqual(target.read_bytes(), b'123456')
+
+    def test_invalid_copy_destination_keeps_field_and_does_not_start_work(self):
+        self.start()
+        self.menu('copy')
+        form = self.app.overlays.top
+        form.input('destination').insert('bad\npath')
+        self.key('enter')
+        self.assertIs(self.app.overlays.top, form)
+        self.assertIn('control', form.errors['destination'])
+        self.assertEqual(self.app.focus.focused, 'destination')
+        self.assertFalse(self.app.bridge.active)
+        self.assertTrue(self.source.exists())
+
+    def test_file_review_failure_preserves_destination_form(self):
+        self.start()
+        self.menu('copy')
+        form = self.app.overlays.top
+        destination = str(self.ui.root / 'new-copy.bin')
+        form.input('destination').insert(destination)
+        with patch('cereja.tui.workflows._explicit_path', side_effect=ValueError('private-details')):
+            self.key('enter')
+        self.assertIs(self.app.overlays.top, form)
+        self.assertEqual(form.input('destination').text, destination)
+        self.assertNotIn('private-details', self.app.notice)
+        self.assertFalse(self.app.bridge.active)
 
     def test_delete_back_preserves_file_then_explicit_run_deletes(self):
         origin = self.start()
@@ -141,7 +167,52 @@ class FileBrowserTests(unittest.TestCase):
         self.ui.size = (40, 12)
         self.key('enter')
         self.key('end')
-        self.assertIn('> File details', self.ui.text(self.app.render()))
+        self.assertIn('> Delete file...', self.ui.text(self.app.render()))
+
+    def test_menu_resize_keeps_selected_action_visible_and_confirmed(self):
+        self.start()
+        self.key('enter')
+        self.key('end')
+        menu = self.app.overlays.top
+        self.assertEqual(menu.actions[menu.index][0], 'delete')
+        for size in ((40, 12), (80, 24), (40, 13), (40, 12)):
+            with self.subTest(size=size):
+                self.ui.size = size
+                self.app.handle(ResizeEvent(*size))
+                self.assertIn('> Delete file...', self.ui.text(self.app.render()))
+                self.assertEqual(menu.actions[menu.index][0], 'delete')
+        self.key('enter')
+        self.assertIs(self.app.overlays.top, self.app._file_review)
+        self.assertEqual(self.app.focus.focused, '@back')
+        self.assertTrue(self.source.exists())
+        self.key('escape')
+        self.assertTrue(self.source.exists())
+
+    def test_selected_file_remains_visible_across_supported_sizes(self):
+        (self.ui.root / 'small.txt').write_text('a')
+        self.start()
+        for size in ((40, 12), (40, 13), (40, 14), (80, 24), (120, 40), (40, 12)):
+            with self.subTest(size=size):
+                self.ui.size = size
+                for key, name in (('home', 'large.bin'), ('down', 'small.txt')):
+                    self.key(key)
+                    screen = self.ui.text(self.app.render())
+                    self.assertIn(name, screen)
+                    self.assertIn('Scan: Complete', screen)
+                    self.key('enter')
+                    self.assertIn(name, self.ui.text(self.app.render()))
+                    self.key('escape')
+                    self.assertEqual(self.app.focus.focused, 'content')
+
+    def test_compact_incomplete_scan_keeps_status_and_selected_file(self):
+        for i in range(5):
+            (self.ui.root / ('entry' + str(i))).write_text('x')
+        self.ui.start(max_entries=3)
+        self.ui.finish()
+        self.ui.size = (40, 12)
+        screen = self.ui.text(self.app.render())
+        self.assertIn('Scan: Incomplete', screen)
+        self.assertIn(self.app._file_browser().selected['relative'], screen)
 
     def test_attachment_counts_toward_retention_and_is_evicted_with_block(self):
         from cereja.tui.model import Results
@@ -160,3 +231,26 @@ class FileBrowserTests(unittest.TestCase):
         browser = FileBrowser(json.dumps(dict(files=[dict(relative=path, size=1, selection=None)], omitted=0)))
         self.assertEqual(browser.selected['relative'], path)
         self.assertIn('[display shortened]', browser.view.item('0').cells[1])
+
+    def test_unicode_file_name_is_readable_in_list_menu_and_details(self):
+        name = 'relatório 日本語.txt'
+        (self.ui.root / name).write_bytes(b'x' * 10)
+        self.start()
+        self.assertIn(name, self.ui.text(self.app.render()))
+        self.key('enter')
+        self.assertIn(name, self.ui.text(self.app.render()))
+        self.key('home')
+        self.key('enter')
+        self.assertIn(name, self.app.overlays.top.content.text)
+        self.assertIn('Exact logical size: 10 bytes', self.app.overlays.top.content.text)
+
+    def test_display_names_neutralize_controls_and_remain_byte_bounded(self):
+        from cereja.tui.file_browser import FileBrowser
+        for name in ('café\n\t\x1b[2J\x85\u202eevil.txt', '界' * 17000, '\ud800name'):
+            with self.subTest(name=name[:30]):
+                browser = FileBrowser(json.dumps(dict(files=[dict(relative=name, size=1, selection=None)], omitted=0)))
+                label = browser.view.item('0').cells[1]
+                self.assertLessEqual(len(label.encode('utf-8')), 8300)
+                self.assertFalse(any(ord(char) < 32 or 127 <= ord(char) <= 159 or char == '\u202e' for char in label))
+                self.assertEqual(browser.selected['relative'], name)
+        self.assertIn('café', FileBrowser(json.dumps(dict(files=[dict(relative='café', size=1, selection=None)], omitted=0))).view.item('0').cells[1])

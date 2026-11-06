@@ -44,7 +44,8 @@ class WorkflowTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
-        session = TerminalSession(VirtualBackend())
+        self.size = (80, 24)
+        session = TerminalSession(VirtualBackend(size=lambda: self.size))
         session.__enter__()
         self.addCleanup(session.close)
         self.app = TUI(session)
@@ -173,6 +174,140 @@ class WorkflowTests(unittest.TestCase):
         for url in ('file:///tmp/a', 'https://user:pass@example.com/a', 'https://example.com/a#secret'):
             with self.assertRaises(ValueError):
                 prepare('download', dict(url=url, destination=str(self.root / 'output')))
+
+    def test_invalid_workflow_field_keeps_form_values_and_focus_without_work(self):
+        cases = (
+            ('context', 'query', dict(root=str(self.root), query='a' * 257), '256'),
+            ('context', 'root', dict(root='bad\npath', query='needle'), 'control'),
+            ('download', 'url', dict(url='file:///not-http', destination=str(self.root / 'new')), 'HTTP'),
+            ('download', 'url', dict(url='https://[bad', destination=str(self.root / 'new')), 'HTTP'),
+            ('download', 'destination', dict(url='https://example.test/a', destination='bad\npath'), 'control'),
+            ('compress', 'source', dict(source='bad\npath', destination=str(self.root / 'new')), 'control'),
+        )
+        for size in ((40, 12), (80, 24)):
+            self.size = size
+            for name, invalid, values, explanation in cases:
+                with self.subTest(size=size, workflow=name, field=invalid):
+                    form = self.app.workflow_forms[name]
+                    for key, value in values.items():
+                        editor = form.input(key)
+                        editor.set_selection(0, len(editor.text))
+                        editor.insert(value)
+                    before = form.values
+                    self.app.overlays.open(form)
+                    self.app.handle(KeyEvent('enter'))
+                    try:
+                        self.assertIs(self.app.overlays.top, form)
+                        self.assertEqual(self.app.focus.focused, invalid)
+                        self.assertIn(explanation, form.errors[invalid])
+                        self.assertEqual(form.values, before)
+                        self.assertFalse(self.app.bridge.active)
+                    finally:
+                        if self.app.overlays.top is form:
+                            self.app.overlays.close()
+
+    def test_preparation_failure_does_not_dismiss_valid_form_or_echo_exception(self):
+        form = self.app.workflow_forms['context']
+        form.input('root').insert(str(self.root))
+        form.input('query').insert('needle')
+        self.app.overlays.open(form)
+        self.app.focus.focus('query')
+        before = form.values
+        with patch('cereja.tui.workflows.prepare', side_effect=OSError('private-target')):
+            self.app.handle(KeyEvent('enter'))
+        self.assertIs(self.app.overlays.top, form)
+        self.assertEqual(self.app.focus.focused, 'query')
+        self.assertEqual(form.values, before)
+        self.assertNotIn('private-target', self.app.notice)
+        self.assertFalse(self.app.bridge.active)
+
+    def test_corrected_context_submission_retires_validation_notice(self):
+        (self.root / 'a.txt').write_text('needle fixture', encoding='utf-8')
+        form = self.app.workflow_forms['context']
+        form.input('root').insert(str(self.root))
+        query = form.input('query')
+        for size in ((40, 12), (80, 24)):
+            with self.subTest(size=size):
+                self.size = size
+                query.set_selection(0, len(query.text))
+                query.insert('a' * 257)
+                self.app.overlays.open(form)
+                self.app.handle(KeyEvent('enter'))
+                self.assertEqual(self.app.notice, 'Review the visible field errors')
+                self.assertIs(self.app.overlays.top, form)
+                query.set_selection(0, len(query.text))
+                query.insert('needle')
+                self.app.handle(KeyEvent('enter'))
+                self.finish()
+                self.assertEqual(self.app.results.current.state, 'Succeeded')
+                self.assertEqual(self.app.notice, '')
+                frame = self.app.render()
+                lines = [''.join(cell.text for cell in row) for row in frame.rows]
+                self.assertNotIn('Review the visible field errors', '\n'.join(lines))
+                self.assertIn('Succeeded', lines[-1])
+
+    def test_valid_form_submission_keeps_new_preparation_error(self):
+        form = self.app.workflow_forms['context']
+        form.input('root').insert(str(self.root))
+        form.input('query').insert('needle')
+        self.app.overlays.open(form)
+        self.app.notice = 'Previous validation notice'
+        with patch('cereja.tui.workflows.prepare', side_effect=ValueError('private detail')):
+            self.app.handle(KeyEvent('enter'))
+        self.assertEqual(self.app.notice, 'Invalid parameters. Review the workflow help and explicit paths.')
+        self.assertIs(self.app.overlays.top, form)
+        self.assertFalse(self.app.bridge.active)
+
+    def test_valid_form_submission_keeps_new_busy_notice_without_queuing(self):
+        entered, release = threading.Event(), threading.Event()
+        def held(context):
+            context.running()
+            entered.set()
+            release.wait(3)
+            return 'completed'
+        self.app.bridge.start('held', held)
+        try:
+            self.assertTrue(entered.wait(1))
+            form = self.app.workflow_forms['context']
+            form.input('root').insert(str(self.root))
+            form.input('query').insert('needle')
+            self.app.overlays.open(form)
+            self.app.notice = 'Previous validation notice'
+            count = len(self.app.results.blocks)
+            with patch('cereja.tui.workflows.execute', side_effect=AssertionError('must not queue')) as execute:
+                self.app.handle(KeyEvent('enter'))
+                execute.assert_not_called()
+            self.assertEqual(self.app.notice, 'Busy: one operation is active. Nothing was queued.')
+            self.assertEqual(len(self.app.results.blocks), count)
+        finally:
+            release.set()
+            self.finish()
+        self.assertEqual(self.app.notice, 'Busy: one operation is active. Nothing was queued.')
+
+    def test_valid_form_submission_exposes_worker_failure_after_old_notice(self):
+        form = self.app.workflow_forms['context']
+        form.input('root').insert(str(self.root))
+        form.input('query').insert('needle')
+        self.app.overlays.open(form)
+        self.app.notice = 'Previous validation notice'
+        with patch('cereja.tui.workflows.execute', side_effect=ValueError('private detail')):
+            self.app.handle(KeyEvent('enter'))
+            self.finish()
+        self.assertEqual(self.app.notice, '')
+        self.assertEqual(self.app.results.current.state, 'Failed')
+        lines = [''.join(cell.text for cell in row) for row in self.app.render().rows]
+        self.assertIn('Failed', lines[-1])
+        self.assertNotIn('private detail', '\n'.join(lines))
+
+    def test_tilde_path_is_identical_with_and_without_completion(self):
+        from cereja.tui.paths import directory_completions
+        (self.root / 'Documents').mkdir()
+        with patch.dict(os.environ, {'HOME': str(self.root), 'USERPROFILE': str(self.root)}):
+            values, target = prepare('context', dict(root='~/Documents', query='needle'))
+            matches, _ = directory_completions('~/Doc')
+        self.assertIsNone(target)
+        self.assertEqual(values['root'], str(self.root / 'Documents'))
+        self.assertEqual(values['root'], os.path.normpath(matches[0]))
 
 
 if __name__ == '__main__':

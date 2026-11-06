@@ -311,9 +311,42 @@ class LargeFilesLedgerTests(unittest.TestCase):
         self.assertEqual(block.state, 'Succeeded')
         self.assertEqual(len(workers), 1)
 
+    def test_completion_preserves_newer_help_form_and_composer_focus(self):
+        for surface in ('help', 'form', 'composer'):
+            with self.subTest(surface=surface):
+                fixture = LargeFilesLedgerTests()
+                fixture.setUp()
+                app = fixture.app
+                (fixture.root / 'file.txt').write_text('fixture')
+                entered, release = threading.Event(), threading.Event()
+                def held(*args, **kwargs):
+                    entered.set()
+                    release.wait(3)
+                    return find_large_files(*args, **kwargs)
+                try:
+                    with patch('cereja.system.file_sizes.find_large_files', side_effect=held):
+                        fixture.start()
+                        self.assertTrue(entered.wait(1))
+                        if surface == 'help':
+                            app.handle(KeyEvent('f1'))
+                        elif surface == 'form':
+                            app.handle(KeyEvent('escape'))
+                        else:
+                            app.focus.focus('composer')
+                        before = app.focus.scope.identity, app.focus.focused, app.overlays.top
+                        release.set()
+                        self.assertEqual(fixture.finish().state, 'Succeeded')
+                        self.assertEqual((app.focus.scope.identity, app.focus.focused, app.overlays.top), before)
+                finally:
+                    release.set()
+                    fixture.doCleanups()
+
     def test_all_six_fields_remain_reachable_in_compact_layout(self):
         self.size = (40, 12)
         self.open()
+        self.app.focus.focus('@advanced')
+        self.app.handle(KeyEvent('enter'))
+        self.app.focus.focus('root')
         for spec in self.form.fields:
             self.assertEqual(self.app.focus.focused, spec.identity)
             self.assertIn(spec.label[:20], self.text(self.app.render()))

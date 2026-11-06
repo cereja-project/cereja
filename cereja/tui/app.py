@@ -31,7 +31,8 @@ HELP = ('Cereja TUI keyboard\n\n'
         'Copy requests canonical text. Clipboard transport is unavailable.\n'
         'Ctrl+C copies an active text selection in its owning surface; otherwise requests exit.\n'
         'F1 opens help. Escape closes the top overlay or returns to the composer.\n'
-        'Forms: Tab visits fields, Run, Back, Help. Enter validates.\n'
+        'Forms: Tab visits fields and actions. Enter validates.\n'
+        'Large files: Enter in Folder continues to size; Search starts work. Advanced keeps limits.\n'
         'Only one operation runs. Navigation and help remain available.\n'
         'Exit during work defaults to Stay; Wait then exit is reversible.\n'
         'Cancel is offered only for the tested synthetic example at a safe checkpoint.\n'
@@ -101,7 +102,7 @@ class TUI:
         self._context_terms = ()
         self._review = None
         self._workflow_values = None
-        from .workflows import forms
+        from .workflows import forms, _path_error
         self.workflow_forms = forms()
         self.workflow_forms['large-files'].bind(self.loop)
         self._browser_cache = None
@@ -128,16 +129,18 @@ class TUI:
                            'No Cancel, polling or global deadline. Missing fields are Unavailable.'),
         ), primary='Run/Refresh', max_input_bytes=128)
         self.tree_form = ParameterForm('tree-form', 'Tree: explicit root, read only', (
-            FormField('root', 'Root directory', '', required=True),
+            FormField('root', 'Root directory', '', required=True, validator=_path_error),
             FormField('depth', 'Depth (0..8)', '3', required=True,
                       validator=lambda value: None if value.isascii() and value.isdecimal() and 0 <= int(value) <= 8 else 'Use 0..8'),
         ), primary='Run', max_input_bytes=1024)
         self.results.append('/home', self.home())
         self._sync_focus()
+        self.focus.focus('find-large-files')
 
     def home(self):
         return (f'Cereja TUI {__version__}\n\n'
-                'Discover capabilities with /. Select a suggestion, then submit explicitly.\n'
+                'Choose Find large files on Home and press Enter. No command is needed.\n'
+                'Other capabilities: type /. Select a suggestion, then submit explicitly.\n'
                 'Use /examples for bounded synthetic demonstrations; /tools for the catalogue.\n'
                 'System, Tree, Large files, Context, Archives and Download: explicit forms and bounded operations.\n'
                 'Opening Home does not collect hardware, filesystem or network data.\n'
@@ -160,8 +163,9 @@ class TUI:
 
     def _sync_focus(self):
         available = self.results.current is not None
+        home = available and self.results.current.command == '/home'
         self.focus.update(FocusScope('ledger', (
-            FocusTarget('composer'), FocusTarget('block', enabled=available),
+            FocusTarget('find-large-files', enabled=home), FocusTarget('composer'), FocusTarget('block', enabled=available),
             FocusTarget('content', enabled=available), FocusTarget('copy', enabled=available),
             FocusTarget('latest', enabled=bool(self.results.blocks) and not self.results.follow_latest),
             FocusTarget('help'), FocusTarget('exit'))))
@@ -202,6 +206,8 @@ class TUI:
                 '\n\n'.join(c.description() for c in COMMANDS + REFERENCES))
             self.results.append('/' + name, text)
         self._sync_focus()
+        if name == 'home':
+            self.focus.focus('find-large-files')
 
     def _system(self, value):
         try:
@@ -238,6 +244,8 @@ class TUI:
         except (ValueError, OSError):
             self.notice = 'Invalid parameters. Review the workflow help and explicit paths.'
             return
+        if self.overlays.top is self.workflow_forms[name]:
+            self.overlays.close()
         if target is None:
             self._workflow(name, values)
             return
@@ -280,6 +288,8 @@ class TUI:
             self._system_started = None
         self.refresh()
         self._sync_focus()
+        if name == 'large-files':
+            self.focus.focus('content')
 
     def _file_browser(self, block=None):
         block = block or self.results.current
@@ -294,8 +304,10 @@ class TUI:
 
     def _choose_file_action(self, action, record):
         if action == 'details':
-            self._help(json.dumps(record['relative'], ensure_ascii=True) + '\n'
-                       + f"Exact logical size: {record['size']} bytes", 'File details')
+            from .file_browser import _path_label
+            self._help(_path_label(record['relative'], limit=None) + '\n'
+                       + f"Exact logical size: {record['size']} bytes\n"
+                       + 'Canonical JSON: ' + json.dumps(record['relative'], ensure_ascii=True), 'File details')
             return
         if record['selection'] is None:
             self.notice = 'File unavailable or changed. Scan again before acting.'
@@ -309,10 +321,11 @@ class TUI:
         self._file_origin = self.results.current
         if action in ('copy', 'move'):
             from .paths import PathForm
+            from .workflows import _path_error
             if self._file_form is not None:
                 self._file_form.close()
             self._file_form = PathForm('file-destination', action.title() + ' file: new destination', (
-                FormField('destination', 'Destination file path', '', required=True,
+                FormField('destination', 'Destination file path', '', required=True, validator=_path_error,
                           help='Full new filename in an existing directory. Tab completes directories. '
                                'Existing files are never replaced.'),
             ), primary='Review', path_fields=('destination',), max_input_bytes=1024)
@@ -329,7 +342,7 @@ class TUI:
             from .workflows import _explicit_path
             try:
                 destination = _explicit_path(destination)
-            except ValueError:
+            except (ValueError, OSError):
                 self.notice = 'Use an explicit destination file path without control characters.'
                 return
         self._file_request = action, selection, destination
@@ -342,6 +355,8 @@ class TUI:
                                   repr(selection), True)
             self._file_review = Confirmation('file-review', target,
                                              form=self._file_form if action != 'delete' else None)
+            if self._file_form is not None and self.overlays.top is self._file_form:
+                self.overlays.close()
             self.overlays.open(self._file_review)
         except ValueError:
             self._file_review = None
@@ -526,8 +541,6 @@ class TUI:
                 elif block.command == '/tree':
                     text = 'Tree load failed. The directory may be unavailable or outside the limits.'
                 self.results.finish(block, state, text, attachment=attachment)
-                if attachment and self.results.current is block and self.composer.text.strip() == '/large-files':
-                    self.focus.focus('content')
             else:
                 self.results.finish(block, 'Unavailable',
                                     'Final observation unavailable: ' + snapshot.delivery + '. No success is claimed.')
@@ -585,6 +598,10 @@ class TUI:
         if isinstance(event, ResizeEvent):
             self.render()
             return
+        if (self.overlays.top is None and self.focus.focused == 'find-large-files'
+                and (isinstance(event, PasteEvent) or isinstance(event, KeyEvent) and event.text)):
+            # Typing remains literal command editing, never a task shortcut.
+            self.focus.focus('composer')
         if self.exit_open:
             self._exit_key(event)
         elif width < 40 or height < 12:
@@ -606,8 +623,16 @@ class TUI:
             if action.kind == 'file-action':
                 self.overlays.close()
                 self._choose_file_action(dict(action.values)['action'], overlay.record)
+            if action.kind == 'focus-field' and overlay is self.workflow_forms['large-files']:
+                self.focus.focus(dict(action.values)['field'])
             if action.kind == 'submit' and isinstance(overlay, ParameterForm):
-                self.overlays.close()
+                # A validated form starts a new attempt, like composer submit.
+                # Preparation/admission failures below provide their own notice.
+                self.notice = ''
+                # Domain preparation may reject a lexically valid form. Keep
+                # its values and invoking field until preparation succeeds.
+                if overlay not in self.workflow_forms.values() and overlay is not self._file_form:
+                    self.overlays.close()
                 if overlay is self._file_form:
                     self._review_file_action(dict(action.values)['destination'])
                 elif overlay is self.system_form:
@@ -646,9 +671,14 @@ class TUI:
         elif isinstance(event, KeyEvent) and event.key == 'tab' and event.modifiers <= {'shift'}:
             self.focus.traverse(backward='shift' in event.modifiers)
         elif isinstance(event, KeyEvent) and event.key == 'escape' and not event.modifiers:
-            if self.focus.focused == 'content':
-                self.results.clear_selection()
-            self.focus.focus('composer')
+            block = self.results.current
+            if (self.focus.focused == 'content' and block is not None and block.command == '/large-files'
+                    and block.selection is None):
+                self.overlays.open(self.workflow_forms['large-files'])
+            else:
+                if self.focus.focused == 'content':
+                    self.results.clear_selection()
+                self.focus.focus('composer')
         elif self.focus.focused == 'composer':
             action = self.composer.handle(event)
             if action.kind == 'submit':
@@ -657,7 +687,8 @@ class TUI:
                 prefix = self.composer.text[:self.composer.caret]
                 if prefix.startswith('/') and not any(c.isspace() for c in prefix):
                     self.overlays.open(Suggestions('slash', self.composer, tuple(
-                        Suggestion(c.name, '/' + c.name, '/' + c.name + ' ', c.ui) for c in COMMANDS)))
+                        Suggestion(c.name, '/' + c.name, '/' + c.name + ' ',
+                                   c.purpose + ' [' + c.availability + ']') for c in COMMANDS)))
             self._action(action)
         else:
             self._result_key(event)
@@ -694,7 +725,10 @@ class TUI:
         elif event.key == 'a' and event.modifiers == {'ctrl'} and focused == 'content':
             self.results.select_text()
         elif not event.modifiers and event.key == 'enter':
-            if focused == 'help':
+            if focused == 'find-large-files':
+                self.notice = ''
+                self.overlays.open(self.workflow_forms['large-files'])
+            elif focused == 'help':
                 self._help()
             elif focused == 'exit':
                 self._exit()
@@ -728,27 +762,42 @@ class TUI:
         if block is None:
             frame.draw_text(body.x, body.y, 'No retained results', clip=body)
             return '0 results'
+        if block.command == '/home' and block.selection is None:
+            frame.draw_text(body.x, body.y, 'Choose a task', clip=body, style=Style(bold=True))
+            focused = self.focus.focused == 'find-large-files'
+            frame.draw_text(body.x, body.y + 1, ('> ' if focused else '  ') + '[Find large files]',
+                            clip=body, style=Style(reverse=focused, bold=True))
+            frame.draw_text(body.x, body.y + 2, 'Find the biggest files in a folder.', clip=body)
+            frame.draw_text(body.x, body.y + 3, 'Other tasks: type / for commands.', clip=body)
+            return 'Enter: start | No automatic scan'
         index = self.results.blocks.index(block)
-        y = body.y
-        if index and body.height > 4:
-            previous = self.results.blocks[index - 1]
-            frame.draw_text(body.x, y, f'  {previous.identity} {previous.command} [{previous.state}]', clip=body)
-            y += 1
-        marker = '>' if self.focus.focused == 'block' else ' '
-        frame.draw_text(body.x, y, f'{marker}* {block.identity} {block.command} [{block.state}]',
-                        clip=body, style=Style(bold=True))
-        y += 1
         browser = self._file_browser(block)
-        if browser is not None and block.selection is None:
+        file_list = browser is not None and block.selection is None
+        y = body.y
+        marker = '>' if self.focus.focused == 'block' else ' '
+        if file_list:
             summary = block.content.text.splitlines()
             scan = next((line for line in summary if line.startswith('Scan:')), 'Scan snapshot')
             if browser.changed:
                 scan += ' (files changed; rescan to refresh)'
-            frame.draw_text(body.x, y, scan + ' | S: scan details', clip=body)
-            y += 1
-            browser.view.paint(frame, Rect(body.x, y, body.width, max(0, body.height - (y - body.y))),
+            frame.draw_text(body.x, y, marker + ' Large files | ' + scan, clip=body, style=Style(bold=True))
+            browser.view.paint(frame, Rect(body.x, y + 1, body.width, max(0, body.height - 1)),
                                focused=self.focus.focused == 'content')
-            return 'Files | Up/Down select | Enter actions | S scan details'
+            if not browser.records and body.height >= 3:
+                message = ('No file rows fit display limits.' if browser.omitted else 'No matching files observed.')
+                row = Rect(body.x, y + 2, body.width, 1)
+                frame.clear(clip=row)
+                frame.draw_text(row.x, row.y, message, clip=row)
+                return 'Esc: change folder or minimum size'
+            return 'Up/Down select | Enter actions'
+        if index and body.height > 4 and block.command != '/large-files':
+            previous = self.results.blocks[index - 1]
+            frame.draw_text(body.x, y, f'  {previous.identity} {previous.command} [{previous.state}]', clip=body)
+            y += 1
+        heading = (f'{marker} Large files [{block.state}]' if block.command == '/large-files' else
+                   f'{marker}* {block.identity} {block.command} [{block.state}]')
+        frame.draw_text(body.x, y, heading, clip=body, style=Style(bold=True))
+        y += 1
         if block is self._tree_block and self._tree_result is not None:
             self._tree_result.view.paint(frame, Rect(body.x, y, body.width, max(0, body.height - (y - body.y))),
                                          focused=self.focus.focused == 'content')
@@ -818,8 +867,36 @@ class TUI:
                                          isinstance(self.overlays.top, Suggestions))
         cursor = input_view.cursor
         focused = self.focus.focused
-        hints = ('Tab inspect | F1 help | ^C exit' if focused == 'composer' else
-                 f'{focused}: Enter | Tab next | F1 help')
+        if focused == 'find-large-files' and self.overlays.top is None:
+            command_row = Rect(2, height - 3, width - 4, 1)
+            frame.clear(clip=command_row)
+            frame.draw_text(2, height - 3, '/ commands | F1 help | Ctrl+C exit', clip=command_row)
+        overlay = self.overlays.top
+        if isinstance(overlay, ParameterForm):
+            action = {'@back': 'Back', '@help': 'Help', '@advanced': 'toggle'}.get(focused, overlay.primary)
+            hints = f'Enter {action} | Tab | F1 help'
+            if overlay is self.workflow_forms['large-files'] and focused == 'root':
+                hints = 'Enter next | Tab folders | F1 help'
+        elif focused == '@choose':
+            hints = 'Up/Down choose | Enter | Esc back'
+        elif isinstance(overlay, HelpOverlay):
+            hints = 'PgUp/PgDn scroll | Esc back'
+        elif isinstance(overlay, Confirmation):
+            hints = 'Tab choose | Enter | F1 help'
+        else:
+            hints = {
+                'find-large-files': 'Enter start | Tab commands | F1 help',
+                'composer': 'Tab inspect | F1 help | ^C exit',
+                'block': 'Left/Right results | Enter inspect',
+                'content': 'Tab next | F1 help | Esc command',
+                'copy': 'Copy unavailable | Tab next',
+                'latest': 'Enter latest | Tab next | F1 help',
+                'help': 'Enter help | Tab next',
+                'exit': 'Enter exit | Tab next',
+            }.get(focused, 'Tab next | F1 help')
+        if (overlay is None and focused == 'content' and self.results.current is not None
+                and self.results.current.command == '/large-files'):
+            hints = 'S scan info | Esc search | Tab'
         frame.draw_text(2, height - 2, hints, clip=Rect(2, height - 2, width - 4, 1))
         status_rect = Rect(2, height - 1, width - 4, 1)
         if self.bridge.active:
@@ -845,12 +922,17 @@ class TUI:
             else:
                 self.status.paint(frame, status_rect)
         if self.overlays.top is not None:
+            from .file_browser import FileMenu
+            if isinstance(self.overlays.top, FileMenu):
+                self.overlays.top.reveal(max(0, body.height - 2))
             shelf = isinstance(self.overlays.top, Suggestions)
-            view = self.overlays.paint(frame, body, dock, current_target=self._workflow_target(),
-                                       height=min(3 if width < 60 else 7, body.height) if shelf else body.height)
+            if self.overlays.top is self.workflow_forms['large-files']:
+                view = self.overlays.top.paint(frame, body, dock, self.focus.focused)
+            else:
+                view = self.overlays.paint(frame, body, dock, current_target=self._workflow_target(),
+                                           height=min(3 if width < 60 else 7, body.height) if shelf else body.height)
             if not shelf:
                 cursor = view.cursor
-            from .file_browser import FileMenu
             if isinstance(self.overlays.top, FileMenu):
                 footer = Rect(view.rect.x, view.rect.y + view.rect.height - 1, view.rect.width, 1)
                 frame.clear(clip=footer)
@@ -859,9 +941,15 @@ class TUI:
             if isinstance(self.overlays.top, PathForm) and self.overlays.top.paint_completions(frame, body):
                 cursor = Cursor()
             frame.clear(clip=Rect(2, height - 5, width - 4, 1))
-            frame.draw_text(2, height - 5,
-                            f'Overlay {view.viewport.offset[1] + 1}/{max(1, view.viewport.content_height)}',
-                            clip=Rect(2, height - 5, width - 4, 1))
+            if self.overlays.top is self.workflow_forms['large-files']:
+                form = self.overlays.top
+                progress = ('Advanced limits | Search when ready' if form.advanced else
+                            'Step 1/2: Folder' if focused == 'root' else
+                            'Step 2/2: Minimum size' if focused == 'min_size_bytes' else
+                            'Ready to search | Advanced' + ('*' if form.customized else ''))
+            else:
+                progress = f'Overlay {view.viewport.offset[1] + 1}/{max(1, view.viewport.content_height)}'
+            frame.draw_text(2, height - 5, progress, clip=Rect(2, height - 5, width - 4, 1))
         if self.exit_open:
             frame.clear(clip=body)
             frame.draw_text(body.x, body.y, 'Exit: operation owns the slot', clip=body)

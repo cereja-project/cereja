@@ -147,6 +147,46 @@ class LedgerTest(unittest.TestCase):
         app.handle(KeyEvent('enter'))
         self.assertEqual(len(app.results.blocks), initial + 1)
 
+    def test_discovery_describes_purpose_without_executing(self):
+        app, _ = self.app()
+        app.handle(PasteEvent('/cont'))
+        self.assertIn('Search text', app.overlays.top.matches[0].description)
+        self.assertFalse(app.bridge.active)
+        app.handle(KeyEvent('enter'))
+        self.assertIsNone(app.overlays.top)
+        self.assertEqual(app.composer.text, '/context ')
+        self.assertFalse(app.bridge.active)
+
+    def test_compact_form_hints_hide_internal_ids_and_expose_help(self):
+        app, _ = self.app(size=(40, 12))
+        self.set_draft(app, '/large-files')
+        app.submit()
+        for focused in ('root', 'min_size_bytes', '@primary', '@back', '@help'):
+            with self.subTest(focused=focused):
+                app.focus.focus(focused)
+                hint = self.lines(app.render())[-2]
+                self.assertIn('F1 help', hint)
+                self.assertNotIn(focused + ':', hint)
+                self.assertNotIn('@', hint)
+        app.overlays.close()
+        app.focus.focus('copy')
+        self.assertIn('Copy unavailable', self.lines(app.render())[-2])
+
+    def test_path_forms_identify_invalid_root_before_submission(self):
+        for command in ('tree', 'large-files'):
+            with self.subTest(command=command):
+                app, _ = self.app(size=(40, 12))
+                self.set_draft(app, '/' + command)
+                app.submit()
+                form = app.overlays.top
+                form.input('root').insert('bad\npath')
+                app.handle(KeyEvent('enter'))
+                self.assertIs(app.overlays.top, form)
+                self.assertIn('root', form.errors)
+                self.assertIn('control', form.errors['root'])
+                self.assertEqual(app.focus.focused, 'root')
+                self.assertFalse(app.bridge.active)
+
     def test_help_and_copy_preserve_composer(self):
         app, _ = self.app()
         app.handle(PasteEvent('q text'))
@@ -183,6 +223,7 @@ class LedgerTest(unittest.TestCase):
 
     def test_compact_form_reveals_second_field_and_error(self):
         app, _ = self.app((40, 12))
+        app.focus.focus('composer')
         self.set_draft(app, '/examples')
         app.handle(KeyEvent('enter'))
         app.handle(KeyEvent('tab'))
